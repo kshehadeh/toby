@@ -197,7 +197,6 @@ struct FlowDetailContent: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.frame(width: 260)
-		.background(AppTheme.sidebarBackground)
 	}
 
 	private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

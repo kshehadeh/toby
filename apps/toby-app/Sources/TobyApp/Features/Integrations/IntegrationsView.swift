@@ -5,7 +5,6 @@ struct IntegrationsView: View {
 
 	var body: some View {
 		IntegrationsDetailView(store: store)
-		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.load()

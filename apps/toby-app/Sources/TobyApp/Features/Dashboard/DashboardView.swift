@@ -115,11 +115,11 @@ struct DashboardView: View {
 
 	var body: some View {
 		mainScroll
+			.background(AppTheme.contentBackground)
 			.inspector(isPresented: actionsInspectorPresented) {
 				actionsInspector
 			}
 			.animation(sectionAnimation, value: sectionVisibilityKey)
-			.background(AppTheme.contentBackground)
 			.environment(appearancePreferences)
 			.environment(\.dashboardIsEditing, isEditing)
 			.onAppear {

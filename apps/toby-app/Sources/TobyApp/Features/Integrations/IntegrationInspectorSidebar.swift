@@ -20,7 +20,6 @@ struct IntegrationInspectorSidebar: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.frame(width: 280)
-		.background(AppTheme.sidebarBackground)
 	}
 
 	@ViewBuilder

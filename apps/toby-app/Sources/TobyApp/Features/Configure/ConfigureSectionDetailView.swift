@@ -65,146 +65,151 @@ struct ConfigureSectionDetailView: View {
 	}
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 20) {
+		Form {
 			if isIntegrationSection {
-				IntegrationDetailHeader(
-					store: store,
-					section: section,
-					status: store.integrationStatus[section.key],
-					isLoading: store.integrationStatusLoading == section.key,
-					isActionLoading: store.integrationActionLoading != nil,
-					onAction: { action in
-						Task {
-							await store.runIntegrationAction(name: section.key, action: action)
-						}
-					},
-				)
-			} else {
-				SettingsSectionHeader(title: section.displayLabel)
+				Section {
+					IntegrationDetailHeader(
+						store: store,
+						section: section,
+						status: store.integrationStatus[section.key],
+						isLoading: store.integrationStatusLoading == section.key,
+						isActionLoading: store.integrationActionLoading != nil,
+						onAction: { action in
+							Task {
+								await store.runIntegrationAction(name: section.key, action: action)
+							}
+						},
+					)
+				}
 			}
 
 			if store.sectionFieldsReloading == section.key {
-				CredentialsSkeletonView()
+				Section {
+					CredentialsSkeletonView()
+				}
 			} else if section.key == "defaults" {
-				DefaultProviderCardsView(store: store, section: section)
+				Section {
+					DefaultProviderCardsView(store: store, section: section)
+				}
 			} else if ConfigureTreeHelpers.isContainerSection(section)
 				|| ConfigureTreeHelpers.hasNestedSections(section)
 			{
-				// Container sections use the hierarchy sidebar in SettingsWindowView;
-				// this path is only hit if the parent is selected without a child.
-				SettingsCard {
-					SettingsRow(
-						title: section.displayLabel,
-						description: "Select an item in the sidebar to view and edit its settings.",
-						showsDivider: false,
-					) {
-						EmptyView()
-					}
+				Section {
+					Text("Select an item in the sidebar to view and edit its settings.")
+						.foregroundStyle(.secondary)
 				}
 			} else {
-				Group {
-					if !rowFields.isEmpty {
-						SettingsCard {
-							ForEach(Array(rowFields.enumerated()), id: \.element.id) { index, field in
-								ConfigureFieldRowView(
-									store: store,
-									field: field,
-									sectionLabel: section.displayLabel,
-									showsDivider: index < rowFields.count - 1,
-								)
-							}
+				if !rowFields.isEmpty {
+					Section {
+						ForEach(rowFields) { field in
+							ConfigureFieldRowView(
+								store: store,
+								field: field,
+								sectionLabel: section.displayLabel,
+								showsDivider: false,
+								usesFormChrome: true,
+							)
 						}
 					}
-
-					ForEach(blockFields) { field in
-						ConfigureBlockFieldView(
-							store: store,
-							field: field,
-							sectionLabel: section.displayLabel,
-						)
-					}
+					.id(
+						"\(section.key)-auth-\(store.resolvedAuthMethod(for: section))-in-\(store.isInboundEnabled(for: section))"
+					)
 				}
-				.id(
-					"\(section.key)-auth-\(store.resolvedAuthMethod(for: section))-in-\(store.isInboundEnabled(for: section))"
-				)
+
+				ForEach(blockFields) { field in
+					ConfigureBlockFieldView(
+						store: store,
+						field: field,
+						sectionLabel: section.displayLabel,
+						usesFormChrome: true,
+					)
+				}
 
 				if isDashboardSection {
-					SettingsCard {
+					Section(section.displayLabel) {
 						ForEach(DashboardBlock.allCases) { block in
-							SettingsRow(
-								title: block.settingsTitle,
-								description: block.settingsDescription,
-								showsDivider: true
-							) {
-								SettingsToggle(
-									isOn: appearancePreferences.dashboardBlockVisibilityBinding(block)
+							Toggle(isOn: appearancePreferences.dashboardBlockVisibilityBinding(block)) {
+								VStack(alignment: .leading, spacing: 2) {
+									Text(block.settingsTitle)
+									Text(block.settingsDescription)
+										.font(.caption)
+										.foregroundStyle(.secondary)
+								}
+							}
+							.toggleStyle(.switch)
+							.accessibilityIdentifier(block.accessibilityIdentifier)
+						}
+						Toggle(isOn: appearancePreferences.hideOnboardingBinding) {
+							VStack(alignment: .leading, spacing: 2) {
+								Text("Hide onboarding checklist")
+								Text(
+									"Hide the setup checklist on Home even if steps are incomplete. Stored only on this Mac."
 								)
-								.accessibilityIdentifier(block.accessibilityIdentifier)
+								.font(.caption)
+								.foregroundStyle(.secondary)
 							}
 						}
-						SettingsRow(
-							title: "Hide onboarding checklist",
-							description:
-								"Hide the setup checklist on Home even if steps are incomplete. Stored only on this Mac.",
-							showsDivider: true
-						) {
-							SettingsToggle(isOn: appearancePreferences.hideOnboardingBinding)
-								.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
-						}
-						SettingsRow(
-							title: "Reset Home layout",
-							description:
-								"Restore default card order and show all cards. Stored only on this Mac.",
-							showsDivider: false
-						) {
-							SettingsActionButton(title: "Reset") {
+						.toggleStyle(.switch)
+						.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
+						LabeledContent("Reset Home layout") {
+							Button("Reset") {
 								appearancePreferences.resetDashboardLayout()
 							}
 							.accessibilityIdentifier("dashboard-reset-layout-button")
 						}
+						Text("Restore default card order and show all cards. Stored only on this Mac.")
+							.font(.caption)
+							.foregroundStyle(.secondary)
 					}
 				}
 
 				if isAIProviderSection {
 					if supportsGuidedSetup, let providerId = aiProviderId {
-						SettingsCard {
-							SettingsRow(
-								title: "Guided setup",
-								description:
-									"Step-by-step account, API key creation, and one-click validation.",
-								showsDivider: false
-							) {
-								SettingsActionButton(title: "Start setup") {
+						Section("Guided setup") {
+							LabeledContent("Setup") {
+								Button("Start setup") {
 									guidedSetupProviderId = providerId
 								}
 								.accessibilityIdentifier("ai-guided-setup-button-\(providerId)")
 							}
+							Text("Step-by-step account, API key creation, and one-click validation.")
+								.font(.caption)
+								.foregroundStyle(.secondary)
 						}
 					}
 					if let providerId = aiProviderId {
-						AIProviderUsageView(providerId: providerId)
+						Section {
+							AIProviderUsageView(providerId: providerId)
+						}
 					}
-					AIProviderSetupHelpView(section: section)
+					Section {
+						AIProviderSetupHelpView(section: section)
+					}
 				}
 
 				if !deleteFields.isEmpty {
-					SettingsSectionHeader(title: "Danger Zone")
-					SettingsCard {
-						ForEach(Array(deleteFields.enumerated()), id: \.element.id) { index, field in
-							SettingsRow(
-								title: field.label,
-								description: "This action cannot be undone.",
-								showsDivider: index < deleteFields.count - 1,
-							) {
-								SettingsDestructiveButton(title: field.label) {
+					Section("Danger Zone") {
+						ForEach(deleteFields) { field in
+							LabeledContent(field.label) {
+								Button(field.label, role: .destructive) {
 									store.requestDelete(for: field, sectionLabel: section.displayLabel)
 								}
 							}
+							Text("This action cannot be undone.")
+								.font(.caption)
+								.foregroundStyle(.secondary)
 						}
 					}
 				}
 			}
+
+			if let errorMessage = store.errorMessage, !store.settingsSections.isEmpty {
+				Section {
+					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
+				}
+			}
 		}
+		.tobySettingsFormStyle()
 		.task(id: section.key) {
 			if isIntegrationSection {
 				await store.loadIntegrationStatus(for: section.key)

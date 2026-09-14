@@ -19,3 +19,22 @@ enum SettingsDesign {
 	static let rowVerticalPadding: CGFloat = 8
 	static let rowHorizontalPadding: CGFloat = 10
 }
+
+extension View {
+	/// Tahoe grouped-form chrome: inset sections, transparent canvas so window
+	/// glass shows through, and a little space under the toolbar.
+	func tobySettingsFormStyle() -> some View {
+		formStyle(.grouped)
+			.scrollContentBackground(.hidden)
+			.contentMargins(.top, 8, for: .scrollContent)
+	}
+
+	@ViewBuilder
+	func scrollEdgeEffectStyleSoftIfAvailable() -> some View {
+		if #available(macOS 26.0, *) {
+			scrollEdgeEffectStyle(.soft, for: .all)
+		} else {
+			self
+		}
+	}
+}

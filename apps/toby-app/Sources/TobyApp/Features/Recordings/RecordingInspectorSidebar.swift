@@ -56,7 +56,6 @@ struct RecordingInspectorSidebar: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.frame(width: 280)
-		.background(AppTheme.sidebarBackground)
 		.alert(
 			"Delete Audio?",
 			isPresented: Binding(

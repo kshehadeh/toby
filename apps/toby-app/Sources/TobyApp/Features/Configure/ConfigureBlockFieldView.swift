@@ -4,12 +4,39 @@ struct ConfigureBlockFieldView: View {
 	@Bindable var store: ConfigureStore
 	let field: SettingsItem
 	let sectionLabel: String
+	var usesFormChrome: Bool = false
 
 	var body: some View {
 		if field.kind == .hint, isTipHint {
 			tipHintCard
+		} else if usesFormChrome {
+			formBlock
 		} else {
 			standardBlock
+		}
+	}
+
+	private var formBlock: some View {
+		Section {
+			if field.kind == .hint {
+				Text(field.currentValue ?? store.value(for: field.key))
+					.textSelection(.enabled)
+			} else if field.multiline == true {
+				TextEditor(text: draftBinding)
+					.font(.body.monospaced())
+					.frame(minHeight: 140)
+			} else if field.readOnly == true {
+				LabeledContent(field.label) {
+					Text(store.value(for: field.key).isEmpty ? "Not set" : "Configured")
+						.foregroundStyle(.secondary)
+				}
+			} else if field.kind == .image {
+				PersonaImageFieldView(store: store, field: field)
+			}
+		} header: {
+			if field.kind != .hint, field.kind != .image {
+				Text(field.label)
+			}
 		}
 	}
 

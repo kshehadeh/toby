@@ -317,12 +317,10 @@ struct CommandPaletteView: View {
 			height: CommandPalettePanelPlacement.size.height,
 			alignment: .top
 		)
-		.background(AppTheme.contentBackground)
-		.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous))
-		.overlay {
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
-				.stroke(AppTheme.separator, lineWidth: 1)
-		}
+		.glassEffect(
+			.regular.interactive(),
+			in: AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
+		)
 		.onAppear {
 			selectedIndex = 0
 			// Defer focus until after the panel has been made key, otherwise

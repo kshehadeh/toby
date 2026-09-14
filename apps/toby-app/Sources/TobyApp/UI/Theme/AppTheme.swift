@@ -4,6 +4,8 @@ enum AppTheme {
 	// Dynamic NSColors resolve at draw time against the view's effective
 	// appearance (driven by preferredColorScheme). Prefer these over fixed RGB
 	// so list/form rows update without a full view identity reset.
+	/// Legacy sidebar fill. Do not apply to `NavigationSplitView` columns or
+	/// inspectors — macOS 26 supplies Liquid Glass there.
 	static let sidebarBackground = Color(nsColor: .tobySidebarBackground)
 	static let contentBackground = Color(nsColor: .tobyContentBackground)
 	static let panelBackground = Color(nsColor: .tobyPanelBackground)
@@ -33,6 +35,17 @@ enum AppTheme {
 	static let cornerRadius: CGFloat = 16
 	static let smallCornerRadius: CGFloat = 9
 	static let contentPadding: CGFloat = 24
+
+	/// Rounded rect that follows the window/container when a corner sits near
+	/// it, and otherwise uses `minimum` so mid-canvas cards stay rounded.
+	static func concentricRect(minimum: CGFloat) -> ConcentricRectangle {
+		ConcentricRectangle(
+			topLeadingCorner: .concentric(minimum: .fixed(minimum)),
+			topTrailingCorner: .concentric(minimum: .fixed(minimum)),
+			bottomLeadingCorner: .concentric(minimum: .fixed(minimum)),
+			bottomTrailingCorner: .concentric(minimum: .fixed(minimum))
+		)
+	}
 
 	// Transcript typography: rounded SF Pro
 	static let transcriptBodyFont: Font = .system(.body, design: .rounded, weight: .regular)

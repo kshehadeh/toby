@@ -251,7 +251,6 @@ struct ProjectFilesSidebarView: View {
 			.automaticScrollIndicators(axes: .vertical)
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-		.background(AppTheme.contentBackground)
 		.accessibilityIdentifier("project-files-sidebar")
 	}
 

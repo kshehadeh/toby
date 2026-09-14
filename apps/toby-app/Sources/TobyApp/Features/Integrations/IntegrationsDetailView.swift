@@ -125,13 +125,13 @@ struct IntegrationCard: View {
 		.padding(16)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
+			SettingsDesign.cardBackground,
+			in: AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+		.overlay {
+			AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
+		}
 	}
 
 	@ViewBuilder
@@ -143,7 +143,7 @@ struct IntegrationCard: View {
 			Text(icon)
 				.font(.system(size: 26))
 		} else {
-			RoundedRectangle(cornerRadius: 10)
+			AppTheme.concentricRect(minimum: 10)
 				.fill(AppTheme.accent.opacity(0.16))
 				.overlay {
 					Image(systemName: "puzzlepiece.extension")

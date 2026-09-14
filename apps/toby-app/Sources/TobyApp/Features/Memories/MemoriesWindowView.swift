@@ -34,7 +34,6 @@ struct MemoriesWindowView: View {
 					}
 				}
 		}
-		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 	}
 }

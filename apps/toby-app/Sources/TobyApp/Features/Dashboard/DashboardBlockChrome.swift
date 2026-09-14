@@ -44,10 +44,10 @@ struct DashboardBlockChrome: ViewModifier {
 	var isExpanded: Bool = false
 
 	func body(content: Content) -> some View {
+		let shape = AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
 		content
 			.background {
-				RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
-					.fill(AppTheme.panelBackground)
+				shape.fill(AppTheme.panelBackground)
 			}
 			.overlay(alignment: .top) {
 				DashboardCapRule()
@@ -58,7 +58,10 @@ struct DashboardBlockChrome: ViewModifier {
 				}
 			}
 			.compositingGroup()
-			.clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous))
+			.clipShape(shape)
+			.containerShape(
+				RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
+			)
 			.shadow(
 				color: isExpanded
 					? Color.black.opacity(DashboardBlockLayout.expandedShadowOpacity)

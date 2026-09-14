@@ -54,7 +54,7 @@ private struct DefaultProviderCard: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 14) {
 			HStack(spacing: 12) {
-				RoundedRectangle(cornerRadius: 10)
+				AppTheme.concentricRect(minimum: 10)
 					.fill(AppTheme.accent.opacity(0.15))
 					.frame(width: 44, height: 44)
 					.overlay {
@@ -94,10 +94,13 @@ private struct DefaultProviderCard: View {
 		.padding(18)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.frame(minHeight: 170)
-		.background(SettingsDesign.cardBackground)
-		.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
+		.background(
+			SettingsDesign.cardBackground,
+			in: AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
+		)
+		.clipShape(AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius))
 		.overlay {
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+			AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 		}
 	}

@@ -13,7 +13,6 @@ struct ProjectsView: View {
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await projectsStore.ensureLoaded()
 		}
@@ -63,12 +62,14 @@ struct ProjectsView: View {
 		if projectsStore.isLoading && projectsStore.projects.isEmpty {
 			ProgressView("Loading projects…")
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
+				.background(SettingsDesign.canvasBackground)
 		} else if let errorMessage = projectsStore.errorMessage, projectsStore.projects.isEmpty {
 			ContentUnavailableView {
 				Label("Projects unavailable", systemImage: "exclamationmark.triangle")
 			} description: {
 				Text(errorMessage)
 			}
+			.background(SettingsDesign.canvasBackground)
 		} else if let project = projectsStore.selectedProject {
 			ProjectDetailContent(
 				store: projectsStore,
@@ -92,6 +93,7 @@ struct ProjectsView: View {
 					Task { await projectsStore.createProject() }
 				},
 			)
+			.background(SettingsDesign.canvasBackground)
 		} else {
 			ProjectsIndexView(
 				store: projectsStore,
@@ -99,6 +101,7 @@ struct ProjectsView: View {
 					Task { await projectsStore.selectProject(id: id) }
 				},
 			)
+			.background(SettingsDesign.canvasBackground)
 		}
 	}
 }

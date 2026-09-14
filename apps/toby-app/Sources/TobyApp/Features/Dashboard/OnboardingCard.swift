@@ -107,11 +107,11 @@ private struct OnboardingStepTile: View {
 		.padding(14)
 		.frame(maxWidth: .infinity, minHeight: Self.tileMinHeight, alignment: .topLeading)
 		.background(
-			RoundedRectangle(cornerRadius: Self.tileCornerRadius)
+			AppTheme.concentricRect(minimum: Self.tileCornerRadius)
 				.fill(tileBackground)
 		)
 		.overlay(
-			RoundedRectangle(cornerRadius: Self.tileCornerRadius)
+			AppTheme.concentricRect(minimum: Self.tileCornerRadius)
 				.stroke(tileBorder, lineWidth: 1)
 		)
 	}
@@ -152,12 +152,12 @@ private struct OnboardingStepTile: View {
 				.foregroundStyle(isUpNext ? Color.black.opacity(0.85) : AppTheme.primaryText)
 				.padding(.vertical, 8)
 				.background(
-					RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+					AppTheme.concentricRect(minimum: AppTheme.smallCornerRadius)
 						.fill(isUpNext ? AppTheme.accent : AppTheme.elevatedBackground)
 				)
 				.overlay {
 					if !isUpNext {
-						RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
+						AppTheme.concentricRect(minimum: AppTheme.smallCornerRadius)
 							.stroke(AppTheme.separator, lineWidth: 1)
 					}
 				}

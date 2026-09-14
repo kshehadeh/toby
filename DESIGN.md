@@ -55,9 +55,15 @@ quiet and readable.
 - Text and hairlines are alpha over the current surface, never invented opaque
   gray shades.
 - One user-selected accent appears at a time. It is an emphasis tool, not a
-  decorative palette. Destination hues are limited to the sidebar action grid.
-- Resting surfaces are flat. No gradients, photos, texture, decorative cards,
-  or generic drop shadows. Shadows and material belong only to floating chrome.
+  decorative palette.
+- Keep a two-layer macOS 26 hierarchy: **Liquid Glass** for navigation and
+  floating controls; **solid / standard materials** for content. Do not paint
+  custom fills on sidebars, toolbars, inspectors, or split-view columns — those
+  overlays kill system glass.
+- Do not put Liquid Glass on the content layer (lists, dashboard cards,
+  transcript bubbles, settings rows, form canvases). Content stays quiet and
+  mostly flat: no gradients, photos, texture, decorative cards, or generic drop
+  shadows.
 - Separate content with whitespace first. A settings card has at most one
   hairline divider per row, and a dashboard card has no border or divider.
 - Use SF Symbols, never emoji, for app controls. Use the shipped raster asset
@@ -66,6 +72,31 @@ quiet and readable.
   labels, and work-step metadata, not a copy convention.
 - Prefer native macOS behavior over web conventions. No ripple, press-scale,
   synthetic pill tabs, or custom dialog when the platform control is adequate.
+
+### macOS 26 / Liquid Glass
+
+Toby targets macOS 26 (Tahoe). Standard SwiftUI/AppKit bars, split views, and
+controls pick up Liquid Glass automatically. Custom chrome should not fight
+that.
+
+| Layer | What belongs | Treatment |
+| --- | --- | --- |
+| Functional | Sidebar, toolbar, inspector, menus, sheets, Input Dock, toast, command palette | System glass, or `.glassEffect` only when the control is custom and floats |
+| Content | Transcript, dashboard cards, lists, settings forms, media | Solid `AppTheme` / `SettingsDesign` surfaces. Never `.glassEffect` |
+
+- Remove custom backgrounds on `NavigationSplitView` columns, toolbars, and
+  `.inspector()` panels. Do not use `.toolbarBackground(.visible)` to force an
+  opaque title bar.
+- Use a standard titled window (not `.hiddenTitleBar`) so glass wraps
+  concentrically around the traffic lights and toolbar.
+- Group related toolbar items (`ToolbarItemGroup`) and separate groups with
+  `ToolbarSpacer`. Hide whole items rather than leaving empty bezels.
+- Apply `.glassEffect` / `GlassEffectContainer` only to custom floating
+  controls (Input Dock, toast, command palette). Do not stack glass on glass.
+- Nested rounded shapes should be concentric with their container
+  (`ConcentricRectangle`) rather than an unrelated private radius scale.
+- Test Reduce Transparency, Increase Contrast, Reduce Motion, and inactive
+  windows. System glass adapts; custom glass must too.
 
 ### Voice
 
@@ -93,7 +124,7 @@ Use dynamic values from
 
 | Semantic role | Light | Dark | Use |
 | --- | --- | --- | --- |
-| Sidebar | `#f2f2f5` | `#1f2426` | Main or inner navigation |
+| Sidebar | `#f2f2f5` | `#1f2426` | Token only — do **not** fill split-view or inspector columns; system glass provides the sidebar |
 | Content | `#fcfcfc` | `#141414` | Chat/main content |
 | Panel | `#f0f0f2` | `#262626` | Dashboard blocks, wells |
 | Elevated | `#f7f7fa` | `#2e2e2e` | Floating chrome |
@@ -132,32 +163,41 @@ and its summaries, not buttons, labels, settings, or user messages.
 
 ### Geometry
 
-The scale intentionally includes irregular values. Preserve values from the
-closest existing component rather than forcing a four-point grid.
+Prefer concentric corner radii that follow the window or container
+(`ConcentricRectangle`) over a private radius catalog. When matching an
+existing content component, preserve its values rather than forcing a
+four-point grid.
 
 | Token/pattern | Value |
 | --- | --- |
 | Content inset | 24 |
 | Sidebar inset | 10 horizontal × 12 vertical |
-| Dashboard card | 340 collapsed height, 26 inset, 20 grid gap |
-| Settings card / row | 10 radius, 42 minimum row height, 10 × 8 row inset |
-| General floating card/dock/toast | 16 radius |
-| Bubble | 14 radius, 16 × 12 inset |
-| Tile | 12 radius, 14 inset |
+| Dashboard card | 340 collapsed height, 26 inset, 20 grid gap; concentric, minimum 16 |
+| Settings card / row | concentric, minimum 10; 42 minimum row height, 10 × 8 row inset |
+| General floating card/dock/toast | concentric, minimum 16 |
+| Bubble | concentric, minimum 14; 16 × 12 inset |
+| Browse/index card | concentric, minimum 10 |
+| Tile | concentric, minimum 12; 14 inset |
 | Row/button | 8–9 radius |
 | Standard control | 6 radius, 24 height |
-| Sidebar action grid | three columns, 6 gap, 34 minimum height |
+| Sidebar workspace menu | 19pt bold current-route title, chevron, system menu |
 | Main sidebar | 250 minimum; implementation decides its resizable maximum |
 
-Flat cards have no shadow. The input dock uses a 20pt-radius/12pt-y black 16%
-shadow. Toasts use ultra-thin material plus a 16pt-radius/6pt-y black 22%
-shadow. Never promote these to all cards.
+Flat content cards have no shadow. The Input Dock, toast, and command palette
+are floating functional chrome: use `.glassEffect` (regular, interactive where
+the control is tappable) instead of an opaque fill plus drop shadow. Never
+promote glass to content cards.
 
 ### Icon and asset rules
 
 Use SF Symbols by semantic name at medium or semibold, usually 10–18pt. Mark
 decorative symbols `accessibilityHidden(true)`. Use shipped image assets rather
-than redrawing integration/provider/persona marks. The Toby mark is raster-only.
+than redrawing integration/provider/persona marks.
+
+The Dock icon is the Icon Composer document `apps/toby-app/AppIcon.icon`
+(layered Liquid Glass: orange fill, cream glass bubble, navy portrait; dark and
+tinted specializations). `toby-128.png` is the in-app header mark. `toby-menubar.png`
+is a template speech-bubble glyph for the status item (`isTemplate = true`).
 
 ---
 
@@ -189,8 +229,8 @@ source path and behavior, not the Figma geometry, define their contract.
 | Core | **Button**: bordered/default, prominent single primary action, plain accent text, destructive. **Icon button**: 26pt target where used, labelled. **Badge/Chip**: quiet compact metadata; chip can remove an attachment. **Progress**: communicate bounded work only. |
 | Settings forms | **SettingsCard** owns card fill/border. **SettingsRow** owns 42pt minimum height and optional final-divider omission. **SectionHeader**, select, inline field, toggle, action/destructive buttons use the existing controls. |
 | Feedback | **InlineStatusMessage** is persistent local success/error feedback. **Toast** is global, transient feedback; it pauses its 4s timer on hover and may offer one action. **Skeleton** preserves the eventual layout while loading. |
-| Navigation | **SidebarSection/row** retains selection and muted-to-primary hover hierarchy. **SidebarActionGrid** alone receives fixed destination hues and delayed explanatory popover. **PersonaFooter** owns persona attention behavior. |
-| Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and its floating geometry. **UserMessage**, **AssistantMessage**, and **WorkStepRow** keep transcript roles visually distinct. |
+| Navigation | **SidebarSection/row** retains selection and muted-to-primary hover hierarchy. Sidebar columns use system glass, not `AppTheme.sidebarBackground`. **PersonaFooter** owns persona attention behavior. |
+| Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and floating Liquid Glass geometry. **UserMessage**, **AssistantMessage**, and **WorkStepRow** keep transcript roles visually distinct. |
 | Dashboard | **DashboardCard** is flat with a 2pt accent cap and ghost glyph. **CardSection** holds uppercase metadata plus answer-like prose. **Flow runner** presents actions. **OnboardingTile** makes an explicit setup action available. |
 
 See the full anatomy, states, source mapping, and “do/don’t” guidance in
@@ -282,12 +322,12 @@ Choose an existing archetype instead of inventing a one-off shell.
 
 | Archetype | Contract |
 | --- | --- |
-| Main app shell | `NavigationSplitView`: sidebar owns status, route-local content, action grid, persona footer; detail owns its scrolling/content background. |
+| Main app shell | `NavigationSplitView` in a standard titled window: sidebar owns status, route-local content, workspace menu, persona footer on system glass (no custom fill); detail owns its scrolling/content background. Toolbar items group on glass; do not paint a principal-title capsule. |
 | Dashboard | 24pt content inset, greeting, optional onboarding, adaptive cards (280pt minimum item width/20pt gap), optional resizable actions inspector. Cards remain aligned at 340pt collapsed height. |
 | Chat workspace | Empty workspace centers persona/greeting/dock/suggestions. Active workspace stacks a virtualized transcript behind a bottom-pinned dock, with 18pt bottom gutter and measured transcript reservation. User content maxes at 520pt, assistant/work content at 640pt. |
 | Settings-style detail | Settings canvas with left-aligned form content normally capped at 640pt. Settings cards use standard rows and hairlines. |
 | Browse and inspect | Use the relevant feature’s split view/inspector. Preserve selection while async data reloads. Integrations home uses adaptive 240–360pt cards inside a 980pt cap. |
-| Preferences window | Separate Settings window with persistent icon-over-label top strip; use the existing manual inner sidebar for hierarchical settings, not nested `TabView`/`NavigationSplitView`. |
+| Preferences window | Separate Settings window: `NavigationSplitView` sidebar + grouped `Form` detail. Hierarchical sections (e.g. AI providers) are sidebar children. Do not add a custom icon-over-label tab strip. |
 | Command palette | Spotlight-like 560 × 420 floating `NSPanel`; keyboard-first, transparent surround, rounded card, dismissal on Escape, click-away, and deactivation. |
 | Modal/sheet | Native sheet/alert unless an existing dedicated window pattern applies. Destructive work states the consequence and offers Cancel plus destructive action. |
 

@@ -78,50 +78,46 @@ struct ICloudSyncSettingsView: View {
 	}
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 28) {
+		Form {
+			Section {
 				Text("Sync and Backup")
 					.font(.title2.weight(.semibold))
-					.foregroundStyle(AppTheme.primaryText)
-
-
 				panePicker
-
+			} footer: {
 				Text(paneIntro)
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
 					.fixedSize(horizontal: false, vertical: true)
+			}
 
-				if let message = statusBanner {
+			if let message = statusBanner {
+				Section {
 					InlineStatusMessage(
 						message: message.text,
 						tone: message.tone,
 						font: .caption
 					)
 				}
+			}
 
-				if resolvedStatus == nil {
+			if resolvedStatus == nil {
+				Section {
 					if localError == nil {
 						ProgressView("Loading sync settings…")
 					} else {
 						Button("Retry") { Task { await refresh() } }
 					}
-				} else {
-					switch selectedPane {
-					case .setup:
-						setupPane
-					case .settings:
-						settingsPane
-					case .dataBackups:
-						dataPane
-					}
+				}
+			} else {
+				switch selectedPane {
+				case .setup:
+					setupPane
+				case .settings:
+					settingsPane
+				case .dataBackups:
+					dataPane
 				}
 			}
-			.padding(24)
-			.frame(maxWidth: SettingsDesign.contentMaxWidth, alignment: .leading)
-			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.background(SettingsDesign.canvasBackground)
+		.tobySettingsFormStyle()
 		.task {
 			if previewStatus == nil {
 				await refresh()
@@ -234,13 +230,9 @@ struct ICloudSyncSettingsView: View {
 		.accessibilityIdentifier("icloud-sync-pane")
 	}
 
-	private var destinationCard: some View {
-		SettingsCard {
-			SettingsRow(
-				title: "Sync destination",
-				description: destinationDescription,
-				showsDivider: true
-			) {
+	private var destinationSection: some View {
+		Section {
+			LabeledContent("Sync destination") {
 				if resolvedStatus?.enabled == true {
 					Button(destinationExpanded ? "Cancel" : "Change…") {
 						selectedBackend = resolvedStatus?.resolvedBackend ?? "icloud"
@@ -256,22 +248,21 @@ struct ICloudSyncSettingsView: View {
 							: "Change the sync type or folder without disabling sync."
 					)
 					.accessibilityIdentifier("icloud-sync-configure-destination")
-				} else {
-					EmptyView()
 				}
 			}
+			Text(destinationDescription)
+				.font(.caption)
+				.foregroundStyle(.secondary)
+				.fixedSize(horizontal: false, vertical: true)
 
-			VStack(alignment: .leading, spacing: 12) {
-				if resolvedStatus?.enabled == true {
-					destinationSummary
-					if destinationExpanded {
-						destinationEditor
-					}
-				} else {
-					destinationForm
+			if resolvedStatus?.enabled == true {
+				destinationSummary
+				if destinationExpanded {
+					destinationEditor
 				}
+			} else {
+				destinationForm
 			}
-			.padding(14)
 		}
 		.accessibilityIdentifier("icloud-sync-destination")
 	}
@@ -318,15 +309,14 @@ struct ICloudSyncSettingsView: View {
 		return vault.isEmpty ? nil : vault
 	}
 
+	@ViewBuilder
 	private var destinationEditor: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			destinationForm
-			Text("Enter the destination’s password, or choose a password for a new destination. Existing settings there will be downloaded. Previous backups stay in their original location.")
-				.font(.caption)
-				.foregroundStyle(AppTheme.secondaryText)
-				.fixedSize(horizontal: false, vertical: true)
-			enableForm
-		}
+		destinationForm
+		Text("Enter the destination’s password, or choose a password for a new destination. Existing settings there will be downloaded. Previous backups stay in their original location.")
+			.font(.caption)
+			.foregroundStyle(.secondary)
+			.fixedSize(horizontal: false, vertical: true)
+		enableForm
 	}
 
 	@ViewBuilder
@@ -358,38 +348,46 @@ struct ICloudSyncSettingsView: View {
 		}
 	}
 
+	@ViewBuilder
 	private var setupPane: some View {
-		VStack(alignment: .leading, spacing: 28) {
-			destinationCard
-			SettingsCard {
-				SettingsRow(
-					title: resolvedStatus?.enabled == true ? "Sync enabled" : "Enable sync",
-					description: transportDescription,
-					showsDivider: resolvedStatus?.enabled != true
-				) {
-					if resolvedStatus?.enabled == true {
-						Button("Disable…") { pendingDisable = true }
-							.disabled(isWorking)
-							.accessibilityIdentifier("icloud-sync-disable")
-					}
-				}
-				if resolvedStatus?.enabled != true { enableForm }
-			}
-			if resolvedStatus?.enabled == true { statusCard }
+		destinationSection
+		enableSection
+		if resolvedStatus?.enabled == true {
+			statusCard
+		}
+		Section {
 			inboundNote
+		}
+	}
+
+	private var enableSection: some View {
+		Section {
+			LabeledContent(resolvedStatus?.enabled == true ? "Sync enabled" : "Enable sync") {
+				if resolvedStatus?.enabled == true {
+					Button("Disable…") { pendingDisable = true }
+						.disabled(isWorking)
+						.accessibilityIdentifier("icloud-sync-disable")
+				}
+			}
+			Text(transportDescription)
+				.font(.caption)
+				.foregroundStyle(.secondary)
+				.fixedSize(horizontal: false, vertical: true)
+			if resolvedStatus?.enabled != true {
+				enableForm
+			}
 		}
 	}
 
 	@ViewBuilder
 	private var settingsPane: some View {
 		if resolvedStatus?.enabled == true {
-			VStack(alignment: .leading, spacing: 28) {
-				settingsHistoryCard
-				paneAction(
-					title: "Back up settings now",
-					help: "Upload this Mac’s settings and credentials to the sync destination.",
-					identifier: "icloud-sync-push"
-				) { Task { await push() } }
+			settingsHistoryCard
+			Section {
+				Button("Back up settings now") { Task { await push() } }
+					.disabled(isWorking)
+					.help("Upload this Mac’s settings and credentials to the sync destination.")
+					.accessibilityIdentifier("icloud-sync-push")
 			}
 		} else {
 			setupRequired
@@ -397,53 +395,46 @@ struct ICloudSyncSettingsView: View {
 	}
 
 	private var setupRequired: some View {
-		SettingsCard {
-			VStack(alignment: .leading, spacing: 12) {
-				Text("Set up sync to choose the encrypted destination used by settings and data backups.")
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-					.fixedSize(horizontal: false, vertical: true)
-				Button("Set up sync") { selectedPane = .setup }
-					.accessibilityIdentifier("icloud-sync-data-requires-configuration")
-			}
-			.padding(14)
+		Section {
+			Text("Set up sync to choose the encrypted destination used by settings and data backups.")
+				.foregroundStyle(.secondary)
+				.fixedSize(horizontal: false, vertical: true)
+			Button("Set up sync") { selectedPane = .setup }
+				.accessibilityIdentifier("icloud-sync-data-requires-configuration")
 		}
 	}
 
 	@ViewBuilder
 	private var dataPane: some View {
 		if resolvedStatus?.enabled == true {
-			VStack(alignment: .leading, spacing: 28) {
-				SettingsCard {
-					SettingsRow(
-						title: "Back up this Mac’s chats, projects, and recordings daily",
-						description: dataBackupsDescription,
-						showsDivider: false
-					) {
-						if resolvedStatus?.databaseBackupsEnabled == true {
-							Button("Disable") { pendingDisableDataBackups = true }
-								.disabled(isWorking)
-								.accessibilityIdentifier("data-backups-disable")
-						} else {
-							Button("Enable") { Task { await setDatabaseBackups(true) } }
-								.disabled(isWorking)
-								.accessibilityIdentifier("data-backups-enable")
-						}
+			Section {
+				LabeledContent("Back up this Mac’s chats, projects, and recordings daily") {
+					if resolvedStatus?.databaseBackupsEnabled == true {
+						Button("Disable") { pendingDisableDataBackups = true }
+							.disabled(isWorking)
+							.accessibilityIdentifier("data-backups-disable")
+					} else {
+						Button("Enable") { Task { await setDatabaseBackups(true) } }
+							.disabled(isWorking)
+							.accessibilityIdentifier("data-backups-enable")
 					}
 				}
-				.accessibilityIdentifier("data-backups-enabled")
+				Text(dataBackupsDescription)
+					.font(.caption)
+					.foregroundStyle(.secondary)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+			.accessibilityIdentifier("data-backups-enabled")
 
-				dataStatusCard
-				dataHistoryCard
+			dataStatusCard
+			dataHistoryCard
 
-				if resolvedStatus?.databaseBackupsEnabled == true {
-					paneAction(
-						title: "Back Up Now",
-						help: "Create an encrypted data backup now.",
-						identifier: "data-backups-create"
-					) {
-						Task { await createDatabaseBackup() }
-					}
+			if resolvedStatus?.databaseBackupsEnabled == true {
+				Section {
+					Button("Back Up Now") { Task { await createDatabaseBackup() } }
+						.disabled(isWorking)
+						.help("Create an encrypted data backup now.")
+						.accessibilityIdentifier("data-backups-create")
 				}
 			}
 		} else {
@@ -459,21 +450,6 @@ struct ICloudSyncSettingsView: View {
 			return "Toby keeps the latest 3 backups per Mac."
 		}
 		return "Encrypted snapshots stay in the same folder as settings sync. Existing backups remain if you disable this later."
-	}
-
-	private func paneAction(
-		title: String,
-		help: String,
-		identifier: String,
-		action: @escaping () -> Void
-	) -> some View {
-		HStack {
-			Button(title, action: action)
-				.disabled(isWorking)
-				.help(help)
-				.accessibilityIdentifier(identifier)
-			Spacer()
-		}
 	}
 
 	private var transportDescription: String {
@@ -501,30 +477,25 @@ struct ICloudSyncSettingsView: View {
 
 	@ViewBuilder
 	private var enableForm: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			SecureField("Sync password", text: $password)
-				.textFieldStyle(.roundedBorder)
-				.disabled(isWorking)
-				.accessibilityIdentifier("icloud-sync-password")
-			SecureField("Confirm password", text: $confirmPassword)
-				.textFieldStyle(.roundedBorder)
-				.disabled(isWorking)
-				.accessibilityIdentifier("icloud-sync-password-confirm")
-			HStack {
-				if isWorking { ProgressView().controlSize(.small) }
-				Spacer()
-				Button(enableButtonTitle) {
-					if resolvedStatus?.enabled == true {
-						pendingDestinationChange = true
-					} else {
-						Task { await enable() }
-					}
+		SecureField("Sync password", text: $password)
+			.disabled(isWorking)
+			.accessibilityIdentifier("icloud-sync-password")
+		SecureField("Confirm password", text: $confirmPassword)
+			.disabled(isWorking)
+			.accessibilityIdentifier("icloud-sync-password-confirm")
+		HStack {
+			if isWorking { ProgressView().controlSize(.small) }
+			Spacer()
+			Button(enableButtonTitle) {
+				if resolvedStatus?.enabled == true {
+					pendingDestinationChange = true
+				} else {
+					Task { await enable() }
 				}
-				.disabled(!canEnable)
-				.accessibilityIdentifier("icloud-sync-enable")
 			}
+			.disabled(!canEnable)
+			.accessibilityIdentifier("icloud-sync-enable")
 		}
-		.padding(14)
 	}
 
 	private var enableButtonTitle: String {
@@ -603,7 +574,7 @@ struct ICloudSyncSettingsView: View {
 		@ViewBuilder content: () -> Content
 	) -> some View {
 		let details = content()
-		return SettingsCard {
+		return Section {
 			DisclosureGroup(isExpanded: isExpanded) {
 				VStack(alignment: .leading, spacing: 8) {
 					details
@@ -611,74 +582,59 @@ struct ICloudSyncSettingsView: View {
 				.padding(.top, 8)
 			} label: {
 				Text("Status")
-					.font(.subheadline.weight(.medium))
-					.foregroundStyle(SettingsDesign.sectionHeader)
 			}
-			.padding(14)
 			.accessibilityIdentifier(identifier)
 		}
 	}
 
 	private var settingsHistoryCard: some View {
-		SettingsCard {
-			VStack(alignment: .leading, spacing: 12) {
-				SettingsSectionHeader(title: "History")
-				Text("Previous copies of settings and credentials. Toby keeps the latest 3. Restore does not change chats, projects, or recordings.")
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-					.fixedSize(horizontal: false, vertical: true)
-				if displayedHistory.isEmpty {
-					Text("No settings backups yet.")
-						.font(.subheadline)
-						.foregroundStyle(AppTheme.secondaryText)
-				} else {
-					ForEach(displayedHistory) { item in
-						snapshotRow(
-							title: item.clock.deviceName,
-							timestamp: item.createdAt,
-							subtitle: "Settings and credentials",
-							path: item.path,
-							accessibilityID: "sync-history-\(item.filename)",
-							restore: { pendingRestore = item }
-						)
-					}
+		Section("History") {
+			Text("Previous copies of settings and credentials. Toby keeps the latest 3. Restore does not change chats, projects, or recordings.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+				.fixedSize(horizontal: false, vertical: true)
+			if displayedHistory.isEmpty {
+				Text("No settings backups yet.")
+					.foregroundStyle(.secondary)
+			} else {
+				ForEach(displayedHistory) { item in
+					snapshotRow(
+						title: item.clock.deviceName,
+						timestamp: item.createdAt,
+						subtitle: "Settings and credentials",
+						path: item.path,
+						accessibilityID: "sync-history-\(item.filename)",
+						restore: { pendingRestore = item }
+					)
 				}
 			}
-			.padding(14)
-			.frame(maxWidth: .infinity, alignment: .topLeading)
 		}
 	}
 
 	private var dataHistoryCard: some View {
-		SettingsCard {
-			VStack(alignment: .leading, spacing: 12) {
-				SettingsSectionHeader(title: "History")
-				Text("Previous copies of chats, projects, and recordings. Toby keeps the latest 3 per Mac. Restore replaces that data on this Mac and restarts Toby.")
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-					.fixedSize(horizontal: false, vertical: true)
-				if displayedDatabaseBackups.isEmpty {
-					Text("No data backups yet.")
-						.font(.subheadline)
-						.foregroundStyle(AppTheme.secondaryText)
-				} else {
-					ForEach(displayedDatabaseBackups) { backup in
-						snapshotRow(
-							title: backup.deviceName,
-							timestamp: backup.createdAt,
-							subtitle: backupContentsLabel(backup),
-							path: backup.path,
-							accessibilityID: "database-backup-\(backup.filename)",
-							restore: { pendingDatabaseRestore = backup }
-						)
-					}
-				}
-				if let error = resolvedStatus?.lastDatabaseBackupError, !error.isEmpty {
-					InlineStatusMessage(message: error, tone: .error, font: .caption)
+		Section("History") {
+			Text("Previous copies of chats, projects, and recordings. Toby keeps the latest 3 per Mac. Restore replaces that data on this Mac and restarts Toby.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+				.fixedSize(horizontal: false, vertical: true)
+			if displayedDatabaseBackups.isEmpty {
+				Text("No data backups yet.")
+					.foregroundStyle(.secondary)
+			} else {
+				ForEach(displayedDatabaseBackups) { backup in
+					snapshotRow(
+						title: backup.deviceName,
+						timestamp: backup.createdAt,
+						subtitle: backupContentsLabel(backup),
+						path: backup.path,
+						accessibilityID: "database-backup-\(backup.filename)",
+						restore: { pendingDatabaseRestore = backup }
+					)
 				}
 			}
-			.padding(14)
-			.frame(maxWidth: .infinity, alignment: .topLeading)
+			if let error = resolvedStatus?.lastDatabaseBackupError, !error.isEmpty {
+				InlineStatusMessage(message: error, tone: .error, font: .caption)
+			}
 		}
 	}
 

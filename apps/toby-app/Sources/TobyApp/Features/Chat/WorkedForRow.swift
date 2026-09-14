@@ -91,13 +91,13 @@ struct WorkedForRow: View {
 				}
 			}
 			.frame(maxWidth: 640, alignment: .leading)
-			.background(activityCardFill)
+			.background(activityCardFill, in: AppTheme.concentricRect(minimum: 12))
 			.overlay {
-				RoundedRectangle(cornerRadius: 12, style: .continuous)
+				AppTheme.concentricRect(minimum: 12)
 					.stroke(activityBorderColor, lineWidth: 1)
 			}
 			.compositingGroup()
-			.clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+			.clipShape(AppTheme.concentricRect(minimum: 12))
 			Spacer(minLength: 0)
 		}
 		.animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isExpanded)

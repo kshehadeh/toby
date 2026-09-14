@@ -102,7 +102,6 @@ struct AppSidebar<Content: View>: View {
 				items: actionItems,
 				onSelectRoute: onSelectRoute
 			)
-			.padding(.bottom, 10)
 			sidebarContent()
 				.frame(maxHeight: .infinity, alignment: .topLeading)
 				.padding(.bottom, 16)
@@ -123,7 +122,6 @@ struct AppSidebar<Content: View>: View {
 		.padding(.horizontal, 10)
 		.padding(.vertical, 12)
 		.frame(minWidth: AppTheme.minSidebarWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-		.background(AppTheme.sidebarBackground)
 		// Session rows / grid actions live in lazy stacks and need a theme epoch
 		// nudge to re-tint without resetting Settings tab or navigation state.
 		.tobyThemeRefreshable()
@@ -138,25 +136,46 @@ struct SidebarWorkspaceMenu: View {
 	let onSelectRoute: (DetailRoute) -> Void
 
 	var body: some View {
-		Menu {
-			ForEach(items) { item in
-				Button {
-					onSelectRoute(item.route)
-				} label: {
-					Label(item.title, systemImage: item.systemImage)
+		HStack {
+			Spacer(minLength: 0)
+			Menu {
+				ForEach(items) { item in
+					Button {
+						onSelectRoute(item.route)
+					} label: {
+						Label(item.title, systemImage: item.systemImage)
+					}
+					.accessibilityLabel(item.title)
+					.accessibilityHint(item.detail)
 				}
-				.accessibilityLabel(item.title)
-				.accessibilityHint(item.detail)
+			} label: {
+				HStack(spacing: 7) {
+					Image(systemName: currentRoute.systemImage)
+						.font(.system(size: 16, weight: .semibold))
+						.symbolRenderingMode(.hierarchical)
+						.foregroundStyle(AppTheme.accent)
+						.accessibilityHidden(true)
+					Text(currentRoute.menuTitle)
+						.font(.system(size: 19, weight: .bold))
+						.lineLimit(1)
+					Image(systemName: "chevron.down")
+						.font(.system(size: 11, weight: .bold))
+						.foregroundStyle(AppTheme.secondaryText)
+						.accessibilityHidden(true)
+				}
+				.foregroundStyle(AppTheme.primaryText)
+				.contentShape(Rectangle())
 			}
-		} label: {
-			Label(currentRoute.menuTitle, systemImage: currentRoute.systemImage)
-				.frame(maxWidth: .infinity, alignment: .leading)
+			.buttonStyle(.plain)
+			.menuIndicator(.hidden)
+			.accessibilityLabel("Workspace")
+			.accessibilityValue(currentRoute.menuTitle)
+			.accessibilityHint("Choose a Toby workspace")
+			.accessibilityIdentifier("sidebar-workspace-menu")
+			Spacer(minLength: 0)
 		}
-		.menuStyle(.borderlessButton)
-		.accessibilityLabel("Workspace")
-		.accessibilityValue(currentRoute.menuTitle)
-		.accessibilityHint("Choose a Toby workspace")
-		.accessibilityIdentifier("sidebar-workspace-menu")
+		.padding(.top, 10)
+		.padding(.bottom, 20)
 	}
 }
 

@@ -128,13 +128,13 @@ struct SkillCard: View {
 		.padding(16)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
+			SettingsDesign.cardBackground,
+			in: AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+		.overlay {
+			AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
+		}
 	}
 }
 

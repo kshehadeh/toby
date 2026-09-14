@@ -5,7 +5,6 @@ struct FlowsView: View {
 
 	var body: some View {
 		FlowsDetailView(store: store)
-			.toolbarBackground(.visible)
 			.background(SettingsDesign.canvasBackground)
 			.task {
 				await store.ensureLoaded()

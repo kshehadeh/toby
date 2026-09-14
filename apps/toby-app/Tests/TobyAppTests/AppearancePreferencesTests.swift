@@ -181,6 +181,9 @@ struct AppearancePreferencesTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(AppearanceSettingsView.self)
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-sidebar")
+		}
 		#expect(SettingsItem.appearanceSection.label == "General")
 		#expect(SettingsSidebarIcon.systemName(for: .appearanceSection) == "gearshape")
 	}

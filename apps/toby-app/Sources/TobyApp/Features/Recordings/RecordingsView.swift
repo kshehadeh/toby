@@ -18,7 +18,6 @@ struct RecordingsView: View {
 
 	var body: some View {
 		RecordingsDetailView(store: store, processingState: effectiveProcessingState, onStartRecording: onStartRecording, onStopRecording: onStopRecording, activeRecording: activeRecording)
-		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()

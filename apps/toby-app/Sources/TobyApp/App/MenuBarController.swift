@@ -71,13 +71,17 @@ final class MenuBarController: NSObject {
 
 	private func setupStatusItem() {
 		let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-		if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
+		if let logoURL = Bundle.tobyResources.url(forResource: "toby-menubar", withExtension: "png"),
 			let logo = NSImage(contentsOf: logoURL)
 		{
-			let size = NSSize(width: 22, height: 22)
-			logo.size = size
-			// Full-color logo art — not a monochrome alpha glyph. Template mode
-			// turns the opaque regions into a solid black/white box.
+			logo.size = NSSize(width: 18, height: 18)
+			logo.isTemplate = true
+			baseMenuImage = logo
+			item.button?.image = logo
+		} else if let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
+			let logo = NSImage(contentsOf: logoURL)
+		{
+			logo.size = NSSize(width: 22, height: 22)
 			logo.isTemplate = false
 			baseMenuImage = logo
 			item.button?.image = logo
@@ -352,12 +356,15 @@ final class MenuBarController: NSObject {
 		switch recordingChrome {
 		case .idle:
 			image = base
+			image.isTemplate = true
 		case .recording:
 			image = Self.imageWithRecordingIndicator(base, color: .systemRed)
+			image.isTemplate = false
 		case .processing:
 			image = Self.imageWithRecordingIndicator(base, color: .systemOrange)
+			image.isTemplate = false
 		}
-		image.size = NSSize(width: 22, height: 22)
+		image.size = NSSize(width: 18, height: 18)
 		statusItem?.button?.image = image
 	}
 

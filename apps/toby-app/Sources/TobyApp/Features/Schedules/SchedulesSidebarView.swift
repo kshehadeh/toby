@@ -40,8 +40,6 @@ struct SchedulesSidebarView: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(10)
 			}
-			.background(AppTheme.sidebarBackground)
-
 			if !store.isLoading || !store.schedules.isEmpty {
 				HStack(spacing: 4) {
 					Text("\(store.totalCount) schedule\(store.totalCount == 1 ? "" : "s")")
@@ -55,7 +53,6 @@ struct SchedulesSidebarView: View {
 				.padding(.horizontal, 14)
 				.padding(.vertical, 10)
 				.frame(maxWidth: .infinity, alignment: .leading)
-				.background(AppTheme.sidebarBackground)
 				.overlay(alignment: .top) {
 					Rectangle()
 						.fill(AppTheme.separator)

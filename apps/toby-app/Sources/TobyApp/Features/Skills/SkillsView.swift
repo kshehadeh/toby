@@ -5,7 +5,6 @@ struct SkillsView: View {
 
 	var body: some View {
 		SkillsDetailView(store: store)
-		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()

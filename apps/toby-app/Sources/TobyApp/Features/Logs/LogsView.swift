@@ -52,7 +52,6 @@ struct LogsView: View {
 					}
 				}
 		}
-		.toolbarBackground(.visible)
 		.frame(minWidth: 860, minHeight: 560)
 		.task {
 			await store.ensureLoaded()

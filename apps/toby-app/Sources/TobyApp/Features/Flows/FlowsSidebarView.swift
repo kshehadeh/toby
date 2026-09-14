@@ -46,8 +46,6 @@ struct FlowsSidebarView: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(10)
 			}
-			.background(AppTheme.sidebarBackground)
-
 			HStack {
 				Button {
 					Task { await store.startCreate() }
@@ -62,7 +60,6 @@ struct FlowsSidebarView: View {
 				.accessibilityIdentifier("flows-new-button")
 				Spacer()
 			}
-			.background(AppTheme.sidebarBackground)
 			.overlay(alignment: .top) {
 				Rectangle()
 					.fill(AppTheme.separator)
@@ -84,7 +81,6 @@ struct FlowsSidebarView: View {
 				.padding(.horizontal, 14)
 				.padding(.vertical, 10)
 				.frame(maxWidth: .infinity, alignment: .leading)
-				.background(AppTheme.sidebarBackground)
 				.overlay(alignment: .top) {
 					Rectangle()
 						.fill(AppTheme.separator)

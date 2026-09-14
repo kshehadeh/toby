@@ -8,6 +8,7 @@ ARCH="${SWIFT_ARCH:-$(uname -m)}"
 APP_VARIANT="${TOBY_APP_VARIANT:-development}"
 ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
+ICON_COMPOSER="$PKG/AppIcon.icon"
 ENTITLEMENTS="$PKG/TobyApp.entitlements"
 APP_VERSION="${TOBY_APP_VERSION:-$(bun -e "console.log(JSON.parse(await Bun.file('./package.json').text()).version)")}"
 APP_BUILD_NUMBER="${TOBY_APP_BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-1}}"
@@ -128,6 +129,30 @@ prepare_app_icon_source() {
 }
 
 build_app_icon() {
+	mkdir -p "${APP}/Contents/Resources"
+	if [[ -d "${ICON_COMPOSER}" && -f "${ICON_COMPOSER}/icon.json" ]]; then
+		echo "Compiling Icon Composer document ${ICON_COMPOSER}…"
+		local compile_dir partial
+		compile_dir="$(mktemp -d)"
+		partial="$(mktemp)"
+		xcrun actool "${ICON_COMPOSER}" \
+			--compile "${compile_dir}" \
+			--platform macosx \
+			--minimum-deployment-target 26.0 \
+			--app-icon AppIcon \
+			--output-partial-info-plist "${partial}" \
+			>/dev/null
+		if [[ -f "${compile_dir}/AppIcon.icns" ]]; then
+			cp "${compile_dir}/AppIcon.icns" "${APP}/Contents/Resources/AppIcon.icns"
+		fi
+		if [[ -f "${compile_dir}/Assets.car" ]]; then
+			cp "${compile_dir}/Assets.car" "${APP}/Contents/Resources/Assets.car"
+		fi
+		rm -rf "${compile_dir}" "${partial}"
+		return
+	fi
+
+	echo "Icon Composer document missing; falling back to flattened PNG icon." >&2
 	prepare_app_icon_source
 	local iconset icns
 	iconset="$(mktemp -d)/AppIcon.iconset"
@@ -150,8 +175,8 @@ build_app_icon() {
 	rm -f "${icns}"
 }
 
-if [[ ! -f "${ICON_SRC}" && ! -f "${ICON_MASTER}" ]]; then
-	echo "Missing app icon source: ${ICON_SRC} or ${ICON_MASTER}" >&2
+if [[ ! -d "${ICON_COMPOSER}" && ! -f "${ICON_SRC}" && ! -f "${ICON_MASTER}" ]]; then
+	echo "Missing app icon source: ${ICON_COMPOSER}, ${ICON_SRC}, or ${ICON_MASTER}" >&2
 	exit 1
 fi
 
@@ -207,6 +232,8 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<key>CFBundleIdentifier</key>
 	<string>__TOBY_APP_BUNDLE_ID__</string>
 	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>

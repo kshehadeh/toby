@@ -5,7 +5,6 @@ struct MemoriesView: View {
 
 	var body: some View {
 		MemoriesDetailView(store: store)
-			.toolbarBackground(.visible)
 			.background(SettingsDesign.canvasBackground)
 			.task {
 				// Always re-fetch when the view appears so chat-side memory

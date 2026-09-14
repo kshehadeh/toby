@@ -30,7 +30,7 @@ final class ConfigureStore {
 	/// switches filter client-side and no longer set this.
 	var sectionFieldsReloading: String?
 
-	/// Deep-link target for the client-only Personas settings tab. When non-nil,
+	/// Deep-link target for the client-only Personas settings pane. When non-nil,
 	/// `PersonasSettingsView` selects this persona on appear. Cleared after
 	/// consumption.
 	var pendingPersonaSelection: String?
@@ -84,7 +84,7 @@ final class ConfigureStore {
 		selectedSectionDetail
 	}
 
-	/// Top-level Settings toolbar tab key for the current selection.
+	/// Top-level Settings sidebar key for the current selection.
 	var selectedTopLevelKey: String? {
 		guard let selectedNavKey else { return nil }
 		for section in settingsSections {
@@ -241,7 +241,7 @@ final class ConfigureStore {
 		}
 	}
 
-	/// Select a top-level Settings toolbar tab. Container sections (e.g. AI)
+	/// Select a top-level Settings sidebar item. Container sections (e.g. AI)
 	/// auto-select their first child unless a nested child is already selected.
 	func selectTopLevelTab(_ sectionKey: String) {
 		guard let section = settingsSections.first(where: {

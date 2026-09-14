@@ -15,7 +15,8 @@ struct RootCommonToolbarModel {
 	var onForward: () -> Void
 }
 
-/// Capsule chrome used for principal session / route titles in the main window toolbar.
+/// Principal session / route title for the main window toolbar. Sits on system
+/// toolbar glass — do not paint a capsule behind it.
 struct RootPrincipalTitle: View {
 	let title: String
 	var activityLine: String = ""
@@ -87,16 +88,6 @@ struct RootPrincipalTitle: View {
 				activityLine: activityLine,
 			)
 		}
-		.padding(.horizontal, 14)
-		.padding(.vertical, 8)
-		.background(
-			Capsule()
-				.fill(AppTheme.elevatedBackground.opacity(0.92)),
-		)
-		.overlay(
-			Capsule()
-				.stroke(Color.white.opacity(0.12), lineWidth: 1),
-		)
 		.fixedSize(horizontal: true, vertical: false)
 	}
 }
@@ -106,29 +97,24 @@ struct RootPrincipalTitle: View {
 enum RootToolbars {
 	@ToolbarContentBuilder
 	static func common(_ model: RootCommonToolbarModel) -> some ToolbarContent {
-		ToolbarItem(placement: .navigation) {
+		ToolbarItemGroup(placement: .navigation) {
 			RecordingToolbarButton(
 				isRecordingActive: model.isRecordingActive,
 				isRecordingProcessing: model.isRecordingProcessing,
 				isRecordButtonDisabled: model.isRecordButtonDisabled,
 				onToggleRecording: model.onToggleRecording,
 			)
-		}
-		ToolbarItem(placement: .navigation) {
 			SearchToolbarButton(onSearch: model.onSearch)
-		}
-		ToolbarItem(placement: .navigation) {
 			SettingsToolbarButton(onOpenSettings: model.onOpenSettings)
 		}
-		ToolbarItem(placement: .navigation) {
+		ToolbarSpacer(.fixed, placement: .navigation)
+		ToolbarItemGroup(placement: .navigation) {
 			Button(action: model.onBack) {
 				Image(systemName: "chevron.backward")
 			}
 			.disabled(!model.canGoBack)
 			.help("Back")
 			.accessibilityIdentifier("nav-back-button")
-		}
-		ToolbarItem(placement: .navigation) {
 			Button(action: model.onForward) {
 				Image(systemName: "chevron.forward")
 			}

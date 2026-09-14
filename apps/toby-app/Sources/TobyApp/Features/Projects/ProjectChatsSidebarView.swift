@@ -42,7 +42,6 @@ struct ProjectChatsSidebarView: View {
 			.frame(maxWidth: .infinity, alignment: .topLeading)
 		}
 		.automaticScrollIndicators(axes: .vertical)
-		.background(AppTheme.contentBackground)
 		.accessibilityIdentifier("project-chats-sidebar")
 	}
 }

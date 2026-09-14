@@ -6,7 +6,6 @@ struct SchedulesView: View {
 
 	var body: some View {
 		SchedulesDetailView(store: store, onOpenFlow: onOpenFlow)
-		.toolbarBackground(.visible)
 		.background(SettingsDesign.canvasBackground)
 		.task {
 			await store.ensureLoaded()

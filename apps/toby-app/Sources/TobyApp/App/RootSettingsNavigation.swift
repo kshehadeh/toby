@@ -1,6 +1,6 @@
 import Foundation
 
-/// Pure-ish settings window preparation: select the right configure tab / section
+/// Pure-ish settings window preparation: select the right sidebar row / section
 /// before `openWindow(id: "settings")`.
 @MainActor
 enum RootSettingsNavigation {

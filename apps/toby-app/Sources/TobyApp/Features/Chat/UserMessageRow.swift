@@ -39,15 +39,15 @@ struct UserMessageRow: View {
 						.padding(.horizontal, 16)
 						.padding(.vertical, 12)
 						.background(
-							RoundedRectangle(cornerRadius: 14, style: .continuous)
+							AppTheme.concentricRect(minimum: 14)
 								.fill(AppTheme.elevatedBackground.opacity(0.92))
 						)
 						.overlay(
-							RoundedRectangle(cornerRadius: 14, style: .continuous)
+							AppTheme.concentricRect(minimum: 14)
 								.stroke(AppTheme.separator)
 						)
 						.overlay(alignment: .leading) {
-							RoundedRectangle(cornerRadius: 14, style: .continuous)
+							AppTheme.concentricRect(minimum: 14)
 								.fill(AppTheme.accent)
 								.mask(alignment: .leading) {
 									Rectangle()
@@ -109,17 +109,17 @@ private struct TranscriptImageAttachmentPreview: View {
 				.resizable()
 				.scaledToFit()
 				.frame(maxWidth: 320, maxHeight: 240)
-				.clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+				.clipShape(AppTheme.concentricRect(minimum: 10))
 				.accessibilityLabel("Image attachment \(attachment.filename)")
 			TranscriptAttachmentCaption(attachment: attachment)
 		}
 		.padding(8)
 		.background(
-			RoundedRectangle(cornerRadius: 14, style: .continuous)
+			AppTheme.concentricRect(minimum: 14)
 				.fill(AppTheme.elevatedBackground.opacity(0.92))
 		)
 		.overlay(
-			RoundedRectangle(cornerRadius: 14, style: .continuous)
+			AppTheme.concentricRect(minimum: 14)
 				.stroke(AppTheme.separator)
 		)
 		.accessibilityElement(children: .combine)
@@ -140,11 +140,11 @@ private struct TranscriptFileAttachmentChip: View {
 		.padding(.horizontal, 10)
 		.padding(.vertical, 8)
 		.background(
-			RoundedRectangle(cornerRadius: 10, style: .continuous)
+			AppTheme.concentricRect(minimum: 10)
 				.fill(AppTheme.elevatedBackground.opacity(0.92))
 		)
 		.overlay(
-			RoundedRectangle(cornerRadius: 10, style: .continuous)
+			AppTheme.concentricRect(minimum: 10)
 				.stroke(AppTheme.separator)
 		)
 		.accessibilityIdentifier("chat-transcript-file-attachment")

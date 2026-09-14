@@ -180,6 +180,21 @@ struct AppSidebarTests {
         #expect(try menu.accessibilityValue().string() == "Integrations")
     }
 
+    @Test("workspace menu title is centered and enlarged")
+    func workspaceMenuTitleIsProminent() throws {
+        let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }
+        let menu = try sidebar.inspect().find(ViewType.Menu.self)
+        let title = try menu.labelView().find(ViewType.Text.self)
+        #expect(try title.string() == "Chats")
+        #expect(try title.attributes().font() == Font.system(size: 19, weight: .bold))
+
+        let container = try sidebar.inspect().find(ViewType.HStack.self) { view in
+            (try? view.find(viewWithAccessibilityIdentifier: "sidebar-workspace-menu")) != nil
+        }
+        #expect(try container.padding(.top) == 10)
+        #expect(try container.padding(.bottom) == 20)
+    }
+
     @Test("sidebar does not include settings gear")
     func sidebarDoesNotIncludeSettingsGear() throws {
         let sidebar = makeSidebarWithRoute(currentRoute: .chat) { _ in }

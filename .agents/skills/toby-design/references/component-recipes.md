@@ -5,17 +5,18 @@ SwiftUI is authoritative; Figma names describe the library catalog.
 
 | Need / Figma family | Native source | Required behavior |
 | --- | --- | --- |
-| Theme/foundation | `UI/Theme/AppTheme.swift`, `SettingsDesign.swift`, `NSColor+TobyTheme.swift` | Use semantic dynamic colors and constants. Never pin a light/dark RGB in a view. |
+| Theme/foundation | `UI/Theme/AppTheme.swift`, `SettingsDesign.swift`, `NSColor+TobyTheme.swift` | Use semantic dynamic colors and constants. Never pin a light/dark RGB in a view. Dock icon is `apps/toby-app/AppIcon.icon`; menu bar uses `toby-menubar` as a template image. |
 | Button / icon button | `UI/SettingsControls/SettingsActionButton.swift`, `SettingsDestructiveButton.swift`; native `Button` elsewhere | One prominent primary action per view; destructive uses role/tint. Label every icon-only action. |
 | Badge / chip / progress | `UI/Primitives/InputDock.swift`, feature-local rows | Chips expose removal. Progress reflects actual bounded work; do not use as decoration. |
-| Settings card/row/section | `UI/SettingsControls/{SettingsCard,SettingsRow,SettingsSectionHeader}.swift` | Card owns fill/border; rows use 42pt minimum and omit the trailing divider on the last row. Controls keep their native labels and disabled reasons. |
+| Settings card/row/section | `UI/SettingsControls/{SettingsCard,SettingsRow,SettingsSectionHeader}.swift` | Card owns fill/border with concentric corners; rows use 42pt minimum and omit the trailing divider on the last row. Controls keep their native labels and disabled reasons. Prefer grouped `Form` in the Settings window. |
 | Select / toggle / field | `UI/SettingsControls/{SettingsSelectField,SettingsToggle,SettingsInlineField}.swift` | Prefer the existing control and native focus/keyboard behavior. Do not make web-style inputs. |
 | Inline status | `UI/Primitives/InlineStatusMessage.swift` | Use only success/error local feedback. It combines content for accessibility and supports selectable detail when needed. |
-| Toast | `UI/Primitives/{AppToastHost,ToastView}.swift` | Global and ephemeral. Max 420pt; hover pauses its 4s dismissal; one action maximum; progress does not auto-dismiss while active. |
-| Sidebar | `Features/Sidebar/{AppSidebar,SidebarHeader,SidebarFooter}.swift` | Use 10×12 inset, selection persistence, 6pt three-column route grid, destination color only in route grid, 600ms delayed hover help. |
-| Input dock | `UI/Primitives/InputDock.swift` | Return sends, Shift-Return adds newline, 2–6 lines, support permitted attachments, gauge/unavailable context state, Cancel while loading. |
-| Transcript | `Features/Chat/{TranscriptView,UserMessageRow,AssistantMessageRow,TranscriptStepRows}.swift` | User max 520; assistant/work max 640; rounded transcript chrome; assistant long-form prose is serif; preserve incremental scroll behavior. |
-| Dashboard card | `Features/Dashboard/{DashboardBlockChrome,DashboardCards}.swift` | Panel, no border, 2pt accent cap, quiet 120pt ghost symbol, 340pt collapsed frame, 40pt fade/36pt Show more overlay. |
+| Toast | `UI/Primitives/{AppToastHost,ToastView}.swift` | Global and ephemeral Liquid Glass overlay. Max 420pt; hover pauses its 4s dismissal; one action maximum; progress does not auto-dismiss while active. |
+| Sidebar | `Features/Sidebar/{AppSidebar,SidebarHeader,SidebarFooter}.swift` | Use 10×12 inset, selection persistence, system glass (no `AppTheme.sidebarBackground` fill), workspace menu, 600ms delayed hover help. |
+| Input dock | `UI/Primitives/InputDock.swift` | Return sends, Shift-Return adds newline, 2–6 lines, support permitted attachments, gauge/unavailable context state, Cancel while loading. Floating concentric `.glassEffect`. Send/cancel/attach are native circular/borderless buttons, not painted circles or nested glass. |
+| Transcript | `Features/Chat/{TranscriptView,UserMessageRow,AssistantMessageRow,TranscriptStepRows}.swift` | User max 520; assistant/work max 640; concentric bubbles (minimum 14) and work cards (minimum 12); assistant long-form prose is serif; preserve incremental scroll behavior. |
+| Browse/index card | `Features/{Integrations,Recordings,Flows,Schedules,Projects,Skills}/*DetailView.swift` | Solid `SettingsDesign` fill/stroke, concentric corners (minimum 10). Not glass. |
+| Dashboard card | `Features/Dashboard/{DashboardBlockChrome,DashboardCards}.swift` | Solid panel (not glass), concentric corners, 2pt accent cap, quiet 120pt ghost symbol, 340pt collapsed frame, 40pt fade/36pt Show more overlay. |
 | Onboarding/flow runner | `Features/Dashboard/{OnboardingCard,DashboardActionRunnersRail}.swift` | Make setup/action outcomes explicit; preserve dashboard editing/reordering behavior rather than rebuilding cards. |
 
 ## Component state minimums
@@ -30,7 +31,9 @@ SwiftUI is authoritative; Figma names describe the library catalog.
 
 ## Avoid
 
-- Local `Color.gray`, fixed `Color.white`, arbitrary radii, and card shadows.
+- Local `Color.gray`, fixed `Color.white`, unrelated radii, and card shadows.
+- Liquid Glass on content cards, list rows, or form canvases; custom fills on
+  split-view sidebars, toolbars, or inspectors.
 - Generic app-level components that hide a stock macOS `Button`, `Toggle`,
   `TextField`, `Alert`, split view, or inspector.
 - A component that has only a visual API, but no defined semantic state,

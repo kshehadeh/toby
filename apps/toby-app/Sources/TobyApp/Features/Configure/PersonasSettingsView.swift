@@ -24,7 +24,6 @@ struct PersonasSettingsView: View {
 			sidebar
 				.frame(width: 220)
 				.frame(maxHeight: .infinity)
-				.background(AppTheme.sidebarBackground)
 
 			Divider()
 				.background(AppTheme.separator)
@@ -33,7 +32,6 @@ struct PersonasSettingsView: View {
 				.frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
 				.clipped()
 		}
-		.background(SettingsDesign.canvasBackground)
 		.task {
 			await loadPersonas()
 			consumePendingSelection()

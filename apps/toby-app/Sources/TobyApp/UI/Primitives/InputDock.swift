@@ -86,14 +86,9 @@ struct InputDock: View {
 				} label: {
 					Image(systemName: "plus")
 						.accessibilityLabel(pdfOnlyAttachments ? "Add a PDF" : "Add files")
-						.frame(width: 26, height: 26)
-						.background(
-							Circle()
-								.fill(canUseAttachmentButton ? AppTheme.selection : AppTheme.selection.opacity(0.55))
-						)
-						.foregroundStyle(canUseAttachmentButton ? AppTheme.secondaryText : AppTheme.tertiaryText)
 				}
-				.buttonStyle(.plain)
+				.buttonStyle(.borderless)
+				.controlSize(.regular)
 				.disabled(!canUseAttachmentButton)
 				.help(canUseAttachmentButton ? attachHelpText : attachmentDisabledReason)
 				.accessibilityIdentifier("chat-attach-button")
@@ -116,27 +111,21 @@ struct InputDock: View {
 					Button(action: onCancel) {
 						Image(systemName: "stop.fill")
 							.accessibilityLabel("Cancel")
-							.frame(width: 26, height: 26)
-							.background(
-								Circle()
-									.fill(AppTheme.selection)
-							)
-							.foregroundStyle(AppTheme.tertiaryText)
 					}
-					.buttonStyle(.plain)
+					.buttonStyle(.bordered)
+					.buttonBorderShape(.circle)
+					.controlSize(.small)
 					.accessibilityIdentifier("chat-cancel-button")
 				}
 				Button(action: onSubmit) {
 					Image(systemName: "arrow.up")
 						.accessibilityLabel("Send")
-						.frame(width: 26, height: 26)
-						.background(
-							Circle()
-								.fill(canSubmit ? AppTheme.primaryText : AppTheme.selection)
-						)
-						.foregroundStyle(canSubmit ? AppTheme.contentBackground : AppTheme.tertiaryText)
+						.font(.body.weight(.semibold))
 				}
-				.buttonStyle(.plain)
+				.buttonStyle(.borderedProminent)
+				.buttonBorderShape(.circle)
+				.controlSize(.small)
+				.tint(canSubmit ? Color.primary : Color.secondary)
 				.disabled(!canSubmit)
 				.accessibilityIdentifier("chat-send-button")
 			}
@@ -145,15 +134,10 @@ struct InputDock: View {
 			.padding(.horizontal, 12)
 			.padding(.bottom, 10)
 		}
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.fill(AppTheme.contentBackground)
+		.glassEffect(
+			.regular.interactive(),
+			in: AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
 		)
-		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
-				.stroke(AppTheme.separator)
-		)
-		.shadow(color: .black.opacity(0.16), radius: 20, y: 12)
 		.fileImporter(
 			isPresented: $isFileImporterPresented,
 			allowedContentTypes: pdfOnlyAttachments ? [.pdf] : [.item],

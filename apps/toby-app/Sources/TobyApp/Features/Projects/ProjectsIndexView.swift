@@ -97,7 +97,7 @@ struct ProjectCard: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 12) {
 			HStack(alignment: .top, spacing: 12) {
-				RoundedRectangle(cornerRadius: 10)
+				AppTheme.concentricRect(minimum: 10)
 					.fill(AppTheme.accent.opacity(0.16))
 					.frame(width: 40, height: 40)
 					.overlay {
@@ -141,12 +141,12 @@ struct ProjectCard: View {
 		.padding(16)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.fill(SettingsDesign.cardBackground)
+			SettingsDesign.cardBackground,
+			in: AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 		)
-		.overlay(
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
+		.overlay {
+			AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		)
+		}
 	}
 }

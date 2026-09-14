@@ -42,16 +42,16 @@ struct SettingsItem: Decodable, Identifiable {
 		key == "defaults" ? "Providers" : label
 	}
 
-	/// Client-only General tab (theme / accent; not from the daemon API).
-	/// Key remains `appearance` for stable tab identity across upgrades.
+	/// Client-only General pane (theme / accent; not from the daemon API).
+	/// Key remains `appearance` for stable identity across upgrades.
 	static let appearanceSectionKey = "appearance"
 
-	/// Client-only Personas tab (sidebar list + inline editor; not from the
+	/// Client-only Personas pane (sidebar list + inline editor; not from the
 	/// daemon configure-sections API).
 	static let personasSectionKey = "personas"
 
-	/// Client-only settings sync tab (daemon `/api/config/sync*` + native I/O).
-	/// Key remains `icloud` for stable tab identity across upgrades.
+	/// Client-only settings sync pane (daemon `/api/config/sync*` + native I/O).
+	/// Key remains `icloud` for stable identity across upgrades.
 	static let iCloudSectionKey = "icloud"
 
 	static var appearanceSection: SettingsItem {

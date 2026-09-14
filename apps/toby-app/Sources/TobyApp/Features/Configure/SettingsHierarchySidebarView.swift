@@ -34,7 +34,6 @@ struct SettingsHierarchySidebarView: View {
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-		.background(AppTheme.sidebarBackground)
 	}
 }
 

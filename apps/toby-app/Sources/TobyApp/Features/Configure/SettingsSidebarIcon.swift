@@ -3,7 +3,7 @@ enum SettingsSidebarIcon {
 		let key = item.key.lowercased()
 		let label = item.label.lowercased()
 
-		// Top-level Settings toolbar tabs (exact keys first).
+		// Top-level Settings sidebar rows (exact keys first).
 		switch key {
 		case "appearance": return "gearshape"
 		case "icloud": return "arrow.triangle.2.circlepath"

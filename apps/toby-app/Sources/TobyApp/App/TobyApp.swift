@@ -88,7 +88,7 @@ struct TobyApp: App {
 					GlobalHotkeyController.shared.stop()
 				}
 		}
-		.windowStyle(.hiddenTitleBar)
+		.windowStyle(.automatic)
 		.defaultSize(width: 1024, height: 720)
 
 		// Secondary windows: .commandsRemoved() keeps them out of the Window menu
@@ -153,7 +153,7 @@ struct TobyApp: App {
 				}
 		}
 		.windowStyle(.automatic)
-		.defaultSize(width: 750, height: 535)
+		.defaultSize(width: 780, height: 560)
 		.commandsRemoved()
 
 		Window("Memories", id: "memories") {

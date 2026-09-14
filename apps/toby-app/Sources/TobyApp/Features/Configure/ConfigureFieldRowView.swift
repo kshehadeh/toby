@@ -5,14 +5,46 @@ struct ConfigureFieldRowView: View {
 	let field: SettingsItem
 	let sectionLabel: String
 	let showsDivider: Bool
+	/// Native Form row (Settings window) vs `SettingsRow` inside a content card.
+	var usesFormChrome: Bool = false
 
 	var body: some View {
-		SettingsRow(
-			title: field.label,
-			description: fieldDescription,
-			showsDivider: showsDivider,
-		) {
-			fieldControl
+		if usesFormChrome {
+			formRow
+		} else {
+			SettingsRow(
+				title: field.label,
+				description: fieldDescription,
+				showsDivider: showsDivider,
+			) {
+				fieldControl
+			}
+		}
+	}
+
+	@ViewBuilder
+	private var formRow: some View {
+		if field.kind == .select, ConfigureTreeHelpers.isBooleanSelectField(field) {
+			Toggle(isOn: booleanBinding) {
+				VStack(alignment: .leading, spacing: 2) {
+					Text(field.label)
+					if let fieldDescription {
+						Text(fieldDescription)
+							.font(.caption)
+							.foregroundStyle(.secondary)
+					}
+				}
+			}
+			.toggleStyle(.switch)
+		} else {
+			LabeledContent(field.label) {
+				fieldControl
+			}
+			if let fieldDescription {
+				Text(fieldDescription)
+					.font(.caption)
+					.foregroundStyle(.secondary)
+			}
 		}
 	}
 

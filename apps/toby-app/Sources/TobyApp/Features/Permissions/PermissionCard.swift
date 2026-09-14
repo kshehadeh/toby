@@ -16,11 +16,11 @@ struct PermissionCard: View {
 					.foregroundStyle(status.kind.accentColor)
 					.frame(width: 54, height: 54)
 					.background(
-						RoundedRectangle(cornerRadius: 14)
+						AppTheme.concentricRect(minimum: 14)
 							.fill(status.kind.accentColor.opacity(0.16))
 					)
 					.overlay(
-						RoundedRectangle(cornerRadius: 14)
+						AppTheme.concentricRect(minimum: 14)
 							.stroke(status.kind.accentColor.opacity(0.35), lineWidth: 1)
 					)
 			}
@@ -57,13 +57,15 @@ struct PermissionCard: View {
 								isRequesting = false
 							}
 						}
-						.buttonStyle(PermissionsPrimaryButtonStyle())
+						.buttonStyle(.borderedProminent)
+						.controlSize(.small)
 						.disabled(isRequesting)
 
 						Button("Open System Settings") {
 							onOpenSettings()
 						}
-						.buttonStyle(PermissionsSecondaryButtonStyle())
+						.buttonStyle(.bordered)
+						.controlSize(.small)
 					}
 					.padding(.top, 8)
 				}
@@ -71,44 +73,12 @@ struct PermissionCard: View {
 		}
 		.padding(AppTheme.contentPadding)
 		.background(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+			AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
 				.fill(AppTheme.panelBackground)
 		)
 		.overlay(
-			RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+			AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
 				.stroke(AppTheme.separator, lineWidth: 1)
 		)
-	}
-}
-
-struct PermissionsPrimaryButtonStyle: ButtonStyle {
-	func makeBody(configuration: Configuration) -> some View {
-		configuration.label
-			.font(.callout.weight(.medium))
-			.foregroundStyle(.white)
-			.padding(.horizontal, 14)
-			.padding(.vertical, 6)
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-					.fill(configuration.isPressed ? Color.accentColor.opacity(0.8) : Color.accentColor)
-			)
-	}
-}
-
-struct PermissionsSecondaryButtonStyle: ButtonStyle {
-	func makeBody(configuration: Configuration) -> some View {
-		configuration.label
-			.font(.callout)
-			.foregroundStyle(AppTheme.secondaryText)
-			.padding(.horizontal, 12)
-			.padding(.vertical, 6)
-			.background(
-				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-					.fill(AppTheme.panelBackground)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-					.stroke(AppTheme.separator, lineWidth: 1)
-			)
 	}
 }

@@ -34,7 +34,6 @@ struct IntegrationsSidebarView: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(10)
 			}
-			.background(AppTheme.sidebarBackground)
 		}
 	}
 }

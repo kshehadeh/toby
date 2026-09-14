@@ -64,15 +64,10 @@ struct ToastView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: 420)
-        .background(
-            RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
-                .fill(.ultraThinMaterial)
+        .glassEffect(
+            .regular.interactive(),
+            in: AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
-                .stroke(AppTheme.separator, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.22), radius: 16, y: 6)
     }
 
     private var iconName: String {

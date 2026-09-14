@@ -13,145 +13,14 @@ struct AppearanceSettingsView: View {
 	@State private var homeSwitchError: String?
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 28) {
-				VStack(alignment: .leading, spacing: 6) {
-					Text("General")
-						.font(.title2.weight(.semibold))
-						.foregroundStyle(AppTheme.primaryText)
-					Text(
-						"Home directory, startup, menu bar, chat transcript detail, and how Toby looks on this Mac."
-					)
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-					.fixedSize(horizontal: false, vertical: true)
-				}
-
-				homeDirectoryCard
-
-				SettingsCard {
-					SettingsRow(
-						title: "Start at login",
-						description:
-							"Open Toby automatically when you log in to this Mac. Off by default.",
-						showsDivider: true
-					) {
-						SettingsToggle(isOn: $preferences.launchAtLogin)
-							.accessibilityIdentifier("general-launch-at-login-toggle")
-					}
-					SettingsRow(
-						title: "Show menu bar icon",
-						description:
-							"Show Toby in the menu bar for quick access to chat, recording, and windows. On by default.",
-						showsDivider: true
-					) {
-						SettingsToggle(isOn: $preferences.showMenuBarIcon)
-							.accessibilityIdentifier("general-show-menu-bar-icon-toggle")
-					}
-					SettingsRow(
-						title: "Command palette shortcut",
-						description:
-							"Summon Toby's command palette from anywhere, like Spotlight.",
-						showsDivider: true
-					) {
-						GlobalShortcutRecorder(preferences: preferences, action: .commandPalette)
-							.accessibilityIdentifier("general-shortcut-command-palette")
-					}
-					SettingsRow(
-						title: "Start/stop recording shortcut",
-						description:
-							"Start or stop an audio recording without switching to Toby.",
-						showsDivider: true
-					) {
-						GlobalShortcutRecorder(preferences: preferences, action: .toggleRecording)
-							.accessibilityIdentifier("general-shortcut-toggle-recording")
-					}
-					SettingsRow(
-						title: "New chat shortcut",
-						description:
-							"Bring Toby to the front and start a fresh chat session.",
-						showsDivider: false
-					) {
-						GlobalShortcutRecorder(preferences: preferences, action: .newChat)
-							.accessibilityIdentifier("general-shortcut-new-chat")
-					}
-				}
-
-				if preferences.launchAtLogin, let error = preferences.launchAtLoginError {
-					launchAtLoginNotice(message: error, isError: true)
-				} else if preferences.launchAtLogin, LaunchAtLogin.requiresApproval {
-					launchAtLoginNotice(
-						message:
-							"Toby is waiting for approval in System Settings → General → Login Items.",
-						isError: false
-					)
-				}
-
-				SettingsCard {
-					VStack(alignment: .leading, spacing: 12) {
-						SettingsSectionHeader(title: "Chat mode")
-						Text(
-							"Normal shows the conversation and an expandable Working log of the steps that ran. Debug also reveals skill and tool selection and other pipeline detail."
-						)
-						.font(.subheadline)
-						.foregroundStyle(AppTheme.secondaryText)
-						.fixedSize(horizontal: false, vertical: true)
-						Picker("Chat mode", selection: $preferences.chatTranscriptMode) {
-							ForEach(ChatTranscriptMode.allCases) { mode in
-								Text(mode.displayName).tag(mode)
-							}
-						}
-						.pickerStyle(.segmented)
-						.labelsHidden()
-						.accessibilityIdentifier("general-chat-mode-picker")
-					}
-					.padding(14)
-				}
-
-				SettingsCard {
-					VStack(alignment: .leading, spacing: 12) {
-						SettingsSectionHeader(title: "Theme")
-						Picker("Theme", selection: $preferences.mode) {
-							ForEach(AppearanceMode.allCases) { mode in
-								Text(mode.displayName).tag(mode)
-							}
-						}
-						.pickerStyle(.segmented)
-						.labelsHidden()
-						.accessibilityIdentifier("appearance-mode-picker")
-					}
-					.padding(14)
-				}
-
-				SettingsCard {
-					VStack(alignment: .leading, spacing: 14) {
-						SettingsSectionHeader(title: "Accent color")
-						LazyVGrid(
-							columns: [
-								GridItem(.adaptive(minimum: 36, maximum: 44), spacing: 12),
-							],
-							alignment: .leading,
-							spacing: 12
-						) {
-							ForEach(AccentPreset.allCases) { preset in
-								AccentSwatchButton(
-									preset: preset,
-									isSelected: preferences.accent == preset,
-								) {
-									preferences.accent = preset
-								}
-							}
-						}
-						.accessibilityIdentifier("appearance-accent-swatches")
-					}
-					.padding(14)
-				}
-			}
-			.frame(maxWidth: SettingsDesign.contentMaxWidth, alignment: .leading)
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.padding(AppTheme.contentPadding)
+		Form {
+			homeDirectorySection
+			startupSection
+			chatModeSection
+			themeSection
+			accentSection
 		}
-		.background(SettingsDesign.canvasBackground)
+		.tobySettingsFormStyle()
 		.disabled(isSwitchingHome)
 		.alert(
 			"Switch Toby home directory?",
@@ -190,74 +59,175 @@ struct AppearanceSettingsView: View {
 		}
 	}
 
-	// MARK: - Home directory
+	// MARK: - Sections
 
-	private var homeDirectoryCard: some View {
-		SettingsCard {
-			VStack(alignment: .leading, spacing: 12) {
-				HStack(alignment: .firstTextBaseline, spacing: 8) {
-					SettingsSectionHeader(title: "Home directory")
-					Spacer(minLength: 0)
-					Text(preferences.hasCustomTobyDirOverride || ConfigReader.isCustomTobyDir() ? "Custom" : "Default")
-						.font(.caption.weight(.semibold))
-						.foregroundStyle(AppTheme.secondaryText)
-						.padding(.horizontal, 8)
-						.padding(.vertical, 3)
-						.background(AppTheme.secondaryText.opacity(0.12), in: Capsule())
-						.accessibilityIdentifier("general-home-directory-badge")
-				}
-				Text(
-					"Where Toby stores config, chat history, plugins, and recordings on this Mac. Switching reloads all app data and restarts the local server. It does not copy data between homes."
-				)
-				.font(.subheadline)
-				.foregroundStyle(AppTheme.secondaryText)
-				.fixedSize(horizontal: false, vertical: true)
-
+	private var homeDirectorySection: some View {
+		Section {
+			LabeledContent("Location") {
 				Text(preferences.resolvedTobyDir)
 					.font(.system(.caption, design: .monospaced))
-					.foregroundStyle(AppTheme.primaryText)
-					.lineLimit(3)
+					.foregroundStyle(.primary)
+					.lineLimit(2)
 					.truncationMode(.middle)
 					.textSelection(.enabled)
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.padding(10)
-					.background(AppTheme.secondaryText.opacity(0.08))
-					.clipShape(RoundedRectangle(cornerRadius: 8))
 					.accessibilityIdentifier("general-home-directory-path")
+			}
+			LabeledContent("Kind") {
+				Text(preferences.hasCustomTobyDirOverride || ConfigReader.isCustomTobyDir() ? "Custom" : "Default")
+					.foregroundStyle(.secondary)
+					.accessibilityIdentifier("general-home-directory-badge")
+			}
+			HStack(spacing: 8) {
+				Button("Choose…") {
+					presentHomeDirectoryChooser()
+				}
+				.controlSize(.small)
+				.disabled(isSwitchingHome || onSwitchTobyHome == nil)
+				.accessibilityIdentifier("general-home-directory-choose")
 
-				HStack(spacing: 10) {
-					Button("Choose…") {
-						presentHomeDirectoryChooser()
-					}
-					.buttonStyle(.bordered)
-					.disabled(isSwitchingHome || onSwitchTobyHome == nil)
-					.accessibilityIdentifier("general-home-directory-choose")
+				Button("Use Default") {
+					requestHomeSwitch(to: nil)
+				}
+				.controlSize(.small)
+				.disabled(
+					isSwitchingHome
+						|| onSwitchTobyHome == nil
+						|| (!preferences.hasCustomTobyDirOverride && !ConfigReader.isCustomTobyDir())
+				)
+				.accessibilityIdentifier("general-home-directory-use-default")
 
-					Button("Use Default") {
-						requestHomeSwitch(to: nil)
-					}
-					.buttonStyle(.bordered)
-					.disabled(
-						isSwitchingHome
-							|| onSwitchTobyHome == nil
-							|| (!preferences.hasCustomTobyDirOverride && !ConfigReader.isCustomTobyDir())
-					)
-					.accessibilityIdentifier("general-home-directory-use-default")
+				Button("Reveal in Finder") {
+					RevealInFinder.reveal(path: preferences.resolvedTobyDir)
+				}
+				.controlSize(.small)
+				.accessibilityIdentifier("general-home-directory-reveal")
 
-					Button("Reveal in Finder") {
-						RevealInFinder.reveal(path: preferences.resolvedTobyDir)
-					}
-					.buttonStyle(.bordered)
-					.accessibilityIdentifier("general-home-directory-reveal")
+				if isSwitchingHome {
+					ProgressView()
+						.controlSize(.small)
+						.accessibilityIdentifier("general-home-directory-switching")
+				}
+			}
+		} header: {
+			Text("Home directory")
+		} footer: {
+			Text(
+				"Where Toby stores config, chat history, plugins, and recordings on this Mac. Switching reloads all app data and restarts the local server. It does not copy data between homes."
+			)
+		}
+	}
 
-					if isSwitchingHome {
-						ProgressView()
-							.controlSize(.small)
-							.accessibilityIdentifier("general-home-directory-switching")
+	private var startupSection: some View {
+		Section("Startup and shortcuts") {
+			Toggle(isOn: $preferences.launchAtLogin) {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Start at login")
+					Text("Open Toby automatically when you log in to this Mac. Off by default.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+			}
+			.toggleStyle(.switch)
+			.accessibilityIdentifier("general-launch-at-login-toggle")
+
+			if preferences.launchAtLogin, let error = preferences.launchAtLoginError {
+				launchAtLoginNotice(message: error, isError: true)
+			} else if preferences.launchAtLogin, LaunchAtLogin.requiresApproval {
+				launchAtLoginNotice(
+					message:
+						"Toby is waiting for approval in System Settings → General → Login Items.",
+					isError: false
+				)
+			}
+
+			Toggle(isOn: $preferences.showMenuBarIcon) {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Show menu bar icon")
+					Text("Show Toby in the menu bar for quick access to chat, recording, and windows. On by default.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+			}
+			.toggleStyle(.switch)
+			.accessibilityIdentifier("general-show-menu-bar-icon-toggle")
+
+			LabeledContent("Command palette shortcut") {
+				GlobalShortcutRecorder(preferences: preferences, action: .commandPalette)
+					.accessibilityIdentifier("general-shortcut-command-palette")
+			}
+			Text("Summon Toby's command palette from anywhere, like Spotlight.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+
+			LabeledContent("Start/stop recording shortcut") {
+				GlobalShortcutRecorder(preferences: preferences, action: .toggleRecording)
+					.accessibilityIdentifier("general-shortcut-toggle-recording")
+			}
+			Text("Start or stop an audio recording without switching to Toby.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+
+			LabeledContent("New chat shortcut") {
+				GlobalShortcutRecorder(preferences: preferences, action: .newChat)
+					.accessibilityIdentifier("general-shortcut-new-chat")
+			}
+			Text("Bring Toby to the front and start a fresh chat session.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+		}
+	}
+
+	private var chatModeSection: some View {
+		Section {
+			Picker("Chat mode", selection: $preferences.chatTranscriptMode) {
+				ForEach(ChatTranscriptMode.allCases) { mode in
+					Text(mode.displayName).tag(mode)
+				}
+			}
+			.pickerStyle(.segmented)
+			.labelsHidden()
+			.accessibilityIdentifier("general-chat-mode-picker")
+		} header: {
+			Text("Chat mode")
+		} footer: {
+			Text(
+				"Normal shows the conversation and an expandable Working log of the steps that ran. Debug also reveals skill and tool selection and other pipeline detail."
+			)
+		}
+	}
+
+	private var themeSection: some View {
+		Section("Theme") {
+			Picker("Theme", selection: $preferences.mode) {
+				ForEach(AppearanceMode.allCases) { mode in
+					Text(mode.displayName).tag(mode)
+				}
+			}
+			.pickerStyle(.segmented)
+			.labelsHidden()
+			.accessibilityIdentifier("appearance-mode-picker")
+		}
+	}
+
+	private var accentSection: some View {
+		Section("Accent color") {
+			LazyVGrid(
+				columns: [
+					GridItem(.adaptive(minimum: 36, maximum: 44), spacing: 12),
+				],
+				alignment: .leading,
+				spacing: 12
+			) {
+				ForEach(AccentPreset.allCases) { preset in
+					AccentSwatchButton(
+						preset: preset,
+						isSelected: preferences.accent == preset,
+					) {
+						preferences.accent = preset
 					}
 				}
 			}
-			.padding(14)
+			.accessibilityIdentifier("appearance-accent-swatches")
 		}
 	}
 
@@ -316,14 +286,6 @@ struct AppearanceSettingsView: View {
 				.buttonStyle(.link)
 				.font(.subheadline)
 			}
-		}
-		.padding(12)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(SettingsDesign.cardBackground)
-		.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
-		.overlay {
-			RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-				.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 		}
 		.accessibilityIdentifier("general-launch-at-login-notice")
 	}

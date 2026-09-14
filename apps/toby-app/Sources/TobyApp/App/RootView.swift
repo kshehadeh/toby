@@ -699,6 +699,7 @@ struct RootView: View {
                     }
             }
         }
+        .toolbar(removing: .title)
         .onChange(of: history.current) { _, route in
             if route != .dashboard {
                 isEditingDashboard = false

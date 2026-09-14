@@ -35,7 +35,6 @@ struct LogsSidebarView: View {
 				.padding(.bottom, 10)
 			}
 		}
-		.background(AppTheme.sidebarBackground)
 	}
 
 	private var sidebarEmptyMessage: String {

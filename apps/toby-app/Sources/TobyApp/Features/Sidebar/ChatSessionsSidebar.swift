@@ -58,7 +58,6 @@ struct ChatSessionsSidebar: View {
 				.frame(maxHeight: .infinity)
 			}
 		}
-		.background(AppTheme.sidebarBackground)
 	}
 }
 
