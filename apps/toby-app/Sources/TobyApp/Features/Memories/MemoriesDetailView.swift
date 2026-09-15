@@ -25,6 +25,7 @@ struct MemoriesDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: "brain.head.profile",
+					title: "No memory selected",
 					prompt: "Select a memory",
 					onCreate: { store.startCreate() },
 					createAccessibilityIdentifier: "empty-create-memory-button"

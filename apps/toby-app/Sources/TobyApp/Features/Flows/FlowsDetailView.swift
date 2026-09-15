@@ -27,6 +27,7 @@ struct FlowsDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: DetailRoute.flows.systemImage,
+					title: "No flow selected",
 					prompt: "Select a flow",
 					onCreate: { Task { await store.startCreate() } },
 					createAccessibilityIdentifier: "flows-empty-state"

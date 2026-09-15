@@ -30,6 +30,7 @@ struct SkillsDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: DetailRoute.skills.systemImage,
+					title: "No skill selected",
 					prompt: "Select a skill",
 					onCreate: { Task { await store.createSkill() } },
 					createAccessibilityIdentifier: "empty-create-skill-button"

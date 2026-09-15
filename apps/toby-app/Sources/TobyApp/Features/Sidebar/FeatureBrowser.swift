@@ -203,6 +203,8 @@ struct FeatureBrowserDeselectArea: View {
 /// Detail placeholder when the workspace has no selected record.
 struct FeatureBrowserPlaceholder: View {
 	let systemImage: String
+	/// Short state title, for example “No skill selected”.
+	let title: String
 	/// Leading clause, for example “Select a skill”.
 	let prompt: String
 	var onCreate: (() -> Void)? = nil
@@ -210,22 +212,14 @@ struct FeatureBrowserPlaceholder: View {
 	var createAccessibilityIdentifier: String = "feature-browser-placeholder-create"
 
 	var body: some View {
-		VStack(spacing: 16) {
-			Image(systemName: systemImage)
-				.font(.system(size: 56, weight: .regular))
-				.foregroundStyle(AppTheme.tertiaryText)
-				.accessibilityHidden(true)
+		ContentUnavailableView {
+			Label(title, systemImage: systemImage)
+		} description: {
 			message
-				.font(.body)
-				.foregroundStyle(AppTheme.secondaryText)
-				.multilineTextAlignment(.center)
-				.frame(maxWidth: 360)
 		}
-		.padding(32)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground, ignoresSafeAreaEdges: [])
 		.accessibilityIdentifier("feature-browser-placeholder")
-		.accessibilityLabel(accessibilityLabel)
 	}
 
 	@ViewBuilder
@@ -243,12 +237,5 @@ struct FeatureBrowserPlaceholder: View {
 		} else {
 			Text("\(prompt) from the list.")
 		}
-	}
-
-	private var accessibilityLabel: String {
-		if onCreate != nil {
-			return "\(prompt) or \(createPhrase)."
-		}
-		return "\(prompt) from the list."
 	}
 }

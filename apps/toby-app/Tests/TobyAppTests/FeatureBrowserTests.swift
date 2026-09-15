@@ -11,12 +11,16 @@ struct FeatureBrowserTests {
 		var created = false
 		let view = FeatureBrowserPlaceholder(
 			systemImage: "folder",
+			title: "No project selected",
 			prompt: "Select a project",
 			onCreate: { created = true },
 			createAccessibilityIdentifier: "empty-create-project-button"
 		)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No project selected")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Select a project or ")
@@ -32,8 +36,12 @@ struct FeatureBrowserTests {
 	func placeholderWithoutCreateOmitsLink() throws {
 		let view = FeatureBrowserPlaceholder(
 			systemImage: "puzzlepiece.extension",
+			title: "No integration selected",
 			prompt: "Select an integration"
 		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No integration selected")
+		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Select an integration from the list.")
 		}

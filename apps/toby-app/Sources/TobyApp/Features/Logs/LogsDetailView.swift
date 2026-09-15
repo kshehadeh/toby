@@ -20,6 +20,7 @@ struct LogsDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: "tray.full",
+					title: "No log source selected",
 					prompt: "Select a log source"
 				)
 			}

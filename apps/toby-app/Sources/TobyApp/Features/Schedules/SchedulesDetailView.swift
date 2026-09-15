@@ -21,6 +21,7 @@ struct SchedulesDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: DetailRoute.schedules.systemImage,
+					title: "No schedule selected",
 					prompt: "Select a schedule",
 					onCreate: { Task { await store.createSchedule() } },
 					createAccessibilityIdentifier: "empty-create-schedule-button"

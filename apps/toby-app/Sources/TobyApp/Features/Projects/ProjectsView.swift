@@ -109,6 +109,7 @@ struct ProjectsView: View {
 		} else {
 			FeatureBrowserPlaceholder(
 				systemImage: DetailRoute.projects.systemImage,
+				title: "No project selected",
 				prompt: "Select a project",
 				onCreate: { Task { await projectsStore.createProject() } },
 				createAccessibilityIdentifier: "empty-create-project-button"

@@ -20,6 +20,7 @@ struct IntegrationsDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: DetailRoute.integrations.systemImage,
+					title: "No integration selected",
 					prompt: "Select an integration"
 				)
 			}

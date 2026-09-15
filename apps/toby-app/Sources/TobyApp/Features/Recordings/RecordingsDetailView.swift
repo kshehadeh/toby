@@ -40,6 +40,7 @@ struct RecordingsDetailView: View {
 			} else {
 				FeatureBrowserPlaceholder(
 					systemImage: DetailRoute.recordings.systemImage,
+					title: "No recording selected",
 					prompt: "Select a recording",
 					onCreate: onStartRecording,
 					createPhrase: "start a new recording",
