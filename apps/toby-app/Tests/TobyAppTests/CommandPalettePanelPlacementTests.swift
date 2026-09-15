@@ -144,4 +144,23 @@ struct CommandPalettePanelPlacementTests {
 		#expect(panel.frame.size == CommandPalettePanel.panelSize)
 		panel.close()
 	}
+
+	@Test("glass host owns the palette material and rounded shape")
+	func glassHostOwnsPaletteShell() {
+		let controller = CommandPaletteGlassHostingController(rootView: Text("palette"))
+
+		#expect(controller.view === controller.glassView)
+		#expect(controller.glassView.style == .regular)
+		#expect(controller.glassView.cornerRadius == AppTheme.cornerRadius)
+		#expect(controller.glassView.layer?.cornerRadius == AppTheme.cornerRadius)
+		#expect(controller.glassView.layer?.masksToBounds == true)
+		#expect(controller.glassView.contentView != nil)
+		#expect(controller.glassView.frame.size == CommandPalettePanel.panelSize)
+
+		let panel = CommandPalettePanel(contentViewController: controller)
+		#expect(!panel.isOpaque)
+		#expect(panel.backgroundColor.alphaComponent == 0)
+		#expect(panel.hasShadow)
+		panel.close()
+	}
 }

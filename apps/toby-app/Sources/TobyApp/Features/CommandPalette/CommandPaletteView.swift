@@ -317,10 +317,6 @@ struct CommandPaletteView: View {
 			height: CommandPalettePanelPlacement.size.height,
 			alignment: .top
 		)
-		.glassEffect(
-			.regular.interactive(),
-			in: AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
-		)
 		.onAppear {
 			selectedIndex = 0
 			// Defer focus until after the panel has been made key, otherwise

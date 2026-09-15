@@ -65,18 +65,8 @@ final class CommandPalettePanelController {
 		panel?.orderOut(nil)
 	}
 
-	private func makeHostingController<Content: View>(_ view: Content) -> NSHostingController<Content> {
-		let hosting = NSHostingController(rootView: view)
-		// Keep the hosting backing transparent so the rounded card is the only
-		// opaque content; the window server derives the (rounded) drop shadow
-		// from that alpha.
-		hosting.view.wantsLayer = true
-		hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
-		hosting.view.frame = NSRect(origin: .zero, size: CommandPalettePanelPlacement.size)
-		// A fixed-size panel: do not let SwiftUI's first layout pass drive the
-		// window frame (that pass is what pinned first-launch to (0, 0)).
-		hosting.sizingOptions = []
-		return hosting
+	private func makeHostingController<Content: View>(_ view: Content) -> CommandPaletteGlassHostingController {
+		CommandPaletteGlassHostingController(rootView: view)
 	}
 
 	/// Restores the last saved origin if it is a real on-screen placement;
@@ -167,9 +157,8 @@ final class CommandPalettePanel: NSPanel {
 		self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 		self.isOpaque = false
 		self.backgroundColor = .clear
-		// The window is sized exactly to the rounded card, so the window
-		// server derives a correctly rounded drop shadow from the card's alpha
-		// (unlike a SwiftUI shadow, which the hosting layer clips to a square).
+		// The AppKit glass root supplies the rounded alpha mask used by the
+		// window server for its shadow.
 		self.hasShadow = true
 		self.isMovableByWindowBackground = false
 		self.hidesOnDeactivate = true
@@ -177,6 +166,7 @@ final class CommandPalettePanel: NSPanel {
 		// No standard window chrome — the SwiftUI content draws its own rounded card.
 		self.titlebarAppearsTransparent = true
 		self.titleVisibility = .hidden
+		self.invalidateShadow()
 	}
 
 	/// Dismiss when the panel resigns key (user clicked another window/app).
@@ -194,6 +184,7 @@ final class CommandPalettePanel: NSPanel {
 		isApplyingProgrammaticFrame = true
 		defer { isApplyingProgrammaticFrame = false }
 		setFrame(frame, display: true)
+		invalidateShadow()
 	}
 
 	func applyContentViewController(_ controller: NSViewController) {
@@ -202,6 +193,7 @@ final class CommandPalettePanel: NSPanel {
 		defer { isApplyingProgrammaticFrame = false }
 		contentViewController = controller
 		setFrame(NSRect(origin: origin, size: Self.panelSize), display: true)
+		invalidateShadow()
 	}
 
 	/// `performDrag(with:)` moves the window through `setFrame`, so this is the
@@ -219,5 +211,42 @@ final class CommandPalettePanel: NSPanel {
 
 	deinit {
 		NotificationCenter.default.removeObserver(self)
+	}
+}
+
+/// AppKit owns the palette's outer material and shape so the panel shadow is
+/// derived from the same rounded glass surface instead of SwiftUI's rectangular
+/// hosting backing.
+@MainActor
+final class CommandPaletteGlassHostingController: NSViewController {
+	static let cornerRadius = AppTheme.cornerRadius
+
+	let glassView = NSGlassEffectView()
+
+	init<Content: View>(rootView: Content) {
+		let hosting = NSHostingController(rootView: rootView)
+		super.init(nibName: nil, bundle: nil)
+
+		hosting.sizingOptions = []
+		hosting.view.wantsLayer = true
+		hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
+		hosting.view.frame = NSRect(origin: .zero, size: CommandPalettePanelPlacement.size)
+
+		glassView.style = .regular
+		glassView.cornerRadius = Self.cornerRadius
+		glassView.wantsLayer = true
+		glassView.layer?.cornerCurve = .continuous
+		glassView.layer?.cornerRadius = Self.cornerRadius
+		glassView.layer?.masksToBounds = true
+		glassView.frame = NSRect(origin: .zero, size: CommandPalettePanelPlacement.size)
+
+		addChild(hosting)
+		glassView.contentView = hosting.view
+		view = glassView
+	}
+
+	@available(*, unavailable)
+	required init?(coder: NSCoder) {
+		fatalError("init(coder:) has not been implemented")
 	}
 }
