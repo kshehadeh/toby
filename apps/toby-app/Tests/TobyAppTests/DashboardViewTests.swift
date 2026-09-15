@@ -663,6 +663,17 @@ struct DashboardBlockContentTests {
 			"personaName": "Toby",
 			"count": 95,
 			"launchUrls": ["https://mail.example.com"],
+			"sections": [{
+				"id": "section-0",
+				"eyebrow": "Technology",
+				"title": "AI agents",
+				"body": "A quick briefing.",
+				"items": [{
+					"title": "Developer tools",
+					"subtitle": "DEVELOPER",
+					"url": "https://example.com/tools"
+				}]
+			}],
 			"sources": [
 				{
 					"providerName": "email",
@@ -679,6 +690,8 @@ struct DashboardBlockContentTests {
 		#expect(content.count == 95)
 		#expect(content.launchUrls?.first == "https://mail.example.com")
 		#expect(content.sources?.first?.providerName == "email")
+		#expect(content.sections?.first?.eyebrow == "Technology")
+		#expect(content.sections?.first?.items.first?.title == "Developer tools")
 		#expect(content.hasBody)
 	}
 
@@ -699,6 +712,19 @@ struct DashboardBlockContentTests {
 		#expect(content.launchUrls == nil)
 	}
 
+	@Test("local section fallback recognizes typographic bullets and bold leads")
+	func localSectionFallbackParsesBriefing() {
+		let sections = DashboardContentSectionParser.parse("""
+		## Tech
+		• **AI safety debate intensifies:** Critics argue that policy is lagging.
+		• [Developer tools worth a look](https://example.com/tools) — Developer
+		""")
+		#expect(sections?.first?.eyebrow == "Tech")
+		#expect(sections?.first?.items.first?.title == "AI safety debate intensifies")
+		#expect(sections?.first?.items.first?.subtitle == "Critics argue that policy is lagging.")
+		#expect(sections?.first?.items.last?.url == "https://example.com/tools")
+	}
+
 	@Test("dashboard store initializes with empty content state")
 	func dashboardStoreContentInitial() {
 		let store = DashboardStore()
@@ -710,6 +736,80 @@ struct DashboardBlockContentTests {
 		#expect(store.calendarSummaryLoading == false)
 		#expect(store.isSummaryLoading == false)
 		#expect(store.lastLoadedAt == nil)
+	}
+}
+
+@MainActor
+@Suite("DashboardRecentWork")
+struct DashboardRecentWorkTests {
+	@Test("merges chats and projects by recency and excludes project chats")
+	func mergesRecentWork() {
+		let sessions = [
+			SessionSummary(
+				id: "chat-1",
+				name: "Home dashboard design",
+				createdAt: "2026-09-10T10:00:00Z",
+				updatedAt: "2026-09-15T10:00:00Z"
+			),
+			SessionSummary(
+				id: "project-chat",
+				name: "Hidden project chat",
+				createdAt: nil,
+				updatedAt: "2026-09-16T10:00:00Z",
+				projectId: "project-1"
+			),
+		]
+		let projects = [
+			ProjectSummary(
+				id: "project-1",
+				slug: "toby",
+				name: "Toby",
+				summary: "",
+				folderPath: "/tmp/toby",
+				personaName: nil,
+				outputsDir: nil,
+				skillsDir: nil,
+				createdAt: "2026-09-01T10:00:00Z",
+				updatedAt: "2026-09-14T10:00:00Z"
+			),
+		]
+
+		let items = DashboardRecentWorkItem.merged(sessions: sessions, projects: projects)
+		#expect(items.map(\.title) == ["Home dashboard design", "Toby"])
+		#expect(items.map(\.kind) == [.chat("chat-1"), .project("project-1")])
+	}
+
+	@Test("limits combined recent work to five items")
+	func limitsRecentWork() {
+		let sessions = (0..<8).map { index in
+			SessionSummary(
+				id: "chat-\(index)",
+				name: "Chat \(index)",
+				createdAt: nil,
+				updatedAt: "2026-09-\(String(format: "%02d", index + 1))T10:00:00Z"
+			)
+		}
+		#expect(DashboardRecentWorkItem.merged(sessions: sessions, projects: []).count == 5)
+	}
+
+	@Test("recent work row invokes selection")
+	func recentWorkRowSelects() throws {
+		let item = DashboardRecentWorkItem(
+			id: "chat:chat-1",
+			kind: .chat("chat-1"),
+			title: "Home dashboard design",
+			subtitle: "Recent chat",
+			updatedAt: nil
+		)
+		var selected: DashboardRecentWorkItem?
+		let view = DashboardRecentWorkSection(items: [item], isLoading: false) {
+			selected = $0
+		}
+		let button = try view.inspect()
+			.find(viewWithAccessibilityIdentifier: "dashboard-recent-chat:chat-1")
+			.button()
+		try button.tap()
+		#expect(selected == item)
 	}
 }
 

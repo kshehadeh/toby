@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Wrapping columns with a minimum item width. Non-lazy so every card stays
-/// in the layout tree (needed for edit-mode reorder placeholders).
+/// Waterfall columns with bounded widths. Each card is placed in the shortest
+/// column, allowing compact cards to stack beside taller briefing cards.
 struct AdaptiveColumnLayout: Layout {
 	var minItemWidth: CGFloat
+	var maxItemWidth: CGFloat = 460
 	var spacing: CGFloat
 
 	func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -18,25 +19,14 @@ struct AdaptiveColumnLayout: Layout {
 			itemCount: subviews.count
 		)
 		let itemWidth = self.itemWidth(containerWidth: width, columns: columns)
-		var y: CGFloat = 0
-		var column = 0
-		var rowHeight: CGFloat = 0
+		var columnHeights = Array(repeating: CGFloat.zero, count: columns)
 		for subview in subviews {
 			let size = subview.sizeThatFits(.init(width: itemWidth, height: nil))
-			rowHeight = max(rowHeight, size.height)
-			column += 1
-			if column == columns {
-				y += rowHeight + spacing
-				column = 0
-				rowHeight = 0
-			}
+			let column = Self.shortestColumn(in: columnHeights)
+			columnHeights[column] += size.height + spacing
 		}
-		if column > 0 {
-			y += rowHeight
-		} else if !subviews.isEmpty {
-			y -= spacing
-		}
-		return CGSize(width: width, height: max(0, y))
+		let height = max(0, (columnHeights.max() ?? 0) - spacing)
+		return CGSize(width: width, height: height)
 	}
 
 	func placeSubviews(
@@ -53,27 +43,18 @@ struct AdaptiveColumnLayout: Layout {
 			itemCount: subviews.count
 		)
 		let itemWidth = self.itemWidth(containerWidth: width, columns: columns)
-		var x = bounds.minX
-		var y = bounds.minY
-		var column = 0
-		var rowHeight: CGFloat = 0
+		var columnHeights = Array(repeating: CGFloat.zero, count: columns)
 		for subview in subviews {
 			let size = subview.sizeThatFits(.init(width: itemWidth, height: nil))
+			let column = Self.shortestColumn(in: columnHeights)
+			let x = bounds.minX + CGFloat(column) * (itemWidth + spacing)
+			let y = bounds.minY + columnHeights[column]
 			subview.place(
 				at: CGPoint(x: x, y: y),
 				anchor: .topLeading,
 				proposal: .init(width: itemWidth, height: size.height)
 			)
-			rowHeight = max(rowHeight, size.height)
-			column += 1
-			if column == columns {
-				x = bounds.minX
-				y += rowHeight + spacing
-				column = 0
-				rowHeight = 0
-			} else {
-				x += itemWidth + spacing
-			}
+			columnHeights[column] += size.height + spacing
 		}
 	}
 
@@ -105,6 +86,19 @@ struct AdaptiveColumnLayout: Layout {
 		let totalSpacing = spacing * CGFloat(max(0, safeColumns - 1))
 		let raw = (containerWidth - totalSpacing) / CGFloat(safeColumns)
 		guard raw.isFinite else { return minItemWidth }
-		return max(minItemWidth, raw)
+		return min(maxItemWidth, max(minItemWidth, raw))
+	}
+
+	static func shortestColumn(in heights: [CGFloat]) -> Int {
+		if heights.allSatisfy({ $0 == 0 }) {
+			return 0
+		}
+		return heights.indices.min { lhs, rhs in
+			// Once layout has started, prefer the trailing column for equal
+			// heights so the next compact card visibly stacks with its neighbor
+			// instead of recreating a table-like row.
+			if heights[lhs] == heights[rhs] { return lhs > rhs }
+			return heights[lhs] < heights[rhs]
+		} ?? 0
 	}
 }

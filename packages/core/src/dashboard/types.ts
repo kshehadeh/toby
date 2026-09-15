@@ -147,6 +147,32 @@ export interface DashboardBlockContentSource {
 	readonly launchUrl?: string;
 }
 
+/** One actionable row in a structured dashboard section. */
+export interface DashboardBlockContentItem {
+	/** Display text with lightweight inline Markdown removed. */
+	readonly title: string;
+	/** Optional supporting copy following the title. */
+	readonly subtitle?: string;
+	/** First Markdown link target found in the source row. */
+	readonly url?: string;
+}
+
+/**
+ * Generic structure derived from a dashboard flow's Markdown.
+ *
+ * `eyebrow` maps a level-two heading, `title` maps a level-one/three heading,
+ * `body` holds the section prose, and `items` holds bullet rows. Clients may
+ * use this richer shape while `DashboardBlockContent.text` remains the
+ * backwards-compatible source and rendering fallback.
+ */
+export interface DashboardBlockContentSection {
+	readonly id: string;
+	readonly eyebrow?: string;
+	readonly title?: string;
+	readonly body?: string;
+	readonly items: readonly DashboardBlockContentItem[];
+}
+
 /**
  * Home-dashboard **block content** — the only payload the card body needs.
  *
@@ -172,6 +198,8 @@ export interface DashboardBlockContent {
 	readonly launchUrls: readonly string[];
 	/** Optional per-provider open targets (e.g. Todoist + Reminders). */
 	readonly sources?: readonly DashboardBlockContentSource[];
+	/** Optional presentation structure derived from `text`. */
+	readonly sections?: readonly DashboardBlockContentSection[];
 }
 
 /**

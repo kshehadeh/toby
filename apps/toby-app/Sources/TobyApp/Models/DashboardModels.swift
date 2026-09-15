@@ -86,6 +86,22 @@ struct FlowDashboardBlockInfo: Decodable, Identifiable, Equatable {
 	var isRunner: Bool { variant == "runner" }
 }
 
+struct DashboardBlockContentItem: Decodable, Equatable, Identifiable {
+	let title: String
+	let subtitle: String?
+	let url: String?
+
+	var id: String { "\(title)|\(subtitle ?? "")|\(url ?? "")" }
+}
+
+struct DashboardBlockContentSection: Decodable, Equatable, Identifiable {
+	let id: String
+	let eyebrow: String?
+	let title: String?
+	let body: String?
+	let items: [DashboardBlockContentItem]
+}
+
 /// Home-dashboard **block content** — sole payload for a card body.
 /// Header chrome comes only from the card definition.
 struct DashboardBlockContent: Decodable, Equatable {
@@ -99,6 +115,8 @@ struct DashboardBlockContent: Decodable, Equatable {
 	let count: Int
 	let launchUrls: [String]?
 	let sources: [DashboardBlockContentSource]?
+	/// Optional generic hierarchy derived from the flow's Markdown.
+	let sections: [DashboardBlockContentSection]?
 
 	/// Non-empty body ready to render.
 	var hasBody: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }

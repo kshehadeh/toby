@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { formatLocalTimestampForPrompt } from "@toby/core/ai/current-datetime";
 import { clearDashboardCache } from "@toby/core/dashboard";
+import { dashboardContentSections } from "@toby/core/dashboard/content-sections";
 import {
 	buildDashboardSummarySystemPrompt,
 	formatItemsForPrompt,
@@ -174,6 +175,51 @@ Your week kicks off **today** with an all-day **Open Dev Day** and a **Delta fli
 ## Later
 Monday is packed: **Standup: UAI Web** at 10 AM, then overlapping afternoon meetings.`;
 		expect(extractDashboardSummaryText(clean)).toBe(clean);
+	});
+});
+
+describe("dashboardContentSections", () => {
+	it("derives headings, prose, rows, and links from dashboard markdown", () => {
+		const sections = dashboardContentSections(`## Technology
+### The changing landscape of AI agents
+A quick look at the ideas shaping the conversation.
+
+• [Developer tools worth a look](https://example.com/tools) — DEVELOPER
+• Policy and research roundup — POLITICS`);
+
+		expect(sections).toEqual([
+			{
+				id: "section-0",
+				eyebrow: "Technology",
+				title: "The changing landscape of AI agents",
+				body: "A quick look at the ideas shaping the conversation.",
+				items: [
+					{
+						title: "Developer tools worth a look",
+						subtitle: "DEVELOPER",
+						url: "https://example.com/tools",
+					},
+					{
+						title: "Policy and research roundup",
+						subtitle: "POLITICS",
+					},
+				],
+			},
+		]);
+	});
+
+	it("keeps plain prose on the markdown fallback path", () => {
+		expect(dashboardContentSections("Nothing urgent today.")).toBeUndefined();
+	});
+
+	it("separates a bold row lead from its supporting copy", () => {
+		const sections = dashboardContentSections(
+			"## Tech\n• **AI safety debate intensifies:** Critics argue that policy is lagging.",
+		);
+		expect(sections?.[0]?.items[0]).toEqual({
+			title: "AI safety debate intensifies",
+			subtitle: "Critics argue that policy is lagging.",
+		});
 	});
 });
 

@@ -295,8 +295,6 @@ enum RootToolbars {
 		common model: RootCommonToolbarModel,
 		updatedText: String,
 		isRefreshing: Bool,
-		isEditing: Bool = false,
-		onToggleEdit: @escaping () -> Void = {},
 		showActionsToggle: Bool = false,
 		actionsVisible: Bool = true,
 		onToggleActions: @escaping () -> Void = {},
@@ -307,12 +305,6 @@ enum RootToolbars {
 			header: RootHeaderTitle(title: "Home", activityLine: updatedText)
 		)
 		contextualActions {
-			Button(action: onToggleEdit) {
-				Image(systemName: isEditing ? "checkmark" : "square.and.pencil")
-			}
-			.help(dashboardEditHelp(isEditing: isEditing))
-			.accessibilityLabel(dashboardEditHelp(isEditing: isEditing))
-			.accessibilityIdentifier(dashboardEditIdentifier(isEditing: isEditing))
 			if showActionsToggle {
 				Button(action: onToggleActions) {
 					Image(systemName: "sidebar.trailing")
@@ -329,14 +321,6 @@ enum RootToolbars {
 			.disabled(isRefreshing)
 			.accessibilityIdentifier("dashboard-refresh-button")
 		}
-	}
-
-	static func dashboardEditHelp(isEditing: Bool) -> String {
-		isEditing ? "Done" : "Edit Home"
-	}
-
-	static func dashboardEditIdentifier(isEditing: Bool) -> String {
-		isEditing ? "dashboard-done-editing-button" : "dashboard-edit-button"
 	}
 
 	static func dashboardActionsHelp(actionsVisible: Bool) -> String {

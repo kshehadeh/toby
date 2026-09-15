@@ -12,6 +12,7 @@ import {
 } from "../flows/run-user-flow";
 import { getLatestSuccessfulFlowRun } from "../flows/store";
 import { DASHBOARD_CONTENT_TTL_MS } from "./cache-ttl";
+import { dashboardContentSections } from "./content-sections";
 import type { DashboardBlockContent } from "./types";
 
 export type FlowDashboardBlock = {
@@ -135,6 +136,7 @@ function contentFromRun(
 		lastNodeResult: nodeResult,
 	});
 	const text = extracted.text.trim();
+	const sections = dashboardContentSections(text);
 	return {
 		category: flowId,
 		text,
@@ -142,6 +144,7 @@ function contentFromRun(
 		personaName: run.personaName ?? "",
 		count: text ? 1 : 0,
 		launchUrls: [],
+		...(sections ? { sections } : {}),
 	};
 }
 
@@ -150,6 +153,7 @@ function contentFromUserRun(
 	run: UserFlowRunResult,
 ): DashboardBlockContent {
 	const text = run.extracted?.text?.trim() ?? "";
+	const sections = dashboardContentSections(text);
 	return {
 		category: flowId,
 		text,
@@ -157,6 +161,7 @@ function contentFromUserRun(
 		personaName: run.persona?.name ?? "",
 		count: text ? 1 : 0,
 		launchUrls: [],
+		...(sections ? { sections } : {}),
 	};
 }
 

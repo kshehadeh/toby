@@ -55,7 +55,7 @@ struct DashboardCard<Content: View>: View {
 
 	/// Content taller than the fixed collapsed card needs “Show more”.
 	private var isOverflowing: Bool {
-		intrinsicContentHeight > DashboardBlockLayout.collapsedHeight + 0.5
+		intrinsicContentHeight > DashboardBlockLayout.maximumCollapsedHeight + 0.5
 	}
 
 	private var motion: Animation? {
@@ -76,13 +76,12 @@ struct DashboardCard<Content: View>: View {
 			)
 			.frame(maxWidth: .infinity, alignment: .topLeading)
 			.frame(
-				maxHeight: isExpanded ? nil : DashboardBlockLayout.collapsedHeight,
+				maxHeight: isExpanded ? nil : DashboardBlockLayout.maximumCollapsedHeight,
 				alignment: .topLeading
 			)
 			.frame(
-				minHeight: DashboardBlockLayout.collapsedHeight,
-				// Collapsed: fixed height. Expanded: grow with content (ScrollView can scroll).
-				maxHeight: isExpanded ? .infinity : DashboardBlockLayout.collapsedHeight,
+				// Short cards stay intrinsic; overflowing cards stop at the cap.
+				maxHeight: isExpanded ? .infinity : DashboardBlockLayout.maximumCollapsedHeight,
 				alignment: .top
 			)
 			.fixedSize(horizontal: false, vertical: isExpanded)
@@ -150,8 +149,8 @@ struct DashboardCard<Content: View>: View {
 		VStack(spacing: 0) {
 			LinearGradient(
 				colors: [
-					AppTheme.panelBackground.opacity(0),
-					AppTheme.panelBackground,
+					AppTheme.contentBackground.opacity(0),
+					AppTheme.contentBackground,
 				],
 				startPoint: .top,
 				endPoint: .bottom
@@ -170,7 +169,7 @@ struct DashboardCard<Content: View>: View {
 					.contentShape(Rectangle())
 			}
 			.buttonStyle(.plain)
-			.background(AppTheme.panelBackground)
+			.background(AppTheme.contentBackground)
 			.accessibilityLabel("Show more")
 			.accessibilityIdentifier("dashboard-card-show-more")
 			.help("Expand this card. Move the pointer away to collapse.")
@@ -205,9 +204,8 @@ struct DashboardCard<Content: View>: View {
 /// Shared markdown styling for AI summaries inside dashboard cards.
 /// Serif body matches assistant answers so anything Toby wrote reads in Toby’s voice.
 enum DashboardSummaryMarkdown {
-	static let bodyFont: Font = .system(size: 14, weight: .regular, design: .serif)
-	/// Extra leading so 14pt serif sits near 1.6.
-	static let bodyLineSpacing: CGFloat = 8
+	static let bodyFont: Font = .system(size: 13)
+	static let bodyLineSpacing: CGFloat = 4
 	/// Slightly muted body copy; bold spans use pure theme primary.
 	static let bodyColor = AppTheme.secondaryText
 	static let strongColor = AppTheme.primaryText
@@ -216,14 +214,19 @@ enum DashboardSummaryMarkdown {
 }
 
 /// Static header chrome: title, optional last-run timestamp, trailing actions.
-private struct CardHeader<Trailing: View>: View {
+struct CardHeader<Trailing: View>: View {
 	let title: String
+	let systemImage: String
 	/// Short date + HH:mm when the block flow last produced content.
 	var lastRanAtText: String? = nil
 	@ViewBuilder let trailing: () -> Trailing
 
 	var body: some View {
 		HStack(alignment: .firstTextBaseline, spacing: 10) {
+			Image(systemName: systemImage)
+				.font(.system(size: 14, weight: .medium))
+				.foregroundStyle(AppTheme.primaryText)
+				.accessibilityHidden(true)
 			Text(title)
 				.font(.system(size: DashboardBlockLayout.titleSize, weight: DashboardBlockLayout.titleWeight))
 				.tracking(DashboardBlockLayout.titleTracking)
@@ -241,6 +244,10 @@ private struct CardHeader<Trailing: View>: View {
 			trailing()
 		}
 		.padding(.bottom, DashboardBlockLayout.headerSpacing)
+		.overlay(alignment: .bottom) {
+			Divider().overlay(AppTheme.separator)
+		}
+		.padding(.bottom, 12)
 	}
 }
 
@@ -356,6 +363,7 @@ struct DashboardBlockCard: View {
 		DashboardCard(systemImage: block.systemImage) {
 			CardHeader(
 				title: block.title,
+				systemImage: block.systemImage,
 				lastRanAtText: DashboardFormat.flowRanAtText(content?.generatedAt)
 			) {
 				CardHeaderTrailingControls(
@@ -379,15 +387,19 @@ struct DashboardBlockCard: View {
 		if showContentSkeleton {
 			SummarySkeletonView()
 		} else if let content, content.hasBody {
-			MarkdownText(
-				text: content.text,
-				font: DashboardSummaryMarkdown.bodyFont,
-				foregroundStyle: DashboardSummaryMarkdown.bodyColor,
-				strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
-				headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
-				uppercaseHeadings: true
-			)
-			.lineSpacing(DashboardSummaryMarkdown.bodyLineSpacing)
+			if let sections = content.resolvedSections, !sections.isEmpty {
+				DashboardStructuredContent(sections: sections)
+			} else {
+				MarkdownText(
+					text: content.text,
+					font: DashboardSummaryMarkdown.bodyFont,
+					foregroundStyle: DashboardSummaryMarkdown.bodyColor,
+					strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
+					headingForegroundStyle: DashboardSummaryMarkdown.headingColor,
+					uppercaseHeadings: true
+				)
+				.lineSpacing(DashboardSummaryMarkdown.bodyLineSpacing)
+			}
 		} else if let error = block.error {
 			DashboardEmptyState(message: "Content unavailable. \(error)")
 		} else if content == nil {
@@ -396,6 +408,108 @@ struct DashboardBlockCard: View {
 			// Connected / loaded but zero items or empty markdown.
 			DashboardEmptyState(message: block.descriptor.emptyWhenZero)
 		}
+	}
+}
+
+private struct DashboardStructuredContent: View {
+	let sections: [DashboardBlockContentSection]
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+				if index > 0 {
+					Divider()
+						.overlay(AppTheme.separator)
+						.padding(.vertical, 12)
+				}
+				DashboardStructuredSection(section: section)
+			}
+		}
+		.accessibilityIdentifier("dashboard-structured-content")
+	}
+}
+
+private struct DashboardStructuredSection: View {
+	let section: DashboardBlockContentSection
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			if let eyebrow = section.eyebrow {
+				Text(eyebrow.uppercased())
+					.font(.system(size: 10, weight: .semibold))
+					.tracking(0.7)
+					.foregroundStyle(AppTheme.tertiaryText)
+			}
+			if let title = section.title {
+				Text(title)
+					.font(.system(size: 17, weight: .semibold))
+					.foregroundStyle(AppTheme.primaryText)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+			if let body = section.body {
+				MarkdownText(
+					text: body,
+					font: DashboardSummaryMarkdown.bodyFont,
+					foregroundStyle: DashboardSummaryMarkdown.bodyColor,
+					strongForegroundStyle: DashboardSummaryMarkdown.strongColor,
+					headingForegroundStyle: DashboardSummaryMarkdown.headingColor
+				)
+				.lineSpacing(4)
+			}
+			if !section.items.isEmpty {
+				VStack(alignment: .leading, spacing: 0) {
+					ForEach(Array(section.items.enumerated()), id: \.offset) { index, item in
+						if index > 0 {
+							Divider().overlay(AppTheme.separator)
+						}
+						DashboardStructuredItemRow(item: item)
+					}
+				}
+				.padding(.top, 4)
+			}
+		}
+	}
+}
+
+private struct DashboardStructuredItemRow: View {
+	let item: DashboardBlockContentItem
+
+	var body: some View {
+		Group {
+			if let rawURL = item.url, let url = URL(string: rawURL) {
+				Link(destination: url) { rowContent(showsChevron: true) }
+					.buttonStyle(.plain)
+			} else {
+				rowContent(showsChevron: false)
+			}
+		}
+		.accessibilityElement(children: .combine)
+	}
+
+	private func rowContent(showsChevron: Bool) -> some View {
+		HStack(spacing: 10) {
+			VStack(alignment: .leading, spacing: 2) {
+				Text(item.title)
+					.font(.system(size: 13, weight: .medium))
+					.foregroundStyle(AppTheme.primaryText)
+					.fixedSize(horizontal: false, vertical: true)
+				if let subtitle = item.subtitle {
+					Text(subtitle)
+						.font(.system(size: 11))
+						.foregroundStyle(AppTheme.secondaryText)
+						.lineLimit(2)
+				}
+			}
+			Spacer(minLength: 0)
+			if showsChevron {
+				Image(systemName: "chevron.right")
+					.font(.system(size: 10, weight: .semibold))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.accessibilityHidden(true)
+			}
+		}
+		.padding(.vertical, 9)
+		.contentShape(Rectangle())
 	}
 }
 

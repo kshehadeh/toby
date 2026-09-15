@@ -5,6 +5,7 @@ import { type Persona, getDashboardSummariesPath } from "../config/index";
 import { runFlow } from "../flows/runner";
 import { daemonLog } from "../logging/daemon-log";
 import { DASHBOARD_CONTENT_TTL_MS } from "./cache-ttl";
+import { dashboardContentSections } from "./content-sections";
 import { getDashboardCategory } from "./index";
 import {
 	CATEGORY_PROMPTS,
@@ -138,8 +139,13 @@ function getPersistedSummary(category: string): DashboardBlockContent | null {
 		clearPersistedSummary(category);
 		return null;
 	}
-	if (text !== entry.text) {
-		const cleaned: DashboardBlockContent = { ...entry, text };
+	const sections = dashboardContentSections(text);
+	if (text !== entry.text || (sections && !entry.sections)) {
+		const cleaned: DashboardBlockContent = {
+			...entry,
+			text,
+			...(sections ? { sections } : {}),
+		};
 		persistSummary(cleaned);
 		return cleaned;
 	}
@@ -549,6 +555,7 @@ async function generateLegacyCategorySummary(
 			return emptyBlockContent(category, data, persona.name);
 		}
 
+		const sections = dashboardContentSections(text);
 		const summary: DashboardBlockContent = {
 			category,
 			text,
@@ -557,6 +564,7 @@ async function generateLegacyCategorySummary(
 			count: data.count,
 			launchUrls: launchUrlsFromCategory(data),
 			sources: contentSourcesFromCategory(data),
+			...(sections ? { sections } : {}),
 		};
 
 		summaryCache.set(cacheKey, {
@@ -665,6 +673,7 @@ async function generateCategorySummaryViaFlow(
 			? launchUrlsFromFlow
 			: launchUrlsFromCategory(data);
 
+	const sections = dashboardContentSections(text);
 	const summary: DashboardBlockContent = {
 		category,
 		text,
@@ -673,6 +682,7 @@ async function generateCategorySummaryViaFlow(
 		count: itemCount,
 		launchUrls,
 		sources: contentSourcesFromCategory(data),
+		...(sections ? { sections } : {}),
 	};
 
 	summaryCache.set(cacheKey, {

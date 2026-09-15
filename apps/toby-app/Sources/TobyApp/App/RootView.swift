@@ -39,8 +39,6 @@ struct RootView: View {
     @State private var isAIProviderChooserPresented = false
     /// When non-nil, present guided setup for this provider id.
     @State private var aiProviderSetupProviderId: String?
-    /// Session-only dashboard layout editor. Exits when leaving the home route.
-    @State private var isEditingDashboard = false
     /// When true on a narrow Chats workspace, show the session list instead of the transcript.
     @State private var preferChatSessionList = false
     @State private var isConnectionStatusPresented = false
@@ -420,9 +418,6 @@ struct RootView: View {
         .navigationSubtitle(rootNavigationSubtitle)
         .toolbar { rootToolbar }
         .onChange(of: history.current) { _, route in
-            if route != .dashboard {
-                isEditingDashboard = false
-            }
             if route != .chat {
                 preferChatSessionList = false
             }
@@ -441,6 +436,12 @@ struct RootView: View {
                 isServerReady: store.isServerReady,
                 onRefresh: { Task { await refreshDashboardData() } },
                 onSelectRoute: navigateToRoute,
+                recentWork: DashboardRecentWorkItem.merged(
+                    sessions: store.sessions,
+                    projects: projectsStore.projects
+                ),
+                isRecentWorkLoading: store.isSessionsLoading || projectsStore.isLoading,
+                onSelectRecentWork: openRecentWork,
                 onOpenSettings: { openSettings(navKey: $0) },
                 onOpenAIProviderSetup: { isAIProviderChooserPresented = true },
                 onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
@@ -451,8 +452,7 @@ struct RootView: View {
                     planInChat: planCalendarInChat,
                     openFlow: openDashboardFlow,
                     runFlow: runDashboardFlow
-                ),
-                isEditing: isEditingDashboard
+                )
             )
             .sheet(isPresented: Binding(
                 get: { flowsStore.showResultSheet },
@@ -503,8 +503,6 @@ struct RootView: View {
                                             lastLoadedAt: dashboardStore.lastLoadedAt
                                         ),
                                         isRefreshing: dashboardStore.isRefreshing,
-                                        isEditing: isEditingDashboard,
-                                        onToggleEdit: { isEditingDashboard.toggle() },
                                         showActionsToggle: dashboardStore.blocks.contains {
                                             $0.descriptor.isFlowRunner
                                         },
@@ -1039,6 +1037,17 @@ struct RootView: View {
 
     private func selectSession(_ id: String) {
         Task { await store.selectSession(id: id) }
+    }
+
+    private func openRecentWork(_ item: DashboardRecentWorkItem) {
+        switch item.kind {
+        case let .chat(id):
+            navigateToRoute(.chat)
+            selectSession(id)
+        case let .project(id):
+            navigateToRoute(.projects)
+            Task { await projectsStore.selectProject(id: id) }
+        }
     }
 
     private func toggleRecording() {

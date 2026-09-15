@@ -325,4 +325,12 @@ struct DashboardLayoutTests {
 			) == 3
 		)
 	}
+
+	@Test("waterfall placement picks the shortest column with stable tie breaking")
+	func waterfallPicksShortestColumn() {
+		#expect(AdaptiveColumnLayout.shortestColumn(in: [120, 80, 100]) == 1)
+		#expect(AdaptiveColumnLayout.shortestColumn(in: [80, 80, 100]) == 1)
+		#expect(AdaptiveColumnLayout.shortestColumn(in: [0, 0]) == 0)
+		#expect(AdaptiveColumnLayout.shortestColumn(in: []) == 0)
+	}
 }

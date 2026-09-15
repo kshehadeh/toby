@@ -33,6 +33,9 @@ struct DashboardView: View {
 	var isServerReady: Bool = true
 	let onRefresh: () -> Void
 	let onSelectRoute: (DetailRoute) -> Void
+	var recentWork: [DashboardRecentWorkItem] = []
+	var isRecentWorkLoading = false
+	var onSelectRecentWork: (DashboardRecentWorkItem) -> Void = { _ in }
 	/// Opens Settings, optionally deep-linking to a top-level section key
 	/// (e.g. `"ai"`, `"transcription"`).
 	var onOpenSettings: (String?) -> Void = { _ in }
@@ -151,13 +154,27 @@ struct DashboardView: View {
 	}
 
 	private var greeting: some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Text("\(Self.greetingPrefix(for: now)), \(userName)")
-				.font(.system(size: 26, weight: .bold))
-				.foregroundStyle(AppTheme.primaryText)
-			Text("\(Self.longDate(now)) · Here's what needs your attention.")
-				.font(.system(size: 14))
-				.foregroundStyle(AppTheme.secondaryText)
+		HStack(alignment: .top, spacing: 16) {
+			VStack(alignment: .leading, spacing: 3) {
+				Text("\(Self.greetingPrefix(for: now)), \(userName)")
+					.font(.system(size: 26, weight: .bold))
+					.tracking(-0.45)
+					.foregroundStyle(AppTheme.primaryText)
+				Text(Self.longDate(now))
+					.font(.system(size: 13))
+					.foregroundStyle(AppTheme.secondaryText)
+			}
+			Spacer(minLength: 0)
+			if store.isRefreshing {
+				ProgressView()
+					.controlSize(.small)
+					.accessibilityLabel("Updating Home")
+			} else if let lastLoadedAt = store.lastLoadedAt {
+				Text(RootToolbars.dashboardUpdatedText(lastLoadedAt: lastLoadedAt))
+					.font(.system(size: 10))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.padding(.top, 4)
+			}
 		}
 	}
 
@@ -215,17 +232,17 @@ struct DashboardView: View {
 
 	@ViewBuilder
 	private var cardGrid: some View {
-		if !visibleCards.isEmpty {
-			AdaptiveColumnLayout(minItemWidth: 280, spacing: 20) {
-				ForEach(visibleCards) { block in
-					editableCard(block)
-						.transition(DashboardSectionMotion.transition)
-				}
+		AdaptiveColumnLayout(minItemWidth: 320, maxItemWidth: 460, spacing: 20) {
+			ForEach(visibleCards) { block in
+				editableCard(block)
+					.transition(DashboardSectionMotion.transition)
 			}
-		} else if isEditing {
-			Color.clear
-				.frame(maxWidth: .infinity)
-				.frame(minHeight: 64)
+			DashboardRecentWorkSection(
+				items: recentWork,
+				isLoading: isRecentWorkLoading,
+				onSelect: onSelectRecentWork
+			)
+			.transition(DashboardSectionMotion.transition)
 		}
 	}
 

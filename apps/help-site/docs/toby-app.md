@@ -85,9 +85,14 @@ disappears when the current view has no actions.
 
 **Home** is the landing surface. It shows unread mail, open tasks, and upcoming
 events when the matching integrations are connected, plus any custom flows you
-pin to the dashboard. Browse chats, projects, recordings, and memories from
-those workspaces (or the Memories window), not from a recents feed in the
-sidebar.
+pin to the dashboard. Cards use their natural height and stack into responsive
+columns, so short status cards can sit beside a longer briefing. Structured
+flow output can show a category, lead item, supporting rows, and links while
+plain Markdown continues to render normally.
+
+**Continue working** is another card in the responsive layout and shows up to
+five recently updated chats and projects. Select a row to resume that chat or
+open the project. This feed stays on Home rather than in the global sidebar.
 
 ![Toby.app Home](/img/toby-app-home.png)
 
@@ -256,7 +261,11 @@ events (when the matching integrations are connected), plus any **custom
 flows** you associated with a Dashboard destination. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
 connected integrations. **Informational** flow cards work the same way and
-show the last run’s output. **Runner only** flows appear in an **Actions**
+show the last run’s output. Headings, prose, bullets, and links can be presented
+as structured briefing sections; other output uses its original Markdown.
+Cards keep their natural height until long content reaches the collapsed limit,
+and the responsive layout fills the shortest column first. **Runner only**
+flows appear in an **Actions**
 strip beside the cards (not as full-size cards). Each action is the flow’s
 title; hover to see its description. They never run until you click one —
 while a run is in progress that button is disabled and shows a spinner.
@@ -269,23 +278,11 @@ control in the toolbar (or the refresh control on a built-in or informational
 card) to regenerate card content. Cards load once the local service is ready
 when you open the app.
 
-You can rearrange the home cards without leaving Home. Click
-**Edit Home** (pencil) in the toolbar, next to **Refresh**. While
-editing:
-
-- Each card shows a drag handle and a hide button.
-- Drag a handle (or the card) to move it in the grid. An insertion bar
-  appears before the card you are hovering. Actions in the Actions strip
-  can be hidden, but not reordered.
-- Hidden cards collect in a **Hidden cards** tray at the bottom. Drag a
-  card chip onto the grid to place it, or click **Show** to restore it at
-  the end. Hidden actions restore with **Show** only.
-- Click **Done** (checkmark) when you are finished. Leaving Home
-  also exits edit mode.
-
-Layout (order, hidden cards, Actions strip visibility, and Actions width) is
-stored only on this Mac, with other app appearance settings — not in Toby’s
-server config.
+Home card rearrangement is temporarily unavailable while that interaction is
+being redesigned. Toby still honors previously stored card order and
+visibility. Built-in card visibility, onboarding visibility, and layout reset
+remain available under **Settings → Home**. The Actions strip can still be
+shown, hidden, and resized from Home.
 
 Under **Settings → Home**, you can set the persona used for Home
 summaries and control which home cards are visible (app-local). Card

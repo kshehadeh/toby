@@ -65,7 +65,8 @@ quiet and readable.
   mostly flat: no gradients, photos, texture, decorative cards, or generic drop
   shadows.
 - Separate content with whitespace first. A settings card has at most one
-  hairline divider per row, and a dashboard card has no border or divider.
+  hairline divider per row. Dashboard cards use one quiet outline and a
+  header hairline; structured item rows may use hairline separators.
 - Use SF Symbols, never emoji, for app controls. Use the shipped raster asset
   for integrations, providers, and personas.
 - Use sentence case. Uppercase is a visual style for badges, sidebar section
@@ -172,7 +173,7 @@ four-point grid.
 | --- | --- |
 | Content inset | 24 |
 | Sidebar inset | 10 horizontal × 12 vertical |
-| Dashboard card | 340 collapsed height, 26 inset, 20 grid gap; concentric, minimum 16 |
+| Dashboard card | Intrinsic height capped at 340 when collapsed; 16 inset, 20 masonry gap; 320–460 width; concentric, minimum 16 |
 | Settings card / row | concentric, minimum 10; 42 minimum row height, 10 × 8 row inset |
 | General floating card/dock/toast | concentric, minimum 16 |
 | Bubble | concentric, minimum 14; 16 × 12 inset |
@@ -233,7 +234,7 @@ source path and behavior, not the Figma geometry, define their contract.
 | Feedback | **InlineStatusMessage** is persistent local success/error feedback. **Toast** is global, transient feedback; it pauses its 4s timer on hover and may offer one action. **Skeleton** preserves the eventual layout while loading. |
 | Navigation | **Destination list** (`List(selection:)` + `.sidebar`) is the global sidebar: Home, Chats, Projects, Recordings, then Automation (Schedules, Flows) and Tools (Skills, Integrations). System selection, semantic secondary icon tint, no per-category colors or timestamps. **PersonaFooter** is a single-line persona control; model name lives in the picker popover. Connection recovery is labelled and hidden when healthy. |
 | Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and floating Liquid Glass geometry. **UserMessage**, **AssistantMessage**, and **WorkStepRow** keep transcript roles visually distinct. |
-| Dashboard | **DashboardCard** is flat with a 2pt accent cap and ghost glyph. **CardSection** holds uppercase metadata plus answer-like prose. **Flow runner** presents actions. **OnboardingTile** makes an explicit setup action available. |
+| Dashboard | **DashboardCard** is a quiet content-surface panel with a hairline outline and header divider. **CardSection** presents optional structured eyebrow/title/body/item content with system typography and Markdown fallback. **Flow runner** presents actions. **Recent work** combines chats and projects. **OnboardingTile** makes an explicit setup action available. |
 
 See the full anatomy, states, source mapping, and “do/don’t” guidance in
 [`component-recipes.md`](.agents/skills/toby-design/references/component-recipes.md).
@@ -325,7 +326,7 @@ Choose an existing archetype instead of inventing a one-off shell.
 | Archetype | Contract |
 | --- | --- |
 | Main app shell | `NavigationSplitView` in a standard titled window: sidebar is a stable destination list plus compact persona footer on system glass (no custom fill); detail owns the selected workspace. Back/Forward sit with the sidebar toggle. The selected item name or section title is the system `navigationTitle` (activity as `navigationSubtitle`) so trailing actions can pin to the window edge. Record, Settings, and labeled Search form the permanent `.primaryAction` group (plus Update when available). Contextual actions are a `ControlGroup` in `.confirmationAction` so they stay a second trailing cluster; omit that item when empty. Sibling `Button`s in `.primaryAction` or `.automatic` merge into one bezel. |
-| Dashboard | 24pt content inset, greeting, optional onboarding, adaptive cards (280pt minimum item width/20pt gap), optional resizable actions inspector. Cards remain aligned at 340pt collapsed height. Home has no recent-item list in the global sidebar. |
+| Dashboard | 24pt content inset, greeting/date/update status, optional onboarding, and 320–460pt waterfall cards with a 20pt gap plus an optional resizable actions inspector. “Continue working” is a peer card containing up to five recent chats/projects. Cards use intrinsic height up to a 340pt collapsed cap. Home has no recent-item list in the global sidebar. |
 | Chat workspace | Shared `FeatureWorkspaceSplit`: conversation list beside the transcript when the detail column is wide; list **or** transcript at narrow widths, with an explicit return-to-chats control. Empty workspace centers persona/greeting/dock/suggestions. Active workspace stacks a virtualized transcript behind a bottom-pinned dock, with 18pt bottom gutter and measured transcript reservation. User content maxes at 520pt, assistant/work content at 640pt. |
 | Settings-style detail | Settings canvas with left-aligned form content normally capped at 640pt. Settings cards use standard rows and hairlines. |
 | Browse and inspect | Same `FeatureWorkspaceSplit` as Chats: a second list column (`FeatureBrowserList`, 10pt horizontal inset) plus selected detail, both under the window toolbar separator. Unselected detail is `FeatureBrowserPlaceholder` (type icon + select/create copy). Do not use card-grid overviews. Preserve trailing inspectors (project files/chats). |

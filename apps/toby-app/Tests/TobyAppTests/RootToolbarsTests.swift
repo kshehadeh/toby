@@ -320,16 +320,6 @@ struct RootToolbarsTests {
 		#expect(text.hasPrefix("Updated "))
 	}
 
-	@Test("dashboard edit toolbar labels swap with editing state")
-	func dashboardEditToolbarLabels() {
-		#expect(RootToolbars.dashboardEditHelp(isEditing: false) == "Edit Home")
-		#expect(RootToolbars.dashboardEditHelp(isEditing: true) == "Done")
-		#expect(RootToolbars.dashboardEditIdentifier(isEditing: false) == "dashboard-edit-button")
-		#expect(
-			RootToolbars.dashboardEditIdentifier(isEditing: true) == "dashboard-done-editing-button"
-		)
-	}
-
 	@Test("dashboard actions toolbar help swaps with pane visibility")
 	func dashboardActionsToolbarHelp() {
 		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: true) == "Hide Actions")

@@ -12,7 +12,7 @@ optional custom-flow cards) get their content.
 | --- | --- | --- |
 | Header title, icon, actions | Card **definition** (`DashboardBlockDescriptor`) | No |
 | Header last-run time | `DashboardBlockContent.generatedAt` (short date + `HH:mm`) | Yes, when content updates |
-| Body | **Flow output** (`DashboardBlockContent`) | Yes — one path |
+| Body | **Flow output** (`DashboardBlockContent`), with optional derived sections | Yes — one path |
 | Count badge | — | Removed (not part of the model) |
 
 There is **no** separate client path for “list/count data” vs “AI blurb.”
@@ -36,10 +36,9 @@ Compile-time registration in Toby.app
 - visibility defaults key (legacy; layout JSON is source of truth), default sort index, accessibility id
 - action metadata (`openPrimaryTitle`, `listsSourceOpenActions`, fallbacks)
 
-The header **title** comes only from the definition. The **last-run** timestamp
-in the header is formatted from content `generatedAt` (locale short date +
-24-hour `HH:mm`) when content is present. `systemImage` is not a header icon —
-it is the card’s lower-right **ghost glyph** (flat, ~120pt, 4.5% opacity).
+The header **title** and leading SF Symbol come only from the definition. The
+**last-run** timestamp in the header is formatted from content `generatedAt`
+(locale short date + 24-hour `HH:mm`) when content is present.
 Actions are declared by the block (open app, chat hooks); enablement may use
 light **meta** from the latest content (e.g. `count > 0` for “Summarize all in
 chat”).
@@ -48,14 +47,16 @@ chat”).
 
 Home cards share one visual shell (`DashboardBlockChrome`):
 
-- Flat panel fill, 16pt corners, **no border** and **no header divider**
-- 2px accent **cap rule** inset 26px from the sides
-- Oversized flat **ghost glyph** in the lower-right corner
-- 26px inner padding; informational cards collapse to a shared 340px height
-- Summary body is **serif** (same face as assistant answers); `##` section
-  labels render as 10pt uppercase with +0.09em tracking
+- Content-background fill, 16pt corners, quiet hairline outline and header divider
+- 16px inner padding; cards keep their intrinsic height up to a 340px collapsed cap
+- A waterfall layout places each card in the shortest 320–460px column, so compact cards stack beside taller cards
+- Summary and structured rows use compact system typography; `##` section
+  labels render as small uppercase metadata
 - Expanded cards drop a small downward shadow; collapsed overflow uses the
   gradient fade + **Show more** bar
+- Flow Markdown is also exposed as optional generic eyebrow/title/body/item
+  sections. Toby.app uses those sections for briefing-style hierarchy and
+  actionable rows, falling back to the original Markdown for plain output.
 
 Onboarding uses the same shell without a glyph. Runner-variant flows are **not**
 cards: they appear in a compact **Actions** rail beside the grid (title button,
@@ -78,6 +79,13 @@ interface DashboardBlockContent {
     providerName: string;
     providerDisplayName: string;
     launchUrl?: string;
+  }[];
+  sections?: {            // derived from headings, prose, bullets, and links
+    id: string;
+    eyebrow?: string;
+    title?: string;
+    body?: string;
+    items: { title: string; subtitle?: string; url?: string }[];
   }[];
 }
 ```
@@ -124,9 +132,9 @@ DashboardBlockContent → card body
 Global refresh is **not** a second system: it iterates registered blocks and
 calls each block’s force update in parallel.
 
-## Layout editor (app-local)
+## Layout preferences (app-local)
 
-Toby.app can reorder and hide home cards without talking to the daemon.
+Toby.app retains card order and visibility preferences without talking to the daemon.
 Layout is stored in `UserDefaults` key `toby.appearance.dashboardLayout`
 alongside other UI prefs (`AppearancePreferences`), not in `~/.toby` or
 server settings.
@@ -173,16 +181,23 @@ The dashboard toolbar includes **Hide Actions** / **Show Actions** (trailing
 sidebar icon) when at least one runner flow is registered. That toggle is
 stored as `actionsVisible` and does not hide individual runners.
 
-**Edit mode** is session-only (toolbar pencil next to Refresh). Each card
-shows a drag handle and hide button. Dragging a card uses SwiftUI
-`draggable`; an insertion bar marks the slot *before* the hovered card.
-The Actions rail is not reorderable in edit mode (hide only). Hidden
-informational cards appear in a **Hidden cards** tray and can be dragged
-onto the grid or shown at the end; hidden runners use **Show** only.
-Leaving the dashboard exits edit mode.
+The previous Home edit/reorder entry point is currently hidden while that
+interaction is reconsidered. Existing stored order remains honored, and
+Settings → Home visibility toggles continue to work. The underlying layout
+document and reorder implementation are intentionally retained so existing
+preferences do not require migration.
 
 Onboarding is not part of this layout; it still uses **Hide onboarding
 checklist**.
+
+## Continue working
+
+The **Continue working** card participates in the same waterfall layout and
+uses the same width and collapsed-height limits as other dashboard blocks. It
+merges non-project chat sessions and projects by their most recent update time
+and shows up to five rows. Selecting a chat opens that session in Chats;
+selecting a project opens its project page. Project chats remain represented by
+their project and are not duplicated as chat rows.
 
 ## Categories and flows
 
