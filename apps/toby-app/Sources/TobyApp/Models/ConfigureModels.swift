@@ -54,6 +54,13 @@ struct SettingsItem: Decodable, Identifiable {
 	/// Key remains `icloud` for stable identity across upgrades.
 	static let iCloudSectionKey = "icloud"
 
+	/// Settings catalog of installable plugins. The sidebar row is client-owned
+	/// so it is always visible; children come from `/api/configure/sections`.
+	static let integrationsSectionKey = "integrations"
+
+	/// Daemon-backed AI providers catalog (`/api/configure/sections` → `ai`).
+	static let aiSectionKey = "ai"
+
 	static var appearanceSection: SettingsItem {
 		SettingsItem(
 			label: "General",
@@ -116,6 +123,28 @@ struct SettingsItem: Decodable, Identifiable {
 			icon: nil,
 			group: nil,
 			description: nil,
+			docUrl: nil
+		)
+	}
+
+	static var integrationsSection: SettingsItem {
+		SettingsItem(
+			label: "Integrations",
+			kind: .section,
+			key: integrationsSectionKey,
+			navKey: integrationsSectionKey,
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: true,
+			iconUrl: nil,
+			icon: nil,
+			group: nil,
+			description: "Connect services Toby can use in chat.",
 			docUrl: nil
 		)
 	}

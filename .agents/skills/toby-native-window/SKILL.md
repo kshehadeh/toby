@@ -1,7 +1,7 @@
 ---
 name: toby-native-window
 description: >-
-  Use when creating or modifying native macOS windows in the Toby app (apps/toby-app/). Covers sidebar windows (Integrations, Schedules, Recordings, Logs), the Settings preferences window (Liquid Glass sidebar + grouped Form), modal/sheet-like windows (Changelog, Issue Report), window chrome, and SwiftUI window modifiers.
+  Use when creating or modifying native macOS windows in the Toby app (apps/toby-app/). Covers sidebar windows (Schedules, Recordings, Logs), the Settings preferences window (Liquid Glass sidebar + grouped Form), modal/sheet-like windows (Changelog, Issue Report), window chrome, and SwiftUI window modifiers.
 ---
 
 # Toby Native Window Creation
@@ -12,7 +12,7 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 
 | Pattern | Examples | Key traits |
 | --- | --- | --- |
-| **Sidebar window** | Logs (secondary) | `NavigationSplitView` with a sidebar + detail pane. The sidebar toolbar must extend into the title bar so the stoplight appears as part of the sidebar. The main window uses a destination-list sidebar (`AppSidebar`); Integrations / Schedules / Recordings are detail workspaces. |
+| **Sidebar window** | Logs (secondary) | `NavigationSplitView` with a sidebar + detail pane. The sidebar toolbar must extend into the title bar so the stoplight appears as part of the sidebar. The main window uses a destination-list sidebar (`AppSidebar`); Schedules / Recordings are detail workspaces. |
 | **Preferences window** | Settings | Separate window with a Liquid Glass sidebar + grouped `Form` detail. See `macos-settings-ui`. Do not add a custom icon-over-label tab strip. |
 | **Modal / sheet-like window** | Changelog, Issue Report | Fixed-size, non-resizable, only the red close button, traditional macOS title bar. |
 
@@ -44,7 +44,7 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 - `apps/toby-app/Sources/TobyApp/UI/Theme/SettingsDesign.swift` — canvas/card colors used by settings-style views.
 - `apps/toby-app/Sources/TobyApp/Features/Sidebar/AppSidebar.swift` — main destination list + compact persona footer (different from settings sidebars).
 - `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsWindowView.swift` — Settings preferences window.
-- `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsHierarchySidebarView.swift` — nested section list (e.g. AI providers).
+- `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsCatalogView.swift` — catalog tabs (Integrations, AI) that push child detail.
 
 ## Workflow A — Sidebar window
 
@@ -76,13 +76,13 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 
 Tahoe System Settings is a **sidebar** `NavigationSplitView` plus grouped `Form`, not a custom icon-over-label tab strip. Follow `.agents/skills/macos-settings-ui/` for the window chrome (`fullSizeContentView`, transparent form background).
 
-1. Prefer an `NSWindow` with `.fullSizeContentView` when SwiftUI `Window` does not produce glass corners; otherwise keep `Window("Settings", id: "settings")` in `TobyApp.swift` with `.windowStyle(.automatic)`, resizable defaults, and `.commandsRemoved()`.
+1. Prefer an `NSWindow` with `.fullSizeContentView` when SwiftUI `Window` does not produce glass corners; otherwise keep `Window("Settings", id: "settings")` in `TobyApp.swift` with `.windowStyle(.automatic)`, `.defaultPosition(.center)` (first launch only; later opens restore the saved frame), resizable defaults, and `.commandsRemoved()`.
 2. Root view:
    - Load top-level sections from the configure API / `ConfigureStore.settingsSections`.
-   - Use `NavigationSplitView` with `.listStyle(.sidebar)` for General, Appearance, AI, Personas, Sync, and daemon sections.
+   - Use `NavigationSplitView` with `.listStyle(.sidebar)` for General, Sync, Personas, Integrations, and daemon sections.
    - Detail panes: `Form { Section { … } }.formStyle(.grouped).scrollContentBackground(.hidden)`.
-   - Hierarchical AI providers are sidebar children, not a nested split that replaces window chrome.
-   - `SettingsCard` remains valid for in-app settings-style **content** (integration inspector, schedule editor), not for the Settings window itself.
+   - Nested sections (Integrations, AI) are catalog tabs: one sidebar row, child detail pushed in a `NavigationStack`.
+   - `SettingsCard` remains valid for in-app settings-style **content** (schedule editor), not for the Settings window itself.
 3. Open via `openWindow(id: "settings")` / `OpenWindowBridge` / Cmd+, (`OpenSettingsMenuItem`). Do **not** use a main-window `DetailRoute` for Settings.
 4. Deep links set `ConfigureStore` selection (`selectSection` / `selectedNavKey`) then open the window.
 
@@ -90,8 +90,8 @@ Do not add toolbar-tab chrome. New settings belong in the sidebar + grouped Form
 
 ## Examples in the codebase
 
-- Preferences window: `SettingsWindowView.swift`, `SettingsHierarchySidebarView.swift`.
-- Sidebar windows: `IntegrationsView.swift`, `SchedulesView.swift`, `RecordingsView.swift`, `LogsView.swift`.
+- Preferences window: `SettingsWindowView.swift`, `SettingsCatalogView.swift`.
+- Sidebar windows: `SchedulesView.swift`, `RecordingsView.swift`, `LogsView.swift`.
 - Modal window: `ChangelogView.swift`, `WindowAccessor.swift`.
 
 ## Common mistakes

@@ -16,7 +16,7 @@ Email ships as a plugin bundled with Toby.app installs and updates under `~/.tob
 - Your SMTP **host**, **port**, **username**, and **password**
 
 :::tip[Use the Setup Guide in Toby.app]
-Open **Toby.app** → **Integrations → Email** and click **Setup Guide**. The wizard shows the fields you need and walks you through entering credentials and connecting.
+Open **Toby.app → Settings → Integrations → Email** and click **Setup Guide**. The wizard shows the fields you need and walks you through entering credentials and connecting.
 :::
 
 ## How IMAP/SMTP credentials work
@@ -36,7 +36,7 @@ Many providers (Gmail, Yahoo, iCloud, Fastmail, and others) require an **App Pas
 
 ## Configure
 
-Open **Toby.app → Integrations → Email** and enter your IMAP and SMTP credentials:
+Open **Toby.app → Settings → Integrations → Email** and enter your IMAP and SMTP credentials:
 
 | Field | Description |
 | ----- | ----------- |
@@ -57,11 +57,11 @@ Click **Connect** on the Email detail page. Toby validates your IMAP and SMTP cr
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Email should show as connected and healthy. You can also open the Email detail page to confirm status text from Toby.
+Return to **Settings → Integrations**. Email should show as connected and healthy. You can also open the Email detail page to confirm status text from Toby.
 
 ## Disconnect
 
-Select Email in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag — it does not delete your mail at the provider.
+Select Email in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail at the provider.
 
 ## Example chat prompts
 

@@ -423,7 +423,7 @@ struct DashboardView: View {
 		case .configureAIProvider:
 			onOpenAIProviderSetup()
 		case .connectIntegrations:
-			onSelectRoute(.integrations)
+			onOpenSettings(SettingsItem.integrationsSectionKey)
 		case .setupPersona:
 			onOpenPersonaPicker()
 		case .grantPermissions:

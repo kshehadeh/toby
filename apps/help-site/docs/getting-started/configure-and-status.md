@@ -9,15 +9,15 @@ Every integration follows the same pattern: **configure credentials → connect 
 
 ## 1. Open Integrations
 
-Open **Toby.app** and click **Integrations** in the sidebar. The Integrations window shows all available integrations and their connection status.
+Open **Toby.app → Settings → Integrations**. The catalog lists every available integration and its connection status.
 
 ![Toby.app Integrations window](/img/toby-app-integrations-overview.png)
 
-Click any integration to view its detail page, where you can fill in credentials, run a setup guide, connect, and check status.
+Click any integration to open its detail page, where you can fill in credentials, run a setup guide, connect, and check status.
 
 ## 2. Configure credentials
 
-Choose a service in the Integrations window and fill in the fields on its detail page (API keys, OAuth client IDs, and so on). Each integration detail has a **Setup Guide** button that walks you through provider steps, shows copyable values like redirect URIs and scopes, and lets you fill credentials and connect without leaving the app.
+Choose a service in **Settings → Integrations** and fill in the fields on its detail page (API keys, OAuth client IDs, and so on). Each integration detail has a **Setup Guide** button that walks you through provider steps, shows copyable values like redirect URIs and scopes, and lets you fill credentials and connect without leaving the app.
 
 ### Example: Email
 
@@ -41,11 +41,11 @@ OAuth integrations (for example Slack) open a browser or local callback during c
 
 ## 4. Check status
 
-Return to the Integrations window to see connection status at a glance. Each integration shows whether it is connected and healthy.
+Return to **Settings → Integrations** to see connection status at a glance. Each integration shows whether it is connected and healthy.
 
 ## Disconnect
 
-Select the integration in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag — it does not delete your mail, tasks, or calendar data at the provider.
+Open the integration in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail, tasks, or calendar data at the provider.
 
 ## Integration guides
 

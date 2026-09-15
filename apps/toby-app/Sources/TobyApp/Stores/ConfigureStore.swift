@@ -84,6 +84,78 @@ final class ConfigureStore {
 		selectedSectionDetail
 	}
 
+	/// Plugin rows under the Integrations catalog (stripped sections tree, then full tree).
+	var integrationSections: [SettingsItem] {
+		catalogChildren(for: SettingsItem.integrationsSectionKey)
+	}
+
+	func catalogSection(for key: String) -> SettingsItem? {
+		settingsSections.first {
+			ConfigureTreeHelpers.sectionIdentityKey($0) == key
+		}
+	}
+
+	func catalogChildren(for key: String) -> [SettingsItem] {
+		if let section = catalogSection(for: key) {
+			return ConfigureTreeHelpers.nestedSectionChildren(of: section)
+		}
+		if key == SettingsItem.integrationsSectionKey,
+			let tree,
+			let integrations = ConfigureTreeHelpers.findSectionByNavKey(
+				tree,
+				navKey: SettingsItem.integrationsSectionKey
+			)
+		{
+			return (integrations.children ?? []).filter { $0.kind == .section }
+		}
+		return []
+	}
+
+	func isCatalogSectionKey(_ key: String) -> Bool {
+		if key == SettingsItem.integrationsSectionKey { return true }
+		guard let section = catalogSection(for: key) else { return false }
+		return ConfigureTreeHelpers.hasNestedSections(section)
+	}
+
+	func catalogParentKey(for key: String) -> String? {
+		if isCatalogSectionKey(key) { return nil }
+		if isIntegrationPluginKey(key) {
+			return SettingsItem.integrationsSectionKey
+		}
+		for section in settingsSections where ConfigureTreeHelpers.hasNestedSections(section) {
+			let parent = ConfigureTreeHelpers.sectionIdentityKey(section)
+			if ConfigureTreeHelpers.nestedSectionChildren(of: section).contains(where: {
+				ConfigureTreeHelpers.sectionIdentityKey($0) == key
+			}) {
+				return parent
+			}
+			if key.hasPrefix(parent + ".") {
+				return parent
+			}
+		}
+		return nil
+	}
+
+	func isCatalogChildKey(_ key: String) -> Bool {
+		catalogParentKey(for: key) != nil
+	}
+
+	func isIntegrationPluginKey(_ key: String) -> Bool {
+		key != SettingsItem.integrationsSectionKey
+			&& catalogChildren(for: SettingsItem.integrationsSectionKey).contains {
+				ConfigureTreeHelpers.sectionIdentityKey($0) == key
+			}
+	}
+
+	func selectCatalogHome() {
+		selectedNavKey = nil
+		selectedSectionDetail = nil
+	}
+
+	func selectIntegrationHome() {
+		selectCatalogHome()
+	}
+
 	/// Top-level Settings sidebar key for the current selection.
 	var selectedTopLevelKey: String? {
 		guard let selectedNavKey else { return nil }
@@ -165,7 +237,7 @@ final class ConfigureStore {
 		}
 	}
 
-	func loadSettingsSections() async {
+	func loadSettingsSections(selectDefaultIfNeeded: Bool = true) async {
 		isLoading = true
 		errorMessage = nil
 		defer { isLoading = false }
@@ -178,11 +250,16 @@ final class ConfigureStore {
 			draft = [:]
 			sectionDetailCache = [:]
 			dirtySectionKeys = []
-			if let firstKey = settingsSidebarTree.first?.navKey {
-				if selectedNavKey == nil {
-					selectedNavKey = firstKey
-				}
-				await loadSectionDetail(selectedNavKey!)
+			if let selectedNavKey, isCatalogSectionKey(selectedNavKey) {
+				selectedSectionDetail = nil
+			} else if let selectedNavKey {
+				await loadSectionDetail(selectedNavKey)
+			} else if selectDefaultIfNeeded, let firstNonCatalog = settingsSections.first(where: {
+				!isCatalogSectionKey(ConfigureTreeHelpers.sectionIdentityKey($0))
+			}) {
+				let firstKey = ConfigureTreeHelpers.sectionIdentityKey(firstNonCatalog)
+				selectedNavKey = firstKey
+				await loadSectionDetail(firstKey)
 			}
 		} catch {
 			errorMessage = error.localizedDescription
@@ -243,9 +320,16 @@ final class ConfigureStore {
 		}
 	}
 
-	/// Select a top-level Settings sidebar item. Container sections (e.g. AI)
+	/// Select a top-level Settings sidebar item. Catalog tabs (Integrations, AI)
+	/// do not auto-select a child. Other container sections (legacy) still
 	/// auto-select their first child unless a nested child is already selected.
 	func selectTopLevelTab(_ sectionKey: String) {
+		if isCatalogSectionKey(sectionKey) {
+			selectedNavKey = sectionKey
+			selectedSectionDetail = nil
+			return
+		}
+
 		guard let section = settingsSections.first(where: {
 			ConfigureTreeHelpers.sectionIdentityKey($0) == sectionKey
 		}) else {
@@ -506,10 +590,18 @@ final class ConfigureStore {
 		defer { setupGuideLoading = nil }
 		do {
 			setupGuide = try await client.fetchIntegrationSetupGuide(name: name)
-			setupGuidePresented = true
 		} catch {
 			// Setup guide is optional — leave setupGuide as nil so the UI
 			// shows "No setup guide available" instead of an error.
+		}
+	}
+
+	func presentSetupGuide(for name: String) async {
+		if setupGuide?.name != name {
+			await loadSetupGuide(for: name)
+		}
+		if setupGuide != nil {
+			setupGuidePresented = true
 		}
 	}
 

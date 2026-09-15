@@ -36,7 +36,7 @@ Slack chat tools can use user OAuth, but **@mentions** need a **bot token** and 
 Typical flow:
 
 1. **Settings → Chat** — enable inbound, set **Active integration** to Slack, pick a persona.
-2. **Integrations → Slack** — set Bot Token, App Token (and related fields that appear when inbound targets Slack).
+2. **Settings → Integrations → Slack** — set Bot Token, App Token (and related fields that appear when inbound targets Slack).
 3. Ensure the Slack app has Socket Mode and event subscriptions as described in the Slack guide.
 
 ## Behavior notes

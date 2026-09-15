@@ -13,7 +13,7 @@ Open `index.html`.
 | App shell (sidebar + toolbar) | `Sidebar.jsx`, `index.html` | `Features/Sidebar/AppSidebar.swift`, `SidebarHeader.swift`, `SidebarFooter.swift`, `App/RootToolbars.swift` |
 | Home / dashboard | `DashboardScreen.jsx` | `Features/Dashboard/DashboardCards.swift`, `OnboardingCard.swift` |
 | Chat (empty + active) | `ChatScreen.jsx` | `Features/Chat/ChatWorkspaceComponents.swift`, `UserMessageRow.swift`, `AssistantMessageRow.swift`, `TranscriptStepRows.swift`, `UI/Primitives/InputDock.swift` |
-| Integrations | `IntegrationsScreen.jsx` | `Features/Integrations/*`, `Features/Configure/IntegrationDetailHeader.swift` |
+| Integrations | `IntegrationsScreen.jsx` | `Features/Configure/{IntegrationsSettingsView,ConfigureSectionDetailView,IntegrationDetailHeader}.swift` |
 | Settings | `SettingsScreen.jsx` | `Features/Configure/AppearanceSettingsView.swift`, `SettingsWindowView.swift`, `UI/SettingsControls/*` |
 
 ## What is interactive
@@ -21,7 +21,7 @@ Open `index.html`.
 - The 3×3 sidebar grid switches destinations.
 - Chat: pick a suggestion or type, press Send → work steps stream, then a serif answer.
 - Dashboard: the refresh control swaps the card body for the loading skeleton.
-- Integrations: the inner sidebar selects the detail pane.
+- Integrations: Settings catalog rows push plugin detail.
 - Settings → Appearance: theme and accent controls re-theme the whole kit live
   (this is the app's real behavior — accent is a user preference).
 

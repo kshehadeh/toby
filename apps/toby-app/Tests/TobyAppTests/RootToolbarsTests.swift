@@ -348,22 +348,6 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.projectFilesHelp(isPresented: false) == "Show Files")
 	}
 
-	@Test("integrations toolbar is none, connect, or connected")
-	func integrationsToolbarMode() {
-		#expect(
-			RootToolbars.integrationsToolbarMode(hasSelection: false, isConnected: false) == .none
-		)
-		#expect(
-			RootToolbars.integrationsToolbarMode(hasSelection: false, isConnected: true) == .none
-		)
-		#expect(
-			RootToolbars.integrationsToolbarMode(hasSelection: true, isConnected: false) == .connect
-		)
-		#expect(
-			RootToolbars.integrationsToolbarMode(hasSelection: true, isConnected: true) == .connected
-		)
-	}
-
 	@Test("recordings chat toolbar is hidden, start, or show")
 	func recordingsChatToolbarMode() {
 		#expect(
@@ -439,6 +423,11 @@ struct RootSettingsNavigationTests {
 		#expect(
 			RootSettingsNavigation.clientOnlySettingsTabKeys.contains(
 				SettingsItem.personasSectionKey
+			)
+		)
+		#expect(
+			RootSettingsNavigation.clientOnlySettingsTabKeys.contains(
+				SettingsItem.integrationsSectionKey
 			)
 		)
 	}

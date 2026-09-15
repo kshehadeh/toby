@@ -354,66 +354,6 @@ enum RootToolbars {
 		}
 	}
 
-	enum IntegrationsToolbarMode: Equatable {
-		/// Integrations home: no selected integration.
-		case none
-		/// Selected and not connected (or status unknown).
-		case connect
-		/// Selected and connected: Disconnect + Re-connect / Re-authorize.
-		case connected
-	}
-
-	static func integrationsToolbarMode(hasSelection: Bool, isConnected: Bool) -> IntegrationsToolbarMode {
-		if !hasSelection { return .none }
-		return isConnected ? .connected : .connect
-	}
-
-	@ToolbarContentBuilder
-	static func integrations(
-		common model: RootCommonToolbarModel,
-		title: String = "Integrations",
-		hasSelection: Bool,
-		isConnected: Bool,
-		isActionLoading: Bool,
-		reconnectionLabel: String,
-		onConnect: @escaping () -> Void,
-		onDisconnect: @escaping () -> Void,
-		onReauthorize: @escaping () -> Void,
-	) -> some ToolbarContent {
-		common(model, header: RootHeaderTitle(title: title))
-		contextualActions(isVisible: hasSelection) {
-			switch integrationsToolbarMode(hasSelection: hasSelection, isConnected: isConnected) {
-			case .none:
-				EmptyView()
-			case .connect:
-				Button(action: onConnect) {
-					Image(systemName: "link")
-				}
-				.help("Connect")
-				.disabled(isActionLoading)
-				.accessibilityIdentifier("connect-integration-button")
-				.accessibilityLabel("Connect")
-			case .connected:
-				Button(role: .destructive, action: onDisconnect) {
-					Image(systemName: "xmark")
-				}
-				.help("Disconnect")
-				.disabled(isActionLoading)
-				.accessibilityIdentifier("disconnect-integration-button")
-				.accessibilityLabel("Disconnect")
-			}
-			if integrationsToolbarMode(hasSelection: hasSelection, isConnected: isConnected) == .connected {
-				Button(action: onReauthorize) {
-					Image(systemName: "arrow.triangle.2.circlepath")
-				}
-				.help(reconnectionLabel)
-				.disabled(isActionLoading)
-				.accessibilityIdentifier("reconnect-integration-button")
-				.accessibilityLabel(reconnectionLabel)
-			}
-		}
-	}
-
 	enum ProjectToolbarMode: Equatable {
 		/// All-projects / empty state: only New Project.
 		case home

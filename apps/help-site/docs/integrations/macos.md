@@ -24,7 +24,7 @@ under `~/.toby/plugins/`.
 
 ## Connect
 
-Open **Toby.app → Integrations → macOS** and click **Connect**.
+Open **Toby.app → Settings → Integrations → macOS** and click **Connect**.
 
 Toby probes native system APIs and stores a connected flag in `~/.toby/config.json`.
 
@@ -39,12 +39,12 @@ are skipped.
 
 ## Configure
 
-Open **Toby.app → Integrations → macOS**. There are no credential fields —
+Open **Toby.app → Settings → Integrations → macOS**. There are no credential fields —
 connect is a one-time session flag on this Mac.
 
 ## Verify
 
-Return to **Integrations** in the sidebar. macOS should show as connected and healthy.
+Return to **Settings → Integrations**. macOS should show as connected and healthy.
 
 ## Capabilities
 
@@ -107,7 +107,7 @@ Toby never escalates privileges for you without an explicit system prompt.
 
 ## Disconnect
 
-Select macOS in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag; it does not modify system settings.
+Select macOS in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag; it does not modify system settings.
 
 ## Related
 

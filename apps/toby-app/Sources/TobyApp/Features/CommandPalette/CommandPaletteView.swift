@@ -72,8 +72,8 @@ struct CommandPaletteView: View {
 				id: "action-integrations",
 				title: "Open Integrations",
 				subtitle: "Manage connected apps",
-				systemImage: DetailRoute.integrations.systemImage,
-				kind: .route(.integrations),
+				systemImage: "puzzlepiece.extension",
+				kind: .action,
 			))
 		}
 
@@ -363,6 +363,9 @@ struct CommandPaletteView: View {
 		case .action where result.id == "action-settings":
 			onDismiss()
 			onOpenSettings()
+		case .action where result.id == "action-integrations":
+			onDismiss()
+			onOpenIntegration(SettingsItem.integrationsSectionKey)
 		case .action where result.id == "action-memories":
 			onDismiss()
 			onOpenMemories()

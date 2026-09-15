@@ -33,7 +33,7 @@ See [Projects](../projects), [Listen mode](../listen), and [Memories](../memorie
 
 1. Open **Toby.app**.
 2. Click the **gear** in the main toolbar (next to Search), or press **⌘,**.
-3. Use the **top toolbar tabs** to open a section (**General**, Chat, AI, Home, Transcription, and so on). Hierarchical areas such as **AI** show a list of providers on the left of the Settings window. Most changes save as you edit. **General** (home directory, start at login, menu bar icon, chat mode, theme, accent) and **Home → Hide onboarding checklist** are stored only on this Mac in the app’s preferences, not in `~/.toby/config.json`.
+3. Use the **sidebar** to open a section (**General**, Integrations, Chat, AI, Home, Transcription, and so on). **Integrations** and **AI** open a catalog; click a plugin or provider to slide to its settings. Most changes save as you edit. **General** (home directory, start at login, menu bar icon, chat mode, theme, accent) and **Home → Hide onboarding checklist** are stored only on this Mac in the app’s preferences, not in `~/.toby/config.json`.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

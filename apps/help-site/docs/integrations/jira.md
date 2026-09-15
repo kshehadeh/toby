@@ -28,7 +28,7 @@ Do not commit the token to git. Toby stores it in `~/.toby/credentials.json` and
 
 ## Configure
 
-Open **Toby.app → Integrations → Jira** and enter:
+Open **Toby.app → Settings → Integrations → Jira** and enter:
 
 | Field | Description |
 | ----- | ----------- |
@@ -44,7 +44,7 @@ Click **Connect** on the Jira detail page. Toby validates the domain, email, and
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Jira should show as connected. Open the Jira detail page for any status notes about API reachability.
+Return to **Settings → Integrations**. Jira should show as connected. Open the Jira detail page for any status notes about API reachability.
 
 ## Chat capabilities
 
@@ -84,7 +84,7 @@ Search and comment results are paginated; Toby requests up to 100 items at a tim
 
 ## Disconnect
 
-Select Jira in the Integrations window and click **Disconnect** in the toolbar.
+Select Jira in **Settings → Integrations** and click **Disconnect**.
 
 ## Related
 

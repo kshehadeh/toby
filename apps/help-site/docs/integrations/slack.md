@@ -17,12 +17,12 @@ Connect Toby to Slack to search channels, read history, and post messages from c
 OAuth and inbound are **not** the same credential: **Connect** with OAuth never stores a bot token, because Slack’s localhost PKCE flow only issues **user** scopes.
 
 :::tip[Use the Setup Guide in Toby.app]
-Open **Toby.app** → **Integrations → Slack** and click **Setup Guide**. The wizard shows the exact redirect URI and user scopes to paste into your Slack app, and helps you enter credentials and connect.
+Open **Toby.app → Settings → Integrations → Slack** and click **Setup Guide**. The wizard shows the exact redirect URI and user scopes to paste into your Slack app, and helps you enter credentials and connect.
 :::
 
 ## Credentials and auth reference
 
-Everything below is set under **Toby.app → Integrations → Slack** (stored in `~/.toby/credentials.json`). Toby may mirror some fields under both `integrations.slack` and top-level `slack`; either location works.
+Everything below is set under **Toby.app → Settings → Integrations → Slack** (stored in `~/.toby/credentials.json`). Toby may mirror some fields under both `integrations.slack` and top-level `slack`; either location works.
 
 | Configure field | Stored as | Prefix / form | When you need it | Why |
 | --------------- | --------- | ------------- | ---------------- | --- |
@@ -196,7 +196,7 @@ Use these in the [Configure](#configure) section. Do not commit them to git; Tob
 
 #### 5. Connect from Toby
 
-After saving credentials in **Toby.app → Integrations → Slack**, click **Connect**. Approve the app in the browser when prompted. This stores a **user token** for chat—not a bot token. If you plan to use [inbound](#inbound-mentions), add **Bot Token** and **App Token** separately (steps in that section).
+After saving credentials in **Toby.app → Settings → Integrations → Slack**, click **Connect**. Approve the app in the browser when prompted. This stores a **user token** for chat—not a bot token. If you plan to use [inbound](#inbound-mentions), add **Bot Token** and **App Token** separately (steps in that section).
 
 ## Bot token (alternative)
 
@@ -218,13 +218,13 @@ On **OAuth & Permissions**, under **Scopes → Bot Token Scopes**, add the same 
 ### 4. Copy the Bot User OAuth Token
 
 1. After install, copy **Bot User OAuth Token** (`xoxb-...`) from **OAuth & Permissions**.
-2. In **Toby.app → Integrations → Slack**, choose **Manual bot token** and paste it into **Bot Token**.
+2. In **Toby.app → Settings → Integrations → Slack**, choose **Manual bot token** and paste it into **Bot Token**.
 
 Click **Connect** to validate the token.
 
 ## Configure
 
-Open **Toby.app → Integrations → Slack**. Field visibility depends on **Auth Method** and whether **Daemon / inbound chat** targets Slack (see [credentials reference](#credentials-and-auth-reference)).
+Open **Toby.app → Settings → Integrations → Slack**. Field visibility depends on **Auth Method** and whether **Daemon / inbound chat** targets Slack (see [credentials reference](#credentials-and-auth-reference)).
 
 ### OAuth (recommended for chat)
 
@@ -265,11 +265,11 @@ On the Slack detail page, click **Connect**.
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Slack should show as connected and healthy.
+Return to **Settings → Integrations**. Slack should show as connected and healthy.
 
 ## Disconnect
 
-Select Slack in the Integrations window and click **Disconnect** in the toolbar.
+Select Slack in **Settings → Integrations** and click **Disconnect**.
 
 ## Example chat prompts
 

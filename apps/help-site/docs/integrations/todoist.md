@@ -45,13 +45,13 @@ If a token was exposed or Connect fails with an auth error:
 
 1. In the same **Developer** tab, click **Issue a new API token**.
 2. Confirm with **Create**.
-3. Copy the new token and update it in **Toby.app → Integrations → Todoist** (old tokens stop working immediately).
+3. Copy the new token and update it in **Toby.app → Settings → Integrations → Todoist** (old tokens stop working immediately).
 
 Do not commit your token to git. Toby stores it in `~/.toby/credentials.json` (masked in the UI).
 
 ## Configure
 
-Open **Toby.app → Integrations → Todoist** and enter:
+Open **Toby.app → Settings → Integrations → Todoist** and enter:
 
 | Field | Description |
 | ----- | ----------- |
@@ -65,11 +65,11 @@ Click **Connect** on the Todoist detail page. Toby validates the API key and mar
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Todoist should show as connected and healthy.
+Return to **Settings → Integrations**. Todoist should show as connected and healthy.
 
 ## Disconnect
 
-Select Todoist in the Integrations window and click **Disconnect** in the toolbar.
+Select Todoist in **Settings → Integrations** and click **Disconnect**.
 
 ## Example chat prompts
 

@@ -114,7 +114,7 @@ struct DashboardModelsTests {
 		#expect(ai?.isComplete == true)
 		#expect(ai?.actionLabel == "Connect")
 		let integrations = checklist.steps.first { $0.kind == .connectIntegrations }
-		#expect(integrations?.systemImage == DetailRoute.integrations.systemImage)
+		#expect(integrations?.systemImage == "puzzlepiece.extension")
 		let skills = checklist.steps.first { $0.kind == .createSkill }
 		#expect(skills?.systemImage == DetailRoute.skills.systemImage)
 	}
@@ -579,6 +579,39 @@ struct DashboardViewTests {
 		).button()
 		try button.tap()
 		#expect(didOpenAISetup == true)
+	}
+
+	@Test("connect integrations action opens settings catalog")
+	func connectIntegrationsOpensSettingsCatalog() throws {
+		var openedNavKey: String?
+		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: false,
+			hasModelConfigured: true,
+			hasRequiredPermissions: true,
+			hasSchedule: true,
+			hasSkill: true,
+			hasTranscriptionConfigured: true,
+			hasRecording: true,
+			hasSession: true
+		)
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: checklist,
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenSettings: { openedNavKey = $0 },
+			onOpenPermissions: {},
+			actionContext: .init(startChat: {}),
+			appearancePreferences: makeAppearance()
+		)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "onboarding-action-connectIntegrations"
+		).button()
+		try button.tap()
+		#expect(openedNavKey == SettingsItem.integrationsSectionKey)
 	}
 
 	@Test("setup persona action opens persona picker")

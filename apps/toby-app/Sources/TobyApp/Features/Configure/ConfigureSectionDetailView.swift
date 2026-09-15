@@ -43,6 +43,8 @@ struct ConfigureSectionDetailView: View {
 
 	private var isIntegrationSection: Bool {
 		store.integrationLabels[section.key] != nil
+			|| store.isIntegrationPluginKey(section.key)
+			|| store.integrationSections.contains { $0.key == section.key }
 	}
 
 	/// Leaf AI provider sections (`ai.openai`, `ai.vercel`, …) with setup copy.
@@ -81,6 +83,7 @@ struct ConfigureSectionDetailView: View {
 						},
 					)
 				}
+				IntegrationSettingsMetaSections(status: store.integrationStatus[section.key])
 			}
 
 			if store.sectionFieldsReloading == section.key {
@@ -201,6 +204,10 @@ struct ConfigureSectionDetailView: View {
 						}
 					}
 				}
+
+				if isIntegrationSection {
+					IntegrationSettingsToolsAndGuideSections(store: store, section: section)
+				}
 			}
 
 			if let errorMessage = store.errorMessage, !store.settingsSections.isEmpty {
@@ -213,6 +220,7 @@ struct ConfigureSectionDetailView: View {
 		.task(id: section.key) {
 			if isIntegrationSection {
 				await store.loadIntegrationStatus(for: section.key)
+				await store.loadSetupGuide(for: section.key)
 			}
 		}
 		.sheet(item: Binding(

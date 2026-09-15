@@ -7,6 +7,7 @@ enum SettingsSidebarIcon {
 		switch key {
 		case "appearance": return "gearshape"
 		case "icloud": return "arrow.triangle.2.circlepath"
+		case "integrations": return "puzzlepiece.extension"
 		case "chatinbound": return "bubble.left"
 		case "defaults": return "slider.horizontal.3"
 		case "ai": return "sparkles"

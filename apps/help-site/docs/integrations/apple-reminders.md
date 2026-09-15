@@ -23,7 +23,7 @@ The Apple Reminders plugin ships with Toby.app under `~/.toby/plugins/`.
 
 ## Configure
 
-Open **Toby.app → Integrations → Apple Reminders**. Optional **Notes** are for your own reference only. Save.
+Open **Toby.app → Settings → Integrations → Apple Reminders**. Optional **Notes** are for your own reference only. Save.
 
 ## Connect
 
@@ -38,13 +38,13 @@ No API keys are required.
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Apple Reminders should show as connected. The first time you use reminder tools, macOS may prompt you to grant Reminders access to Toby.app.
+Return to **Settings → Integrations**. Apple Reminders should show as connected. The first time you use reminder tools, macOS may prompt you to grant Reminders access to Toby.app.
 
 If permission was denied, enable it in **System Settings → Privacy & Security → Reminders**, then connect again.
 
 ## Disconnect
 
-Select Apple Reminders in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag; it does not remove reminder data from Reminders.app.
+Select Apple Reminders in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag; it does not remove reminder data from Reminders.app.
 
 ## What you can do in chat
 

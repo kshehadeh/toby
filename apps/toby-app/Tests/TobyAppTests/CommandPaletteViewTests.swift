@@ -182,6 +182,8 @@ struct CommandPaletteViewTests {
         #expect(memories?.kind == .action)
         let restart = results.first { $0.id == "action-restart-server" }
         #expect(restart?.kind == .action)
+        let openIntegrations = results.first { $0.id == "action-integrations" }
+        #expect(openIntegrations?.kind == .action)
         let session = results.first { $0.id == "session-s1" }
         #expect(session?.kind == .session("s1"))
         let integration = results.first { $0.id == "integration-gmail" }

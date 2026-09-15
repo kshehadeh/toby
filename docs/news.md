@@ -20,7 +20,7 @@ itself.
    required.
 2. Optional: get a free Guardian key at
    [The Guardian Open Platform](https://open-platform.theguardian.com/access/)
-   and enter it in **Toby.app → Integrations → News** (or `toby configure`).
+   and enter it in **Toby.app → Settings → Integrations → News** (or `toby configure`).
    Re-connect so Toby validates the key.
 
 Toby.app also exposes this flow as an Integration Setup Guide (`setup guide`).

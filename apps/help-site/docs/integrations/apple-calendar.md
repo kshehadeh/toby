@@ -23,7 +23,7 @@ The Apple Calendar plugin ships with Toby.app under `~/.toby/plugins/`.
 
 ## Configure
 
-Open **Toby.app → Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save.
+Open **Toby.app → Settings → Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save.
 
 ## Connect
 
@@ -36,7 +36,7 @@ Toby.app, not the plugin itself.
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Apple Calendar should show as connected. The first time you use calendar tools, macOS may prompt you to grant Calendar access to Toby.app.
+Return to **Settings → Integrations**. Apple Calendar should show as connected. The first time you use calendar tools, macOS may prompt you to grant Calendar access to Toby.app.
 
 ## Home
 
@@ -47,7 +47,7 @@ hide or show that card under **Settings → Home**.
 
 ## Disconnect
 
-Select Apple Calendar in the Integrations window and click **Disconnect** in the toolbar.
+Select Apple Calendar in **Settings → Integrations** and click **Disconnect**.
 
 ## Example chat prompts
 

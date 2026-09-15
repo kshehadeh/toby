@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 /// Tahoe-style Settings window: sidebar `NavigationSplitView` plus grouped
-/// Form detail. Client-only panes (General, Sync, Personas) sit alongside
-/// daemon-backed configure sections. Nested sections (e.g. AI providers) are
-/// sidebar children, not a second inner split.
+/// Form detail. Client-only panes (General, Sync, Personas, Integrations) sit
+/// alongside daemon-backed configure sections. Nested sections (Integrations,
+/// AI) are catalog tabs that push child detail in a `NavigationStack`.
 struct SettingsWindowView: View {
 	@Bindable var store: ConfigureStore
 	/// Soft-resets the app onto a new Toby data root (`nil` = default `~/.toby`).
@@ -19,10 +19,13 @@ struct SettingsWindowView: View {
 	@State private var historyIndex = 0
 	@State private var isHistoryNavigation = false
 
+	@State private var catalogPath: [String] = []
+
 	private static let clientOnlyTabKeys: Set<String> = [
 		SettingsItem.appearanceSectionKey,
 		SettingsItem.iCloudSectionKey,
 		SettingsItem.personasSectionKey,
+		SettingsItem.integrationsSectionKey,
 	]
 
 	private var clientSections: [SettingsItem] {
@@ -30,15 +33,14 @@ struct SettingsWindowView: View {
 			SettingsItem.appearanceSection,
 			SettingsItem.iCloudSection,
 			SettingsItem.personasSection,
+			SettingsItem.integrationsSection,
 		]
 	}
 
-	private var leafDaemonSections: [SettingsItem] {
-		store.settingsSections.filter { !ConfigureTreeHelpers.hasNestedSections($0) }
-	}
-
-	private var nestedDaemonSections: [SettingsItem] {
-		store.settingsSections.filter { ConfigureTreeHelpers.hasNestedSections($0) }
+	private var daemonSidebarSections: [SettingsItem] {
+		store.settingsSections.filter {
+			ConfigureTreeHelpers.sectionIdentityKey($0) != SettingsItem.integrationsSectionKey
+		}
 	}
 
 	private var isGeneralTab: Bool {
@@ -53,9 +55,22 @@ struct SettingsWindowView: View {
 		selectedTabKey == SettingsItem.iCloudSectionKey
 	}
 
+	private var isIntegrationsTab: Bool {
+		selectedTabKey == SettingsItem.integrationsSectionKey
+	}
+
+	private var isCatalogTab: Bool {
+		isIntegrationsTab || store.isCatalogSectionKey(selectedTabKey)
+	}
+
 	private var sidebarSelection: Binding<String?> {
 		Binding(
-			get: { selectedTabKey },
+			get: {
+				if let parent = store.catalogParentKey(for: selectedTabKey) {
+					return parent
+				}
+				return selectedTabKey
+			},
 			set: { newValue in
 				guard let newValue else { return }
 				selectKey(newValue)
@@ -124,6 +139,20 @@ struct SettingsWindowView: View {
 			guard !isRestoringTab, newKey != nil else { return }
 			syncTabFromStoreSelection()
 		}
+		.onChange(of: catalogPath) { _, newPath in
+			guard !isRestoringTab, !isHistoryNavigation, isCatalogTab else { return }
+			if let key = newPath.last {
+				if store.selectedNavKey != key {
+					store.selectSection(key)
+				}
+				lastTabKey = key
+				recordNavigation(key)
+			} else {
+				store.selectCatalogHome()
+				lastTabKey = selectedTabKey
+				recordNavigation(selectedTabKey)
+			}
+		}
 		.onDisappear {
 			Task { await store.flushPendingSave() }
 		}
@@ -162,17 +191,10 @@ struct SettingsWindowView: View {
 					settingsSidebarRow(section)
 				}
 			}
-			if !leafDaemonSections.isEmpty {
+			if !daemonSidebarSections.isEmpty {
 				Section {
-					ForEach(leafDaemonSections) { section in
+					ForEach(daemonSidebarSections) { section in
 						settingsSidebarRow(section)
-					}
-				}
-			}
-			ForEach(nestedDaemonSections) { section in
-				Section(section.displayLabel) {
-					ForEach(ConfigureTreeHelpers.nestedSectionChildren(of: section)) { child in
-						settingsSidebarRow(child)
 					}
 				}
 			}
@@ -207,6 +229,10 @@ struct SettingsWindowView: View {
 				PersonasSettingsView(store: store)
 			} else if isICloudTab {
 				ICloudSyncSettingsView()
+			} else if isIntegrationsTab {
+				IntegrationsSettingsView(store: store, path: $catalogPath)
+			} else if store.isCatalogSectionKey(selectedTabKey) {
+				catalogDetail
 			} else if let errorMessage = store.errorMessage,
 				store.settingsSections.isEmpty
 			{
@@ -222,18 +248,61 @@ struct SettingsWindowView: View {
 		.tobyThemeRefreshable()
 	}
 
+	@ViewBuilder
+	private var catalogDetail: some View {
+		let catalog = store.catalogSection(for: selectedTabKey)
+		let title = catalog?.displayLabel ?? "Settings"
+		let icon = catalog.map { SettingsSidebarIcon.systemName(for: $0) } ?? "sparkles"
+		let isAI = selectedTabKey == SettingsItem.aiSectionKey
+		SettingsCatalogView(
+			store: store,
+			path: $catalogPath,
+			title: title,
+			subtitle: SettingsCatalogView.subtitle(for: selectedTabKey, section: catalog),
+			systemImage: icon,
+			children: store.catalogChildren(for: selectedTabKey),
+			accessibilityCatalogId: "settings-\(selectedTabKey)-catalog",
+			accessibilityRowPrefix: "settings-\(selectedTabKey)-row",
+			fallbackIcon: icon,
+			loadingTitle: "Loading…",
+			unavailableTitle: "\(title) unavailable",
+			emptyTitle: isAI ? "No providers" : "No \(title.lowercased())",
+			emptyDescription: isAI
+				? "No AI providers are available."
+				: "Nothing is available in this section yet."
+		)
+	}
+
 	private var detailTitle: String {
 		if isGeneralTab { return "General" }
 		if isPersonasTab { return "Personas" }
 		if isICloudTab { return "Sync" }
+		if isCatalogTab {
+			if let key = catalogPath.last {
+				return store.catalogChildren(for: selectedTabKey).first {
+					ConfigureTreeHelpers.sectionIdentityKey($0) == key
+				}?.displayLabel
+					?? store.settingsSelectedSection?.displayLabel
+					?? catalogTitle
+			}
+			return catalogTitle
+		}
 		if let section = store.settingsSelectedSection {
 			return section.displayLabel
 		}
 		return "Settings"
 	}
 
+	private var catalogTitle: String {
+		store.catalogSection(for: selectedTabKey)?.displayLabel
+			?? (isIntegrationsTab ? "Integrations" : "Settings")
+	}
+
 	private var restoredTabKey: String? {
 		if Self.clientOnlyTabKeys.contains(lastTabKey) {
+			return lastTabKey
+		}
+		if store.isCatalogChildKey(lastTabKey) || store.isCatalogSectionKey(lastTabKey) {
 			return lastTabKey
 		}
 		if store.settingsSections.contains(where: {
@@ -241,30 +310,34 @@ struct SettingsWindowView: View {
 		}) {
 			return lastTabKey
 		}
-		for section in nestedDaemonSections {
-			if ConfigureTreeHelpers.nestedSectionChildren(of: section).contains(where: {
-				ConfigureTreeHelpers.sectionIdentityKey($0) == lastTabKey
-			}) {
-				return lastTabKey
-			}
-		}
 		return SettingsItem.appearanceSectionKey
 	}
 
 	private func selectKey(_ key: String, recordHistory: Bool = true) {
+		if store.isCatalogSectionKey(key) || store.isCatalogChildKey(key) {
+			let parent = store.catalogParentKey(for: key) ?? key
+			selectedTabKey = parent
+			lastTabKey = key
+			if key == parent {
+				catalogPath = []
+				store.selectCatalogHome()
+			} else {
+				catalogPath = [key]
+				store.selectSection(key)
+			}
+			if recordHistory {
+				recordNavigation(key)
+			}
+			return
+		}
+
 		selectedTabKey = key
 		lastTabKey = key
+		if !catalogPath.isEmpty {
+			catalogPath = []
+		}
 		if Self.clientOnlyTabKeys.contains(key) {
 			store.selectedNavKey = nil
-		} else if store.settingsSections.contains(where: {
-			ConfigureTreeHelpers.sectionIdentityKey($0) == key
-				&& ConfigureTreeHelpers.hasNestedSections($0)
-		}) {
-			store.selectTopLevelTab(key)
-			if let child = store.selectedNavKey {
-				selectedTabKey = child
-				lastTabKey = child
-			}
 		} else {
 			store.selectSection(key)
 		}
@@ -282,7 +355,25 @@ struct SettingsWindowView: View {
 		if let key = store.selectedNavKey, Self.clientOnlyTabKeys.contains(key) {
 			selectedTabKey = key
 			lastTabKey = key
+			if store.isCatalogSectionKey(key) {
+				catalogPath = []
+			}
 			store.selectedNavKey = nil
+			recordNavigation(key)
+			return
+		}
+		if let key = store.selectedNavKey, store.isCatalogSectionKey(key) {
+			selectedTabKey = key
+			lastTabKey = key
+			catalogPath = []
+			store.selectedNavKey = nil
+			recordNavigation(key)
+			return
+		}
+		if let key = store.selectedNavKey, let parent = store.catalogParentKey(for: key) {
+			selectedTabKey = parent
+			lastTabKey = key
+			catalogPath = [key]
 			recordNavigation(key)
 			return
 		}
@@ -300,7 +391,7 @@ struct SettingsWindowView: View {
 		selectedTabKey = key
 		lastTabKey = key
 		store.selectTopLevelTab(key)
-		if let child = store.selectedNavKey {
+		if let child = store.selectedNavKey, !store.isCatalogSectionKey(child) {
 			selectedTabKey = child
 			lastTabKey = child
 		}

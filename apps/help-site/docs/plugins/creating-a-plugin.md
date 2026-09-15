@@ -105,7 +105,7 @@ First-party plugins are already installed with Toby.app. For a custom plugin:
    `~/.toby/plugins/toby-plugin-<name>/`.
 2. Ensure `manifest.json` has a valid `name` and runtime entry.
 3. Restart Toby.app (or use **`/restart-server`** in chat) so discovery reloads.
-4. Open **Integrations** — your plugin should appear by its display name.
+4. Open **Settings → Integrations** — your plugin should appear by its display name.
 5. Enter credentials, click **Connect**, and try tools in chat.
 
 If `node_modules/` is not present, Toby may install dependencies with the
@@ -236,8 +236,8 @@ when you use Integrations, Connect, or chat tools.
 | argv | stdin | stdout | When Toby runs it |
 | ---- | ----- | ------ | ----------------- |
 | `status` | Optional [config envelope](#config-envelope-stdin) | [Status response](#status) | Integrations list/detail, health checks |
-| `connect` | Config envelope | `{ ok, reason?, config? }` | **Connect** in the Integrations toolbar |
-| `disconnect` | Optional config envelope | `{ ok, reason?, config? }` | **Disconnect** in the Integrations toolbar |
+| `connect` | Config envelope | `{ ok, reason?, config? }` | **Connect** on the integration page |
+| `disconnect` | Optional config envelope | `{ ok, reason?, config? }` | **Disconnect** on the integration page |
 | `config shape` | *(none)* | `{ ok, fields? }` | Integrations field definitions |
 | `config get` | Config envelope | `{ ok, config? }` | Normalized credential readback |
 | `config set` | Config envelope | `{ ok }` | Optional hook after Toby saves credentials |
@@ -701,9 +701,9 @@ plugin in the Toby repository for a reference implementation.
 
 | Step | Where |
 | ---- | ----- |
-| Confirm discovery | **Integrations** sidebar — your display name appears |
+| Confirm discovery | **Settings → Integrations** — your display name appears |
 | Enter credentials | Integration detail page (fields from `config shape`) |
-| Connect | **Connect** in the Integrations toolbar (runs `connect`) |
+| Connect | **Connect** on the integration page (runs `connect`) |
 | Check health | Status on the detail page and Integrations list (runs `status`) |
 | Optional setup | Setup action if `setupAvailable` is true |
 | Onboarding wizard | **Setup Guide** if you implement `setup guide` |

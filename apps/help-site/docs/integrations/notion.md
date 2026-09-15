@@ -28,7 +28,7 @@ masks it in the UI.
 
 ## Configure
 
-Open **Toby.app → Integrations → Notion** and enter:
+Open **Toby.app → Settings → Integrations → Notion** and enter:
 
 | Field | Description |
 | ----- | ----------- |
@@ -44,7 +44,7 @@ Notion API, then marks Notion as connected.
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Notion should show as connected and healthy.
+Return to **Settings → Integrations**. Notion should show as connected and healthy.
 
 ## Chat capabilities
 
@@ -79,7 +79,7 @@ base.
 
 ## Disconnect
 
-Select Notion in the Integrations window and click **Disconnect** in the toolbar.
+Select Notion in **Settings → Integrations** and click **Disconnect**.
 
 ## Related
 

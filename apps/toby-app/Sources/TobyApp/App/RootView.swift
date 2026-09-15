@@ -8,7 +8,6 @@ struct RootView: View {
     @Bindable var recordingsStore: RecordingsStore
     @Bindable var schedulesStore: SchedulesStore
     @Bindable var projectsStore: ProjectsStore
-    @Bindable var integrationsStore: ConfigureStore
     @Bindable var skillsStore: SkillsStore
     @Bindable var memoriesStore: MemoriesStore
     @Bindable var flowsStore: FlowsStore
@@ -152,7 +151,6 @@ struct RootView: View {
                         Task {
                             await store.refreshStatus()
                             await configureStore.loadSettingsSections()
-                            await integrationsStore.loadSettingsSections()
                         }
                     },
                     onError: { message in
@@ -195,7 +193,6 @@ struct RootView: View {
             })
             .onAppear {
                 configureStore.onChangesSaved = { Task { await store.refreshStatus() } }
-                integrationsStore.onChangesSaved = { Task { await store.refreshStatus() } }
             }
     }
 
@@ -277,7 +274,6 @@ struct RootView: View {
                         Task {
                             await store.refreshStatus()
                             await configureStore.loadSettingsSections()
-                            await integrationsStore.loadSettingsSections()
                         }
                     },
                     onDismiss: { aiProviderSetupProviderId = nil }
@@ -355,14 +351,6 @@ struct RootView: View {
                     style: .error,
                     title: "Update failed",
                     message: updateStore.upgradeError
-                )
-            }
-            .onChange(of: integrationsStore.errorMessage) { _, error in
-                guard let error, !error.isEmpty, integrationsStore.tree != nil else { return }
-                store.toast = AppToastState(
-                    style: .error,
-                    title: "Integration error",
-                    message: error
                 )
             }
     }
@@ -471,8 +459,6 @@ struct RootView: View {
                 },
                 onDeleteSession: { pendingDeleteSession = $0 }
             )
-        case .integrations:
-            IntegrationsView(store: integrationsStore)
         case .projects:
             ProjectsView(projectsStore: projectsStore, chatStore: store)
         case .schedules:
@@ -525,30 +511,6 @@ struct RootView: View {
                                             isLoading: store.isLoading,
                                             personas: store.personaOptions,
                                             onNewChat: { startNewChat(persona: $0) }
-                                        )
-
-            case .integrations:
-
-                                        RootToolbars.integrations(
-                                            common: commonToolbarModel,
-                                            title: RootToolbars.routeTitle(
-                                                .integrations,
-                                                selectedItemName: integrationsStore.selectedSection?.displayLabel
-                                            ),
-                                            hasSelection: integrationsStore.selectedSection != nil,
-                                            isConnected: selectedIntegrationStatus?.connected ?? false,
-                                            isActionLoading: integrationsStore.integrationActionLoading != nil,
-                                            reconnectionLabel: selectedIntegrationStatus?.reconnectionLabel
-                                                ?? "Re-connect",
-                                            onConnect: {
-                                                runSelectedIntegrationAction(.connect)
-                                            },
-                                            onDisconnect: {
-                                                runSelectedIntegrationAction(.disconnect)
-                                            },
-                                            onReauthorize: {
-                                                runSelectedIntegrationAction(.reauthorize)
-                                            }
                                         )
 
             case .projects:
@@ -724,11 +686,6 @@ struct RootView: View {
             "Home"
         case .chat:
             RootToolbars.routeTitle(.chat, selectedItemName: store.sessionId == nil ? "" : store.sessionName)
-        case .integrations:
-            RootToolbars.routeTitle(
-                .integrations,
-                selectedItemName: integrationsStore.selectedSection?.displayLabel
-            )
         case .projects:
             RootToolbars.routeTitle(
                 .projects,
@@ -782,8 +739,6 @@ struct RootView: View {
                 flowsStore.selectedFlow,
                 editor: flowsStore.editor
             )
-        case .integrations:
-            ""
         }
     }
 
@@ -858,7 +813,7 @@ struct RootView: View {
         CommandPalettePanelController.shared.show {
             CommandPaletteView(
                 sessions: store.sessions,
-                integrations: integrationsStore.integrationSections,
+                integrations: configureStore.integrationSections,
                 schedules: schedulesStore.schedules,
                 recordings: recordingsStore.recordings,
                 onSelectSession: { id in
@@ -881,8 +836,7 @@ struct RootView: View {
                     navigateToRoute(route)
                 },
                 onOpenIntegration: { navKey in
-                    bringMainWindowToFront()
-                    openIntegration(navKey: navKey)
+                    openSettings(navKey: navKey)
                 },
                 onOpenSchedule: { id in
                     bringMainWindowToFront()
@@ -904,16 +858,6 @@ struct RootView: View {
             )
             .tobyAppearance(appearancePreferences)
         }
-    }
-
-    private var selectedIntegrationStatus: IntegrationStatus? {
-        guard let key = integrationsStore.selectedSection?.key else { return nil }
-        return integrationsStore.integrationStatus[key]
-    }
-
-    private func runSelectedIntegrationAction(_ action: IntegrationAction) {
-        guard let key = integrationsStore.selectedSection?.key else { return }
-        Task { await integrationsStore.runIntegrationAction(name: key, action: action) }
     }
 
     private func startChatAboutRecording(_ request: StartChatAboutRecordingRequest) {
@@ -1071,8 +1015,6 @@ struct RootView: View {
         guard route == history.current else { return }
 
         switch route {
-        case .integrations:
-            integrationsStore.selectIntegrationHome()
         case .projects:
             Task { await projectsStore.selectHome() }
         case .schedules:
@@ -1182,11 +1124,6 @@ struct RootView: View {
         emphasizeCreatePersona = false
     }
 
-    private func openIntegration(navKey: String) {
-        integrationsStore.selectedNavKey = navKey
-        navigateToRoute(.integrations)
-    }
-
     private func openSchedule(id: String) {
         Task { await schedulesStore.selectSchedule(id: id) }
         navigateToRoute(.schedules)
@@ -1242,7 +1179,7 @@ struct RootView: View {
         async let memories: () = memoriesStore.ensureListLoaded()
         async let skills: () = skillsStore.ensureListLoaded()
         async let projects: () = projectsStore.ensureListLoaded()
-        async let integrations: () = loadIntegrationsIfNeeded()
+        async let integrations: () = loadIntegrationsCatalogIfNeeded()
         _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
     }
 
@@ -1253,7 +1190,6 @@ struct RootView: View {
 
         dashboardStore.resetForHomeSwitch()
         configureStore.resetForHomeSwitch()
-        integrationsStore.resetForHomeSwitch()
         recordingsStore.resetForHomeSwitch()
         schedulesStore.resetForHomeSwitch()
         projectsStore.resetForHomeSwitch()
@@ -1266,7 +1202,6 @@ struct RootView: View {
         await refreshSharedAppDataIfConnected()
         await dashboardStore.refreshAll()
         await configureStore.loadSettingsSections()
-        await integrationsStore.loadSettingsSections()
         await pluginsStore.load()
         permissionsStore.refresh()
         hasCompletedInitialLoad = store.isServerReady
@@ -1280,7 +1215,7 @@ struct RootView: View {
         async let memories: () = memoriesStore.loadList()
         async let skills: () = skillsStore.loadList()
         async let projects: () = projectsStore.loadList()
-        async let integrations: () = integrationsStore.load()
+        async let integrations: () = loadIntegrationsCatalogIfNeeded()
         _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
     }
 
@@ -1292,9 +1227,9 @@ struct RootView: View {
         _ = await (dashboard, shared)
     }
 
-    private func loadIntegrationsIfNeeded() async {
-        guard integrationsStore.tree == nil else { return }
-        await integrationsStore.load()
+    private func loadIntegrationsCatalogIfNeeded() async {
+        guard configureStore.integrationSections.isEmpty else { return }
+        await configureStore.loadSettingsSections(selectDefaultIfNeeded: false)
     }
 
     private func presentAbout() {

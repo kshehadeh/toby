@@ -197,7 +197,18 @@ final class MenuBarController: NSObject {
 	}
 
 	private func integrationsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.integrations.menuTitle, route: .integrations, keyEquivalent: "3")
+		let item = NSMenuItem(
+			title: "Integrations",
+			action: #selector(openIntegrationsSettings),
+			keyEquivalent: "3"
+		)
+		item.target = self
+		item.keyEquivalentModifierMask = .command
+		item.image = NSImage(
+			systemSymbolName: "puzzlepiece.extension",
+			accessibilityDescription: nil
+		)
+		return item
 	}
 
 	private func projectsItem() -> NSMenuItem {
@@ -298,6 +309,13 @@ final class MenuBarController: NSObject {
 		} else {
 			NotificationCenter.default.post(name: .openSettingsWindow, object: nil)
 		}
+	}
+
+	@objc private func openIntegrationsSettings() {
+		NotificationCenter.default.post(
+			name: .openSettingsWindow,
+			object: SettingsItem.integrationsSectionKey
+		)
 	}
 
 	@objc private func openMemoriesWindow() {

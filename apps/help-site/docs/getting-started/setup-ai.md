@@ -39,7 +39,7 @@ Open **Toby.app → Settings**. The Settings window has sections for AI, persona
 
 ![Toby.app Settings window with AI section](/img/toby-app-settings-ai.png)
 
-Click **AI** to expand the provider list: **OpenAI**, **Vercel AI Gateway**, **Ollama**, **Chutes**, and **OpenRouter**.
+Open **AI**. The catalog lists **OpenAI**, **Vercel AI Gateway**, **Ollama**, **Chutes**, and **OpenRouter**. Click a provider to slide to its settings.
 
 ### OpenAI (direct)
 

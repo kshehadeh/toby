@@ -38,6 +38,10 @@ struct MenuBarControllerTests {
 		#expect(memoriesItem.image != nil)
 		#expect(memoriesItem.image?.isTemplate == true)
 		#expect(memoriesItem.keyEquivalent == "6")
+		let integrationsItem = try #require(menu.items.first { $0.title == "Integrations" })
+		#expect(integrationsItem.image != nil)
+		#expect(integrationsItem.image?.isTemplate == true)
+		#expect(integrationsItem.keyEquivalent == "3")
 	}
 
 	@Test("view menu items are in sidebar order")

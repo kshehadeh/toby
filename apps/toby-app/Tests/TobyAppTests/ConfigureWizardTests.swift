@@ -90,4 +90,33 @@ struct ConfigureWizardTests {
 		#expect(try title.string() == "Sample Plugin")
 		#expect(throws: Never.self) { try view.inspect().find(text: "What Sample Plugin can do") }
 	}
+
+	@Test("prefetching a setup guide does not present the wizard")
+	func prefetchDoesNotPresentWizard() {
+		let store = ConfigureStore()
+		store.setupGuide = IntegrationSetupGuide(
+			ok: true,
+			name: "gmail",
+			displayName: "Gmail",
+			description: nil,
+			steps: nil,
+			error: nil
+		)
+		#expect(!store.setupGuidePresented)
+	}
+
+	@Test("presentSetupGuide opens the wizard for a loaded guide")
+	func presentSetupGuideOpensWizard() async {
+		let store = ConfigureStore()
+		store.setupGuide = IntegrationSetupGuide(
+			ok: true,
+			name: "gmail",
+			displayName: "Gmail",
+			description: nil,
+			steps: nil,
+			error: nil
+		)
+		await store.presentSetupGuide(for: "gmail")
+		#expect(store.setupGuidePresented)
+	}
 }

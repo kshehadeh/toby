@@ -16,7 +16,7 @@ The News plugin ships with Toby.app under `~/.toby/plugins/`.
 
 ## Configure
 
-Open **Toby.app → Integrations → News** and enter:
+Open **Toby.app → Settings → Integrations → News** and enter:
 
 | Field | Description |
 | ----- | ----------- |
@@ -34,11 +34,11 @@ Click **Connect** on the News detail page. Toby checks Hacker News immediately. 
 
 ## Verify
 
-Return to **Integrations** in the sidebar. News should show as connected and healthy.
+Return to **Settings → Integrations**. News should show as connected and healthy.
 
 ## Disconnect
 
-Select News in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag. Remove the API key in configure if you want it gone from stored credentials.
+Select News in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag. Remove the API key in configure if you want it gone from stored credentials.
 
 ## What you can do in chat
 

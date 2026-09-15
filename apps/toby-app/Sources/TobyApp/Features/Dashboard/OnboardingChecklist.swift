@@ -78,7 +78,7 @@ struct OnboardingChecklist: Equatable {
 				kind: .connectIntegrations,
 				title: "Connect integrations",
 				subtitle: "Link Gmail, Slack & Calendar",
-				systemImage: DetailRoute.integrations.systemImage,
+				systemImage: "puzzlepiece.extension",
 				isComplete: hasConnectedIntegrations,
 				actionLabel: "Connect"
 			),

@@ -11,7 +11,6 @@ struct TobyApp: App {
 	@State private var recordingsStore = RecordingsStore()
 	@State private var schedulesStore = SchedulesStore()
 	@State private var projectsStore = ProjectsStore()
-	@State private var integrationsStore = ConfigureStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var memoriesStore = MemoriesStore()
 	@State private var flowsStore = FlowsStore()
@@ -44,7 +43,6 @@ struct TobyApp: App {
 				recordingsStore: recordingsStore,
 				schedulesStore: schedulesStore,
 				projectsStore: projectsStore,
-				integrationsStore: integrationsStore,
 				skillsStore: skillsStore,
 				memoriesStore: memoriesStore,
 				flowsStore: flowsStore,
@@ -155,6 +153,8 @@ struct TobyApp: App {
 		}
 		.windowStyle(.automatic)
 		.defaultSize(width: 780, height: 560)
+		// Used only when no saved frame exists; later opens restore last position.
+		.defaultPosition(.center)
 		.commandsRemoved()
 
 		Window("Memories", id: "memories") {
@@ -236,6 +236,14 @@ struct TobyApp: App {
 					.keyboardShortcut(viewShortcut(for: route))
 				}
 
+				Button("Integrations") {
+					NotificationCenter.default.post(
+						name: .openSettingsWindow,
+						object: SettingsItem.integrationsSectionKey
+					)
+				}
+				.keyboardShortcut("3", modifiers: .command)
+
 				OpenMemoriesMenuItem()
 
 				Divider()
@@ -275,7 +283,6 @@ struct TobyApp: App {
 		switch route {
 		case .dashboard: return KeyboardShortcut("1", modifiers: .command)
 		case .chat: return KeyboardShortcut("2", modifiers: .command)
-		case .integrations: return KeyboardShortcut("3", modifiers: .command)
 		case .projects: return KeyboardShortcut("4", modifiers: .command)
 		case .skills: return KeyboardShortcut("5", modifiers: .command)
 		case .schedules: return KeyboardShortcut("7", modifiers: .command)

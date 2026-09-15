@@ -48,7 +48,7 @@ struct IntegrationDetailHeader: View {
 				HStack(spacing: 10) {
 					SettingsActionButton(title: "Setup Guide") {
 						Task {
-							await store.loadSetupGuide(for: section.key)
+							await store.presentSetupGuide(for: section.key)
 						}
 					}
 					.disabled(isActionLoading)

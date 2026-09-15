@@ -32,6 +32,7 @@ function buildIntegrationLabels(): Record<string, string> {
 }
 
 const SETTINGS_SECTION_KEYS = [
+	"integrations",
 	"chatInbound",
 	"defaults",
 	"ai",

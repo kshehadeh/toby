@@ -66,9 +66,9 @@ Integrations connect Toby to your email, tasks, chat, contacts, calendar, docume
 
 Every integration uses the same workflow in Toby.app:
 
-1. **Configure** — Open **Integrations** in the sidebar, select a service, and enter credentials (or use the **Setup Guide** button)
+1. **Configure** — Open **Settings → Integrations**, select a service, and enter credentials (or use the **Setup Guide** button)
 2. **Connect** — Click **Connect** on the integration detail page (OAuth integrations open a browser when required)
-3. **Status** — Return to the Integrations window to see connection status at a glance
+3. **Status** — Return to **Settings → Integrations** to see connection status at a glance
 
 See [Configure and connect](../getting-started/configure-and-status) for the full walkthrough.
 

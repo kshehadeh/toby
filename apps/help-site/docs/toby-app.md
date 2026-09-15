@@ -42,7 +42,8 @@ settings across Macs without copying a file, use **Settings → Sync**
 | Menu item | What it does |
 | --------- | ------------ |
 | **Show Command View** | Opens the command palette to jump to sessions, routes, and actions (⌘K) |
-| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘5, ⌘7–⌘9) |
+| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘2, ⌘4–⌘5, ⌘7–⌘9) |
+| **Integrations** | Opens Settings on the Integrations catalog (⌘3) |
 | **Memories** | Opens the Memories window to browse, add, edit, or delete memories (⌘6) |
 
 When your search does not match an existing action or item, you can type a
@@ -55,11 +56,11 @@ two words or sentence punctuation.
 
 Use the sidebar destination list to switch between Toby.app's primary workspaces:
 Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) and
-**Tools** (Skills, Integrations). Memories opens as a separate window from the
+**Tools** (Skills). Connect services in **Settings → Integrations**. Memories opens as a separate window from the
 View menu, command palette, or menu bar — not as a main-window route.
 
 Workspaces that list items (Chats, Projects, Recordings, Skills, Schedules,
-Flows, Integrations, plus the Memories and Logs windows) share the same
+Flows, plus the Memories and Logs windows) share the same
 second-column behavior: nothing is selected until you choose a row, the main
 page asks you to pick one (and offers a create link when that type can be
 created), clicking empty space in the list clears the selection, and Toby
@@ -121,10 +122,7 @@ again, to clear the selection.
 
 ### Integrations
 
-The Integrations workspace lists every available integration in a second column. Click
-one to view connection status, setup instructions, and
-configuration. Click empty space in the list, or **Integrations** in the sidebar
-again, to clear the selection.
+Open **Settings → Integrations** (⌘, then choose Integrations, or ⌘3). The catalog lists every available plugin. Click one to slide to its detail page: connection status, setup instructions, credentials, and **Connect** / **Disconnect**.
 
 ![Toby.app Integrations window](/img/toby-app-integrations.png)
 
@@ -199,7 +197,8 @@ See [Flows](./flows) for a fuller explanation.
 ### Settings
 
 The Settings window lets you configure chat defaults, AI providers, personas,
-and other preferences through a familiar preferences-style interface.
+and other preferences. **Integrations** and **AI** open a catalog; click a row
+to slide to that plugin or provider.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

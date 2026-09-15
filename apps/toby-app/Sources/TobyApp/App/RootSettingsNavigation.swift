@@ -8,6 +8,7 @@ enum RootSettingsNavigation {
 		SettingsItem.appearanceSectionKey,
 		SettingsItem.iCloudSectionKey,
 		SettingsItem.personasSectionKey,
+		SettingsItem.integrationsSectionKey,
 	]
 
 	/// Updates `configureStore` selection for the settings window. Caller opens the window.
@@ -21,10 +22,10 @@ enum RootSettingsNavigation {
 
 		let isClientTab = clientOnlySettingsTabKeys.contains(navKey)
 		if configureStore.isSettingsMode && !isClientTab {
-			// Prefer top-level tab selection once sections are loaded (so nested
-			// containers like AI land on the tab + first child). Otherwise seed
-			// selectedNavKey so loadSettingsSections / syncTabFromStoreSelection
-			// pick the right tab after the window opens.
+			// Prefer top-level tab selection once sections are loaded (so catalog
+			// containers like AI land on the catalog, not a nested sidebar child).
+			// Otherwise seed selectedNavKey so loadSettingsSections /
+			// syncTabFromStoreSelection pick the right tab after the window opens.
 			let isTopLevel = configureStore.settingsSections.contains {
 				ConfigureTreeHelpers.sectionIdentityKey($0) == navKey
 			}

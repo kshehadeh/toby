@@ -23,7 +23,7 @@ The Apple Contacts plugin ships with Toby.app under `~/.toby/plugins/`.
 
 ## Configure
 
-Open **Toby.app → Integrations → Apple Contacts**. Optional **Notes** are for your own reference only. Save.
+Open **Toby.app → Settings → Integrations → Apple Contacts**. Optional **Notes** are for your own reference only. Save.
 
 ## Connect
 
@@ -36,13 +36,13 @@ granted to Toby.app, not the plugin itself.
 
 ## Verify
 
-Return to **Integrations** in the sidebar. Apple Contacts should show as connected. The first time you use contact tools, macOS may prompt you to grant Contacts access to Toby.app.
+Return to **Settings → Integrations**. Apple Contacts should show as connected. The first time you use contact tools, macOS may prompt you to grant Contacts access to Toby.app.
 
 If permission was denied, enable it in **System Settings → Privacy & Security → Contacts**, then connect again.
 
 ## Disconnect
 
-Select Apple Contacts in the Integrations window and click **Disconnect** in the toolbar. This clears Toby's connection flag; it does not modify your address book.
+Select Apple Contacts in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag; it does not modify your address book.
 
 ## What you can do in chat
 
