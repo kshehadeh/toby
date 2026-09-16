@@ -978,6 +978,49 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 
+	@Test("intelligence outline shows immediately on force refresh or empty body")
+	func intelligenceOutlineShowsImmediatelyOnForceOrEmptyBody() {
+		#expect(
+			DashboardIntelligenceOutlinePolicy.showsImmediately(isForceUpdating: true, hasBody: true)
+		)
+		#expect(
+			DashboardIntelligenceOutlinePolicy.showsImmediately(isForceUpdating: false, hasBody: false)
+		)
+		#expect(
+			!DashboardIntelligenceOutlinePolicy.showsImmediately(isForceUpdating: false, hasBody: true)
+		)
+	}
+
+	@Test("dashboard card shows intelligence outline while updating")
+	func dashboardCardShowsIntelligenceOutlineWhileUpdating() throws {
+		let card = DashboardCard(isUpdating: true) { Text("Body") }
+		#expect(throws: Never.self) {
+			_ = try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
+		}
+	}
+
+	@Test("idle dashboard card does not show intelligence outline")
+	func idleDashboardCardHidesIntelligenceOutline() throws {
+		let card = DashboardCard { Text("Body") }
+		#expect(throws: (any Error).self) {
+			_ = try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
+		}
+	}
+
+	@Test("block card shows intelligence outline while loading with no body")
+	func blockCardShowsIntelligenceOutlineWhileLoading() throws {
+		let block = CategoryDashboardBlock(descriptor: .email)
+		block.isLoading = true
+		let card = DashboardBlockCard(block: block)
+		#expect(throws: Never.self) {
+			_ = try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
+		}
+		#expect(throws: (any Error).self) {
+			let idle = DashboardBlockCard(block: CategoryDashboardBlock(descriptor: .email))
+			_ = try idle.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
+		}
+	}
+
 	@Test("runner row shows title as the action, not a full card")
 	func runnerRowShowsTitleAsAction() throws {
 		let block = CategoryDashboardBlock(

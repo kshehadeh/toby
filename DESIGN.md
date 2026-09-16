@@ -63,7 +63,9 @@ quiet and readable.
 - Do not put Liquid Glass on the content layer (lists, dashboard cards,
   transcript bubbles, settings rows, form canvases). Content stays quiet and
   mostly flat: no gradients, photos, texture, decorative cards, or generic drop
-  shadows.
+  shadows. Dashboard content cards and other processing surfaces may use the
+  shared **intelligenceOutline** modifier **while work is in flight**; idle
+  views stay a quiet outline.
 - Separate content with whitespace first. A settings card has at most one
   hairline divider per row. Dashboard cards use one quiet outline and a
   header hairline; structured item rows may use hairline separators.
@@ -231,10 +233,10 @@ source path and behavior, not the Figma geometry, define their contract.
 | --- | --- |
 | Core | **Button**: bordered/default, prominent single primary action, plain accent text, destructive. **Icon button**: 26pt target where used, labelled. **Badge/Chip**: quiet compact metadata; chip can remove an attachment. **Progress**: communicate bounded work only. |
 | Settings forms | **SettingsCard** owns card fill/border. **SettingsRow** owns 42pt minimum height and optional final-divider omission. **SectionHeader**, select, inline field, toggle, action/destructive buttons use the existing controls. |
-| Feedback | **InlineStatusMessage** is persistent local success/error feedback. **Toast** is global, transient feedback; it pauses its 4s timer on hover and may offer one action. **Skeleton** preserves the eventual layout while loading. |
+| Feedback | **InlineStatusMessage** is persistent local success/error feedback. **Toast** is global, transient feedback; it pauses its 4s timer on hover and may offer one action. **Skeleton** preserves the eventual layout while loading. **intelligenceOutline** is the Siri-style rainbow ring for in-flight AI work; fade in/out, Reduce Motion snaps, Increase Contrast thickens, apply after clip. |
 | Navigation | **Destination list** (`List(selection:)` + `.sidebar`) is the global sidebar: Home, Chats, Projects, Recordings, then Automation (Schedules, Flows) and Tools (Skills). Integrations live in **Settings → Integrations**. System selection, semantic secondary icon tint, no per-category colors or timestamps. **PersonaFooter** is a single-line persona control; model name lives in the picker popover. Connection recovery is labelled and hidden when healthy. |
 | Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and floating Liquid Glass geometry. **UserMessage**, **AssistantMessage**, and **WorkStepRow** keep transcript roles visually distinct. |
-| Dashboard | **DashboardCard** is a quiet content-surface panel with a hairline outline and header divider. **CardSection** presents optional structured eyebrow/title/body/item content with system typography and Markdown fallback. **Flow runner** presents actions. **Recent work** combines chats and projects. **OnboardingTile** makes an explicit setup action available. |
+| Dashboard | **DashboardCard** is a quiet content-surface panel with a hairline outline and header divider. While a block is updating, it applies **intelligenceOutline**. **CardSection** presents optional structured eyebrow/title/body/item content with system typography and Markdown fallback. **Flow runner** presents actions. **Recent work** combines chats and projects. **OnboardingTile** makes an explicit setup action available. |
 
 See the full anatomy, states, source mapping, and “do/don’t” guidance in
 [`component-recipes.md`](.agents/skills/toby-design/references/component-recipes.md).

@@ -26,6 +26,13 @@ enum DashboardBlockLayout {
 	static let titleTracking: CGFloat = 0
 }
 
+/// When the Siri-style outline should appear without waiting for the soft delay.
+enum DashboardIntelligenceOutlinePolicy {
+	static func showsImmediately(isForceUpdating: Bool, hasBody: Bool) -> Bool {
+		isForceUpdating || !hasBody
+	}
+}
+
 /// Quiet bordered content panel matching the compact Home reference.
 struct DashboardBlockChrome: ViewModifier {
 	var systemImage: String? = nil
@@ -37,11 +44,11 @@ struct DashboardBlockChrome: ViewModifier {
 			.background {
 				shape.fill(AppTheme.contentBackground)
 			}
+			.compositingGroup()
+			.clipShape(shape)
 			.overlay {
 				shape.stroke(AppTheme.separator, lineWidth: 1)
 			}
-			.compositingGroup()
-			.clipShape(shape)
 			.containerShape(
 				RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
 			)
@@ -49,7 +56,21 @@ struct DashboardBlockChrome: ViewModifier {
 }
 
 extension View {
-	func dashboardBlockChrome(systemImage: String? = nil, isExpanded: Bool = false) -> some View {
-		modifier(DashboardBlockChrome(systemImage: systemImage, isExpanded: isExpanded))
+	func dashboardBlockChrome(
+		systemImage: String? = nil,
+		isExpanded: Bool = false,
+		isUpdating: Bool = false
+	) -> some View {
+		modifier(
+			DashboardBlockChrome(
+				systemImage: systemImage,
+				isExpanded: isExpanded
+			)
+		)
+		.intelligenceOutline(
+			isActive: isUpdating,
+			cornerRadius: AppTheme.cornerRadius,
+			accessibilityIdentifier: "dashboard-card-intelligence-outline"
+		)
 	}
 }

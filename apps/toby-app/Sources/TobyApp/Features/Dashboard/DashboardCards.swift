@@ -39,6 +39,8 @@ struct DashboardCard<Content: View>: View {
 
 	/// SF Symbol used as the lower-right ghost glyph.
 	var systemImage: String? = nil
+	/// When true, the quiet hairline is replaced by the AI rainbow outline.
+	var isUpdating: Bool = false
 	@ViewBuilder private let content: () -> Content
 
 	@State private var isExpanded = false
@@ -48,8 +50,13 @@ struct DashboardCard<Content: View>: View {
 	/// from under the cursor right after expand (would otherwise flash-collapse).
 	@State private var suppressHoverCollapse = false
 
-	init(systemImage: String? = nil, @ViewBuilder content: @escaping () -> Content) {
+	init(
+		systemImage: String? = nil,
+		isUpdating: Bool = false,
+		@ViewBuilder content: @escaping () -> Content
+	) {
 		self.systemImage = systemImage
+		self.isUpdating = isUpdating
 		self.content = content
 	}
 
@@ -93,7 +100,11 @@ struct DashboardCard<Content: View>: View {
 					showMoreChrome
 				}
 			}
-			.dashboardBlockChrome(systemImage: systemImage, isExpanded: isExpanded)
+			.dashboardBlockChrome(
+				systemImage: systemImage,
+				isExpanded: isExpanded,
+				isUpdating: isUpdating
+			)
 			// Hidden unconstrained pass measures full content height for overflow.
 			// Non-interactive so it never steals hits or selection from the real body.
 			.background(alignment: .top) {
@@ -360,7 +371,7 @@ struct DashboardBlockCard: View {
 	}
 
 	var body: some View {
-		DashboardCard(systemImage: block.systemImage) {
+		DashboardCard(systemImage: block.systemImage, isUpdating: block.isUpdating) {
 			CardHeader(
 				title: block.title,
 				systemImage: block.systemImage,
@@ -380,6 +391,7 @@ struct DashboardBlockCard: View {
 			bodyContent
 		}
 		.accessibilityIdentifier(block.accessibilityIdentifier)
+		.accessibilityValue(block.isUpdating ? "Updating" : "")
 	}
 
 	@ViewBuilder
