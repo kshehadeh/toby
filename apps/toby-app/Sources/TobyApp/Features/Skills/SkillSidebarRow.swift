@@ -5,40 +5,14 @@ struct SkillSidebarRow: View {
 	let isSelected: Bool
 
 	var body: some View {
-		HStack(spacing: 12) {
+		FeatureBrowserRow(
+			title: skill.name,
+			subtitle: skill.summary.isEmpty ? nil : skill.summary,
+			isSelected: isSelected,
+			accessibilityIdentifier: "skill-sidebar-row-\(skill.id)"
+		) {
 			SkillIconView(iconURL: skill.resolvedIconURL, size: 28, cornerRadius: 7)
-			VStack(alignment: .leading, spacing: 2) {
-				Text(skill.name)
-					.font(.callout.weight(.medium))
-					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
-					.lineLimit(1)
-				if !skill.summary.isEmpty {
-					Text(skill.summary)
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(1)
-				}
-			}
-			Spacer(minLength: 0)
 		}
-		.padding(.vertical, 8)
-		.padding(.horizontal, 10)
-		.contentShape(Rectangle())
-		.background(
-			RoundedRectangle(cornerRadius: 8)
-				.fill(isSelected ? AppTheme.selection : Color.clear)
-		)
-		.accessibilityElement(children: .combine)
-		.accessibilityLabel(accessibilityLabel)
-		.accessibilityAddTraits(isSelected ? [.isSelected] : [])
-		.accessibilityIdentifier("skill-sidebar-row-\(skill.id)")
-	}
-
-	private var accessibilityLabel: String {
-		if !skill.summary.isEmpty {
-			return "\(skill.name), \(skill.summary)"
-		}
-		return skill.name
 	}
 }
 

@@ -43,47 +43,16 @@ struct FlowSidebarRow: View {
 	let isSelected: Bool
 
 	var body: some View {
-		HStack(spacing: 12) {
-			Image(systemName: flow.systemImage)
-				.font(.system(size: 14, weight: .semibold))
-				.foregroundStyle(isSelected ? AppTheme.accent : AppTheme.tertiaryText)
-				.frame(width: 20, height: 20)
-			VStack(alignment: .leading, spacing: 2) {
-				HStack(spacing: 6) {
-					Text(flow.displayName)
-						.font(.callout.weight(.medium))
-						.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.secondaryText)
-						.lineLimit(1)
-					if flow.builtin {
-						Text("Built-in")
-							.font(.system(size: 9, weight: .semibold))
-							.foregroundStyle(AppTheme.tertiaryText)
-							.padding(.horizontal, 5)
-							.padding(.vertical, 1)
-							.background(
-								Capsule()
-									.fill(Color.white.opacity(0.08))
-							)
-					}
-				}
-				Text(flow.subtitle)
-					.font(.caption)
-					.foregroundStyle(AppTheme.tertiaryText)
-					.lineLimit(1)
-			}
-			Spacer(minLength: 0)
+		FeatureBrowserRow(
+			title: flow.displayName,
+			subtitle: flow.subtitle,
+			badge: flow.builtin ? "Built-in" : nil,
+			isSelected: isSelected,
+			accessibilityLabel: accessibilityLabel,
+			accessibilityIdentifier: "flow-sidebar-row-\(flow.id)"
+		) {
+			FeatureBrowserRowGlyph(systemImage: flow.systemImage, isSelected: isSelected)
 		}
-		.padding(.vertical, 8)
-		.padding(.horizontal, 10)
-		.contentShape(Rectangle())
-		.background(
-			RoundedRectangle(cornerRadius: 8)
-				.fill(isSelected ? AppTheme.selection : Color.clear)
-		)
-		.accessibilityElement(children: .combine)
-		.accessibilityLabel(accessibilityLabel)
-		.accessibilityAddTraits(isSelected ? [.isSelected] : [])
-		.accessibilityIdentifier("flow-sidebar-row-\(flow.id)")
 	}
 
 	private var accessibilityLabel: String {

@@ -10,6 +10,11 @@ enum FeatureBrowserMetrics {
 	static let horizontalInset: CGFloat = 10
 	static let verticalInset: CGFloat = 8
 	static let rowSpacing: CGFloat = 2
+	static let rowContentSpacing: CGFloat = 12
+	static let rowHorizontalPadding: CGFloat = 10
+	static let rowVerticalPadding: CGFloat = 8
+	static let rowCornerRadius: CGFloat = 8
+	static let glyphSize: CGFloat = 20
 	/// Bounded empty-area hit target after the last row. Must stay finite —
 	/// `maxHeight: .infinity` inside a `ScrollView` hangs layout on macOS.
 	static let deselectFillHeight: CGFloat = 220

@@ -119,6 +119,51 @@ struct FeatureBrowserTests {
 		#expect(cleared)
 	}
 
+	@Test("row shows title, subtitle, and selected identifier")
+	func rowShowsTitleSubtitleAndIdentifier() throws {
+		let view = FeatureBrowserRow(
+			title: "Weekly Overview",
+			subtitle: "3 chats · Toby",
+			isSelected: true,
+			accessibilityIdentifier: "project-sidebar-row-proj-1"
+		) {
+			FeatureBrowserRowGlyph(systemImage: "folder", isSelected: true)
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Weekly Overview")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "3 chats · Toby")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-sidebar-row-proj-1")
+		}
+	}
+
+	@Test("row badge is visible next to the title")
+	func rowShowsBadge() throws {
+		let view = FeatureBrowserRow(
+			title: "Email summary",
+			subtitle: "Built-in flow",
+			badge: "Built-in",
+			isSelected: false,
+			accessibilityIdentifier: "flow-sidebar-row-email"
+		) {
+			FeatureBrowserRowGlyph(systemImage: "envelope", isSelected: false)
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Built-in")
+		}
+	}
+
+	@Test("glyph keeps a stable system image across selection")
+	func glyphKeepsStableSystemImage() throws {
+		let selected = FeatureBrowserRowGlyph(systemImage: "folder", isSelected: true)
+		let unselected = FeatureBrowserRowGlyph(systemImage: "folder", isSelected: false)
+		#expect(try selected.inspect().find(ViewType.Image.self).actualImage().name() == "folder")
+		#expect(try unselected.inspect().find(ViewType.Image.self).actualImage().name() == "folder")
+	}
+
 	@Test("wide split is a peer HStack under the window toolbar, not a nested split view")
 	func wideSplitUsesHStackNotNavigationSplitView() throws {
 		let view = FeatureWorkspaceSplit(
