@@ -62,7 +62,9 @@ After a recording is transcribed, open it in **Recordings** and use **Summarize*
 **Summarize** link on the Summary tab when no summary exists yet. Toby generates
 a concise markdown summary with the persona you choose under **Settings →
 Transcription → Persona for recording summaries** (or your default persona). The
-summary is stored with the recording and shown on the Summary tab.
+summary is stored with the recording and shown on the Summary tab. While Toby
+is generating the summary, the Summary card shows a rainbow outline; if a
+summary already exists, that text stays visible until the new one arrives.
 
 You can still start a chat about a recording for deeper Q&A.
 

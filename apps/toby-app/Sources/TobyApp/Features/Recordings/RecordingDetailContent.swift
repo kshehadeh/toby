@@ -61,15 +61,19 @@ struct RecordingSummaryPane: View {
 		store.summarizingRecordingId == detail.id
 	}
 
+	private var displayedSummary: String? {
+		guard detail.showsSummary, let summary = detail.summary else { return nil }
+		let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+		return trimmed.isEmpty ? nil : trimmed
+	}
+
 	var body: some View {
 		Group {
-			if isSummarizing {
+			if isSummarizing, displayedSummary == nil {
 				summarizingPlaceholder
 			} else if isLoadingHeavyContent && detail.showsSummary && !detail.hasLoadedSummaryBody {
 				summarySkeleton
-			} else if detail.showsSummary, let summary = detail.summary,
-				!summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-			{
+			} else if let summary = displayedSummary {
 				summarySection(text: summary)
 			} else {
 				emptySummary
@@ -98,12 +102,7 @@ struct RecordingSummaryPane: View {
 			}
 			.automaticScrollIndicators(axes: .vertical)
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
-			.background(SettingsDesign.cardBackground)
-			.clipShape(RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius))
-			.overlay {
-				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-			}
+			.recordingSummaryCardChrome(isProcessing: isSummarizing)
 			.overlay(alignment: .topTrailing) {
 				CopyButton(text: text, label: "Copy summary")
 					.accessibilityIdentifier("copy-summary-button")
@@ -112,6 +111,7 @@ struct RecordingSummaryPane: View {
 			}
 			.padding(.top, 4)
 			.accessibilityIdentifier("recording-summary-section")
+			.accessibilityValue(isSummarizing ? "Summarizing" : "")
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 	}
@@ -145,15 +145,24 @@ struct RecordingSummaryPane: View {
 	}
 
 	private var summarizingPlaceholder: some View {
-		VStack(spacing: 12) {
-			ProgressView()
-				.controlSize(.small)
-			Text("Summarizing…")
-				.font(.system(size: 13))
+		VStack(alignment: .leading, spacing: 4) {
+			Text("AI-generated summary of the transcript")
+				.font(.caption)
 				.foregroundStyle(SettingsDesign.rowDescription)
+
+			VStack(spacing: 12) {
+				ProgressView()
+					.controlSize(.small)
+				Text("Summarizing…")
+					.font(.system(size: 13))
+					.foregroundStyle(SettingsDesign.rowDescription)
+			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.recordingSummaryCardChrome(isProcessing: true)
+			.padding(.top, 4)
+			.accessibilityIdentifier("recording-summary-summarizing")
 		}
-		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.accessibilityIdentifier("recording-summary-summarizing")
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 	}
 
 	private var summarySkeleton: some View {
@@ -264,5 +273,25 @@ private struct TimedTranscriptLine: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.frame(maxWidth: .infinity, alignment: .leading)
+	}
+}
+
+private extension View {
+	/// Quiet summary card chrome. Apply intelligenceOutline after clip so bloom
+	/// is not cropped while a summary is generating.
+	func recordingSummaryCardChrome(isProcessing: Bool) -> some View {
+		let cornerRadius = SettingsDesign.cardCornerRadius
+		return self
+			.background(SettingsDesign.cardBackground)
+			.clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+			.overlay {
+				RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+					.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+			}
+			.intelligenceOutline(
+				isActive: isProcessing,
+				cornerRadius: cornerRadius,
+				accessibilityIdentifier: "recording-summary-intelligence-outline"
+			)
 	}
 }

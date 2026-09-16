@@ -102,7 +102,10 @@ directories directly.
 When a recording has a non-empty transcript, the Recordings toolbar shows a
 **Summarize** button (or **Re-Summarize** when a summary already exists). The
 Summary tab shows the markdown when present, or an empty state with a
-**Summarize** link. The app calls `POST /api/listen/recordings/:id/summarize`.
+**Summarize** link. While a summary is generating, the Summary card keeps any
+existing text (or a Summarizing… placeholder) and applies the shared
+`intelligenceOutline` rainbow ring. The app calls
+`POST /api/listen/recordings/:id/summarize`.
 The daemon:
 
 1. Reads `transcript.txt` for the recording.

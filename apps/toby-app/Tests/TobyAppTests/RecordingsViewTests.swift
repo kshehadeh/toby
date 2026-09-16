@@ -500,6 +500,91 @@ struct RecordingsViewTests {
 				viewWithAccessibilityIdentifier: "empty-summary-summarize-link"
 			)
 		}
+		#expect(throws: (any Error).self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-intelligence-outline"
+			)
+		}
+	}
+
+	@Test("summary tab shows intelligence outline while generating a summary")
+	func summaryTabShowsIntelligenceOutlineWhileSummarizing() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.selectedDetailTab = .summary
+		store.detail = makeRecordingDetail(id: "r1", transcript: "Hello world", hasAudio: true)
+		store.summarizingRecordingId = "r1"
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-summarizing"
+			)
+		}
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(text: "Summarizing…")
+		}
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-intelligence-outline"
+			)
+		}
+		#expect(throws: (any Error).self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-empty"
+			)
+		}
+	}
+
+	@Test("re-summarize keeps existing text and shows intelligence outline")
+	func resummarizeKeepsSummaryAndShowsIntelligenceOutline() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.selectedDetailTab = .summary
+		store.detail = makeRecordingDetail(
+			id: "r1",
+			transcript: "Hello world",
+			hasAudio: true,
+			summary: "A brief summary of the recording."
+		)
+		store.summarizingRecordingId = "r1"
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-section"
+			)
+		}
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(text: "A brief summary of the recording.")
+		}
+		#expect(throws: Never.self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-intelligence-outline"
+			)
+		}
+		#expect(throws: (any Error).self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-summarizing"
+			)
+		}
+	}
+
+	@Test("idle summary does not show intelligence outline")
+	func idleSummaryHidesIntelligenceOutline() throws {
+		let store = RecordingsStore()
+		store.recordings = [makeRecording(id: "r1", name: "One")]
+		store.selectedRecordingIds = ["r1"]
+		store.selectedDetailTab = .summary
+		store.detail = makeRecordingDetail(
+			id: "r1",
+			transcript: "Hello world",
+			hasAudio: true,
+			summary: "A brief summary of the recording."
+		)
+		#expect(throws: (any Error).self) {
+			try summaryPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "recording-summary-intelligence-outline"
+			)
+		}
 	}
 
 	@Test("edit sheet shows transcribed status when transcript exists")

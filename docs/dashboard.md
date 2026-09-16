@@ -48,7 +48,7 @@ chat”).
 Home cards share one visual shell (`DashboardBlockChrome`):
 
 - Content-background fill, 16pt corners, quiet hairline outline and header divider
-- While a content card is updating (`isUpdating`), the shared `intelligenceOutline` modifier fades a Siri-style rainbow ring over the hairline and fades it out when the update finishes. Reduce Motion snaps with no fade. Onboarding and Actions runners do not use this treatment. Apply the same modifier to other processing surfaces (chat composer, flow run, etc.) with `isActive` and an optional `Shape`.
+- While a content card is updating (`isUpdating`), the shared `intelligenceOutline` modifier fades a Siri-style rainbow ring over the hairline and fades it out when the update finishes. Reduce Motion snaps with no fade. Onboarding and Actions runners do not use this treatment. Apply the same modifier to other processing surfaces (recording Summary card, chat composer, flow run, etc.) with `isActive` and an optional `Shape`.
 - 16px inner padding; cards keep their intrinsic height up to a 340px collapsed cap
 - A waterfall layout places each card in the shortest 320–460px column, so compact cards stack beside taller cards
 - Summary and structured rows use compact system typography; `##` section
