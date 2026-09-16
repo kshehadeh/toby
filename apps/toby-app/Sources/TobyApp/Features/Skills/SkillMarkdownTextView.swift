@@ -21,7 +21,8 @@ final class SkillMarkdownEditorModel: ObservableObject {
 	}
 }
 
-/// AppKit-backed markdown editor with live syntax highlighting for the skill editor.
+/// AppKit-backed markdown editor. Text appearance is left to a stock NSTextView
+/// (user fixed-pitch font, system text color, default caret and line height).
 struct SkillMarkdownTextView: NSViewRepresentable {
 	@Binding var text: String
 	let model: SkillMarkdownEditorModel
@@ -30,6 +31,13 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 	/// `ScrollView`). Without this, the document view’s content height feeds back
 	/// into layout and freezes the app on repeated select/deselect.
 	static let fallbackHeight: CGFloat = 480
+
+	/// System fixed-pitch font at the default size — the stock coding-editor face,
+	/// not a custom markdown palette or line-height.
+	static var editorFont: NSFont {
+		NSFont.userFixedPitchFont(ofSize: 0)
+			?? NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+	}
 
 	func sizeThatFits(
 		_ proposal: ProposedViewSize,
@@ -47,7 +55,7 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 	}
 
 	func makeNSView(context: Context) -> NSScrollView {
-		// Give AppKit a finite viewport before assigning or highlighting text.
+		// Give AppKit a finite viewport before assigning text.
 		// A zero-width text container can explode glyph layout for long skills.
 		let scrollView = NSScrollView(
 			frame: NSRect(x: 0, y: 0, width: 400, height: Self.fallbackHeight)
@@ -72,11 +80,8 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 		textView.isAutomaticSpellingCorrectionEnabled = false
 		textView.allowsUndo = true
 		textView.textContainerInset = NSSize(width: 18, height: 16)
-		textView.font = SkillMarkdownSyntax.baseFont
-		textView.textColor = SkillMarkdownSyntax.primaryColor
-		textView.insertionPointColor = SkillMarkdownSyntax.primaryColor
-		textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
-		textView.defaultParagraphStyle = SkillMarkdownSyntax.paragraphStyle
+		textView.font = Self.editorFont
+		textView.textColor = .textColor
 		textView.isVerticallyResizable = true
 		textView.isHorizontallyResizable = false
 		textView.autoresizingMask = [.width]
@@ -94,7 +99,6 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 
 		textView.string = text
 		context.coordinator.textView = textView
-		context.coordinator.highlight()
 		context.coordinator.updateCursor()
 
 		let applyFormat: (SkillMarkdownFormat) -> Void = { [weak coordinator = context.coordinator] format in
@@ -125,11 +129,11 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 				),
 			)
 			context.coordinator.isUpdating = false
-			context.coordinator.highlight()
 		}
 		textView.isEditable = true
 		textView.isSelectable = true
-		textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
+		textView.font = Self.editorFont
+		textView.textColor = .textColor
 	}
 
 	func makeCoordinator() -> Coordinator {
@@ -172,7 +176,6 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 				return
 			}
 			parent.text = textView.string
-			highlight()
 			updateCursor()
 		}
 
@@ -218,7 +221,6 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 				prefixLine(textView, ns: ns, range: range, prefix: "> ")
 			}
 			parent.text = textView.string
-			highlight()
 			updateCursor()
 		}
 
@@ -251,12 +253,6 @@ struct SkillMarkdownTextView: NSViewRepresentable {
 					NSRange(location: range.location + (prefix as NSString).length, length: 0),
 				)
 			}
-		}
-
-		func highlight() {
-			guard let textView, let storage = textView.textStorage else { return }
-			SkillMarkdownSyntax.apply(to: storage)
-			textView.typingAttributes = SkillMarkdownSyntax.baseTypingAttributes
 		}
 	}
 }

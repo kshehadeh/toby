@@ -378,6 +378,11 @@ struct SkillsViewTests {
 		#expect(SkillMarkdownNSTextView.format(forCommandKey: "u") == nil)
 	}
 
+	@Test("markdown editor uses the system fixed-pitch font")
+	func markdownEditorUsesSystemFixedPitchFont() {
+		#expect(SkillMarkdownTextView.editorFont.isFixedPitch)
+	}
+
 	@Test("skill detail shows about and instructions tabs")
 	func skillDetailShowsAboutAndInstructionsTabs() throws {
 		let store = SkillsStore()

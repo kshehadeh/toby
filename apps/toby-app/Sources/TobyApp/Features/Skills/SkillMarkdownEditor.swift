@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The centerpiece markdown editor for skill and schedule detail: syntax-highlighted
-/// write mode, rendered preview, a formatting toolbar, and a status footer.
+/// The centerpiece markdown editor for skill and schedule detail: a default
+/// monospaced write mode, rendered preview, a formatting toolbar, and a status footer.
 struct SkillMarkdownEditor: View {
 	@Binding var text: String
 	@State private var isPreview = false
