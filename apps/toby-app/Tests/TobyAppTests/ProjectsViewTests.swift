@@ -178,8 +178,11 @@ struct ProjectsViewTests {
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "projects-home-button")
 		}
-		#expect(throws: (any Error).self) {
+		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Hidden sidebar chat")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-chats-tab-row-chat-hidden")
 		}
 	}
 
@@ -401,6 +404,141 @@ struct ProjectsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "project-sidebar-active-chat")
 		}
+	}
+
+	@Test("sidebar split control starts a new chat without selecting the row")
+	func sidebarSplitControlCreatesChatWithoutSelecting() throws {
+		let store = ProjectsStore()
+		store.projects = [sampleProject(name: "Demo")]
+		var selectedId: String?
+		var newChatProjectId: String?
+		let view = ProjectsSidebarView(
+			store: store,
+			onSelect: { selectedId = $0 },
+			onNewChat: { newChatProjectId = $0.id }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-sidebar-new-chat-proj-1")
+		}
+		let newChat = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "project-sidebar-new-chat-item-proj-1"
+		).button()
+		try newChat.tap()
+		#expect(newChatProjectId == "proj-1")
+		#expect(selectedId == nil)
+	}
+
+	@Test("sidebar split menu lists recent chats")
+	func sidebarSplitMenuListsRecentChats() throws {
+		let store = ProjectsStore()
+		store.projects = [sampleProject(name: "Demo")]
+		store.projectSessions = [
+			"proj-1": [sampleSession(id: "chat-1", name: "Monday recap")],
+		]
+		var openedChatId: String?
+		let view = ProjectsSidebarView(
+			store: store,
+			onSelect: { _ in },
+			onSelectChat: { _, sessionId in openedChatId = sessionId }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Monday recap")
+		}
+		let chatItem = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "project-sidebar-chat-chat-1"
+		).button()
+		try chatItem.tap()
+		#expect(openedChatId == "chat-1")
+	}
+
+	@Test("sidebar row tap selects the project and does not create a chat")
+	func sidebarRowTapSelectsWithoutCreating() throws {
+		let store = ProjectsStore()
+		store.projects = [sampleProject(id: "proj-1", name: "Weekly Overview")]
+		var selectedId: String?
+		var created = false
+		let view = ProjectsSidebarView(
+			store: store,
+			onSelect: { selectedId = $0 },
+			onNewChat: { _ in created = true }
+		)
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "project-sidebar-select-proj-1"
+		).button()
+		try button.tap()
+		#expect(selectedId == "proj-1")
+		#expect(!created)
+	}
+
+	@Test("ensureProjectSelected does not leave an open chat")
+	func ensureProjectSelectedKeepsChat() async {
+		let store = ProjectsStore()
+		let project = sampleProject()
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
+		store.isShowingChat = true
+		store.selectedDetailTab = .chats
+		store.isFilesSidebarPresented = true
+		await store.ensureProjectSelected(id: project.id)
+		#expect(store.isShowingChat)
+		#expect(store.selectedDetailTab == .chats)
+		#expect(store.isFilesSidebarPresented)
+	}
+
+	@Test("selectChat for a project opens chat without resetting the details tab")
+	func selectChatOpensWithoutResettingTab() async {
+		let store = ProjectsStore()
+		let project = sampleProject()
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
+		store.selectedDetailTab = .chats
+		await store.selectChat(id: "s1", chatStore: ChatStore(), projectId: project.id)
+		#expect(store.isShowingChat)
+		#expect(store.selectedDetailTab == .chats)
+		#expect(store.selectedProjectId == project.id)
+	}
+
+	@Test("createChat without a project id is a no-op")
+	func createChatWithoutProjectIsNoOp() async {
+		let store = ProjectsStore()
+		await store.createChat(for: nil, chatStore: ChatStore())
+		#expect(!store.isShowingChat)
+		#expect(store.selectedProjectId == nil)
+	}
+
+	@Test("selecting a project leaves an open chat")
+	func selectingProjectLeavesOpenChat() async {
+		let store = ProjectsStore()
+		let project = sampleProject()
+		store.projects = [project]
+		store.selectedProjectId = project.id
+		store.selectedProject = project
+		store.isShowingChat = true
+		store.isFilesSidebarPresented = true
+		store.selectedDetailTab = .chats
+		await store.selectProject(id: project.id)
+		#expect(!store.isShowingChat)
+		#expect(!store.isFilesSidebarPresented)
+		#expect(store.selectedDetailTab == .details)
+	}
+
+	@Test("selected project row keeps a stable folder glyph")
+	func selectedProjectRowKeepsStableFolderGlyph() throws {
+		let project = sampleProject(name: "Demo")
+		let selected = ProjectSidebarRow(
+			project: project,
+			metaLine: "1 chat · Toby",
+			isSelected: true
+		)
+		let unselected = ProjectSidebarRow(
+			project: project,
+			metaLine: "1 chat · Toby",
+			isSelected: false
+		)
+		#expect(try selected.inspect().find(ViewType.Image.self).actualImage().name() == "folder")
+		#expect(try unselected.inspect().find(ViewType.Image.self).actualImage().name() == "folder")
 	}
 
 	@Test("project file changes distinguish additions, updates, and deletions")

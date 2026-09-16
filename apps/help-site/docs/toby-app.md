@@ -141,10 +141,11 @@ file tree. On **Chats**, click a chat to resume it, or use **+ Chat** in the
 toolbar to start a new one. The toolbar shows **+** (new project) when nothing
 is selected, and **+ Chat** plus **Delete** on a project page. Click empty space
 in the list, or **Projects** in the sidebar again, to clear the selection.
-Right-click a project in the list for recent chats or delete. Project chats stay
-in Projects: they never appear in the main Chats list. While a project chat is
-open, a folder icon marks the chat and a toolbar button returns you to the
-project page (on the Chats tab).
+Each project row has a **+** split control: click **+** to start a new chat for
+that project, or open the chevron for recent chats. Right-click a project for
+recent chats, **New Chat**, or delete. Project chats stay in Projects: they never
+appear in the main Chats list. While a project chat is open, a folder icon marks
+the chat and a toolbar button returns you to the project page (on the Chats tab).
 
 ![Toby.app Projects window](/img/toby-app-projects.png)
 

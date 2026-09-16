@@ -207,13 +207,13 @@ final class ProjectsStore {
 		treeProjectId = nil
 	}
 
-	func selectProject(id: String) async {
+	/// Selects `id` and loads detail/tree/sessions if needed. Does not change
+	/// `isShowingChat` or the details/chats tab — callers that open a chat
+	/// must not flash the project page.
+	func ensureProjectSelected(id: String) async {
 		await flushPendingSave()
 		let alreadyLoaded = selectedProjectId == id && selectedProjectDetailId == id
 		selectedProjectId = id
-		isShowingChat = false
-		isFilesSidebarPresented = false
-		selectedDetailTab = .details
 		if alreadyLoaded {
 			return
 		}
@@ -235,19 +235,30 @@ final class ProjectsStore {
 		}
 	}
 
+	func selectProject(id: String) async {
+		isShowingChat = false
+		isFilesSidebarPresented = false
+		selectedDetailTab = .details
+		await ensureProjectSelected(id: id)
+	}
+
 	func sessions(for projectId: String) -> [SessionSummary] {
 		projectSessions[projectId] ?? []
 	}
 
 	func createChat(chatStore: ChatStore) async {
-		guard let selectedProjectId else { return }
-		await flushPendingSave()
+		await createChat(for: selectedProjectId, chatStore: chatStore)
+	}
+
+	func createChat(for projectId: String?, chatStore: ChatStore) async {
+		guard let projectId else { return }
+		await ensureProjectSelected(id: projectId)
 		isSaving = true
 		errorMessage = nil
 		defer { isSaving = false }
 		do {
-			let created = try await client.createProjectSession(projectId: selectedProjectId)
-			await reloadProjectSessions(projectId: selectedProjectId)
+			let created = try await client.createProjectSession(projectId: projectId)
+			await reloadProjectSessions(projectId: projectId)
 			showProjectChat()
 			await chatStore.selectSession(id: created.id)
 		} catch {
@@ -255,7 +266,10 @@ final class ProjectsStore {
 		}
 	}
 
-	func selectChat(id: String, chatStore: ChatStore) async {
+	func selectChat(id: String, chatStore: ChatStore, projectId: String? = nil) async {
+		if let projectId {
+			await ensureProjectSelected(id: projectId)
+		}
 		showProjectChat()
 		await chatStore.selectSession(id: id)
 	}

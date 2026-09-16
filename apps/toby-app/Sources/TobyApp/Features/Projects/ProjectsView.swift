@@ -18,8 +18,16 @@ struct ProjectsView: View {
 				},
 				onSelectChat: { project, sessionId in
 					Task {
-						await projectsStore.selectProject(id: project.id)
-						await projectsStore.selectChat(id: sessionId, chatStore: chatStore)
+						await projectsStore.selectChat(
+							id: sessionId,
+							chatStore: chatStore,
+							projectId: project.id
+						)
+					}
+				},
+				onNewChat: { project in
+					Task {
+						await projectsStore.createChat(for: project.id, chatStore: chatStore)
 					}
 				},
 				onDelete: { project in

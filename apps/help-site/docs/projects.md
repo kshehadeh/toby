@@ -25,7 +25,7 @@ When you work inside a project, Toby uses the project metadata and folder conten
 1. **Project guidance** — `AGENTS.md` is included as project-specific instruction, along with workspace rules that apply no matter which persona is active: work in this folder, keep it organized, and look in the project first.
 2. **Project-local skills** — every `SKILL.md` under `.agent/skills/` is available for that project. New projects include a **project-organization** skill that records the folder layout so later chats follow it.
 3. **Output scoping** — generated files land in the project's `outputs/` folder by default.
-4. **Project chat grouping** — project chats belong to the project. Open the project page to start a new chat or continue a recent one.
+4. **Project chat grouping** — project chats belong to the project. Start a new chat from a row’s **+**, open the chevron for recent chats, or use the project page.
 5. **Content-first answers** — when you ask a question, Toby searches and reads files in the project folder before relying on general knowledge or the web.
 
 This makes projects ideal for recurring workflows like weekly overviews, monthly reports, or any task where you want the AI to produce consistent output informed by the same reference material each time.
@@ -43,7 +43,7 @@ The Projects area has a sidebar list and a main page:
 
 | Area | What it does |
 | ---- | ------------ |
-| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Right-click a project to choose from its ten most recently updated chats and open one directly. Press ⌘N while a project is selected to start a new project chat. Click empty space in the list, or **Projects** again, to clear the selection. |
+| Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Each row has a **+** split control: click **+** to start a new chat for that project, or open the chevron for its ten most recently updated chats (and **New Chat**). Right-click a project for the same recent chats, **New Chat**, and delete. Press ⌘N while a project is selected to start a new project chat. Click empty space in the list, or **Projects** again, to clear the selection. |
 | No selection | Shown when nothing is selected. The detail pane asks you to select a project or create a new one. The toolbar **+** also creates a new project. |
 | Project page | The selected project's details: **Details** and **Chats** tabs. On **Details**, rename the project; edit summary, persona, and folder path; and inspect the file tree. On **Chats**, click a chat to resume it, or use **+ Chat** in the toolbar to start a new one. The toolbar also shows **Delete**. |
 | Project chat | Opens in the main area when you start or resume a project chat. Project chats never appear in the Chats sidebar or the main Chats view — open them from the project. New chats show **New “Project Name” Chat** with a project folder and the active persona. A Files sidebar opens on the right and refreshes as the chat creates, updates, or deletes files. Changed files are briefly labeled, including recently deleted files. Use the toolbar Files button to hide or show it. The toolbar also shows a folder icon and a **Back to Project** button; the project stays highlighted in the sidebar. Select the project or use that button to return to its Chats tab. |
