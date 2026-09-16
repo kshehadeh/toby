@@ -307,19 +307,6 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.updateHelp(model: upgrading) == "Updating Toby")
 	}
 
-	@Test("dashboardUpdatedText empty when never loaded")
-	func dashboardUpdatedTextEmpty() {
-		#expect(RootToolbars.dashboardUpdatedText(lastLoadedAt: nil).isEmpty)
-	}
-
-	@Test("dashboardUpdatedText non-empty when loaded")
-	func dashboardUpdatedTextPresent() {
-		let text = RootToolbars.dashboardUpdatedText(
-			lastLoadedAt: Date().addingTimeInterval(-60)
-		)
-		#expect(text.hasPrefix("Updated "))
-	}
-
 	@Test("dashboard actions toolbar help swaps with pane visibility")
 	func dashboardActionsToolbarHelp() {
 		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: true) == "Hide Actions")

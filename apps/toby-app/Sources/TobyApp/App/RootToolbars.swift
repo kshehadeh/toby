@@ -293,7 +293,6 @@ enum RootToolbars {
 	@ToolbarContentBuilder
 	static func dashboard(
 		common model: RootCommonToolbarModel,
-		updatedText: String,
 		isRefreshing: Bool,
 		showActionsToggle: Bool = false,
 		actionsVisible: Bool = true,
@@ -302,7 +301,7 @@ enum RootToolbars {
 	) -> some ToolbarContent {
 		common(
 			model,
-			header: RootHeaderTitle(title: "Home", activityLine: updatedText)
+			header: RootHeaderTitle(title: "Home")
 		)
 		contextualActions {
 			if showActionsToggle {
@@ -758,12 +757,5 @@ enum RootToolbars {
 			return "Delete Recording"
 		}
 		return "Delete \(selectedCount) Recordings"
-	}
-
-	static func dashboardUpdatedText(lastLoadedAt: Date?) -> String {
-		guard let lastLoadedAt else { return "" }
-		let formatter = RelativeDateTimeFormatter()
-		formatter.unitsStyle = .abbreviated
-		return "Updated \(formatter.localizedString(for: lastLoadedAt, relativeTo: Date()))"
 	}
 }

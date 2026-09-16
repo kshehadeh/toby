@@ -7,7 +7,6 @@ final class DashboardStore {
 	let registry: DashboardBlockRegistry
 
 	var hasLoadedOnce = false
-	var lastLoadedAt: Date?
 
 	/// True for the full duration of a global force refresh (toolbar spinner).
 	private(set) var isGlobalUpdating = false
@@ -91,7 +90,6 @@ final class DashboardStore {
 	func updateAll(force: Bool) async {
 		await syncFlowBlocks()
 		hasLoadedOnce = true
-		lastLoadedAt = Date()
 
 		if force {
 			isGlobalUpdating = true
@@ -115,7 +113,6 @@ final class DashboardStore {
 	/// Clears dashboard block content after a Toby home directory switch.
 	func resetForHomeSwitch() {
 		hasLoadedOnce = false
-		lastLoadedAt = nil
 		isGlobalUpdating = false
 		registry.syncFlowBlocks([], client: client)
 		for block in blocks {

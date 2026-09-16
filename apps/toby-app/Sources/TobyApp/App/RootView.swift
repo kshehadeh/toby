@@ -485,9 +485,6 @@ struct RootView: View {
 
                                     RootToolbars.dashboard(
                                         common: commonToolbarModel,
-                                        updatedText: RootToolbars.dashboardUpdatedText(
-                                            lastLoadedAt: dashboardStore.lastLoadedAt
-                                        ),
                                         isRefreshing: dashboardStore.isRefreshing,
                                         showActionsToggle: dashboardStore.blocks.contains {
                                             $0.descriptor.isFlowRunner
@@ -714,7 +711,7 @@ struct RootView: View {
     private var rootNavigationSubtitle: String {
         switch history.current {
         case .dashboard:
-            RootToolbars.dashboardUpdatedText(lastLoadedAt: dashboardStore.lastLoadedAt)
+            ""
         case .chat:
             store.activityLine
         case .projects:

@@ -146,7 +146,6 @@ struct DashboardModelsTests {
 		#expect(store.calendar == nil)
 		#expect(store.isLoading == false)
 		#expect(store.hasLoadedOnce == false)
-		#expect(store.lastLoadedAt == nil)
 	}
 }
 
@@ -272,6 +271,15 @@ struct DashboardViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: expected)
 		}
+	}
+
+	@Test("dashboard greeting omits page-level updated timestamp")
+	func dashboardGreetingOmitsUpdatedTimestamp() throws {
+		let view = makeView(store: DashboardStore())
+		let updatedLabels = try view.inspect().findAll(ViewType.Text.self).filter {
+			(try? $0.string().hasPrefix("Updated ")) == true
+		}
+		#expect(updatedLabels.isEmpty)
 	}
 
 	@Test("onboarding card renders title")
@@ -768,7 +776,6 @@ struct DashboardBlockContentTests {
 		#expect(store.tasksSummaryLoading == false)
 		#expect(store.calendarSummaryLoading == false)
 		#expect(store.isSummaryLoading == false)
-		#expect(store.lastLoadedAt == nil)
 	}
 }
 

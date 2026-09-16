@@ -169,11 +169,6 @@ struct DashboardView: View {
 				ProgressView()
 					.controlSize(.small)
 					.accessibilityLabel("Updating Home")
-			} else if let lastLoadedAt = store.lastLoadedAt {
-				Text(RootToolbars.dashboardUpdatedText(lastLoadedAt: lastLoadedAt))
-					.font(.system(size: 10))
-					.foregroundStyle(AppTheme.tertiaryText)
-					.padding(.top, 4)
 			}
 		}
 	}
