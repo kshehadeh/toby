@@ -106,11 +106,12 @@ open the project. This feed stays on Home rather than in the global sidebar.
 
 The **Chats** workspace is where you interact with Toby. A conversation list sits
 beside the transcript when the window is wide; at narrower widths, use **Chats**
-to return to the list. The transcript shows streaming responses and a prompt
-input at the bottom. Markdown
-images in replies render as photos you can click to open in the browser.
-Generated files appear as a chip with **Download** (copy to your Downloads
-folder) and **Open**.
+to return to the list. Turns read as one column: your prompt, a muted
+**Worked for** line while Toby is working, then the answer. Copy a reply from
+the icons under it; a relative time such as **4m ago** sits on the right.
+Markdown images in replies render as photos you can click to open in the
+browser. Generated files appear as a chip with **Download** (copy to your
+Downloads folder) and **Open**.
 
 ![Toby.app main chat window](/img/toby-app-main.png)
 

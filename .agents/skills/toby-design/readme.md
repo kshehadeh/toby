@@ -100,16 +100,16 @@ and borders. Never a second accent hue, never a gradient of it. Sidebar
 destinations are the only place with a fixed multi-hue set (one identity color
 per destination), and even there the color only shows as an 18–22% wash.
 
-**Type.** System faces only: SF Pro for chrome, **SF Pro Rounded** for the chat
-transcript and step chrome, the system **serif** (New York) at 15px/1.5 for
-assistant answers — the one deliberate typographic break, so a response reads
-like a document — and SF Mono for logs, JSON and paths. Sizes are small and few:
-17 / 15 / 13 / 12 / 11 / 10.5 / 10. Step metadata is 10.5px semibold uppercase
-with +0.07em tracking so it recedes behind the answer. The help site is Inter,
+**Type.** System faces only: SF Pro for chrome and transcript prose (15pt
+assistant answers with extra leading so a response reads like a document),
+and SF Mono for logs, JSON and paths. Sizes are small and few:
+17 / 15 / 13 / 12 / 11 / 10.5 / 10. Collapsed work is a 13pt secondary caption;
+expanded step metadata is 10.5px semibold uppercase with +0.07em tracking so it
+recedes behind the answer. The help site is Inter,
 with tight display tracking (−0.025em) and 1.7 prose leading.
 
 **Spacing and density.** Spacious, not dense: 24px content padding, 22px card
-padding, 42px settings rows, 640px form column, 520/640px transcript columns,
+padding, 42px settings rows, 640px form column, 720px transcript reading column,
 250px sidebar. The scale is *not* a strict 4pt grid — 5, 7, 9, 14, 22 all appear
 in source and are preserved verbatim. Whitespace, not rules, separates things:
 one hairline divider per card at most.

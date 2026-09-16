@@ -4,6 +4,7 @@ import SwiftUI
 struct UserMessageRow: View {
 	let text: String
 	let attachments: [ChatTranscriptAttachment]
+	var createdAt: String? = nil
 	private static let collapsedLineLimit = 12
 	private var isCopyable: Bool {
 		!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -21,64 +22,63 @@ struct UserMessageRow: View {
 		return lines.prefix(Self.collapsedLineLimit).joined(separator: "\n").trimmingCharacters(in: .newlines) + "…"
 	}
 
-	init(text: String, attachments: [ChatTranscriptAttachment] = []) {
+	init(
+		text: String,
+		attachments: [ChatTranscriptAttachment] = [],
+		createdAt: String? = nil
+	) {
 		self.text = text
 		self.attachments = attachments
+		self.createdAt = createdAt
 	}
 
 	var body: some View {
-		HStack(alignment: .top, spacing: 0) {
-			Spacer(minLength: 0)
-			VStack(alignment: .trailing, spacing: 6) {
-				if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-					Text(displayedText)
-						.font(AppTheme.transcriptBodyFont)
-						.foregroundStyle(AppTheme.primaryText)
-						.textSelection(.enabled)
-						.fixedSize(horizontal: false, vertical: true)
-						.padding(.horizontal, 16)
-						.padding(.vertical, 12)
-						.background(
-							AppTheme.concentricRect(minimum: 14)
-								.fill(AppTheme.elevatedBackground.opacity(0.92))
-						)
-						.overlay(
-							AppTheme.concentricRect(minimum: 14)
-								.stroke(AppTheme.separator)
-						)
-						.overlay(alignment: .leading) {
-							AppTheme.concentricRect(minimum: 14)
-								.fill(AppTheme.accent)
-								.mask(alignment: .leading) {
-									Rectangle()
-										.frame(width: 4)
-								}
-						}
-						.frame(maxWidth: 520, alignment: .trailing)
-				}
-				if !attachments.isEmpty {
-					TranscriptAttachmentPreviewList(attachments: attachments)
-						.frame(maxWidth: 520, alignment: .trailing)
-				}
-				if isLargePrompt {
-					Button(action: {
-						withAnimation(.easeOut(duration: 0.2)) {
-							isExpanded.toggle()
-						}
-					}) {
-						Text(isExpanded ? "Show less" : "Show more")
-							.font(AppTheme.transcriptCaptionFont)
-							.foregroundStyle(AppTheme.accent)
+		VStack(alignment: .leading, spacing: 6) {
+			if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+				Text(displayedText)
+					.font(AppTheme.transcriptAnswerFont)
+					.foregroundStyle(AppTheme.primaryText)
+					.textSelection(.enabled)
+					.fixedSize(horizontal: false, vertical: true)
+					.padding(.horizontal, 16)
+					.padding(.vertical, 12)
+					.background(
+						AppTheme.concentricRect(minimum: 14)
+							.fill(AppTheme.elevatedBackground.opacity(0.92))
+					)
+					.overlay(
+						AppTheme.concentricRect(minimum: 14)
+							.stroke(AppTheme.separator)
+					)
+					.frame(maxWidth: AppTheme.transcriptReadingWidth, alignment: .leading)
+			}
+			if !attachments.isEmpty {
+				TranscriptAttachmentPreviewList(attachments: attachments)
+					.frame(maxWidth: AppTheme.transcriptReadingWidth, alignment: .leading)
+			}
+			if isLargePrompt {
+				Button(action: {
+					withAnimation(.easeOut(duration: 0.2)) {
+						isExpanded.toggle()
 					}
-					.buttonStyle(.plain)
-					.padding(.top, 2)
+				}) {
+					Text(isExpanded ? "Show less" : "Show more")
+						.font(AppTheme.transcriptCaptionFont)
+						.foregroundStyle(AppTheme.accent)
 				}
-				if isCopyable {
-					CopyButton(text: text, label: "Copy prompt")
-						.padding(.top, 2)
-				}
+				.buttonStyle(.plain)
+				.padding(.top, 2)
+			}
+			if isCopyable {
+				TranscriptMessageActions(
+					copyText: text,
+					copyLabel: "Copy prompt",
+					createdAt: createdAt,
+				)
 			}
 		}
+		.frame(maxWidth: AppTheme.transcriptReadingWidth, alignment: .leading)
+		.accessibilityIdentifier("user-message-row")
 	}
 }
 
@@ -86,7 +86,7 @@ private struct TranscriptAttachmentPreviewList: View {
 	let attachments: [ChatTranscriptAttachment]
 
 	var body: some View {
-		VStack(alignment: .trailing, spacing: 8) {
+		VStack(alignment: .leading, spacing: 8) {
 			ForEach(attachments) { attachment in
 				if attachment.isImagePreviewable, let image = attachment.previewImage {
 					TranscriptImageAttachmentPreview(attachment: attachment, image: image)

@@ -31,6 +31,7 @@ type UserPayload = {
 		readonly dataBase64: string;
 		readonly byteSize: number;
 	}[];
+	readonly createdAt?: string;
 };
 
 type BoxedStepPayload = {
@@ -60,6 +61,7 @@ type BoxedStepPayload = {
 		readonly fullBody?: string;
 	}[];
 	readonly fullBody?: string;
+	readonly createdAt?: string;
 };
 
 /** Serialize a transcript entry for SQLite (`kind` + `text` columns). */
@@ -67,10 +69,16 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 	kind: string;
 	text: string;
 } {
-	if (e.kind === "user" && e.attachments && e.attachments.length > 0) {
+	if (
+		e.kind === "user" &&
+		((e.attachments && e.attachments.length > 0) || e.createdAt)
+	) {
 		const payload: UserPayload = {
 			text: e.text,
-			attachments: e.attachments,
+			...(e.attachments && e.attachments.length > 0
+				? { attachments: e.attachments }
+				: {}),
+			...(e.createdAt ? { createdAt: e.createdAt } : {}),
 		};
 		return { kind: "user", text: JSON.stringify(payload) };
 	}
@@ -90,6 +98,7 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 			...(e.durationMs !== undefined ? { durationMs: e.durationMs } : {}),
 			...(e.toolRuns !== undefined ? { toolRuns: e.toolRuns } : {}),
 			...(e.fullBody !== undefined ? { fullBody: e.fullBody } : {}),
+			...(e.createdAt !== undefined ? { createdAt: e.createdAt } : {}),
 		};
 		return { kind: "boxed_step", text: JSON.stringify(payload) };
 	}
@@ -129,6 +138,12 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 		return {
 			kind: "turn_work",
 			text: JSON.stringify({ durationMs: e.durationMs }),
+		};
+	}
+	if (e.kind === "assistant" && e.createdAt) {
+		return {
+			kind: "assistant",
+			text: JSON.stringify({ text: e.text, createdAt: e.createdAt }),
 		};
 	}
 	return { kind: e.kind, text: e.text };
@@ -199,6 +214,9 @@ function deserializeTranscriptRowInner(row: {
 						? { durationMs: Math.max(0, p.durationMs) }
 						: {}),
 					...(typeof p.fullBody === "string" ? { fullBody: p.fullBody } : {}),
+					...(typeof p.createdAt === "string" && p.createdAt.length > 0
+						? { createdAt: p.createdAt }
+						: {}),
 					...(Array.isArray(p.toolRuns)
 						? {
 								toolRuns: p.toolRuns
@@ -374,6 +392,9 @@ function deserializeTranscriptRowInner(row: {
 					kind: "user",
 					text: p.text,
 					...(attachments.length > 0 ? { attachments } : {}),
+					...(typeof p.createdAt === "string" && p.createdAt.length > 0
+						? { createdAt: p.createdAt }
+						: {}),
 				};
 			}
 		} catch {
@@ -381,7 +402,31 @@ function deserializeTranscriptRowInner(row: {
 		}
 		return { kind: "user", text: row.text };
 	}
-	if (row.kind === "assistant" || row.kind === "meta" || row.kind === "error") {
+	if (row.kind === "assistant") {
+		try {
+			const p = JSON.parse(row.text) as {
+				text?: unknown;
+				createdAt?: unknown;
+			};
+			if (
+				p &&
+				typeof p === "object" &&
+				typeof p.text === "string" &&
+				typeof p.createdAt === "string" &&
+				p.createdAt.length > 0
+			) {
+				return {
+					kind: "assistant",
+					text: p.text,
+					createdAt: p.createdAt,
+				};
+			}
+		} catch {
+			// fall through — legacy plain-text assistant rows
+		}
+		return { kind: "assistant", text: row.text };
+	}
+	if (row.kind === "meta" || row.kind === "error") {
 		return { kind: row.kind, text: row.text };
 	}
 	return { kind: "meta", text: row.text };

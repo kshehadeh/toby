@@ -35,6 +35,7 @@ import type { ChatEvent, ChatEventSink } from "./chat-events";
 import { type TurnContext, runChatTurnPipeline } from "./pipeline";
 import { resolveWebChatModules } from "./resolve-chat-modules";
 import { TranscriptAccumulator } from "./transcript-accumulator";
+import type { TranscriptEntry } from "./transcript-types";
 import { insertTurnWorkSummary } from "./turn-work-summary";
 
 export type ApiChatTurnResult = {
@@ -511,22 +512,39 @@ export async function runApiChatTurnWithPersistence(params: {
 		params.sessionId,
 		startIdx,
 		insertTurnWorkSummary(
-			[
-				...accumulator.snapshot.slice(0, userTurnIndex),
-				{
-					kind: "user" as const,
-					text:
-						params.userText + formatAttachmentTranscriptSummary(attachments),
-					attachments: chatAttachmentsToTranscriptAttachments(attachments),
-				},
-				...accumulator.snapshot.slice(userTurnIndex + 1),
-			],
+			rewritePersistedUserTurn(
+				accumulator.snapshot,
+				userTurnIndex,
+				params.userText,
+				attachments,
+			),
 			userTurnIndex,
 			Date.now() - turnStartedAt,
 		).slice(startIdx),
 	);
 
 	return result;
+}
+
+function rewritePersistedUserTurn(
+	snapshot: readonly TranscriptEntry[],
+	userTurnIndex: number,
+	userText: string,
+	attachments: readonly ValidatedChatAttachment[],
+): TranscriptEntry[] {
+	const priorUser = snapshot[userTurnIndex];
+	const createdAt =
+		priorUser?.kind === "user" ? priorUser.createdAt : undefined;
+	return [
+		...snapshot.slice(0, userTurnIndex),
+		{
+			kind: "user",
+			text: userText + formatAttachmentTranscriptSummary(attachments),
+			attachments: chatAttachmentsToTranscriptAttachments(attachments),
+			...(createdAt ? { createdAt } : {}),
+		},
+		...snapshot.slice(userTurnIndex + 1),
+	];
 }
 
 export function listPersonaOptions() {

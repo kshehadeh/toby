@@ -19,7 +19,7 @@ Open `index.html`.
 ## What is interactive
 
 - The 3×3 sidebar grid switches destinations.
-- Chat: pick a suggestion or type, press Send → work steps stream, then a serif answer.
+- Chat: pick a suggestion or type, press Send → work steps stream, then a document-style answer.
 - Dashboard: the refresh control swaps the card body for the loading skeleton.
 - Integrations: Settings catalog rows push plugin detail.
 - Settings → Appearance: theme and accent controls re-theme the whole kit live

@@ -1,21 +1,17 @@
-import AppKit
 import SwiftUI
 
 struct TranscriptRow: View {
 	let entry: TranscriptEntry
-	var personaImage: URL?
 
 	var body: some View {
 		switch entry {
-		case .user(let text, let attachments):
-			UserMessageRow(text: text, attachments: attachments)
-		case .assistant(let text):
+		case .user(let text, let attachments, let createdAt):
+			UserMessageRow(text: text, attachments: attachments, createdAt: createdAt)
+		case .assistant(let text, let createdAt):
 			AssistantMessageRow(
-				iconName: "sparkle",
-				header: "Assistant",
 				messageBody: text,
 				isStreaming: false,
-				personaImage: personaImage,
+				createdAt: createdAt,
 			)
 		case .notice(let text, let tone):
 			NoticeRow(text: text, tone: tone)
@@ -26,11 +22,9 @@ struct TranscriptRow: View {
 			// (interim only reaches here in normal transcript mode).
 			if payload.variant == "assistant" || payload.variant == "assistant_interim" {
 				AssistantMessageRow(
-					iconName: "sparkle",
-					header: payload.header,
 					messageBody: payload.body,
 					isStreaming: false,
-					personaImage: personaImage,
+					createdAt: payload.createdAt,
 				)
 			} else {
 				EmptyView()

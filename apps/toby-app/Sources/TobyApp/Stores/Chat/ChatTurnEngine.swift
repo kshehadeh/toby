@@ -194,6 +194,7 @@ enum ChatTurnEngine {
 					durationMs: nil,
 					toolRuns: nil,
 					fullBody: nil,
+					createdAt: TranscriptTimestamp.nowISO(),
 				),
 			),
 		)
@@ -214,7 +215,7 @@ enum ChatTurnEngine {
 					return true
 				}
 			}
-			if case .assistant(let text) = entry {
+			if case .assistant(let text, _) = entry {
 				if text.trimmingCharacters(in: .whitespacesAndNewlines) == normalized {
 					return true
 				}
@@ -270,6 +271,7 @@ enum ChatTurnEngine {
 				durationMs: current.durationMs,
 				toolRuns: current.toolRuns,
 				fullBody: current.fullBody,
+				createdAt: current.createdAt,
 			)
 		}
 	}
@@ -294,6 +296,7 @@ enum ChatTurnEngine {
 				durationMs: current.durationMs,
 				toolRuns: current.toolRuns,
 				fullBody: current.fullBody,
+				createdAt: current.createdAt,
 			)
 		}
 	}
@@ -403,6 +406,7 @@ enum ChatTurnEngine {
 				durationMs: durationMs,
 				toolRuns: nil,
 				fullBody: fullBody,
+				createdAt: current.createdAt,
 			)
 		}
 		if !replaced {

@@ -1,4 +1,4 @@
-The dashboard's only card shape. Flat panel, 26px padding, a 2px accent rule capping the top, and a huge flat glyph at 4.5% opacity in the lower-right corner — no border, no divider, no rotation, no shadow. Summary copy is serif, matching assistant answers.
+The dashboard's only card shape. Flat panel, 26px padding, a 2px accent rule capping the top, and a huge flat glyph at 4.5% opacity in the lower-right corner — no border, no divider, no rotation, no shadow.
 
 ```jsx
 <DashboardCard title="Unread mail" lastRan="07:15" stamp={<Mail size={120} />} showMore

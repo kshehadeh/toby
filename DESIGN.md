@@ -61,7 +61,7 @@ quiet and readable.
   custom fills on sidebars, toolbars, inspectors, or split-view columns — those
   overlays kill system glass.
 - Do not put Liquid Glass on the content layer (lists, dashboard cards,
-  transcript bubbles, settings rows, form canvases). Content stays quiet and
+  transcript rows, settings rows, form canvases). Content stays quiet and
   mostly flat: no gradients, photos, texture, decorative cards, or generic drop
   shadows. Dashboard content cards and other processing surfaces may use the
   shared **intelligenceOutline** modifier **while work is in flight**; idle
@@ -156,13 +156,14 @@ general-purpose decoration.
 | Titles | System semibold, 17–26pt only where the screen already uses that hierarchy |
 | Settings row title | 13pt semibold |
 | Row/meta/caption | 11–13pt system, secondary or tertiary text |
-| Assistant answer | 15pt serif, 7pt extra line spacing |
-| Transcript/steps | Rounded system type |
-| Work-step metadata | 10.5pt medium rounded, uppercase, 0.735pt tracking |
+| Assistant answer | 15pt system, 6pt extra line spacing |
+| Transcript/steps | System type |
+| Work-step metadata | 13pt secondary caption for the collapsed duration line; 10.5pt medium rounded, uppercase, 0.735pt tracking inside expanded work details |
 | Logs, paths, JSON | SF Mono/system monospaced |
 
-The serif answer is intentional. Use it only for Toby-authored long-form prose
-and its summaries, not buttons, labels, settings, or user messages.
+Assistant answers use the same system sans as the rest of the transcript so a turn
+reads as one document. Do not use serif, rounded display faces, or a persona rail
+on transcript rows.
 
 ### Geometry
 
@@ -178,7 +179,8 @@ four-point grid.
 | Dashboard card | Intrinsic height capped at 340 when collapsed; 16 inset, 20 masonry gap; 320–460 width; concentric, minimum 16 |
 | Settings card / row | concentric, minimum 10; 42 minimum row height, 10 × 8 row inset |
 | General floating card/dock/toast | concentric, minimum 16 |
-| Bubble | concentric, minimum 14; 16 × 12 inset |
+| Bubble | concentric, minimum 14; 16 × 12 inset. User prompts only — a quiet elevated well, left-aligned, no accent stripe |
+| Transcript reading column | 720 max width for user, assistant, and work |
 | Browse/index card | concentric, minimum 10 |
 | Tile | concentric, minimum 12; 14 inset |
 | Row/button | 8–9 radius |
@@ -235,7 +237,7 @@ source path and behavior, not the Figma geometry, define their contract.
 | Settings forms | **SettingsCard** owns card fill/border. **SettingsRow** owns 42pt minimum height and optional final-divider omission. **SectionHeader**, select, inline field, toggle, action/destructive buttons use the existing controls. |
 | Feedback | **InlineStatusMessage** is persistent local success/error feedback. **Toast** is global, transient feedback; it pauses its 4s timer on hover and may offer one action. **Skeleton** preserves the eventual layout while loading. **intelligenceOutline** is the Siri-style rainbow ring for in-flight AI work; fade in/out, Reduce Motion snaps, Increase Contrast thickens, apply after clip. Use it on dashboard cards while updating and on the recording Summary card while generating. |
 | Navigation | **Destination list** (`List(selection:)` + `.sidebar`) is the global sidebar: Home, Chats, Projects, Recordings, then Automation (Schedules, Flows) and Tools (Skills). Integrations live in **Settings → Integrations**. System selection, semantic secondary icon tint, no per-category colors or timestamps. **PersonaFooter** is a single-line persona control beside a persistent server-status dot; model name lives in the picker popover. Connection recovery is labelled and hidden when healthy. |
-| Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and floating Liquid Glass geometry. **UserMessage**, **AssistantMessage**, and **WorkStepRow** keep transcript roles visually distinct. |
+| Chat | **InputDock** owns send/cancel, attachments, context gauge, keyboard return handling, focus, and floating Liquid Glass geometry. **UserMessage** is a left-aligned quiet well. **AssistantMessage** is unbubbled document Markdown with a copy + relative-time footer. **WorkedForRow** is a muted duration caption that expands to the work log. |
 | Dashboard | **DashboardCard** is a quiet content-surface panel with a hairline outline and header divider. While a block is updating, it applies **intelligenceOutline**. **CardSection** presents optional structured eyebrow/title/body/item content with system typography and Markdown fallback. **Flow runner** presents actions. **Recent work** combines chats and projects. **OnboardingTile** makes an explicit setup action available. |
 
 See the full anatomy, states, source mapping, and “do/don’t” guidance in
@@ -329,7 +331,7 @@ Choose an existing archetype instead of inventing a one-off shell.
 | --- | --- |
 | Main app shell | `NavigationSplitView` in a standard titled window: sidebar is a stable destination list plus compact persona footer (with server-status indicator) on system glass (no custom fill); detail owns the selected workspace. Back/Forward sit with the sidebar toggle. The selected item name or section title is the system `navigationTitle` (activity as `navigationSubtitle`) so trailing actions can pin to the window edge. Record, Settings, and labeled Search form the permanent `.primaryAction` group (plus Update when available). Contextual actions are a `ControlGroup` in `.confirmationAction` so they stay a second trailing cluster; omit that item when empty. Sibling `Button`s in `.primaryAction` or `.automatic` merge into one bezel. |
 | Dashboard | 24pt content inset, greeting/date, optional onboarding, and 320–460pt waterfall cards with a 20pt gap plus an optional resizable actions inspector. Card headers show last-run time; Home has no page-level “Updated” stamp. “Continue working” is a peer card containing up to five recent chats/projects. Cards use intrinsic height up to a 340pt collapsed cap. Home has no recent-item list in the global sidebar. |
-| Chat workspace | Shared `FeatureWorkspaceSplit`: conversation list beside the transcript when the detail column is wide; list **or** transcript at narrow widths, with an explicit return-to-chats control. Empty workspace centers persona/greeting/dock/suggestions. Active workspace stacks a virtualized transcript behind a bottom-pinned dock, with 18pt bottom gutter and measured transcript reservation. User content maxes at 520pt, assistant/work content at 640pt. |
+| Chat workspace | Shared `FeatureWorkspaceSplit`: conversation list beside the transcript when the detail column is wide; list **or** transcript at narrow widths, with an explicit return-to-chats control. Empty workspace centers persona/greeting/dock/suggestions. Active workspace stacks a virtualized transcript behind a bottom-pinned dock, with 18pt bottom gutter and measured transcript reservation. User, assistant, and work share one left-aligned reading column (max 720pt). Assistant answers are unbubbled 15pt system sans; user prompts use a quiet well. Completed answers show copy + relative time (`4m ago`). |
 | Settings-style detail | Settings canvas with left-aligned form content normally capped at 640pt. Settings cards use standard rows and hairlines. |
 | Browse and inspect | Same `FeatureWorkspaceSplit` as Chats: a second list column (`FeatureBrowserList`, 10pt horizontal inset) plus selected detail, both under the window toolbar separator. Unselected detail is `FeatureBrowserPlaceholder` (type icon + select/create copy). Do not use card-grid overviews. Preserve trailing inspectors (project files/chats). |
 | Preferences window | Separate Settings window: `NavigationSplitView` sidebar + grouped `Form` detail. Nested sections (Integrations, AI) are catalog tabs that push child detail. Do not add a custom icon-over-label tab strip. |

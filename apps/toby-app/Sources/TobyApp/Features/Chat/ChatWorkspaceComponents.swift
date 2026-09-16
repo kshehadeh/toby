@@ -132,7 +132,6 @@ struct ActiveChatWorkspace: View {
                 turnWorkDurations: store.turnWorkDurations,
                 activeWorkStartDate: store.activeWorkStartDate,
                 bottomContentPadding: overlayHeight,
-                personaImageUrl: store.resolvedPersonaImageUrl,
                 askUserStore: store,
             )
             VStack(spacing: 8) {

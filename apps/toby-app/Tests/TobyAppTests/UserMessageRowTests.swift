@@ -35,4 +35,15 @@ struct UserMessageRowTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "chat-transcript-file-attachment")
 		}
 	}
+
+	@Test("shows copy actions for a prompt")
+	func showsCopyActions() throws {
+		let view = UserMessageRow(text: "See attached", createdAt: "2026-09-16T12:00:00Z")
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "user-message-row")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "transcript-message-actions")
+		}
+	}
 }

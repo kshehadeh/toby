@@ -18,13 +18,23 @@ export type TranscriptAttachment = {
 	readonly byteSize: number;
 };
 
+/** ISO-8601 timestamp for transcript message chrome (`4m ago`). */
+export function transcriptTimestampNow(): string {
+	return new Date().toISOString();
+}
+
 export type TranscriptEntry =
 	| {
 			readonly kind: "user";
 			readonly text: string;
 			readonly attachments?: readonly TranscriptAttachment[];
+			readonly createdAt?: string;
 	  }
-	| { readonly kind: "assistant"; readonly text: string }
+	| {
+			readonly kind: "assistant";
+			readonly text: string;
+			readonly createdAt?: string;
+	  }
 	| { readonly kind: "meta"; readonly text: string }
 	| {
 			readonly kind: "notice";
@@ -57,6 +67,8 @@ export type TranscriptEntry =
 			readonly toolRuns?: readonly ToolRunEntry[];
 			/** Full untruncated output, when it differs from `body`. */
 			readonly fullBody?: string;
+			/** ISO-8601 timestamp for assistant segments shown in the transcript. */
+			readonly createdAt?: string;
 	  }
 	| {
 			readonly kind: "tool_call";

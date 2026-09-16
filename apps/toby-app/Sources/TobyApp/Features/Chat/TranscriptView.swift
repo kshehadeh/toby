@@ -9,7 +9,6 @@ struct TranscriptView: View {
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeWorkStartDate: Date?
 	var bottomContentPadding: CGFloat = 18
-	var personaImageUrl: URL?
 	/// When set and `store.activeAskUserPrompt` is non-nil, the interactive prompt
 	/// is rendered as the last transcript control (not a modal overlay).
 	var askUserStore: ChatStore?
@@ -194,11 +193,8 @@ struct TranscriptView: View {
 
 		if let streamingAssistant {
 			AssistantMessageRow(
-				iconName: "sparkle",
-				header: streamingAssistant.header,
 				messageBody: streamingAssistant.text,
 				isStreaming: true,
-				personaImage: personaImageUrl,
 			)
 			.id("streaming")
 		}
@@ -215,7 +211,7 @@ struct TranscriptView: View {
 	private func transcriptItemView(_ item: TranscriptDisplayItem) -> some View {
 		switch item {
 		case .entry(let entry, _):
-			TranscriptRow(entry: entry, personaImage: personaImageUrl)
+			TranscriptRow(entry: entry)
 		case .workGroup(let group):
 			WorkedForRow(
 				group: group,
@@ -369,9 +365,9 @@ struct TranscriptGroupingKey: Equatable {
 			return "ask-user-\(blockKey)"
 		case .turnWork(let durationMs):
 			return "turn-work-\(durationMs)"
-		case .user(let text, _):
+		case .user(let text, _, _):
 			return "user-\(text.count)"
-		case .assistant(let text):
+		case .assistant(let text, _):
 			return "assistant-\(text.count)"
 		case .meta(let text):
 			return "meta-\(text.count)"

@@ -35,6 +35,8 @@ enum AppTheme {
 	static let cornerRadius: CGFloat = 16
 	static let smallCornerRadius: CGFloat = 9
 	static let contentPadding: CGFloat = 24
+	/// Document-style transcript reading column (user + assistant + work).
+	static let transcriptReadingWidth: CGFloat = 720
 
 	/// Rounded rect that follows the window/container when a corner sits near
 	/// it, and otherwise uses `minimum` so mid-canvas cards stay rounded.
@@ -52,10 +54,10 @@ enum AppTheme {
 	static let transcriptCalloutFont: Font = .system(.callout, design: .rounded, weight: .regular)
 	static let transcriptCaptionFont: Font = .system(.caption, design: .rounded, weight: .medium)
 
-	// Assistant answers are long-form prose: give them a paragraph-grade size and
-	// generous leading so they read as the response, not a caption.
-	static let transcriptAnswerFont: Font = .system(size: 15, weight: .regular, design: .serif)
-	static let transcriptAnswerLineSpacing: CGFloat = 7
+	// Assistant answers are long-form prose: paragraph-grade size and generous
+	// leading so they read as the response, not a caption.
+	static let transcriptAnswerFont: Font = .system(size: 15, weight: .regular)
+	static let transcriptAnswerLineSpacing: CGFloat = 6
 
 	// Step metadata (skills / tools / worked-for) is chrome around the answer:
 	// small, tracked-out, uppercased so it recedes instead of competing.

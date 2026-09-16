@@ -148,7 +148,7 @@ struct ChatAttachmentDraftingTests {
 			previewsByTranscriptText: [text: [preview]],
 		)
 		#expect(restored.count == 2)
-		guard case .user(_, let attachments) = restored[0] else {
+		guard case .user(_, let attachments, _) = restored[0] else {
 			Issue.record("expected user entry")
 			return
 		}

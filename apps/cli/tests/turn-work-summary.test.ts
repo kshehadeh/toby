@@ -145,4 +145,43 @@ describe("turn_work transcript entry", () => {
 		]);
 		expect(next[1]).toEqual({ kind: "turn_work", durationMs: 900 });
 	});
+
+	it("round-trips user and assistant createdAt timestamps", () => {
+		const createdAt = "2026-09-16T12:00:00.000Z";
+		const user: TranscriptEntry = {
+			kind: "user",
+			text: "Hello",
+			createdAt,
+		};
+		const assistant: TranscriptEntry = {
+			kind: "assistant",
+			text: "Hi there",
+			createdAt,
+		};
+		const boxed: TranscriptEntry = {
+			kind: "boxed_step",
+			id: "asst-1",
+			seq: 1,
+			variant: "assistant",
+			header: "Toby",
+			body: "Hi there",
+			createdAt,
+		};
+
+		expect(deserializeTranscriptRow(serializeTranscriptEntry(user))).toEqual(
+			user,
+		);
+		expect(
+			deserializeTranscriptRow(serializeTranscriptEntry(assistant)),
+		).toEqual(assistant);
+		expect(deserializeTranscriptRow(serializeTranscriptEntry(boxed))).toEqual(
+			boxed,
+		);
+	});
+
+	it("keeps legacy plain-text assistant transcript rows readable", () => {
+		expect(
+			deserializeTranscriptRow({ kind: "assistant", text: "Legacy reply" }),
+		).toEqual({ kind: "assistant", text: "Legacy reply" });
+	});
 });

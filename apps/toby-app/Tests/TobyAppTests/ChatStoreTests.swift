@@ -748,7 +748,7 @@ struct ChatStoreTests {
         #expect(store.sessionName == "Named chat")
         #expect(store.activityLine == "Ready")
         #expect(store.transcript.contains { entry in
-            if case .user(let text, _) = entry { return text == "hello" }
+            if case .user(let text, _, _) = entry { return text == "hello" }
             return false
         })
     }

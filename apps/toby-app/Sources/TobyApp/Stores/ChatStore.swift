@@ -821,7 +821,11 @@ final class ChatStore {
 		if !transcriptAttachments.isEmpty {
 			localAttachmentPreviewsByTranscriptText[userText] = transcriptAttachments
 		}
-		transcript.append(.user(text: userText, attachments: transcriptAttachments))
+		transcript.append(.user(
+			text: userText,
+			attachments: transcriptAttachments,
+			createdAt: TranscriptTimestamp.nowISO(),
+		))
 		let userTurnStartIndex = transcript.count - 1
 		activeTurnStartedAt = Date()
 		activeTurnUserIndex = userTurnStartIndex

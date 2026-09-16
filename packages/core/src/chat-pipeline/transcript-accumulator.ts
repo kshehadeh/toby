@@ -4,7 +4,10 @@ import {
 	applyPersistedChatEvent,
 	shouldPersistChatEventInTranscript,
 } from "./transcript-reducer";
-import type { TranscriptEntry } from "./transcript-types";
+import {
+	type TranscriptEntry,
+	transcriptTimestampNow,
+} from "./transcript-types";
 
 export { shouldPersistChatEventInTranscript, applyPersistedChatEvent };
 
@@ -27,7 +30,10 @@ export class TranscriptAccumulator {
 	}
 
 	addUser(text: string): void {
-		this.entries = [...this.entries, { kind: "user", text }];
+		this.entries = [
+			...this.entries,
+			{ kind: "user", text, createdAt: transcriptTimestampNow() },
+		];
 	}
 
 	addNotice(text: string, tone?: "info" | "success" | "error"): void {
@@ -53,6 +59,7 @@ export class TranscriptAccumulator {
 				variant: "assistant",
 				header,
 				body: trimmed,
+				createdAt: transcriptTimestampNow(),
 			},
 		];
 	}
@@ -97,6 +104,7 @@ export class TranscriptAccumulator {
 					variant: event.interim ? "assistant_interim" : "assistant",
 					header: this.assistantHeader,
 					body,
+					createdAt: transcriptTimestampNow(),
 				},
 			];
 			return;

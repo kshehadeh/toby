@@ -242,9 +242,11 @@ extension TranscriptEntry {
 	/// Used by TranscriptView grouping invalidation and ChatStore streaming writes.
 	var contentStamp: Int {
 		switch self {
-		case .user(let text, let attachments):
+		case .user(let text, let attachments, _):
 			return text.count &+ attachments.count &+ 1
-		case .assistant(let text), .meta(let text), .error(let text):
+		case .assistant(let text, _):
+			return text.count &+ 2
+		case .meta(let text), .error(let text):
 			return text.count &+ 2
 		case .notice(let text, _):
 			return text.count &+ 3

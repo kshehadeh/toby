@@ -1025,8 +1025,8 @@ struct ListenRecordingDetail: Decodable, Sendable {
 }
 
 enum TranscriptEntry: Decodable, Identifiable, Equatable {
-	case user(text: String, attachments: [ChatTranscriptAttachment] = [])
-	case assistant(text: String)
+	case user(text: String, attachments: [ChatTranscriptAttachment] = [], createdAt: String? = nil)
+	case assistant(text: String, createdAt: String? = nil)
 	case meta(text: String)
 	case notice(text: String, tone: String?)
 	case error(text: String)
@@ -1038,11 +1038,11 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 
 	var id: String {
 		switch self {
-		case .user(let text, let attachments):
+		case .user(let text, let attachments, let createdAt):
 			let attachmentKey = attachments.map { "\($0.filename)-\($0.byteSize)" }.joined(separator: "|")
-			return "user-\(text.hashValue)-\(attachmentKey.hashValue)"
-		case .assistant(let text):
-			return "assistant-\(text.hashValue)"
+			return "user-\(text.hashValue)-\(attachmentKey.hashValue)-\(createdAt ?? "")"
+		case .assistant(let text, let createdAt):
+			return "assistant-\(text.hashValue)-\(createdAt ?? "")"
 		case .meta(let text):
 			return "meta-\(text.hashValue)"
 		case .notice(let text, _):
@@ -1085,6 +1085,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 		case error
 		case durationMs
 		case attachments
+		case createdAt
 	}
 
 	init(from decoder: Decoder) throws {
@@ -1096,9 +1097,13 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 			self = .user(
 				text: try container.decode(String.self, forKey: .text),
 				attachments: try container.decodeIfPresent([ChatTranscriptAttachment].self, forKey: .attachments) ?? [],
+				createdAt: try container.decodeIfPresent(String.self, forKey: .createdAt),
 			)
 		case "assistant":
-			self = .assistant(text: try container.decode(String.self, forKey: .text))
+			self = .assistant(
+				text: try container.decode(String.self, forKey: .text),
+				createdAt: try container.decodeIfPresent(String.self, forKey: .createdAt),
+			)
 		case "meta":
 			self = .meta(text: try container.decode(String.self, forKey: .text))
 		case "notice":
@@ -1122,6 +1127,7 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 					durationMs: try container.decodeIfPresent(Int.self, forKey: .durationMs),
 					toolRuns: try container.decodeIfPresent([ToolRunEntry].self, forKey: .toolRuns),
 					fullBody: try container.decodeIfPresent(String.self, forKey: .fullBody),
+					createdAt: try container.decodeIfPresent(String.self, forKey: .createdAt),
 				),
 			)
 		case "tool_call":
@@ -1174,6 +1180,7 @@ struct BoxedStepPayload: Equatable {
 	let durationMs: Int?
 	let toolRuns: [ToolRunEntry]?
 	let fullBody: String?
+	var createdAt: String? = nil
 }
 
 struct ChatEventPayload: Decodable {

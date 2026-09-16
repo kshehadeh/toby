@@ -7,41 +7,37 @@ struct AskUserPromptView: View {
 
 	var body: some View {
 		if let prompt = store.activeAskUserPrompt {
-			HStack(alignment: .top, spacing: 10) {
-				AssistantRailColumn(iconName: "questionmark.bubble")
-				VStack(alignment: .leading, spacing: 10) {
-					Text(prompt.query)
-						.font(AppTheme.transcriptCalloutFont.weight(.semibold))
-						.foregroundStyle(AppTheme.primaryText)
-						.fixedSize(horizontal: false, vertical: true)
-						.frame(maxWidth: .infinity, alignment: .leading)
+			VStack(alignment: .leading, spacing: 10) {
+				Text(prompt.query)
+					.font(AppTheme.transcriptCalloutFont.weight(.semibold))
+					.foregroundStyle(AppTheme.primaryText)
+					.fixedSize(horizontal: false, vertical: true)
+					.frame(maxWidth: .infinity, alignment: .leading)
 
-					VStack(spacing: 8) {
-						ForEach(Array(prompt.options.enumerated()), id: \.offset) { index, option in
-							Button {
-								store.submitAskUserOption(index: index)
-							} label: {
-								AskUserOptionRow(number: index + 1, label: option)
-							}
-							.buttonStyle(.plain)
-							.accessibilityIdentifier("ask-user-option-\(index)")
+				VStack(spacing: 8) {
+					ForEach(Array(prompt.options.enumerated()), id: \.offset) { index, option in
+						Button {
+							store.submitAskUserOption(index: index)
+						} label: {
+							AskUserOptionRow(number: index + 1, label: option)
 						}
-						AskUserCustomOptionRow(store: store, number: prompt.options.count + 1)
+						.buttonStyle(.plain)
+						.accessibilityIdentifier("ask-user-option-\(index)")
 					}
-
-					Button {
-						store.cancelAskUserPrompt()
-					} label: {
-						Text("Cancel")
-							.font(AppTheme.transcriptCalloutFont.weight(.medium))
-							.foregroundStyle(AppTheme.secondaryText)
-					}
-					.buttonStyle(.plain)
-					.accessibilityIdentifier("ask-user-cancel")
+					AskUserCustomOptionRow(store: store, number: prompt.options.count + 1)
 				}
-				.frame(maxWidth: 520, alignment: .leading)
-				Spacer(minLength: 0)
+
+				Button {
+					store.cancelAskUserPrompt()
+				} label: {
+					Text("Cancel")
+						.font(AppTheme.transcriptCalloutFont.weight(.medium))
+						.foregroundStyle(AppTheme.secondaryText)
+				}
+				.buttonStyle(.plain)
+				.accessibilityIdentifier("ask-user-cancel")
 			}
+			.frame(maxWidth: AppTheme.transcriptReadingWidth, alignment: .leading)
 			.accessibilityElement(children: .contain)
 			.accessibilityIdentifier("ask-user-prompt")
 		}

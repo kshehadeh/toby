@@ -168,12 +168,12 @@ enum ChatAttachmentDrafting {
 		previewsByTranscriptText: [String: [ChatTranscriptAttachment]],
 	) -> [TranscriptEntry] {
 		entries.map { entry in
-			guard case .user(let text, let attachments) = entry, attachments.isEmpty,
+			guard case .user(let text, let attachments, let createdAt) = entry, attachments.isEmpty,
 				let localAttachments = previewsByTranscriptText[text]
 			else {
 				return entry
 			}
-			return .user(text: text, attachments: localAttachments)
+			return .user(text: text, attachments: localAttachments, createdAt: createdAt)
 		}
 	}
 }

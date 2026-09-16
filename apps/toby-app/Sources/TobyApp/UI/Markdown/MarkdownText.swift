@@ -29,11 +29,8 @@ struct MarkdownText: View {
 			ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
 				switch block {
 				case .heading(let level, let content):
-					let isSectionLabel = usesProseTypography && level >= 3
-					let display = uppercaseHeadings || isSectionLabel ? content.uppercased() : content
-					let headingColor = isSectionLabel
-						? AppTheme.accent
-						: (headingForegroundStyle ?? AppTheme.primaryText)
+					let display = uppercaseHeadings ? content.uppercased() : content
+					let headingColor = headingForegroundStyle ?? AppTheme.primaryText
 					inlineText(display, base: headingColor, strong: headingColor)
 						.font(headingFont(for: level))
 						.fontWeight(.semibold)
@@ -139,9 +136,9 @@ struct MarkdownText: View {
 		}
 		if usesProseTypography {
 			switch level {
-			case 1: return .system(size: 21, weight: .bold, design: .rounded)
-			case 2: return .system(size: 16, weight: .semibold, design: .rounded)
-			default: return .system(size: 11, weight: .semibold, design: .rounded)
+			case 1: return .system(size: 21, weight: .bold)
+			case 2: return .system(size: 16, weight: .semibold)
+			default: return .system(size: 13, weight: .semibold)
 			}
 		}
 		return level == 2 ? .title3 : .headline
@@ -152,8 +149,7 @@ struct MarkdownText: View {
 			// +0.09em at 10pt.
 			return 0.9
 		}
-		guard usesProseTypography, level >= 3 else { return 0 }
-		return 11 * 0.085
+		return 0
 	}
 
 	private func headingTopSpacing(for level: Int) -> CGFloat {

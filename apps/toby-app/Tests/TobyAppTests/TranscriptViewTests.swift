@@ -22,7 +22,7 @@ struct TranscriptViewTests {
 		""".data(using: .utf8)!
 
 		let entry = try JSONDecoder().decode(TranscriptEntry.self, from: json)
-		guard case .user(let text, let attachments) = entry else {
+		guard case .user(let text, let attachments, _) = entry else {
 			Issue.record("Expected user transcript entry")
 			return
 		}
@@ -30,6 +30,25 @@ struct TranscriptViewTests {
 		#expect(attachments.count == 1)
 		#expect(attachments.first?.filename == "pixel.png")
 		#expect(attachments.first?.isImagePreviewable == true)
+	}
+
+	@Test("user transcript entries decode createdAt")
+	func userTranscriptEntryDecodesCreatedAt() throws {
+		let json = """
+		{
+			"kind": "user",
+			"text": "Describe this",
+			"createdAt": "2026-09-16T12:00:00.000Z"
+		}
+		""".data(using: .utf8)!
+
+		let entry = try JSONDecoder().decode(TranscriptEntry.self, from: json)
+		guard case .user(let text, _, let createdAt) = entry else {
+			Issue.record("Expected user transcript entry")
+			return
+		}
+		#expect(text == "Describe this")
+		#expect(createdAt == "2026-09-16T12:00:00.000Z")
 	}
 
 	@Test("workSteps assigns tool type for boxed_step variant tool")

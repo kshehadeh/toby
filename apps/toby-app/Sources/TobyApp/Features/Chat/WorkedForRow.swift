@@ -2,7 +2,6 @@ import SwiftUI
 
 struct WorkedForRow: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
-	@Environment(\.colorScheme) private var colorScheme
 
 	let group: TranscriptWorkGroup
 	let duration: TimeInterval?
@@ -53,7 +52,8 @@ struct WorkedForRow: View {
 				WorkActivityHeader(
 					model: model,
 					isExpanded: isExpanded,
-					onToggle: onToggle
+					onToggle: onToggle,
+					canExpand: showsWorkDetails && (!group.entries.isEmpty || group.errorText != nil)
 				)
 
 				if isExpanded, showsWorkDetails {
@@ -73,31 +73,23 @@ struct WorkedForRow: View {
 						if model.steps.isEmpty, let errorText = model.errorText {
 							Text(errorText)
 								.font(.system(size: 12))
-								.foregroundStyle(activityErrorColor)
+								.foregroundStyle(AppTheme.statusErrorForeground)
 								.lineLimit(2)
 								.frame(maxWidth: .infinity, alignment: .leading)
-								.padding(.vertical, 12)
-								.padding(.horizontal, 14)
+								.padding(.vertical, 8)
 						}
 						if !model.tools.isEmpty {
-							ActivityHairline(opacity: 0.06)
 							ActivityToolsFooter(
 								tools: model.tools,
 								showsAll: $showsAllTools
 							)
 						}
 					}
+					.padding(.leading, 2)
 					.transition(.opacity.combined(with: .move(edge: .top)))
 				}
 			}
-			.frame(maxWidth: 640, alignment: .leading)
-			.background(activityCardFill, in: AppTheme.concentricRect(minimum: 12))
-			.overlay {
-				AppTheme.concentricRect(minimum: 12)
-					.stroke(activityBorderColor, lineWidth: 1)
-			}
-			.compositingGroup()
-			.clipShape(AppTheme.concentricRect(minimum: 12))
+			.frame(maxWidth: AppTheme.transcriptReadingWidth, alignment: .leading)
 			Spacer(minLength: 0)
 		}
 		.animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isExpanded)
@@ -116,22 +108,6 @@ struct WorkedForRow: View {
 	private func refreshStepsCache() {
 		cachedSteps = showsWorkDetails ? workSteps(from: group) : []
 		cachedStepsKey = stepsKey
-	}
-
-	private var activityCardFill: Color {
-		colorScheme == .dark
-			? Color(red: 28 / 255, green: 28 / 255, blue: 28 / 255)
-			: .white
-	}
-
-	private var activityBorderColor: Color {
-		colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.10)
-	}
-
-	private var activityErrorColor: Color {
-		colorScheme == .dark
-			? Color(red: 242 / 255, green: 179 / 255, blue: 179 / 255)
-			: Color(red: 158 / 255, green: 31 / 255, blue: 31 / 255)
 	}
 }
 
@@ -231,71 +207,60 @@ struct WorkActivityModel {
 
 private struct WorkActivityHeader: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
-	@Environment(\.colorScheme) private var colorScheme
 
 	let model: WorkActivityModel
 	let isExpanded: Bool
 	let onToggle: () -> Void
+	let canExpand: Bool
 
 	var body: some View {
-		VStack(spacing: 0) {
-			Button(action: onToggle) {
-				HStack(spacing: 8) {
+		Button(action: onToggle) {
+			HStack(spacing: 6) {
+				if model.isRunning || model.isFailed {
 					ActivityStatusIndicator(
 						isRunning: model.isRunning,
 						isFailed: model.isFailed
 					)
-					Text(model.title)
-						.font(.system(size: 13, weight: .semibold))
-						.foregroundStyle(primaryColor)
-						.lineLimit(1)
-						.monospacedDigit()
-						.layoutPriority(2)
-					if !model.summary.isEmpty {
-						Text(model.summary)
-							.font(.system(size: 13))
-							.foregroundStyle(faintColor)
-							.lineLimit(1)
-							.truncationMode(.tail)
-							.monospacedDigit()
-							.layoutPriority(0)
-					}
-					Spacer(minLength: 0)
-					Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-						.font(.system(size: 14, weight: .medium))
-						.foregroundStyle(faintColor)
+				}
+				Text(headerTitle)
+					.font(.system(size: 13))
+					.foregroundStyle(AppTheme.secondaryText)
+					.lineLimit(1)
+					.monospacedDigit()
+				if canExpand {
+					Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+						.font(.system(size: 11, weight: .semibold))
+						.foregroundStyle(AppTheme.tertiaryText)
 						.accessibilityHidden(true)
 				}
-				.padding(.vertical, 11)
-				.padding(.horizontal, 14)
-				.contentShape(Rectangle())
+				Spacer(minLength: 0)
 			}
-			.buttonStyle(.plain)
-			.accessibilityLabel("\(model.title), \(model.summary)")
-			.accessibilityHint(isExpanded ? "Collapse activity" : "Expand activity")
-
-			if isExpanded {
-				ActivityHairline(opacity: 0.08)
-			}
+			.contentShape(Rectangle())
 		}
-		.background(colorScheme == .dark ? Color.white.opacity(0.03) : Color.black.opacity(0.025))
+		.buttonStyle(.plain)
+		.disabled(!canExpand)
+		.padding(.bottom, isExpanded ? 6 : 0)
+		.accessibilityLabel(accessibilityTitle)
+		.accessibilityHint(canExpand ? (isExpanded ? "Collapse activity" : "Expand activity") : "")
+		.accessibilityIdentifier("worked-for-row")
 		.animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isExpanded)
 	}
 
-	private var primaryColor: Color {
-		colorScheme == .dark ? .white.opacity(0.88) : .black.opacity(0.88)
+	private var headerTitle: String {
+		if model.isRunning {
+			return model.summary.isEmpty ? model.title : "\(model.title) \(model.summary)"
+		}
+		return model.title
 	}
 
-	private var faintColor: Color {
-		// The nominal faint token is 38%; light mode is raised just enough to
-		// keep small metadata above 3:1 on white.
-		colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.46)
+	private var accessibilityTitle: String {
+		if model.summary.isEmpty { return model.title }
+		return "\(model.title), \(model.summary)"
 	}
 }
 
 private struct ActivityStatusIndicator: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
-	@Environment(\.colorScheme) private var colorScheme
 	@State private var pulse = false
 
 	let isRunning: Bool
@@ -305,18 +270,16 @@ private struct ActivityStatusIndicator: View {
 		Group {
 			if isRunning {
 				Circle()
-					.fill(Color(red: 245 / 255, green: 158 / 255, blue: 31 / 255))
+					.fill(AppTheme.accent)
 					.frame(width: 7, height: 7)
 					.opacity(pulse ? 0.45 : 1)
 					.scaleEffect(pulse ? 1.03 : 1)
 			} else if isFailed {
 				Image(systemName: "exclamationmark.circle")
-					.foregroundStyle(Color(red: 194 / 255, green: 59 / 255, blue: 59 / 255))
+					.foregroundStyle(AppTheme.statusErrorForeground)
 			} else {
 				Image(systemName: "clock")
-					.foregroundStyle(
-						colorScheme == .dark ? Color.white.opacity(0.38) : Color.black.opacity(0.46)
-					)
+					.foregroundStyle(AppTheme.tertiaryText)
 			}
 		}
 		.font(.system(size: 14, weight: .medium))
