@@ -53,7 +53,7 @@ Implementation entrypoints:
 | `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
 | `toby daemon status` | Show PID, inbound connection state, log path |
 
-Toby.app can also restart the server from its native controls.
+Toby.app can also restart the server from the status-dot control in the sidebar footer.
 
 ### App handshake (dev vs production)
 

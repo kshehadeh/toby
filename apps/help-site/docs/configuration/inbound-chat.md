@@ -19,7 +19,7 @@ Settings live under **Toby.app → Settings → Chat** (inbound / daemon chat).
 
 These values are stored in `~/.toby/config.json` under `chatInbound.*`.
 
-The background service must be running (Toby.app normally keeps it up). Inbound status also appears in daemon status (`/api/daemon/status` and the app’s server status UI).
+The background service must be running (Toby.app normally keeps it up). Inbound status also appears in daemon status (`/api/daemon/status`) and in the app’s server status UI (the status-dot control in the sidebar footer).
 
 ## Per-integration requirements
 

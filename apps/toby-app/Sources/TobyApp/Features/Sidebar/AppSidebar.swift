@@ -53,12 +53,17 @@ struct AppSidebar: View {
 
 			SidebarFooter(
 				status: status,
+				daemonStatus: daemonStatus,
+				isServerRestarting: isServerRestarting,
+				isServerConnecting: isServerConnecting,
+				serverLifecycleMessage: serverLifecycleMessage,
 				isPersonaPickerPresented: $isPersonaPickerPresented,
 				isAttentionHighlighted: isPersonaAttentionHighlighted,
 				emphasizeCreatePersona: emphasizeCreatePersona,
 				onCreatePersona: onCreatePersona,
 				onEditPersona: onEditPersona,
 				onPersonaSelected: onPersonaSelected,
+				onRestartServer: onRestartServer
 			)
 			.padding(.horizontal, 8)
 			.padding(.vertical, 8)

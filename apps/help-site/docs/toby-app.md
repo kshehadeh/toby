@@ -59,6 +59,11 @@ Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) an
 **Tools** (Skills). Connect services in **Settings → Integrations**. Memories opens as a separate window from the
 View menu, command palette, or menu bar — not as a main-window route.
 
+The sidebar footer keeps the persona picker on the left and a status-dot control
+on the right. Click the dot for background-service details, inbound chat status,
+and **Restart server**. When the service is not healthy, a labelled recovery
+control also appears above the footer.
+
 Workspaces that list items (Chats, Projects, Recordings, Skills, Schedules,
 Flows, plus the Memories and Logs windows) share the same
 second-column behavior: nothing is selected until you choose a row, the main

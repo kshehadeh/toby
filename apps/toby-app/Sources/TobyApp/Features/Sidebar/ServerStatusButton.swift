@@ -54,6 +54,7 @@ struct ServerStatusButton: View {
 	var isConnecting: Bool = false
 	var lifecycleMessage: String? = nil
 	var style: ServerStatusButtonStyle = .dot
+	var popoverArrowEdge: Edge = .top
 	let onRestart: () -> Void
 	@State private var isPresented = false
 	@State private var isServerInfoPresented = false
@@ -114,7 +115,7 @@ struct ServerStatusButton: View {
 		.onHover { isHovered = $0 }
 		.accessibilityLabel(health.displayLabel(lifecycleMessage: lifecycleMessage))
 		.accessibilityHint("Show server details")
-		.popover(isPresented: $isPresented, arrowEdge: .top) {
+		.popover(isPresented: $isPresented, arrowEdge: popoverArrowEdge) {
 			ServerStatusDetails(
 				status: status,
 				daemonStatus: daemonStatus,

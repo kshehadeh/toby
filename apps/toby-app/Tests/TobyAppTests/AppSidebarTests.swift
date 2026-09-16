@@ -122,6 +122,27 @@ struct AppSidebarTests {
         #expect(!labeled.isEmpty, "Server offline control not found")
     }
 
+    @Test("footer always shows the server status indicator")
+    func footerAlwaysShowsServerStatusIndicator() throws {
+        let connected = makeSidebar(status: sampleStatus())
+        #expect(throws: Never.self) {
+            try connected.inspect().find(viewWithAccessibilityIdentifier: "sidebar-server-status")
+        }
+        let connectedButtons = try connected.inspect().findAll(ViewType.Button.self)
+        let connectedStatus = connectedButtons.filter { btn in
+            (try? btn.accessibilityLabel().string()) == "Server connected"
+        }
+        #expect(!connectedStatus.isEmpty, "Server connected footer control not found")
+
+        let offline = makeSidebar(status: nil)
+        #expect(throws: Never.self) {
+            try offline.inspect().find(viewWithAccessibilityIdentifier: "sidebar-server-status")
+        }
+        #expect(throws: Never.self) {
+            try offline.inspect().find(viewWithAccessibilityIdentifier: "sidebar-persona-footer")
+        }
+    }
+
     @Test("connection status shows starting while restart is in progress")
     func connectionStatusStartingWhenRestarting() throws {
         let sidebar = makeSidebar(status: nil, isServerRestarting: true)
@@ -159,12 +180,15 @@ struct AppSidebarTests {
     func personaFooterAttentionIdentifier() throws {
         let highlighted = SidebarFooter(
             status: nil,
+            daemonStatus: nil,
+            isServerRestarting: false,
             isPersonaPickerPresented: .constant(true),
             isAttentionHighlighted: true,
             emphasizeCreatePersona: true,
             onCreatePersona: {},
             onEditPersona: { _ in },
-            onPersonaSelected: {}
+            onPersonaSelected: {},
+            onRestartServer: {}
         )
         #expect(throws: Never.self) {
             try highlighted.inspect().find(viewWithAccessibilityIdentifier: "sidebar-persona-footer")
