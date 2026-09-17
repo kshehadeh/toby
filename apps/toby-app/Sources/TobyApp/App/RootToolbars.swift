@@ -695,7 +695,7 @@ enum RootToolbars {
 			case .detail:
 				if canEdit {
 					Button(action: onEdit) {
-						Image(systemName: "pencil")
+						Image(systemName: "square.and.pencil")
 					}
 					.help("Edit Flow")
 					.accessibilityIdentifier("edit-flow-button")
