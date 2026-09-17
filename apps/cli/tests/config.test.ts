@@ -36,7 +36,7 @@ afterEach(() => {
 describe("readConfig", () => {
 	it("returns empty config when file does not exist", () => {
 		const config = readConfig();
-		expect(config).toEqual({ integrations: {}, personas: [] });
+		expect(config).toEqual({ integrations: {}, connections: {}, personas: [] });
 	});
 
 	it("reads existing config", () => {
@@ -50,9 +50,32 @@ describe("readConfig", () => {
 		expect(config.integrations.todoist.apiKey).toBe("x");
 	});
 
+	it("hydrates singleton connections from integrations when connections is missing", () => {
+		fs.writeFileSync(
+			getConfigPath(),
+			JSON.stringify({
+				integrations: {
+					slack: {
+						connectedAt: "2026-01-01T00:00:00.000Z",
+						pluginVersion: "1.0.0",
+					},
+				},
+				personas: [],
+			}),
+		);
+		const config = readConfig();
+		expect(config.connections.slack).toEqual({
+			type: "slack",
+			displayName: "slack",
+			connectedAt: "2026-01-01T00:00:00.000Z",
+			pluginVersion: "1.0.0",
+		});
+	});
+
 	it("preserves dashboard settings through read/write", () => {
 		writeConfig({
 			integrations: {},
+			connections: {},
 			personas: [],
 			dashboard: { persona: "Dashboard Updater" },
 			defaultPersona: "Toby",
@@ -69,14 +92,19 @@ describe("readConfig", () => {
 
 describe("writeConfig", () => {
 	it("writes config to disk", () => {
-		const data = {
+		writeConfig({
 			integrations: {
 				todoist: { apiKey: "a", mode: "b" },
 			},
+			connections: {},
+			personas: [],
+		});
+		const raw = JSON.parse(fs.readFileSync(getConfigPath(), "utf-8")) as {
+			integrations: { todoist: { apiKey: string } };
+			connections: Record<string, unknown>;
 		};
-		writeConfig(data);
-		const raw = fs.readFileSync(getConfigPath(), "utf-8");
-		expect(JSON.parse(raw)).toEqual(data);
+		expect(raw.integrations.todoist.apiKey).toBe("a");
+		expect(raw.connections).toEqual({});
 	});
 });
 

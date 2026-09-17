@@ -5,6 +5,7 @@ import SwiftUI
 struct IntegrationsSettingsView: View {
 	@Bindable var store: ConfigureStore
 	@Binding var path: [String]
+	@State private var mcpDraft: McpConnectionDraft?
 
 	var body: some View {
 		SettingsCatalogView(
@@ -23,13 +24,18 @@ struct IntegrationsSettingsView: View {
 			loadingTitle: "Loading integrations…",
 			unavailableTitle: "Integrations unavailable",
 			emptyTitle: "No integrations",
-			emptyDescription: "Install a plugin to connect a service Toby can use in chat.",
+			emptyDescription: "Install a plugin or add an MCP server Toby can use in chat.",
 			statusText: { section in
 				if store.integrationStatusLoading == section.key { return "Checking…" }
 				guard let status = store.integrationStatus[section.key] else { return "Unknown" }
 				return status.connected ? "Connected" : "Not connected"
-			}
+			},
+			onAdd: { mcpDraft = McpConnectionDraft() },
+			addTitle: "Add MCP server"
 		)
+		.sheet(item: editorSheetItem($mcpDraft, onDismiss: { mcpDraft = nil })) { _ in
+			AddMcpConnectionView(store: store, draft: $mcpDraft)
+		}
 		.task {
 			for section in store.integrationSections {
 				await store.loadIntegrationStatus(for: section.key)

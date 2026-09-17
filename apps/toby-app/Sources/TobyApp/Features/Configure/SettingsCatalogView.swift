@@ -17,6 +17,8 @@ struct SettingsCatalogView: View {
 	var emptyTitle: String = "Nothing here"
 	var emptyDescription: String = "No items are available yet."
 	var statusText: ((SettingsItem) -> String?)? = nil
+	var onAdd: (() -> Void)? = nil
+	var addTitle: String? = nil
 
 	var body: some View {
 		NavigationStack(path: $path) {
@@ -25,6 +27,17 @@ struct SettingsCatalogView: View {
 					childDetail(for: key)
 						.navigationBarBackButtonHidden(true)
 						.navigationTitle(childTitle(for: key))
+				}
+				.toolbar {
+					if let onAdd {
+						ToolbarItem(placement: .primaryAction) {
+							Button(action: onAdd) {
+								Label(addTitle ?? "Add", systemImage: "plus")
+							}
+							.accessibilityLabel(addTitle ?? "Add")
+							.accessibilityIdentifier("settings-catalog-add")
+						}
+					}
 				}
 		}
 	}
@@ -193,6 +206,11 @@ struct SettingsCatalogRow: View {
 		} else if let icon = section.icon, !icon.isEmpty {
 			Text(icon)
 				.font(.system(size: 16))
+		} else if section.isMcpConnection {
+			Image(systemName: "cable.connector")
+				.font(.system(size: 14, weight: .semibold))
+				.foregroundStyle(.secondary)
+				.accessibilityHidden(true)
 		} else {
 			Image(systemName: fallbackIcon)
 				.font(.system(size: 14, weight: .semibold))

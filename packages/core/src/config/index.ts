@@ -181,6 +181,7 @@ export interface Persona {
 	imagePath?: string;
 }
 
+import type { ConnectionRecordState } from "../integrations/connection-types";
 import type { ProviderCategory } from "../integrations/types";
 
 export interface ChatInboundConfig {
@@ -243,6 +244,12 @@ export interface ListenConfig {
 
 export interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
+	/**
+	 * First-class connection instances keyed by connection id.
+	 * Singleton plugins use `id === plugin name` and are dual-written
+	 * with {@link TobyConfig.integrations}. MCP servers use `mcp_<slug>` ids.
+	 */
+	connections?: Record<string, ConnectionRecordState>;
 	personas: Persona[];
 	defaultPersona?: string;
 	defaultProviders?: Partial<Record<ProviderCategory, string>>;
@@ -291,6 +298,11 @@ export interface CredentialsFile {
 	 * `integrations[<moduleName>]` to avoid hardcoding top-level keys.
 	 */
 	integrations?: Record<string, Record<string, string>>;
+	/**
+	 * Per-connection secrets. Singleton plugins dual-write the same bag under
+	 * {@link CredentialsFile.integrations} `[id]`. MCP secrets live only here.
+	 */
+	connections?: Record<string, Record<string, string>>;
 	/** Legacy Todoist block; migrated to integrations.todoist on plugin load. */
 	todoist?: Record<string, string>;
 	slack?: SlackCredentials;
@@ -306,8 +318,61 @@ export function getIntegrationCredential(
 	moduleName: string,
 	field: string,
 ): string | undefined {
+	const fromConnections = creds.connections?.[moduleName]?.[field];
+	if (typeof fromConnections === "string" && fromConnections.trim()) {
+		return fromConnections;
+	}
 	const v = creds.integrations?.[moduleName]?.[field];
 	return typeof v === "string" && v.trim() ? v : undefined;
+}
+
+export function getConnectionCredential(
+	creds: CredentialsFile,
+	connectionId: string,
+	field: string,
+): string | undefined {
+	const fromConnections = creds.connections?.[connectionId]?.[field];
+	if (typeof fromConnections === "string" && fromConnections.trim()) {
+		return fromConnections;
+	}
+	return getIntegrationCredential(creds, connectionId, field);
+}
+
+/**
+ * Materialize singleton plugin connections from `integrations[name]` so older
+ * config.json files (no `connections` key) still list as connection instances.
+ * Existing `connections` entries win; missing singleton slots are filled.
+ */
+export function hydrateConnectionsFromIntegrations(
+	connections: Record<string, ConnectionRecordState>,
+	integrations: Record<string, Record<string, unknown>>,
+): Record<string, ConnectionRecordState> {
+	const next: Record<string, ConnectionRecordState> = { ...connections };
+	for (const [name, block] of Object.entries(integrations)) {
+		if (!name.trim() || name === "mcp") continue;
+		const connectedAt =
+			typeof block.connectedAt === "string" ? block.connectedAt : undefined;
+		const pluginVersion =
+			typeof block.pluginVersion === "string" ? block.pluginVersion : undefined;
+		const existing = next[name];
+		if (!existing) {
+			next[name] = {
+				type: name,
+				displayName: name,
+				...(connectedAt ? { connectedAt } : {}),
+				...(pluginVersion ? { pluginVersion } : {}),
+			};
+			continue;
+		}
+		next[name] = {
+			...existing,
+			type: existing.type || name,
+			displayName: existing.displayName || name,
+			connectedAt: existing.connectedAt ?? connectedAt,
+			pluginVersion: existing.pluginVersion ?? pluginVersion,
+		};
+	}
+	return next;
 }
 
 /** Prefer `integrations.slack`, then legacy top-level `slack`. */
@@ -327,7 +392,7 @@ export function readConfig(): TobyConfig {
 	const configPath = getConfigPath();
 	ensureTobyDir();
 	if (!fs.existsSync(configPath)) {
-		return { integrations: {}, personas: [] };
+		return { integrations: {}, connections: {}, personas: [] };
 	}
 	const raw = fs.readFileSync(configPath, "utf-8");
 	const parsed = JSON.parse(raw) as Partial<TobyConfig>;
@@ -339,8 +404,13 @@ export function readConfig(): TobyConfig {
 			promptMode,
 		};
 	});
+	const integrations = parsed.integrations ?? {};
 	return {
-		integrations: parsed.integrations ?? {},
+		integrations,
+		connections: hydrateConnectionsFromIntegrations(
+			parsed.connections ?? {},
+			integrations,
+		),
 		personas,
 		defaultPersona: parsed.defaultPersona,
 		defaultProviders: parsed.defaultProviders,
@@ -395,8 +465,55 @@ export function getWebConfig(): { enabled: boolean; port: number } {
 export function writeConfig(config: TobyConfig): void {
 	const configPath = getConfigPath();
 	ensureTobyDir();
-	atomicWriteFile(configPath, JSON.stringify(config, null, 2));
+	const synced = dualWriteSingletonConnections(
+		config.connections ?? {},
+		config.integrations ?? {},
+	);
+	const next: TobyConfig = {
+		...config,
+		integrations: synced.integrations,
+		connections: synced.connections,
+		personas: config.personas ?? [],
+	};
+	atomicWriteFile(configPath, JSON.stringify(next, null, 2));
 	markSyncDirty();
+}
+
+/**
+ * Keep singleton plugin `connectedAt` mirrored onto existing
+ * `integrations[name]` blocks. Does not resurrect a deleted integration
+ * from a leftover connection record — callers must write both sides.
+ */
+export function dualWriteSingletonConnections(
+	connections: Record<string, ConnectionRecordState>,
+	integrations: Record<string, Record<string, unknown>>,
+): {
+	connections: Record<string, ConnectionRecordState>;
+	integrations: Record<string, Record<string, unknown>>;
+} {
+	const nextConnections: Record<string, ConnectionRecordState> = {
+		...connections,
+	};
+	const nextIntegrations: Record<string, Record<string, unknown>> = {
+		...integrations,
+	};
+
+	for (const [id, record] of Object.entries(nextConnections)) {
+		if (id !== record.type || record.type === "mcp") continue;
+		const existing = nextIntegrations[id];
+		if (!existing) continue;
+		if (record.connectedAt) {
+			nextIntegrations[id] = {
+				...existing,
+				connectedAt: record.connectedAt,
+				...(record.pluginVersion
+					? { pluginVersion: record.pluginVersion }
+					: {}),
+			};
+		}
+	}
+
+	return { connections: nextConnections, integrations: nextIntegrations };
 }
 
 /**

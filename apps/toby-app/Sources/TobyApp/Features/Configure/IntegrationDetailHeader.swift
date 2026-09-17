@@ -7,6 +7,7 @@ struct IntegrationDetailHeader: View {
 	let isLoading: Bool
 	let isActionLoading: Bool
 	let onAction: (IntegrationAction) -> Void
+	var onRemove: (() -> Void)? = nil
 
 	private var iconUrl: URL? {
 		guard let iconUrl = section.iconUrl else { return nil }
@@ -71,6 +72,12 @@ struct IntegrationDetailHeader: View {
 					if status.supportsSetup {
 						SettingsActionButton(title: "Run Setup") {
 							onAction(.setup)
+						}
+						.disabled(isActionLoading)
+					}
+					if section.isMcpConnection, let onRemove {
+						SettingsActionButton(title: "Remove") {
+							onRemove()
 						}
 						.disabled(isActionLoading)
 					}

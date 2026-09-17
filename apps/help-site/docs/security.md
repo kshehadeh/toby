@@ -29,7 +29,7 @@ part of your security boundary.
 | Location | What it holds |
 | -------- | ------------- |
 | `~/.toby/config.json` | Preferences that are **not** secrets (personas, which integrations are connected, defaults, web search, …) |
-| `~/.toby/credentials.json` | **Secrets**: AI keys, Email/Notion/Slack tokens, and other integration credentials |
+| `~/.toby/credentials.json` | **Secrets**: AI keys, Email/Notion/Slack tokens, MCP tokens/env, and other connection credentials |
 | Other `~/.toby/…` paths | Chat history, memories, recordings, skills — see [Configuration overview](./configuration/overview) |
 
 Integration **passwords and API keys** live in credentials. “Connected”

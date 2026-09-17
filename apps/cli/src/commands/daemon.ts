@@ -12,6 +12,10 @@ import {
 } from "@toby/core/config/index";
 import { runConfigSyncLoop } from "@toby/core/config/sync";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
+import {
+	closeAllMcpSessions,
+	reconnectConnectedMcpServers,
+} from "@toby/core/integrations/mcp/index";
 import { startPluginPollingLoop } from "@toby/core/integrations/plugins/poller";
 import { pluginDisplayPath } from "@toby/core/integrations/plugins/protocol";
 import {
@@ -139,6 +143,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	const controller = new AbortController();
 	const cleanup = () => {
 		daemonLog("info", "daemon", "daemon_stopping", { pid: process.pid });
+		void closeAllMcpSessions();
 		controller.abort();
 		releaseLock();
 		flushDaemonLogSync();
@@ -162,6 +167,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	} catch {
 		// best-effort; errors are non-fatal
 	}
+	void reconnectConnectedMcpServers();
 
 	const logLevel = getConfiguredLogLevel();
 	daemonLog("info", "daemon", "daemon_started", {

@@ -38,6 +38,72 @@ export { ADD_CUSTOM_MODEL_SENTINEL, CONFIGURE_TREE_ACTION_KEYS } from "./types";
 
 const MAX_PERSONA_INSTRUCTION_PREVIEW = 120;
 
+function mcpConnectionConfigItems(
+	name: string,
+	values: Record<string, string>,
+): SettingsItem[] {
+	if (!name.startsWith("mcp_")) return [];
+	const transport = values[`${name}.transport`] ?? "stdio";
+	return [
+		{
+			label: "Display name",
+			kind: "value",
+			key: `${name}.displayName`,
+			currentValue: values[`${name}.displayName`],
+			group: "Server",
+		},
+		{
+			label: "Transport",
+			kind: "select",
+			key: `${name}.transport`,
+			options: ["stdio", "http", "sse"],
+			selectChoices: [
+				{ value: "stdio", label: "Local command (stdio)" },
+				{ value: "http", label: "Streamable HTTP" },
+				{ value: "sse", label: "Legacy SSE" },
+			],
+			currentValue: transport,
+			group: "Server",
+		},
+		{
+			label: "Command",
+			kind: "value",
+			key: `${name}.command`,
+			currentValue: values[`${name}.command`],
+			group: "stdio",
+		},
+		{
+			label: "Arguments (JSON array)",
+			kind: "value",
+			key: `${name}.args`,
+			currentValue: values[`${name}.args`],
+			group: "stdio",
+		},
+		{
+			label: "Working directory",
+			kind: "value",
+			key: `${name}.cwd`,
+			currentValue: values[`${name}.cwd`],
+			group: "stdio",
+		},
+		{
+			label: "URL",
+			kind: "value",
+			key: `${name}.url`,
+			currentValue: values[`${name}.url`],
+			group: "HTTP",
+		},
+		{
+			label: "Tool allowlist (one name per line)",
+			kind: "value",
+			key: `${name}.toolAllowlist`,
+			currentValue: values[`${name}.toolAllowlist`],
+			multiline: true,
+			group: "Tools",
+		},
+	];
+}
+
 function truncateSkillPreview(text: string, max: number): string {
 	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
@@ -187,6 +253,7 @@ export function buildSettingsTree(
 				: [];
 
 			const configChildren: SettingsItem[] = [
+				...mcpConnectionConfigItems(mod.name, values),
 				...authSelect,
 				...credentialItems,
 				...inboundItems,
@@ -207,6 +274,9 @@ export function buildSettingsTree(
 				key: mod.name,
 				icon: mod.icon,
 				iconUrl: mod.iconUrl,
+				description: mod.name.startsWith("mcp_")
+					? "MCP server"
+					: mod.description,
 				children: configChildren,
 			};
 		},

@@ -23,12 +23,18 @@ Keychain-held keys.
 | File | Contents | Encryption |
 | ---- | -------- | ---------- |
 | `~/.toby/config.json` | Non-secret preferences: personas, connection flags (`connectedAt`), defaults, web search, inbound chat, listen settings, etc. | None (mode `0o600` when written via core helpers) |
-| `~/.toby/credentials.json` | Secrets: AI keys, integration tokens/passwords under `integrations.<name>`, transcription keys | **AES-256-GCM envelope on macOS**; Keychain holds the data key |
+| `~/.toby/credentials.json` | Secrets: AI keys, integration tokens/passwords under `integrations.<name>` / `connections.<id>`, transcription keys | **AES-256-GCM envelope on macOS**; Keychain holds the data key |
 
 Plugin settings that are secrets (Email IMAP password, Notion API key, Slack
 tokens, …) live under **`credentials.integrations.<plugin>`**, not only in
 `config.json`. Connection state (e.g. `connectedAt`) lives in
-`config.integrations.<plugin>`.
+`config.integrations.<plugin>` and is dual-written to
+`config.connections.<id>` (`id === plugin name` for singletons).
+
+MCP secrets live **only** under **`credentials.connections.<id>`** (env JSON,
+headers, bearer tokens, OAuth tokens). Never store them in `config.json`.
+stdio MCP connections run a local command — treat that command as trusted
+software, and never log env values.
 
 All production I/O for secrets should go through `readCredentials()` /
 `writeCredentials()` in

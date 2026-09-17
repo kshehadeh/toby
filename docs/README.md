@@ -10,6 +10,7 @@ Human- and flow-oriented docs for this repository.
 | [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore` / `config sync`. |
 | [projects.md](projects.md) | Projects: SQLite metadata, `AGENTS.md` guidance, skills, outputs. |
 | [integrations.md](integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
+| [mcp.md](mcp.md) | MCP servers as first-class connections: identity, transports, auth, tools. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv, stdin/stdout, discovery. |
 | [create-integration.md](create-integration.md) | Checklist for adding a new bun-package plugin. |
 | [apple-calendar.md](apple-calendar.md) | macOS Apple Calendar (EventKit via Toby.app). |

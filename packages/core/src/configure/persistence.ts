@@ -16,6 +16,7 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "../config/index";
+import { listMcpConnections } from "../integrations/connections";
 import { getIntegrationModules } from "../integrations/index";
 import {
 	ALL_PROVIDER_CATEGORIES,
@@ -74,7 +75,9 @@ export function collectCredentialConfigureKeys(): Set<string> {
 		// treated as a credential key so it is persisted to the credentials file
 		// and correctly round-tripped through applyConfigureValuesPatch.
 		if (mod.authMethods && mod.authMethods.length > 0) {
-			keys.add(`${mod.name}.authMethod`);
+			if (!mod.name.startsWith("mcp_")) {
+				keys.add(`${mod.name}.authMethod`);
+			}
 		}
 	}
 	return keys;
@@ -216,7 +219,21 @@ export function seedConfigureValues(): Record<string, string> {
 			entry?.inboundEnabled === true ? "true" : "false";
 	}
 
+	seedMcpConnectionValues(values);
 	return values;
+}
+
+function seedMcpConnectionValues(values: Record<string, string>): void {
+	for (const conn of listMcpConnections()) {
+		values[`${conn.id}.displayName`] = conn.displayName;
+		values[`${conn.id}.transport`] = conn.transport ?? "stdio";
+		values[`${conn.id}.command`] = conn.command ?? "";
+		values[`${conn.id}.args`] = JSON.stringify(conn.args ?? []);
+		values[`${conn.id}.cwd`] = conn.cwd ?? "";
+		values[`${conn.id}.url`] = conn.url ?? "";
+		values[`${conn.id}.authMethod`] = conn.authMethod ?? "none";
+		values[`${conn.id}.toolAllowlist`] = (conn.toolAllowlist ?? []).join("\n");
+	}
 }
 
 const REDACTED = "••••••";
@@ -605,7 +622,81 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.dashboard = rebuildDashboardConfig(values);
 	cfg.listen = rebuildListenConfig(values);
 	applyIntegrationInboundFlags(cfg, values);
+	applyMcpConnectionConfigFromValues(cfg, values);
 	writeConfig(cfg);
+}
+
+function applyMcpConnectionConfigFromValues(
+	cfg: ReturnType<typeof readConfig>,
+	values: Record<string, string>,
+): void {
+	const byId = new Map<string, Record<string, string>>();
+	for (const [key, value] of Object.entries(values)) {
+		const match =
+			/^(mcp_[^.]+)\.(displayName|transport|command|args|cwd|url|authMethod|toolAllowlist)$/.exec(
+				key,
+			);
+		if (!match) continue;
+		const id = match[1];
+		const field = match[2];
+		const bucket = byId.get(id) ?? {};
+		bucket[field] = value;
+		byId.set(id, bucket);
+	}
+	if (byId.size === 0) return;
+	const connections = { ...(cfg.connections ?? {}) };
+	for (const [id, fields] of byId) {
+		const existing = connections[id];
+		if (!existing || existing.type !== "mcp") continue;
+		let args = existing.args;
+		if (fields.args !== undefined) {
+			try {
+				const parsed = JSON.parse(fields.args) as unknown;
+				args = Array.isArray(parsed)
+					? parsed.filter((item): item is string => typeof item === "string")
+					: fields.args
+							.split(/\s+/)
+							.map((item) => item.trim())
+							.filter(Boolean);
+			} catch {
+				args = fields.args
+					.split(/\s+/)
+					.map((item) => item.trim())
+					.filter(Boolean);
+			}
+		}
+		const allowlist = fields.toolAllowlist
+			? fields.toolAllowlist
+					.split("\n")
+					.map((item) => item.trim())
+					.filter(Boolean)
+			: existing.toolAllowlist;
+		const transport =
+			fields.transport === "http" ||
+			fields.transport === "sse" ||
+			fields.transport === "stdio"
+				? fields.transport
+				: existing.transport;
+		const authMethod =
+			fields.authMethod === "env" ||
+			fields.authMethod === "headers" ||
+			fields.authMethod === "oauth" ||
+			fields.authMethod === "none"
+				? fields.authMethod
+				: existing.authMethod;
+		connections[id] = {
+			...existing,
+			displayName: fields.displayName?.trim() || existing.displayName,
+			transport,
+			command: fields.command ?? existing.command,
+			args,
+			cwd: fields.cwd ?? existing.cwd,
+			url: fields.url ?? existing.url,
+			authMethod,
+			toolAllowlist: allowlist,
+		};
+	}
+	cfg.connections = connections;
 }
 
 const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description)$/;

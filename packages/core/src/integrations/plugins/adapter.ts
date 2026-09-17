@@ -231,6 +231,10 @@ export function mergePluginConfigPatch(
 			...(creds.integrations ?? {}),
 			[name]: nextBlock,
 		},
+		connections: {
+			...(creds.connections ?? {}),
+			[name]: nextBlock,
+		},
 	});
 }
 
@@ -632,6 +636,15 @@ export function createPluginIntegrationModule(
 				connectedAt: new Date().toISOString(),
 				pluginVersion: metadata.version,
 			};
+			config.connections = {
+				...(config.connections ?? {}),
+				[name]: {
+					type: name,
+					displayName: metadata.displayName,
+					connectedAt: config.integrations[name].connectedAt as string,
+					pluginVersion: metadata.version,
+				},
+			};
 			writeConfig(config);
 
 			const syncEnvelope = buildEnvelope(name);
@@ -770,6 +783,11 @@ export function createPluginIntegrationModule(
 			mergePluginConfigPatch(name, result.data.config);
 
 			Reflect.deleteProperty(config.integrations, name);
+			if (config.connections?.[name]) {
+				const nextConnections = { ...config.connections };
+				Reflect.deleteProperty(nextConnections, name);
+				config.connections = nextConnections;
+			}
 			writeConfig(config);
 			console.log(chalk.green(`${metadata.displayName} disconnected.`));
 			clearSessionToolBundleCache();

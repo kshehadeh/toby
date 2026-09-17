@@ -244,6 +244,7 @@ Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
 | [`docs/icloud-sync.md`](docs/icloud-sync.md) | Encrypted settings snapshots across Macs (iCloud Drive or a shared folder). |
 | [`docs/commands.md`](docs/commands.md) | CLI commands, app launch, config backup/restore/sync. |
 | [`docs/integrations.md`](docs/integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
+| [`docs/mcp.md`](docs/mcp.md) | MCP servers as first-class connections (N instances, transports, auth). |
 | [`docs/plugin-protocol.md`](docs/plugin-protocol.md) | Installable plugin contract (v1): subcommands, JSON, discovery. |
 | [`docs/create-integration.md`](docs/create-integration.md) | Checklist for adding a new plugin integration. |
 | [`docs/chat-pipeline.md`](docs/chat-pipeline.md) | Chat turn node pipeline, events, pretreatment, tool-result cache. |

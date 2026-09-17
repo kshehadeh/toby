@@ -58,9 +58,12 @@ runtime registry helpers.
 - `BUILTIN_MODULES` — reserved for in-process modules; currently **empty**.
 - Plugin modules — loaded via `getPluginModules()` from discovery under
   `~/.toby/plugins/`, release `dist/`, or next to the `toby` binary.
+- MCP connection modules — one virtual `IntegrationModule` per
+  `config.connections` entry of type `mcp` (see [`mcp.md`](mcp.md)).
 
 If a built-in and a plugin ever share a name, the built-in wins. Plugins alone
-are the normal case.
+are the normal case for product integrations. MCP servers are connections of
+type `mcp`, not installable plugins.
 
 | Function | Use |
 | -------- | --- |

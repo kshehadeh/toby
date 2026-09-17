@@ -150,6 +150,10 @@ toby status integration myintegration
 Older docs and some type comments refer to first-party modules under
 `packages/core/src/integrations/<name>/` and a `MODULES` / `BUILTIN_MODULES`
 registration list. That path is **legacy**: `BUILTIN_MODULES` is empty and all
-shipped integrations are plugins. Do not revive in-process integrations unless
-there is a strong product reason; prefer the plugin protocol so installs stay
-independent of the core binary.
+shipped product integrations are plugins. Do not revive in-process integrations
+unless there is a strong product reason; prefer the plugin protocol so installs
+stay independent of the core binary.
+
+MCP servers are the exception: they are a **protocol**, not a vendor plugin.
+They live in `@toby/core` as first-class connections (`packages/core/src/integrations/mcp/`).
+Do **not** add a `toby-plugin-mcp`. See [mcp.md](mcp.md).

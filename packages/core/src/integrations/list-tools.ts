@@ -1,3 +1,5 @@
+import { getConnection } from "./connections";
+import { listMcpSessionTools } from "./mcp/manager";
 import { pluginToolsList } from "./plugins/client";
 import { getPluginMetadata } from "./plugins/registry";
 import {
@@ -44,6 +46,17 @@ function schemaRecord(
  * discover plugins or inspect install directories.
  */
 export function listIntegrationTools(name: string): ListedIntegrationTool[] {
+	const mcp = getConnection(name);
+	if (mcp?.type === "mcp") {
+		return listMcpSessionTools(name).map((tool) => ({
+			name: tool.name,
+			displayName: tool.originalName,
+			description: tool.description,
+			readOnly: true,
+			inputSchema: { type: "object", properties: {} },
+		}));
+	}
+
 	const metadata = getPluginMetadata(name);
 	if (!metadata) return [];
 

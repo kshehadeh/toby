@@ -13,7 +13,7 @@ Open **Toby.app → Settings → Integrations**. The catalog lists every availab
 
 ![Toby.app Integrations window](/img/toby-app-integrations-overview.png)
 
-Click any integration to open its detail page, where you can fill in credentials, run a setup guide, connect, and check status.
+Click any integration to open its detail page, where you can fill in credentials, run a setup guide, connect, and check status. Use **Add MCP server** to attach any Model Context Protocol server (stdio, HTTP, or SSE) — see [MCP servers](../integrations/mcp).
 
 ## 2. Configure credentials
 

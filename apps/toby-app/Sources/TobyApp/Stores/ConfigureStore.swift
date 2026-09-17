@@ -540,6 +540,10 @@ final class ConfigureStore {
 		let action = pendingDelete.action
 		let body = pendingDelete.body
 		self.pendingDelete = nil
+		if action == "remove-connection", let id = body["id"] {
+			await removeConnection(id: id)
+			return
+		}
 		await runAction(action, body: body)
 	}
 
@@ -579,6 +583,30 @@ final class ConfigureStore {
 				let response = try await client.fetchConfigureTree()
 				apply(response: response, resetDraft: false)
 			}
+			onChangesSaved?()
+		} catch {
+			errorMessage = error.localizedDescription
+		}
+	}
+
+	func createMcpConnection(_ request: CreateMcpConnectionRequest) async throws -> McpConnectionPayload {
+		isSaving = true
+		defer { isSaving = false }
+		let created = try await client.createMcpConnection(request)
+		await loadSettingsSections(selectDefaultIfNeeded: false)
+		await loadIntegrationStatus(for: created.id)
+		onChangesSaved?()
+		return created
+	}
+
+	func removeConnection(id: String) async {
+		integrationActionLoading = "\(id).remove"
+		defer { integrationActionLoading = nil }
+		do {
+			try await client.deleteConnection(id: id)
+			integrationStatus[id] = nil
+			await loadSettingsSections(selectDefaultIfNeeded: false)
+			selectCatalogHome()
 			onChangesSaved?()
 		} catch {
 			errorMessage = error.localizedDescription

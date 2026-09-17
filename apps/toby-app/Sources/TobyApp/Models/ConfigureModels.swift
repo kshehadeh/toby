@@ -42,6 +42,10 @@ struct SettingsItem: Decodable, Identifiable {
 		key == "defaults" ? "Providers" : label
 	}
 
+	var isMcpConnection: Bool {
+		key.hasPrefix("mcp_")
+	}
+
 	/// Client-only General pane (theme / accent; not from the daemon API).
 	/// Key remains `appearance` for stable identity across upgrades.
 	static let appearanceSectionKey = "appearance"
@@ -238,6 +242,37 @@ struct IntegrationToolHealth: Decodable {
 struct IntegrationActionResponse: Decodable {
 	let ok: Bool
 	let error: String?
+	let connection: McpConnectionPayload?
+}
+
+struct McpConnectionPayload: Decodable, Identifiable {
+	let id: String
+	let type: String
+	let displayName: String
+	let connected: Bool
+	let transport: String?
+	let command: String?
+	let url: String?
+	let authMethod: String?
+}
+
+struct McpConnectionsListResponse: Decodable {
+	let connections: [McpConnectionPayload]
+}
+
+struct CreateMcpConnectionRequest: Encodable {
+	var type: String = "mcp"
+	var displayName: String
+	var transport: String
+	var command: String?
+	var args: [String]?
+	var cwd: String?
+	var url: String?
+	var authMethod: String
+	var envJson: String?
+	var headersJson: String?
+	var bearerToken: String?
+	var connect: Bool
 }
 
 struct IntegrationSetupGuideLink: Decodable, Identifiable {

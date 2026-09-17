@@ -81,6 +81,17 @@ struct ConfigureSectionDetailView: View {
 								await store.runIntegrationAction(name: section.key, action: action)
 							}
 						},
+						onRemove: section.isMcpConnection
+							? {
+								store.pendingDelete = ConfigureStore.PendingDelete(
+									action: "remove-connection",
+									body: ["id": section.key],
+									title: "Remove MCP server?",
+									message: "This disconnects \(section.label) and deletes its saved configuration.",
+									confirmLabel: "Remove"
+								)
+							}
+							: nil,
 					)
 				}
 				IntegrationSettingsMetaSections(status: store.integrationStatus[section.key])

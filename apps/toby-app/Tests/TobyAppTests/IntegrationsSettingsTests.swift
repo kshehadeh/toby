@@ -310,4 +310,100 @@ struct IntegrationsSettingsTests {
 		let view = IntegrationSettingsToolsAndGuideSections(store: store, section: section)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Tools (1)") }
 	}
+
+	@Test("integrations empty catalog mentions MCP servers")
+	func integrationsEmptyCatalogMentionsMcp() throws {
+		let store = ConfigureStore()
+		var path: [String] = []
+		let view = SettingsCatalogView(
+			store: store,
+			path: Binding(
+				get: { path },
+				set: { path = $0 }
+			),
+			title: "Integrations",
+			subtitle: "Connect plugins and MCP servers",
+			systemImage: "puzzlepiece.extension",
+			children: [],
+			accessibilityCatalogId: "settings-integrations-catalog",
+			accessibilityRowPrefix: "settings-integration-row",
+			fallbackIcon: "puzzlepiece.extension",
+			emptyTitle: "No integrations",
+			emptyDescription: "Install a plugin or add an MCP server Toby can use in chat."
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-integrations-catalog")
+		}
+		#expect(throws: Never.self) { try view.inspect().find(text: "No integrations") }
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Install a plugin or add an MCP server Toby can use in chat.")
+		}
+	}
+
+	@Test("MCP draft encodes a create request")
+	func mcpDraftEncodesCreateRequest() {
+		var draft = McpConnectionDraft(displayName: " GitHub ", transport: "http")
+		draft.url = "https://example.com/mcp"
+		draft.authMethod = "headers"
+		draft.bearerToken = "tok"
+		let request = draft.toRequest()
+		#expect(request.displayName == "GitHub")
+		#expect(request.transport == "http")
+		#expect(request.url == "https://example.com/mcp")
+		#expect(request.bearerToken == "tok")
+		#expect(request.connect == true)
+	}
+
+	@Test("MCP connection keys are detected")
+	func mcpConnectionKeysAreDetected() {
+		let mcp = SettingsItem(
+			label: "GitHub", kind: .section, key: "mcp_github", navKey: "mcp_github", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let slack = SettingsItem(
+			label: "Slack", kind: .section, key: "slack", navKey: "slack", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		#expect(mcp.isMcpConnection)
+		#expect(!slack.isMcpConnection)
+	}
+
+	@Test("MCP draft requires command or URL")
+	func mcpDraftValidation() {
+		var draft = McpConnectionDraft(displayName: "GitHub", transport: "http")
+		#expect(!draft.canSave)
+		draft.url = "https://example.com/mcp"
+		#expect(draft.canSave)
+		draft.transport = "stdio"
+		#expect(!draft.canSave)
+		draft.command = "npx"
+		#expect(draft.canSave)
+	}
+
+	@Test("MCP header shows remove")
+	func mcpHeaderShowsRemove() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "GitHub", kind: .section, key: "mcp_github", navKey: "mcp_github", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let status = IntegrationStatus(
+			name: "mcp_github", displayName: "GitHub", description: nil,
+			connected: true, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil, health: nil, authMethods: nil
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: status,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in },
+			onRemove: {}
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Remove") }
+	}
 }

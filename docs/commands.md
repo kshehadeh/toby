@@ -104,8 +104,11 @@ vault with that password; create is refused if a vault already exists. Without
 
 | Command | Purpose |
 | ------- | ------- |
-| `toby connect <name>` | Connect an integration (plugin module lifecycle). |
-| `toby disconnect <name>` | Disconnect and clear connection state. |
+| `toby connect <name>` | Connect an integration or MCP connection (`mcp_<slug>`). |
+| `toby disconnect <name>` | Disconnect and clear live session state. |
+| `toby connections list` | List plugin and MCP connections. |
+| `toby connections add` | Add an MCP server (`--name`, `--transport`, `--url` / `--command`). |
+| `toby connections remove <id>` | Remove a connection (MCP or singleton plugin). |
 | `toby status` | Overall / integration status (see command help for subcommands). |
 
 Integration behavior is resolved through the core registry (discovered plugins).

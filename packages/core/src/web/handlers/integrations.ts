@@ -1,4 +1,8 @@
 import { invalidateSettingsCache } from "../../configure/settings-cache";
+import {
+	MCP_CONNECTION_TYPE,
+	getConnection,
+} from "../../integrations/connections";
 import { getIntegrationModule } from "../../integrations/index";
 import { listIntegrationTools } from "../../integrations/list-tools";
 import { targetDisplayPath } from "../../integrations/plugins/protocol";
@@ -96,6 +100,12 @@ export async function handleIntegrationSetup(name: string): Promise<Response> {
 	if (!module) {
 		return errorResponse("Integration not found", 404);
 	}
+	if (getConnection(name)?.type === MCP_CONNECTION_TYPE) {
+		return errorResponse(
+			"MCP servers do not have a plugin setup command. Use Connect after saving the server.",
+			400,
+		);
+	}
 	try {
 		const result = runPluginSetup(name);
 		if (!result.ok) {
@@ -114,6 +124,35 @@ export async function handleIntegrationSetupGuide(
 	const module = getIntegrationModule(name);
 	if (!module) {
 		return errorResponse("Integration not found", 404);
+	}
+	const mcp = getConnection(name);
+	if (mcp?.type === MCP_CONNECTION_TYPE) {
+		return jsonResponse({
+			ok: true,
+			name: mcp.id,
+			displayName: mcp.displayName,
+			description: module.description,
+			steps: [
+				{
+					id: "transport",
+					title: "Choose a transport",
+					description:
+						"Use a local command (stdio) or a remote Streamable HTTP / legacy SSE URL.",
+				},
+				{
+					id: "auth",
+					title: "Add credentials",
+					description:
+						"stdio uses environment variables. HTTP/SSE can use a bearer token, custom headers, or OAuth 2.1.",
+				},
+				{
+					id: "connect",
+					title: "Connect",
+					description:
+						"Click Connect to start the server and load its tools into chat.",
+				},
+			],
+		});
 	}
 	try {
 		const result = buildIntegrationSetupGuide(module);

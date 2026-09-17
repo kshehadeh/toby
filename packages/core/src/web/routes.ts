@@ -42,6 +42,14 @@ import {
 	handleScheduleRunDetail,
 } from "./handlers/configure";
 import {
+	handleConnectionConnect,
+	handleConnectionCreate,
+	handleConnectionDelete,
+	handleConnectionDetail,
+	handleConnectionDisconnect,
+	handleConnectionsList,
+} from "./handlers/connections";
+import {
 	handleDaemonRestart,
 	handleDaemonStatus,
 	handleDaemonStop,
@@ -577,6 +585,33 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/schedules/parse-cron" && req.method === "POST") {
 			return handleParseCron(req);
+		}
+		if (pathname === "/api/connections" && req.method === "GET") {
+			return handleConnectionsList();
+		}
+		if (pathname === "/api/connections" && req.method === "POST") {
+			return handleConnectionCreate(req);
+		}
+		const connectionDetailMatch = /^\/api\/connections\/([^/]+)$/.exec(
+			pathname,
+		);
+		if (connectionDetailMatch && req.method === "GET") {
+			return handleConnectionDetail(
+				decodeURIComponent(connectionDetailMatch[1]),
+			);
+		}
+		if (connectionDetailMatch && req.method === "DELETE") {
+			return handleConnectionDelete(
+				decodeURIComponent(connectionDetailMatch[1]),
+			);
+		}
+		const connectionActionMatch =
+			/^\/api\/connections\/([^/]+)\/(connect|disconnect)$/.exec(pathname);
+		if (connectionActionMatch && req.method === "POST") {
+			const id = decodeURIComponent(connectionActionMatch[1]);
+			return connectionActionMatch[2] === "connect"
+				? handleConnectionConnect(id)
+				: handleConnectionDisconnect(id);
 		}
 		const integrationStatusMatch =
 			/^\/api\/integrations\/([^/]+)\/status$/.exec(pathname);

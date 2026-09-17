@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { registerAppCommand, runAppLaunchCommand } from "./commands/app";
 import { registerConfigCommand } from "./commands/configure";
 import { registerConnectCommand } from "./commands/connect";
+import { registerConnectionsCommand } from "./commands/connections";
 import { registerDaemonCommand } from "./commands/daemon";
 import { registerDisconnectCommand } from "./commands/disconnect";
 import { registerInternalCommands } from "./commands/internal-handoff";
@@ -32,6 +33,7 @@ program
 registerAppCommand(program);
 registerConnectCommand(program);
 registerDisconnectCommand(program);
+registerConnectionsCommand(program);
 for (const mod of getIntegrationModules()) {
 	mod.registerCommands?.(program);
 }

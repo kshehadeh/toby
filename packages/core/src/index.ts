@@ -41,6 +41,8 @@ export {
 	getIntegrationModules,
 	getModulesForCategory,
 	getModulesWithCapability,
+	listConnectionTypes,
+	listConnections,
 	warmupPluginToolDefinitions,
 } from "./integrations/index";
 export type {

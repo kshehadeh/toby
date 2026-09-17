@@ -767,6 +767,35 @@ struct TobyClient {
 		return try JSONDecoder().decode(IntegrationActionResponse.self, from: data)
 	}
 
+	func listConnections() async throws -> [McpConnectionPayload] {
+		let url = baseURL.appendingPathComponent("api/connections")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(McpConnectionsListResponse.self, from: data).connections
+	}
+
+	func createMcpConnection(_ body: CreateMcpConnectionRequest) async throws -> McpConnectionPayload {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/connections"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONEncoder().encode(body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		let decoded = try JSONDecoder().decode(IntegrationActionResponse.self, from: data)
+		guard let connection = decoded.connection else {
+			throw TobyClientError.serverError("MCP connection was created without a payload.")
+		}
+		return connection
+	}
+
+	func deleteConnection(id: String) async throws {
+		let url = baseURL.appendingPathComponent("api/connections/\(id)")
+		var request = URLRequest(url: url)
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
 	func fetchIntegrationSetupGuide(name: String) async throws -> IntegrationSetupGuide {
 		let url = baseURL.appendingPathComponent("api/integrations/\(name)/setup-guide")
 		let (data, response) = try await URLSession.shared.data(from: url)

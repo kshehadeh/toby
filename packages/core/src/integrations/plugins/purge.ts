@@ -38,15 +38,18 @@ export function purgePluginArtifacts(
 
 function purgePluginCredentials(name: string): boolean {
 	const creds = readCredentials();
-	if (!creds.integrations?.[name]) {
+	if (!creds.integrations?.[name] && !creds.connections?.[name]) {
 		return false;
 	}
 
 	const nextIntegrations = { ...(creds.integrations ?? {}) };
 	Reflect.deleteProperty(nextIntegrations, name);
+	const nextConnections = { ...(creds.connections ?? {}) };
+	Reflect.deleteProperty(nextConnections, name);
 	writeCredentials({
 		...creds,
 		integrations: nextIntegrations,
+		connections: nextConnections,
 	});
 	return true;
 }
@@ -67,10 +70,17 @@ function purgePluginConfigReferences(
 	const integrations = {
 		...((configRaw.integrations ?? {}) as Record<string, unknown>),
 	};
-	const connectionState = name in integrations;
-	if (connectionState) {
+	const connections = {
+		...((configRaw.connections ?? {}) as Record<string, unknown>),
+	};
+	const connectionState = name in integrations || name in connections;
+	if (name in integrations) {
 		Reflect.deleteProperty(integrations, name);
 		configRaw.integrations = integrations;
+	}
+	if (name in connections) {
+		Reflect.deleteProperty(connections, name);
+		configRaw.connections = connections;
 	}
 
 	const pluginsBlock = configRaw.plugins as { disabled?: string[] } | undefined;

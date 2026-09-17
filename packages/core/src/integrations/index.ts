@@ -1,3 +1,6 @@
+import type { ConnectionTypeDescriptor } from "./connection-types";
+import { listMcpConnections, mcpTypeDescriptor } from "./connections";
+import { createMcpIntegrationModule } from "./mcp/module";
 import { getPluginModules } from "./plugins/registry";
 import type {
 	Integration,
@@ -10,6 +13,7 @@ const BUILTIN_MODULES: IntegrationModule[] = [];
 
 function allModules(): IntegrationModule[] {
 	const pluginModules = getPluginModules();
+	const mcpModules = listMcpConnections().map(createMcpIntegrationModule);
 	const byName = new Map<string, IntegrationModule>();
 	for (const mod of BUILTIN_MODULES) {
 		byName.set(mod.name, mod);
@@ -19,7 +23,24 @@ function allModules(): IntegrationModule[] {
 			byName.set(mod.name, mod);
 		}
 	}
+	for (const mod of mcpModules) {
+		byName.set(mod.name, mod);
+	}
 	return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function listConnectionTypes(): ConnectionTypeDescriptor[] {
+	const types: ConnectionTypeDescriptor[] = [mcpTypeDescriptor()];
+	for (const mod of getPluginModules()) {
+		types.push({
+			typeId: mod.name,
+			displayName: mod.displayName,
+			description: mod.description,
+			maxInstances: 1,
+			capabilities: mod.capabilities,
+		});
+	}
+	return types.sort((a, b) => a.typeId.localeCompare(b.typeId));
 }
 
 export function getIntegrationModules(): IntegrationModule[] {
@@ -70,3 +91,20 @@ export {
 	resetPluginModuleCache,
 	warmupPluginToolDefinitions,
 } from "./plugins/registry";
+export {
+	allocateMcpConnectionId,
+	deleteConnection,
+	getConnection,
+	listConnections,
+	listMcpConnections,
+	mcpPrefixedToolName,
+	upsertConnection,
+	MCP_CONNECTION_TYPE,
+} from "./connections";
+export {
+	closeAllMcpSessions,
+	connectMcpSession,
+	disconnectMcpSession,
+	reconnectConnectedMcpServers,
+	setMcpClientFactory,
+} from "./mcp/index";

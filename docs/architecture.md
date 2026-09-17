@@ -51,6 +51,8 @@ flowchart TB
 
 Integration **implementations** live in installable plugins (`apps/plugin-*`);
 core owns the registry adapter under `packages/core/src/integrations/plugins/`.
+MCP servers are first-class **connections** in core (`packages/core/src/integrations/mcp/`),
+not plugins — see [`mcp.md`](mcp.md).
 Interactive integration configuration belongs in Toby.app through the core
 configure API.
 
@@ -61,6 +63,7 @@ packages/core/src/       # @toby/core — UI-agnostic harness
   chat-pipeline/         # Node pipeline (turn init → expand → assemble → compact → run → persist)
   ai/                    # Shared AI helpers (chat, providers, pretreatment, replay)
   integrations/          # Integration modules + registry (see integrations.md)
+                             # including MCP connection type (see mcp.md)
   config/                # Read/write ~/.toby/config.json and credentials.json
   chat-inbound/          # Provider-agnostic daemon inbound router
   session-store.ts       # SQLite chat sessions (native + headless)
@@ -179,7 +182,7 @@ the detail surface that needs them.
 ## Runtime flow
 
 1. **`apps/cli/src/cli.ts`** constructs the Commander program, registers built-in maintenance commands, then calls `registerCommands` on each loaded `IntegrationModule` (if present). Bare `toby` (no subcommand) opens the native Toby app.
-2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core (discovered plugins).
+2. **Connect / disconnect / status** use [`getIntegration`](../packages/core/src/integrations/index.ts) or [`getIntegrations`](../packages/core/src/integrations/index.ts) from core (discovered plugins and MCP connection modules). Connection instances are listed with `toby connections` / `/api/connections`.
 3. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers (daemon HTTP API).
 4. **`config backup` / `config restore`** use shared helpers in `@toby/core` (`config/backup.ts`). Backups are streamed AES-256-GCM `.tbybak` archives covering settings, credentials, databases, project files, and recordings. The CLI and the daemon HTTP API (`POST /api/config/backup`, `POST /api/config/restore`) share the same implementation; Toby.app File → Backup / Restore drives the API with native save/open panels.
 5. **`config sync`** uploads encrypted settings snapshots to iCloud Drive or a user-picked folder (`config/sync*.ts`). The daemon loop pushes after local writes and pulls on an interval; Toby.app Settings → Sync and `/api/native/icloud/*` handle coordinated iCloud I/O. See [icloud-sync.md](icloud-sync.md).
@@ -189,7 +192,7 @@ the detail surface that needs them.
 
 | Location | Role |
 | -------- | ---- |
-| `~/.toby/config.json` | Integration connection flags, personas |
+| `~/.toby/config.json` | Integration connection flags, personas, first-class `connections` (including MCP) |
 | `~/.toby/credentials.json` | API keys, OAuth tokens, and other secrets. On macOS the file is **encrypted at rest** (AES-256-GCM); the data key lives in the Keychain (`dev.toby.credentials`). Logical shape is still a `CredentialsFile` JSON object after decrypt. |
 | `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, and tool cache |
 | `~/.toby/memory.sqlite` | Memories, sources, proposals, embeddings, and audit history |

@@ -144,8 +144,14 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/configure/actions/:action` | Configure actions (create/delete persona, skill, schedule, …). |
 | `POST` | `/api/schedules/parse-cron` | Parse natural-language or cron expressions. |
 | `GET` | `/api/schedules/runs/:id` | Schedule run detail / transcript. |
-| `GET` | `/api/integrations/:name/status` | Integration health / connection status. |
+| `GET` | `/api/integrations/:name/status` | Integration health / connection status (also aliases MCP connection ids). |
 | `GET` | `/api/integrations/:name/setup-guide` | Onboarding wizard steps for an integration. |
+| `GET` | `/api/connections` | List first-class connections (plugins + MCP servers). |
+| `POST` | `/api/connections` | Create an MCP connection (and connect unless `connect: false`). |
+| `GET` | `/api/connections/:id` | Connection detail. |
+| `DELETE` | `/api/connections/:id` | Disconnect and delete a connection. |
+| `POST` | `/api/connections/:id/connect` | Connect a connection. |
+| `POST` | `/api/connections/:id/disconnect` | Disconnect without deleting MCP config. |
 | `GET` | `/icons/*` | Static AI/provider icons and related assets. |
 
 ## Health And Status

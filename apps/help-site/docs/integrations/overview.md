@@ -60,6 +60,11 @@ Integrations connect Toby to your email, tasks, chat, contacts, calendar, docume
 		<span className="integrationIconName">News</span>
 		<span className="integrationIconMeta">Headlines</span>
 	</a>
+	<a className="integrationIconCard" href="./mcp">
+		<span className="integrationIconBadge"><span className="integrationIconGlyph">🔌</span></span>
+		<span className="integrationIconName">MCP servers</span>
+		<span className="integrationIconMeta">Any MCP server</span>
+	</a>
 </div>
 
 ## The three-step pattern
@@ -79,6 +84,8 @@ Open **Toby.app** and use the **Setup Guide** button on any integration. It show
 ## Installable plugins
 
 Email, Todoist, Jira, Notion, Slack, Apple Calendar, Apple Reminders, Apple Contacts, macOS, News, and other first-party integrations ship as **plugins** bundled with Toby.app. When you install or update Toby from a release, they are placed under `~/.toby/plugins/` automatically.
+
+[MCP servers](./mcp) are **not** plugins. Add as many as you want from **Settings → Integrations → Add MCP server**.
 
 **Web Search** and **Weather** are not integrations—they are built-in Settings features. See [Web Search](../configuration/web-search) and [Weather](../configuration/weather).
 
@@ -117,6 +124,7 @@ Each integration declares one or more **provider categories**. A category descri
 | Jira | Work Tracker |
 | macOS | System tools (not a provider category) |
 | [News](./news) | Headlines (not a provider category) |
+| [MCP servers](./mcp) | Chat tools only (not a provider category) |
 
 Defaults become important when you connect multiple integrations in the same category (for example Todoist and Apple Reminders for tasks) or when you want schedules to target a specific provider.
 
