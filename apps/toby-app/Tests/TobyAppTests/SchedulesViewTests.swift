@@ -137,19 +137,11 @@ struct SchedulesViewTests {
 		)
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
-		#expect(store.selectedDetailTab == .prompt)
+		#expect(store.selectedDetailTab == .details)
 		let view = ScheduleDetailContent(store: store, schedule: schedule)
 		#expect(throws: Never.self) {
 			try view.inspect().tabView()
 		}
-		#expect(throws: Never.self) {
-			try promptPane(store: store, schedule: schedule).inspect().find(
-				text: "Sent to Toby when this schedule runs"
-			)
-		}
-
-		store.selectedDetailTab = .details
-		#expect(store.selectedDetailTab == .details)
 		let details = detailsPane(store: store, schedule: schedule)
 		#expect(throws: Never.self) {
 			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
@@ -166,9 +158,17 @@ struct SchedulesViewTests {
 		#expect(throws: Never.self) {
 			try details.inspect().find(text: "Recent runs")
 		}
+
+		store.selectedDetailTab = .prompt
+		#expect(store.selectedDetailTab == .prompt)
+		#expect(throws: Never.self) {
+			try promptPane(store: store, schedule: schedule).inspect().find(
+				text: "Sent to Toby when this schedule runs"
+			)
+		}
 	}
 
-	@Test("selecting a schedule resets the detail tab to prompt")
+	@Test("selecting a schedule resets the detail tab to details")
 	func selectingScheduleResetsDetailTab() async {
 		let store = SchedulesStore()
 		store.schedules = [
@@ -198,9 +198,9 @@ struct SchedulesViewTests {
 			),
 		]
 		store.selectedScheduleId = "a"
-		store.selectedDetailTab = .details
+		store.selectedDetailTab = .prompt
 		await store.selectSchedule(id: "b")
-		#expect(store.selectedDetailTab == .prompt)
+		#expect(store.selectedDetailTab == .details)
 	}
 
 	@Test("schedule detail shows prompt editor and fields in the main canvas")

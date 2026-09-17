@@ -394,19 +394,11 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		#expect(store.selectedDetailTab == .instructions)
+		#expect(store.selectedDetailTab == .about)
 		let view = SkillDetailContent(store: store, skill: store.selectedSkill!)
 		#expect(throws: Never.self) {
 			try view.inspect().tabView()
 		}
-		#expect(throws: Never.self) {
-			try instructionsPane(store: store).inspect().find(
-				text: "Sent to the model when this skill runs"
-			)
-		}
-
-		store.selectedDetailTab = .about
-		#expect(store.selectedDetailTab == .about)
 		#expect(throws: Never.self) {
 			try aboutPane(store: store).inspect().find(text: "Used to display and choose this skill")
 		}
@@ -416,9 +408,17 @@ struct SkillsViewTests {
 		#expect(throws: (any Error).self) {
 			try aboutPane(store: store).inspect().find(text: "Optional")
 		}
+
+		store.selectedDetailTab = .instructions
+		#expect(store.selectedDetailTab == .instructions)
+		#expect(throws: Never.self) {
+			try instructionsPane(store: store).inspect().find(
+				text: "Sent to the model when this skill runs"
+			)
+		}
 	}
 
-	@Test("selecting a skill resets the detail tab to instructions")
+	@Test("selecting a skill resets the detail tab to about")
 	func selectingSkillResetsDetailTab() {
 		let store = SkillsStore()
 		store.selectedSkillId = "research"
@@ -430,9 +430,9 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		store.selectedDetailTab = .about
+		store.selectedDetailTab = .instructions
 		store.selectSkill(id: "other")
-		#expect(store.selectedDetailTab == .instructions)
+		#expect(store.selectedDetailTab == .about)
 	}
 
 	@Test("skill detail edits the icon from the about tab, not a form row")

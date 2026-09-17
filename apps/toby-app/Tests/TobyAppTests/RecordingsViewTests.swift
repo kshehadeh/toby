@@ -432,9 +432,9 @@ struct RecordingsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().tabView()
 		}
-		#expect(store.selectedDetailTab == .transcript)
-		store.selectedDetailTab = .summary
 		#expect(store.selectedDetailTab == .summary)
+		store.selectedDetailTab = .transcript
+		#expect(store.selectedDetailTab == .transcript)
 	}
 
 	@Test("detail view does not keep transcribe or summarize actions in the pane")
@@ -1087,9 +1087,9 @@ struct RecordingsViewTests {
 			makeRecording(id: "r2", name: "Two"),
 		]
 		store.selectedRecordingIds = ["r1"]
-		store.selectedDetailTab = .summary
+		store.selectedDetailTab = .transcript
 		await store.selectRecording(id: "r2")
-		#expect(store.selectedDetailTab == .transcript)
+		#expect(store.selectedDetailTab == .summary)
 		#expect(store.isEditSheetPresented == false)
 	}
 }

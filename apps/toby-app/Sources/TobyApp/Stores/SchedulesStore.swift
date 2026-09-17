@@ -150,7 +150,7 @@ final class SchedulesStore {
 	}
 
 	/// Details / Prompt tab in the schedule detail.
-	var selectedDetailTab: ScheduleDetailTab = .prompt
+	var selectedDetailTab: ScheduleDetailTab = .details
 
 	private let client = TobyClient()
 	private var autosaveTask: Task<Void, Never>?
@@ -181,7 +181,7 @@ final class SchedulesStore {
 		cronValidationErrors = [:]
 		errorMessage = nil
 		pendingDelete = nil
-		selectedDetailTab = .prompt
+		selectedDetailTab = .details
 		selectedRunId = nil
 		selectedRunDetail = nil
 		isRunDetailLoading = false
@@ -239,13 +239,13 @@ final class SchedulesStore {
 		if selectedScheduleId == id { return }
 		AppKitFocus.resignTextViewIfNeeded()
 		selectedScheduleId = id
-		selectedDetailTab = .prompt
+		selectedDetailTab = .details
 	}
 
 	func selectHome() {
 		AppKitFocus.resignTextViewIfNeeded()
 		selectedScheduleId = nil
-		selectedDetailTab = .prompt
+		selectedDetailTab = .details
 		closeRunDetail()
 	}
 
@@ -260,10 +260,10 @@ final class SchedulesStore {
 			apply(response: response, resetDraft: true)
 			if let newId = result.scheduleId {
 				selectedScheduleId = newId
-				selectedDetailTab = .prompt
+				selectedDetailTab = .details
 			} else if let first = schedules.first {
 				selectedScheduleId = first.id
-				selectedDetailTab = .prompt
+				selectedDetailTab = .details
 			}
 		} catch {
 			errorMessage = error.localizedDescription

@@ -12,7 +12,7 @@ final class RecordingsStore {
 	/// Presents the Edit Recording sheet for the current single selection.
 	var isEditSheetPresented = false
 	/// Summary / transcript tab in the recording detail.
-	var selectedDetailTab: RecordingDetailTab = .transcript
+	var selectedDetailTab: RecordingDetailTab = .summary
 	/// Recording id whose audio is currently being deleted.
 	var deletingAudioRecordingId: String?
 	var detail: ListenRecordingDetail?
@@ -69,7 +69,7 @@ final class RecordingsStore {
 		pendingDeleteAudioRecordingId = nil
 		deletingAudioRecordingId = nil
 		isEditSheetPresented = false
-		selectedDetailTab = .transcript
+		selectedDetailTab = .summary
 	}
 
 	func load() async {
@@ -147,7 +147,7 @@ final class RecordingsStore {
 		let newSingleId = selectedRecordingIds.count == 1 ? selectedRecordingIds.first : nil
 		if newSingleId != previousSingleId {
 			isEditSheetPresented = false
-			selectedDetailTab = .transcript
+			selectedDetailTab = .summary
 		}
 		if selectedRecordingIds.count != 1 {
 			isEditSheetPresented = false
@@ -168,7 +168,7 @@ final class RecordingsStore {
 		selectedRecordingIds = []
 		detail = nil
 		isEditSheetPresented = false
-		selectedDetailTab = .transcript
+		selectedDetailTab = .summary
 	}
 
 	/// Clears the current selection so the recordings overview can be shown.
@@ -181,7 +181,7 @@ final class RecordingsStore {
 		detail = nil
 		isDetailLoading = false
 		isEditSheetPresented = false
-		selectedDetailTab = .transcript
+		selectedDetailTab = .summary
 	}
 
 	/// Show header / detail chrome from the list row immediately, before the
