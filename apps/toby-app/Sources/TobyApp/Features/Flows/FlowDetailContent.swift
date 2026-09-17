@@ -46,27 +46,14 @@ struct FlowDetailsPane: View {
 					}
 				}
 
-				section(title: "Nodes") {
-					VStack(alignment: .leading, spacing: 0) {
-						ForEach(Array(flow.nodes.enumerated()), id: \.element.id) { index, node in
-							FlowNodeRow(index: index + 1, node: node)
-							if index < flow.nodes.count - 1 {
-								HStack(spacing: 0) {
-									Rectangle()
-										.fill(SettingsDesign.cardBorder)
-										.frame(width: 2, height: 14)
-										.padding(.leading, 23)
-									Spacer()
-								}
-							}
-						}
-					}
+				section(title: "Steps") {
+					FlowNodePipeline(nodes: flow.nodes)
 				}
 
 				VStack(alignment: .leading, spacing: 12) {
 					metadataRow(label: "ID", value: flow.id, monospaced: true)
 					metadataRow(label: "Persona", value: flow.personaLabel)
-					metadataRow(label: "Nodes", value: "\(flow.nodes.count)")
+					metadataRow(label: "Steps", value: "\(flow.nodes.count)")
 					metadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
 					if let updatedAt = flow.updatedAt, let date = FlowISO8601.date(from: updatedAt) {
 						metadataRow(
@@ -200,18 +187,55 @@ struct FlowRecentRunsPane: View {
 	}
 }
 
-private struct FlowNodeRow: View {
+private struct FlowNodePipeline: View {
+	let nodes: [FlowNodeSnapshot]
+
+	var body: some View {
+		Group {
+			if nodes.isEmpty {
+				Text("This flow has no steps.")
+					.font(.system(size: 13))
+					.foregroundStyle(SettingsDesign.rowDescription)
+			} else {
+				VStack(alignment: .leading, spacing: 0) {
+					ForEach(Array(nodes.enumerated()), id: \.element.id) { index, node in
+						FlowPipelineStep(
+							index: index + 1,
+							total: nodes.count,
+							node: node
+						)
+						if index < nodes.count - 1 {
+							Image(systemName: "chevron.down")
+								.font(.system(size: 10, weight: .semibold))
+								.foregroundStyle(AppTheme.tertiaryText)
+								.frame(maxWidth: .infinity)
+								.padding(.vertical, 6)
+								.accessibilityHidden(true)
+								.accessibilityIdentifier("flow-pipeline-connector")
+						}
+					}
+				}
+			}
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityIdentifier("flow-node-pipeline")
+	}
+}
+
+private struct FlowPipelineStep: View {
 	let index: Int
+	let total: Int
 	let node: FlowNodeSnapshot
 
 	var body: some View {
+		let shape = AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 		HStack(alignment: .top, spacing: 12) {
 			ZStack {
 				Circle()
 					.fill(AppTheme.accent.opacity(0.16))
-					.frame(width: 28, height: 28)
+					.frame(width: 22, height: 22)
 				Text("\(index)")
-					.font(.system(size: 12, weight: .semibold))
+					.font(.system(size: 11, weight: .semibold))
 					.foregroundStyle(AppTheme.accent)
 			}
 
@@ -220,23 +244,32 @@ private struct FlowNodeRow: View {
 					Image(systemName: node.systemImage)
 						.font(.system(size: 12, weight: .semibold))
 						.foregroundStyle(AppTheme.secondaryText)
-					Text(node.id)
+						.accessibilityHidden(true)
+					Text(node.typeLabel)
 						.font(.system(size: 13, weight: .semibold))
 						.foregroundStyle(SettingsDesign.rowTitle)
 				}
-				Text(node.typeLabel)
-					.font(.system(size: 11, weight: .medium))
-					.foregroundStyle(AppTheme.secondaryText)
 				Text(node.detailLabel)
 					.font(.system(size: 12, design: .monospaced))
 					.foregroundStyle(SettingsDesign.rowDescription)
 					.lineLimit(2)
 					.textSelection(.enabled)
+				Text(node.id)
+					.font(.system(size: 11, design: .monospaced))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
+					.textSelection(.enabled)
 			}
 			Spacer(minLength: 0)
 		}
-		.padding(.vertical, 8)
-		.padding(.horizontal, 4)
+		.padding(12)
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.background(SettingsDesign.cardBackground, in: shape)
+		.overlay {
+			shape.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+		}
+		.accessibilityElement(children: .combine)
+		.accessibilityLabel("Step \(index) of \(total), \(node.typeLabel), \(node.detailLabel)")
 	}
 }
 

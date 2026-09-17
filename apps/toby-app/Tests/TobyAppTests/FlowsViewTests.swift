@@ -6,11 +6,38 @@ import ViewInspector
 @MainActor
 @Suite("FlowsView")
 struct FlowsViewTests {
+	private func sampleToolNode() -> FlowNodeSnapshot {
+		FlowNodeSnapshot(
+			id: "fetch-unread",
+			type: "tool_executor",
+			tool: FlowToolRef(standardTool: "email.unreadSummary", moduleName: nil, toolName: nil),
+			schemaName: nil,
+			temperature: nil,
+			maxOutputTokens: nil,
+			inputs: nil,
+			outputs: ["unread": "result"]
+		)
+	}
+
+	private func sampleLLMNode() -> FlowNodeSnapshot {
+		FlowNodeSnapshot(
+			id: "summarize",
+			type: "llm_prompter",
+			tool: nil,
+			schemaName: "EmailDashboardSummary",
+			temperature: 0.3,
+			maxOutputTokens: 3000,
+			inputs: nil,
+			outputs: ["summary": "object"]
+		)
+	}
+
 	private func sampleFlow(
 		id: String = "dashboard.email.summary",
 		name: String? = nil,
 		description: String? = "Fetch unread inbox items and summarize them.",
-		builtin: Bool = true
+		builtin: Bool = true,
+		nodes: [FlowNodeSnapshot]? = nil
 	) -> FlowListItem {
 		FlowListItem(
 			id: id,
@@ -19,28 +46,7 @@ struct FlowsViewTests {
 			icon: builtin ? nil : "flame",
 			builtin: builtin,
 			persona: FlowPersonaSpec(source: "dashboard", name: nil),
-			nodes: [
-				FlowNodeSnapshot(
-					id: "fetch-unread",
-					type: "tool_executor",
-					tool: FlowToolRef(standardTool: "email.unreadSummary", moduleName: nil, toolName: nil),
-					schemaName: nil,
-					temperature: nil,
-					maxOutputTokens: nil,
-					inputs: nil,
-					outputs: ["unread": "result"]
-				),
-				FlowNodeSnapshot(
-					id: "summarize",
-					type: "llm_prompter",
-					tool: nil,
-					schemaName: "EmailDashboardSummary",
-					temperature: 0.3,
-					maxOutputTokens: 3000,
-					inputs: nil,
-					outputs: ["summary": "object"]
-				),
-			],
+			nodes: nodes ?? [sampleToolNode(), sampleLLMNode()],
 			result: nil,
 			destinations: nil,
 			createdAt: "2026-01-01T00:00:00Z",
@@ -150,6 +156,66 @@ struct FlowsViewTests {
 		#expect(throws: Never.self) {
 			try pane.inspect().find(text: "summarize")
 		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-node-pipeline")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "Tool Executor")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "LLM Prompter")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "email.unreadSummary")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "EmailDashboardSummary")
+		}
+	}
+
+	@Test("two-step flow shows a pipeline connector")
+	func twoStepFlowShowsPipelineConnector() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow()
+		let pane = detailsPane(store: store, flow: flow)
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-pipeline-connector")
+		}
+	}
+
+	@Test("single-step flow omits the pipeline connector")
+	func singleStepFlowOmitsPipelineConnector() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow(nodes: [sampleToolNode()])
+		let pane = detailsPane(store: store, flow: flow)
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-node-pipeline")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-pipeline-connector")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "Tool Executor")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(text: "LLM Prompter")
+		}
+	}
+
+	@Test("empty-step flow shows empty copy")
+	func emptyStepFlowShowsEmptyCopy() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow(nodes: [])
+		let pane = detailsPane(store: store, flow: flow)
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-node-pipeline")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "This flow has no steps.")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-pipeline-connector")
+		}
 	}
 
 	@Test("flow detail shows details and recent runs tabs")
@@ -164,7 +230,7 @@ struct FlowsViewTests {
 			try view.inspect().tabView()
 		}
 		#expect(throws: Never.self) {
-			try detailsPane(store: store, flow: flow).inspect().find(text: "Nodes")
+			try detailsPane(store: store, flow: flow).inspect().find(text: "Steps")
 		}
 		#expect(throws: Never.self) {
 			try detailsPane(store: store, flow: flow).inspect().find(text: "About flows")
