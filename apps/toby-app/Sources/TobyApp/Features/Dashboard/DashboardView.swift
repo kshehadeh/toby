@@ -33,6 +33,8 @@ struct DashboardView: View {
 	var isServerReady: Bool = true
 	let onRefresh: () -> Void
 	let onSelectRoute: (DetailRoute) -> Void
+	var onCreateSchedule: () -> Void = {}
+	var onCreateSkill: () -> Void = {}
 	var recentWork: [DashboardRecentWorkItem] = []
 	var isRecentWorkLoading = false
 	var onSelectRecentWork: (DashboardRecentWorkItem) -> Void = { _ in }
@@ -424,9 +426,9 @@ struct DashboardView: View {
 		case .grantPermissions:
 			onOpenPermissions()
 		case .createSchedule:
-			onSelectRoute(.schedules)
+			onCreateSchedule()
 		case .createSkill:
-			onSelectRoute(.skills)
+			onCreateSkill()
 		case .setupTranscription:
 			onOpenSettings("transcription")
 		case .recordAndTranscribe:

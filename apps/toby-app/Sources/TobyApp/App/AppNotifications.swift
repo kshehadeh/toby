@@ -12,6 +12,7 @@ extension Notification.Name {
 	static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
 	static let startNewChat = Notification.Name("startNewChat")
 	static let startNewSchedule = Notification.Name("startNewSchedule")
+	static let startNewSkill = Notification.Name("startNewSkill")
 	static let startNewProject = Notification.Name("startNewProject")
 	static let startNewMemory = Notification.Name("startNewMemory")
 	static let startChatAboutRecording = Notification.Name("startChatAboutRecording")

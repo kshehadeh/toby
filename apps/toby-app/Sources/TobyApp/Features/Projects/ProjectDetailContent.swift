@@ -10,16 +10,10 @@ struct ProjectDetailContent: View {
 	let project: ProjectSummary
 	var onSelectChat: ((String) -> Void)?
 
-	@State private var isSummaryEditorPresented = false
-
 	var body: some View {
 		TabView(selection: $store.selectedDetailTab) {
 			Tab(value: ProjectDetailTab.details) {
-				ProjectDetailsPane(
-					store: store,
-					project: project,
-					isSummaryEditorPresented: $isSummaryEditorPresented
-				)
+				ProjectDetailsPane(store: store, project: project)
 			} label: {
 				Text("Details")
 			}
@@ -33,37 +27,36 @@ struct ProjectDetailContent: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
 		.accessibilityIdentifier("project-detail-tabs")
-		.sheet(isPresented: $isSummaryEditorPresented) {
-			ProjectSummaryEditorSheet(
-				initialSummary: store.selectedProject?.summary ?? "",
-				isSaving: store.isSaving,
-				onSave: { text in
-					store.updateSummary(text)
-					isSummaryEditorPresented = false
-					Task { await store.flushPendingSave() }
-				},
-				onCancel: {
-					isSummaryEditorPresented = false
-				}
-			)
-		}
 	}
 }
 
 struct ProjectDetailsPane: View {
 	@Bindable var store: ProjectsStore
 	let project: ProjectSummary
-	@Binding var isSummaryEditorPresented: Bool
 
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 22) {
-				nameField
-				personaField
-				summaryField
+				DetailHeading(
+					title: store.selectedProject?.name ?? project.name,
+					accessibilityIdentifier: "project-detail-name"
+				)
+
+				VStack(alignment: .leading, spacing: 12) {
+					DetailMetadataRow(
+						label: "Persona",
+						value: projectPersonaLabel(
+							personaName: store.selectedProject?.personaName ?? project.personaName,
+							options: store.personaOptions
+						)
+					)
+				}
+
+				summarySection
 				pathSection
 				ProjectFileTreeSection(store: store)
 			}
+			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80)
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.padding(20)
@@ -71,92 +64,32 @@ struct ProjectDetailsPane: View {
 		.accessibilityIdentifier("project-details-tab")
 	}
 
-	private var summaryField: some View {
+	private var summarySection: some View {
 		let summary = store.selectedProject?.summary ?? project.summary
-		let preview = projectSummaryFirstParagraph(summary)
+		let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
 
-		return VStack(alignment: .leading, spacing: 8) {
-			Text("Summary")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-
-			Group {
-				if preview.isEmpty {
-					Text("No summary yet")
-						.font(.system(size: 13))
-						.foregroundStyle(AppTheme.tertiaryText)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.accessibilityIdentifier("project-summary-empty-placeholder")
-				} else {
-					Text(preview)
-						.font(.system(size: 13))
-						.foregroundStyle(SettingsDesign.rowTitle)
-						.multilineTextAlignment(.leading)
-						.lineLimit(5)
-						.fixedSize(horizontal: false, vertical: true)
-						.textSelection(.enabled)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.accessibilityIdentifier("project-summary-preview")
-				}
+		return DetailSection(title: "Summary") {
+			if trimmed.isEmpty {
+				Text("No summary yet")
+					.font(.system(size: 13))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.accessibilityIdentifier("project-summary-empty-placeholder")
+			} else {
+				MarkdownText(
+					text: summary,
+					font: .system(size: 13),
+					foregroundStyle: SettingsDesign.rowTitle
+				)
+				.textSelection(.enabled)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.accessibilityIdentifier("project-summary-preview")
 			}
-
-			Button {
-				isSummaryEditorPresented = true
-			} label: {
-				Label("Edit", systemImage: "square.and.pencil")
-					.frame(maxWidth: .infinity)
-			}
-			.buttonStyle(.bordered)
-			.controlSize(.small)
-			.disabled(store.isSaving)
-			.accessibilityIdentifier("project-summary-edit-button")
-		}
-	}
-
-	private var nameField: some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Text("Name")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-			TextField("Project name", text: nameBinding)
-				.textFieldStyle(.roundedBorder)
-				.controlSize(.regular)
-				.accessibilityIdentifier("project-title-field")
-		}
-	}
-
-	private var nameBinding: Binding<String> {
-		Binding(
-			get: { store.selectedProject?.name ?? project.name },
-			set: { store.updateName($0) }
-		)
-	}
-
-	private var personaField: some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Text("Persona")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-			Picker("Persona", selection: Binding(
-				get: { store.selectedProject?.personaName ?? "" },
-				set: { store.updatePersona($0) }
-			)) {
-				Text("Default").tag("")
-				ForEach(store.personaOptions, id: \.name) { option in
-					Text(option.label).tag(option.name)
-				}
-			}
-			.labelsHidden()
-			.pickerStyle(.menu)
-			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 	}
 
 	private var pathSection: some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Text("Folder")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
+		DetailSection(title: "Folder") {
 			RevealPathButton(path: store.selectedProject?.folderPath ?? project.folderPath)
 		}
 	}
@@ -236,65 +169,5 @@ private struct ProjectChatsRow: View {
 		.padding(.vertical, 8)
 		.padding(.horizontal, 4)
 		.contentShape(Rectangle())
-	}
-}
-
-/// Full markdown editor for a project summary. Edits a local draft so Cancel
-/// discards changes without triggering the store's autosave path.
-struct ProjectSummaryEditorSheet: View {
-	let initialSummary: String
-	let isSaving: Bool
-	let onSave: (String) -> Void
-	let onCancel: () -> Void
-
-	@State private var draft = ""
-
-	var body: some View {
-		VStack(spacing: 0) {
-			HStack {
-				Text("Edit Summary")
-					.font(.title3.weight(.semibold))
-					.foregroundStyle(AppTheme.primaryText)
-				Spacer()
-			}
-			.padding(.horizontal, 20)
-			.padding(.top, 20)
-			.padding(.bottom, 12)
-
-			MarkdownEditor(text: $draft)
-				.padding(.horizontal, 20)
-				.frame(maxWidth: .infinity, maxHeight: .infinity)
-
-			HStack(spacing: 12) {
-				Spacer()
-				Button("Cancel", role: .cancel) {
-					onCancel()
-				}
-				.disabled(isSaving)
-				.keyboardShortcut(.cancelAction)
-
-				Button("Save") {
-					onSave(draft)
-				}
-				.buttonStyle(.borderedProminent)
-				.disabled(isSaving)
-				.keyboardShortcut(.defaultAction)
-				.accessibilityIdentifier("project-summary-save-button")
-			}
-			.padding(.horizontal, 20)
-			.padding(.vertical, 16)
-			.overlay(alignment: .top) {
-				Rectangle()
-					.fill(SettingsDesign.cardBorder)
-					.frame(height: 1)
-			}
-		}
-		.padding(.bottom, 4)
-		.frame(minWidth: 560, idealWidth: 640, minHeight: 420, idealHeight: 480)
-		.background(SettingsDesign.canvasBackground)
-		.accessibilityIdentifier("project-summary-editor-sheet")
-		.onAppear {
-			draft = initialSummary
-		}
 	}
 }

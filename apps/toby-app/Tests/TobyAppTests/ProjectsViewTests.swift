@@ -67,26 +67,48 @@ struct ProjectsViewTests {
 		)
 	}
 
-	@Test("summary editor sheet shows title and save cancel")
-	func summaryEditorSheetChrome() throws {
-		let view = ProjectSummaryEditorSheet(
-			initialSummary: "Hello",
-			isSaving: false,
-			onSave: { _ in },
-			onCancel: {}
+	@Test("project editor sheet shows title and save cancel")
+	func projectEditorSheetChrome() throws {
+		let store = ProjectsStore()
+		store.startCreate()
+		let view = ProjectEditorSheet(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-editor-save")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-editor-sheet")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-title-field")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "project-editor-cancel")
+		}
+	}
+
+	@Test("startCreate opens a draft without adding a project")
+	func startCreateDoesNotAddProjectUntilSave() {
+		let store = ProjectsStore()
+		store.startCreate()
+		#expect(store.projects.isEmpty)
+		#expect(store.editor?.isNew == true)
+		#expect(store.isEditorDirty == false)
+		var draft = store.editor!
+		draft.name = "Northstar"
+		store.editor = draft
+		#expect(store.isEditorDirty == true)
+		store.cancelEditor()
+		#expect(store.editor == nil)
+		#expect(store.projects.isEmpty)
+		let resurrected = editorDraftBinding(
+			Binding(
+				get: { store.editor },
+				set: { store.editor = $0 }
+			),
+			fallback: .blank()
 		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Edit Summary")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(button: "Cancel")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-summary-save-button")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "project-summary-editor-sheet")
-		}
+		resurrected.wrappedValue = .blank()
+		#expect(store.editor == nil)
 	}
 
 	@Test("empty projects state shows overview and create action")
@@ -186,7 +208,7 @@ struct ProjectsViewTests {
 		}
 	}
 
-	@Test("project details show the summary preview without an inline new chat button")
+	@Test("project details show the summary without an inline edit button")
 	func detailsShowSummaryPreview() throws {
 		let store = ProjectsStore()
 		let project = sampleProject(
@@ -201,7 +223,7 @@ struct ProjectsViewTests {
 		]
 
 		let pane = detailsPane(store: store, project: project)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-summary-edit-button")
 		}
 		#expect(throws: Never.self) {
@@ -210,7 +232,7 @@ struct ProjectsViewTests {
 		#expect(throws: Never.self) {
 			try pane.inspect().find(text: "First paragraph for the preview.")
 		}
-		#expect(throws: (any Error).self) {
+		#expect(throws: Never.self) {
 			try pane.inspect().find(text: "Rest of the long summary.")
 		}
 		#expect(throws: (any Error).self) {
@@ -224,6 +246,9 @@ struct ProjectsViewTests {
 		}
 		#expect(throws: (any Error).self) {
 			try pane.inspect().find(button: "Delete…")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-title-field")
 		}
 	}
 
@@ -242,7 +267,7 @@ struct ProjectsViewTests {
 		}
 		#expect(throws: Never.self) {
 			try detailsPane(store: store, project: project).inspect().find(
-				viewWithAccessibilityIdentifier: "project-title-field"
+				viewWithAccessibilityIdentifier: "project-detail-name"
 			)
 		}
 		#expect(throws: Never.self) {
@@ -323,8 +348,8 @@ struct ProjectsViewTests {
 		}
 	}
 
-	@Test("project details edit the name on the Details tab")
-	func detailEditsNameInAboutCard() throws {
+	@Test("project details show the name as a heading")
+	func detailShowsNameHeading() throws {
 		let store = ProjectsStore()
 		let project = sampleProject(name: "Demo")
 		store.hasLoadedOnce = true
@@ -333,12 +358,14 @@ struct ProjectsViewTests {
 		store.selectedProject = project
 
 		let pane = detailsPane(store: store, project: project)
-		let field = try pane.inspect()
-			.find(viewWithAccessibilityIdentifier: "project-title-field")
-			.textField()
-		#expect(try field.input() == "Demo")
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Name")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-detail-name")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "Demo")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-title-field")
 		}
 		#expect(throws: (any Error).self) {
 			try pane.inspect().find(text: "About")
@@ -745,11 +772,7 @@ struct ProjectsViewTests {
 
 @MainActor
 private func detailsPane(store: ProjectsStore, project: ProjectSummary) -> ProjectDetailsPane {
-	ProjectDetailsPane(
-		store: store,
-		project: project,
-		isSummaryEditorPresented: .constant(false)
-	)
+	ProjectDetailsPane(store: store, project: project)
 }
 
 @MainActor

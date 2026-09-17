@@ -15,7 +15,7 @@ Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions
 
 | Field | Description |
 | ----- | ----------- |
-| Name | Label you recognize in the list, edited as the page title (Return accepts, Escape reverts) |
+| Name | Label you recognize in the list |
 | When it runs | **Prompt** (chat) or **Flow** (named pipeline) |
 | Prompt | What Toby should do when the schedule fires (prompt mode) |
 | Flow | Which saved flow to run (flow mode) |
@@ -36,11 +36,14 @@ Open **Toby.app** and click **Schedules** in the sidebar.
 The Schedules view lists your schedules in a second column. Select one
 to open its page, or click empty space in the list (or **Schedules** in the
 sidebar again) to clear the selection. The schedule page has **Details** and
-**Prompt** tabs. Rename it, choose prompt vs flow, set the timetable, and
-toggle enabled on **Details** (recent runs are there too). Edit the prompt body
-on **Prompt** (or review the selected flow when the schedule runs a flow). Use
-**New Schedule** in the toolbar, or the create link when nothing is selected.
-You can also delete schedules from a row’s context menu or the toolbar, use **Run now** for a test, and view past runs.
+**Prompt** tabs. **Details** shows name, enabled state, when it runs, persona
+or flow, timetable, and recent runs. **Prompt** shows the prompt body, or a
+summary of the selected flow. Use toolbar **Edit** to change those fields in a
+sheet (**Save** persists, **Cancel** discards). Use **+** in the toolbar, or
+the create link when nothing is selected, to open a **New Schedule** sheet
+(nothing is created until you Save). You can also delete schedules from a
+row’s context menu or the toolbar, use **Run now** for a test, and view past
+runs.
 
 ### From chat
 

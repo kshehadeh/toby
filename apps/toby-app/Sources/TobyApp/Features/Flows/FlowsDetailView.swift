@@ -5,15 +5,7 @@ struct FlowsDetailView: View {
 
 	var body: some View {
 		Group {
-			if store.editor != nil {
-				FlowEditorView(
-					store: store,
-					draft: Binding(
-						get: { store.editor ?? .blank() },
-						set: { store.editor = $0 }
-					)
-				)
-			} else if store.isListLoading && store.flows.isEmpty {
+			if store.isListLoading && store.flows.isEmpty {
 				ProgressView("Loading flows…")
 					.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else if let errorMessage = store.errorMessage, store.flows.isEmpty {

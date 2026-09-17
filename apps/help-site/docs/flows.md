@@ -48,9 +48,8 @@ Built-in flows are labeled and are **read-only** in the UI.
 
 ## Create your own flow
 
-Choose **New flow** from the toolbar. The window title follows the flow name;
-**New flow** or **Edit flow** appears as the subtitle. Use **Cancel** and
-**Save** in the toolbar.
+Choose **New flow** from the toolbar. A **New Flow** sheet opens with
+**Cancel** and **Save**. Nothing is created until you Save.
 
 1. Give the flow a name and choose an icon from Toby's SF Symbol picker. The
    icon identifies the flow throughout Flows, schedules, and Home dashboard

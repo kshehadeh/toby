@@ -32,7 +32,7 @@ This makes projects ideal for recurring workflows like weekly overviews, monthly
 
 ## Create a project
 
-In Toby.app, open **Projects** from the sidebar and click **+** in the toolbar (shown when no project is selected), or use **Create Project** on the empty Projects page. Toby creates the project folder, selects the project, and opens the project page.
+In Toby.app, open **Projects** from the sidebar and click **+** in the toolbar (shown when no project is selected), or use **Create Project** on the empty Projects page. A **New Project** sheet opens; **Save** creates the project folder and selects it. **Cancel** discards the draft without creating anything.
 
 ## Project workspace
 
@@ -44,8 +44,8 @@ The Projects area has a sidebar list and a main page:
 | Area | What it does |
 | ---- | ------------ |
 | Project sidebar | Lists each project by name, with chat count and persona underneath. Select a project to open it. Each row has a **+** split control: click **+** to start a new chat for that project, or open the chevron for its ten most recently updated chats (and **New Chat**). Right-click a project for the same recent chats, **New Chat**, and delete. Press ⌘N while a project is selected to start a new project chat. Click empty space in the list, or **Projects** again, to clear the selection. |
-| No selection | Shown when nothing is selected. The detail pane asks you to select a project or create a new one. The toolbar **+** also creates a new project. |
-| Project page | The selected project's details: **Details** and **Chats** tabs. On **Details**, rename the project; edit summary, persona, and folder path; and inspect the file tree. On **Chats**, click a chat to resume it, or use **+ Chat** in the toolbar to start a new one. The toolbar also shows **Delete**. |
+| No selection | Shown when nothing is selected. The detail pane asks you to select a project or create a new one. The toolbar **+** opens a **New Project** sheet. |
+| Project page | The selected project's details: **Details** and **Chats** tabs. **Details** is read-only: name, persona, full summary, folder path, and file tree. Use toolbar **Edit** to change name, persona, or summary (**Save** persists, **Cancel** discards). On **Chats**, click a chat to resume it, or use **+ Chat** in the toolbar to start a new one. The toolbar also shows **Delete**. |
 | Project chat | Opens in the main area when you start or resume a project chat. Project chats never appear in the Chats sidebar or the main Chats view — open them from the project. New chats show **New “Project Name” Chat** with a project folder and the active persona. A Files sidebar opens on the right and refreshes as the chat creates, updates, or deletes files. Changed files are briefly labeled, including recently deleted files. Use the toolbar Files button to hide or show it. The toolbar also shows a folder icon and a **Back to Project** button; the project stays highlighted in the sidebar. Select the project or use that button to return to its Chats tab. |
 
 The project persona is optional. When set, new project chats use that persona by default, which is useful when a project always needs a specific voice or role.

@@ -25,8 +25,9 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 | Menu item | What it does |
 | --------- | ------------ |
 | **New Chat** | Starts a fresh chat session (⌘N), or a new project chat when a project is selected |
-| **New Schedule** | Opens Schedules and creates a new schedule |
-| **New Project** | Opens Projects and creates a new project |
+| **New Schedule** | Opens Schedules and a **New Schedule** sheet. Save creates it; Cancel discards the draft. |
+| **New Skill** | Opens Skills and a **New Skill** sheet. Save creates it; Cancel discards the draft. |
+| **New Project** | Opens Projects and a **New Project** sheet. Save creates it; Cancel discards the draft. |
 | **New Memory** | Opens Memories and starts the new-memory editor |
 | **Permissions…** | Opens the Permissions window for macOS privacy grants (microphone, screen, location, and more) |
 | **Backup Toby Data…** | Prompts for a password, then a save location for a `.tbybak` archive of settings, credentials, chats, schedules, flows, projects, and memories |
@@ -77,7 +78,7 @@ sitting under the header line — the same chrome as Chats. The title shows the
 selected item's name, or the section name when nothing is selected. A selected recording uses that recording's title, with
 the formatted date and time as the subtitle. A selected schedule, skill, or
 project shows status as the subtitle (next run, last edit, or chat count and
-persona). Rename those from the detail page. A selected flow uses its name, with
+persona). Edit name and other fields from the toolbar **Edit** sheet. A selected flow uses its name, with
 the flow id as the subtitle. Selecting multiple recordings
 shows their count.
 On the right, **Record**, **Settings**, and **Search** stay together across
@@ -135,11 +136,12 @@ Open **Settings → Integrations** (⌘, then choose Integrations, or ⌘3). The
 ### Projects
 
 The Projects workspace lists each project in a second column. Select one to open its
-page: **Details** and **Chats** are separate tabs. On **Details**, rename the
-project, edit the summary or persona, reveal the project folder, and inspect the
-file tree. On **Chats**, click a chat to resume it, or use **+ Chat** in the
-toolbar to start a new one. The toolbar shows **+** (new project) when nothing
-is selected, and **+ Chat** plus **Delete** on a project page. Click empty space
+page: **Details** and **Chats** are separate tabs. **Details** is read-only:
+name, persona, full summary, folder, and file tree. Use toolbar **Edit** to
+change name, persona, or summary in a sheet; **Save** persists, **Cancel**
+discards. On **Chats**, click a chat to resume it, or use **+ Chat** in the
+toolbar to start a new one. The toolbar shows **+** (new project sheet) when nothing
+is selected, and **Edit**, **+ Chat**, plus **Delete** on a project page. Click empty space
 in the list, or **Projects** in the sidebar again, to clear the selection.
 Each project row has a **+** split control: click **+** to start a new chat for
 that project, or open the chevron for recent chats. Right-click a project for
@@ -154,11 +156,13 @@ the chat and a toolbar button returns you to the project page (on the Chats tab)
 The Skills workspace lists each skill in a second column. Nothing is selected
 until you choose a skill. The overview asks you to pick one or create a new
 skill. Select a skill to open its page: **About** and **Instructions** are
-separate tabs. Rename it or change the icon on **About**, and edit the summary
-and enabled state there. Edit the skill body on **Instructions**. Use **New
-Skill** in the toolbar while viewing the overview to create one. Click empty
-space in the list to clear the selection. You can also delete skills and run a
-skill directly from the toolbar.
+separate read-only tabs. **About** shows the icon, name, summary, and whether
+the skill is enabled. **Instructions** shows the markdown body sent to the
+model. Use toolbar **Edit** to change those fields in a sheet; **Save**
+persists, **Cancel** discards. Use **+** in the toolbar (or the create link)
+when nothing is selected to open a **New Skill** sheet. Click empty
+space in the list to clear the selection. You can also delete skills from the
+toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 
@@ -177,10 +181,13 @@ sidebar workspace in the main window.
 ### Schedules
 
 The Schedules area lists each schedule in a second column. Select one to open
-its page: **Details** and **Prompt** are separate tabs. Rename it, choose
-prompt vs flow, set the timetable, and toggle enabled on **Details**. Edit the
-prompt body on **Prompt**. Click empty space in the list to clear the
-selection. You can add new schedules, run them on demand, or delete them.
+its page: **Details** and **Prompt** are separate read-only tabs. **Details**
+shows name, enabled state, timetable, persona or flow, and recent runs.
+**Prompt** shows the prompt markdown or a flow summary. Use toolbar **Edit**
+to change fields in a sheet; **Save** persists, **Cancel** discards. Click
+empty space in the list to clear the selection. Use **+** when nothing is
+selected to open a **New Schedule** sheet, or **Run now** / **Delete** on a
+selected schedule.
 
 ![Toby.app Schedules window](/img/toby-app-schedules.png)
 
@@ -192,8 +199,8 @@ blocks (email, tasks, calendar). Select a flow to open **Details** (description,
 nodes, metadata) and **Recent runs** tabs. You can also **create your own**
 flows: pick tools, fill in their arguments, optionally add a last LLM step,
 choose whether the result opens in a window / is emailed / is posted to Slack /
-appears as a home-dashboard card, and **Run now**. Rename a custom flow in
-**Details** while editing; Cancel and Save are in the toolbar. Built-in flows
+appears as a home-dashboard card, and **Run now**. Toolbar **Edit** (custom
+flows) or **+** opens a sheet with **Cancel** and **Save**. Built-in flows
 stay read-only. Running a custom flow from a [schedule](./schedules) is still
 later.
 

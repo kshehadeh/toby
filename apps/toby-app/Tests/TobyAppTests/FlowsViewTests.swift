@@ -512,6 +512,30 @@ struct FlowsViewTests {
 		#expect(store.editor != nil)
 		#expect(store.editor?.isNew == true)
 		#expect(store.editor?.destinations.first?.type == "modal")
+		#expect(store.flows.isEmpty)
+		var draft = store.editor!
+		draft.name = "Focus mode"
+		store.editor = draft
+		#expect(store.isEditorDirty == true)
+		store.cancelEditor()
+		#expect(store.editor == nil)
+		#expect(store.flows.isEmpty)
+	}
+
+	@Test("flows detail stays inspect-only while the editor is open")
+	func flowsDetailStaysInspectWhenEditorOpen() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow(id: "custom.focus", name: "Focus mode", builtin: false)
+		store.flows = [flow]
+		store.selectedFlowId = flow.id
+		store.editor = FlowEditorDraft.blank()
+		let view = FlowsDetailView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-detail-tabs")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-name")
+		}
 	}
 
 	@Test("flow tool catalog parses daemon-shaped JSON")

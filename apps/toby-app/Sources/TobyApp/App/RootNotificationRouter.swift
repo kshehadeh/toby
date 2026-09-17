@@ -8,6 +8,7 @@ import SwiftUI
 /// checker can finish in reasonable time.
 struct RootNotificationRouter: ViewModifier {
 	var onStartNewSchedule: () -> Void
+	var onStartNewSkill: () -> Void
 	var onStartNewProject: () -> Void
 	var onStartNewMemory: () -> Void
 	var onMemoriesDidChange: () -> Void
@@ -55,6 +56,9 @@ struct RootNotificationRouter: ViewModifier {
 		content
 			.onReceive(NotificationCenter.default.publisher(for: .startNewSchedule)) { _ in
 				onStartNewSchedule()
+			}
+			.onReceive(NotificationCenter.default.publisher(for: .startNewSkill)) { _ in
+				onStartNewSkill()
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .startNewProject)) { _ in
 				onStartNewProject()

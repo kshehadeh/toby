@@ -144,16 +144,16 @@ struct SchedulesViewTests {
 		}
 		let details = detailsPane(store: store, schedule: schedule)
 		#expect(throws: Never.self) {
-			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
+			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-detail-name")
 		}
 		#expect(throws: Never.self) {
 			try details.inspect().find(text: "Enabled")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
 		}
 		#expect(throws: Never.self) {
-			try details.inspect().find(text: "Name")
+			try details.inspect().find(text: "Daily Standup")
 		}
 		#expect(throws: Never.self) {
 			try details.inspect().find(text: "Recent runs")
@@ -203,7 +203,7 @@ struct SchedulesViewTests {
 		#expect(store.selectedDetailTab == .details)
 	}
 
-	@Test("schedule detail shows prompt editor and fields in the main canvas")
+	@Test("schedule detail shows prompt and inspect fields, not editors")
 	func scheduleDetailShowsPromptAndFields() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
@@ -227,23 +227,23 @@ struct SchedulesViewTests {
 		}
 		let details = detailsPane(store: store, schedule: schedule)
 		#expect(throws: Never.self) {
-			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
+			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-detail-name")
 		}
 		#expect(throws: Never.self) {
 			try details.inspect().find(text: "Enabled")
 		}
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try details.inspect().find(viewWithAccessibilityIdentifier: "schedule-action-picker")
 		}
 		#expect(throws: Never.self) {
-			try details.inspect().find(text: "Name")
+			try details.inspect().find(text: "Daily Standup")
 		}
 		#expect(throws: (any Error).self) {
 			try details.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
 		}
 	}
 
-	@Test("flow schedule shows flow picker and hides prompt editor")
+	@Test("flow schedule shows flow summary and hides prompt editor")
 	func flowScheduleShowsFlowPicker() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
@@ -281,6 +281,9 @@ struct SchedulesViewTests {
 			),
 		]
 		#expect(throws: Never.self) {
+			try detailsPane(store: store, schedule: schedule).inspect().find(text: "Email summary")
+		}
+		#expect(throws: (any Error).self) {
 			try detailsPane(store: store, schedule: schedule).inspect().find(
 				viewWithAccessibilityIdentifier: "schedule-flow-picker"
 			)
@@ -293,6 +296,12 @@ struct SchedulesViewTests {
 		#expect(throws: (any Error).self) {
 			try promptPane(store: store, schedule: schedule).inspect().find(
 				text: "Sent to Toby when this schedule runs"
+			)
+		}
+		store.startEdit(id: schedule.id)
+		#expect(throws: Never.self) {
+			try ScheduleEditorDetailsPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "schedule-flow-picker"
 			)
 		}
 	}
@@ -323,7 +332,7 @@ struct SchedulesViewTests {
 		}
 	}
 
-	@Test("schedule detail shows validate button for cron field")
+	@Test("schedule editor shows validate button for cron field")
 	func scheduleDetailShowsValidateButton() throws {
 		let store = SchedulesStore()
 		let schedule = ScheduleViewModel(
@@ -341,7 +350,13 @@ struct SchedulesViewTests {
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
 		store.values[store.key(for: schedule.id, field: .cron)] = schedule.cronExpression
+		store.startEdit(id: schedule.id)
 		#expect(throws: Never.self) {
+			try ScheduleEditorDetailsPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "validate-schedule-button"
+			)
+		}
+		#expect(throws: (any Error).self) {
 			try detailsPane(store: store, schedule: schedule).inspect().find(
 				viewWithAccessibilityIdentifier: "validate-schedule-button"
 			)
@@ -363,11 +378,11 @@ struct SchedulesViewTests {
 			lastRunAt: nil,
 			recentRuns: []
 		)
-		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
-		store.validateCronOnBlur(for: schedule.id)
-		// Natural language is converted via Convert; blur must not flash "invalid cron".
-		#expect(store.cronValidationErrors[schedule.id] == nil)
-		#expect(store.isCronValid(for: schedule.id) == false)
+		store.editor = ScheduleEditorDraft.blank()
+		store.editor?.cron = "every weekday at 9am"
+		store.validateEditorCronOnBlur()
+		#expect(store.editorCronError == nil)
+		#expect(store.isEditorCronValid == false)
 	}
 
 	@Test("cron blur validation clears error for valid expression")
@@ -385,10 +400,11 @@ struct SchedulesViewTests {
 			lastRunAt: nil,
 			recentRuns: []
 		)
-		store.cronValidationErrors[schedule.id] = "existing error"
-		store.values[store.key(for: schedule.id, field: .cron)] = "0 9 * * *"
-		store.validateCronOnBlur(for: schedule.id)
-		#expect(store.cronValidationErrors[schedule.id] == nil)
+		store.editor = ScheduleEditorDraft.blank()
+		store.editorCronError = "existing error"
+		store.editor?.cron = "0 9 * * *"
+		store.validateEditorCronOnBlur()
+		#expect(store.editorCronError == nil)
 	}
 
 	@Test("cron blur validation is skipped while conversion is in flight")
@@ -406,11 +422,12 @@ struct SchedulesViewTests {
 			lastRunAt: nil,
 			recentRuns: []
 		)
-		store.parsingCronScheduleId = schedule.id
-		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
-		store.validateCronOnBlur(for: schedule.id)
-		#expect(store.cronValidationErrors[schedule.id] == nil)
-		#expect(store.isParsingCron(for: schedule.id))
+		store.editor = ScheduleEditorDraft.blank()
+		store.editor?.cron = "every weekday at 9am"
+		store.parsingCronScheduleId = "editor"
+		store.validateEditorCronOnBlur()
+		#expect(store.editorCronError == nil)
+		#expect(store.isParsingEditorCron)
 	}
 
 	@Test("cron validity does not treat plain language with numbers as cron")
@@ -428,8 +445,9 @@ struct SchedulesViewTests {
 			lastRunAt: nil,
 			recentRuns: []
 		)
-		store.values[store.key(for: schedule.id, field: .cron)] = "every 2 days at 9am"
-		#expect(store.isCronValid(for: schedule.id) == false)
+		store.editor = ScheduleEditorDraft.blank()
+		store.editor?.cron = "every 2 days at 9am"
+		#expect(store.isEditorCronValid == false)
 	}
 
 	@Test("schedule detail shows converting status while parsing cron")
@@ -449,14 +467,18 @@ struct SchedulesViewTests {
 		)
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
-		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
-		store.parsingCronScheduleId = schedule.id
-		let pane = detailsPane(store: store, schedule: schedule)
+		store.startEdit(id: schedule.id)
+		store.editor?.cron = "every weekday at 9am"
+		store.parsingCronScheduleId = "editor"
 		#expect(throws: Never.self) {
-			try pane.inspect().find(viewWithAccessibilityIdentifier: "cron-converting-status")
+			try ScheduleEditorDetailsPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "cron-converting-status"
+			)
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Converting natural language to cron…")
+			try ScheduleEditorDetailsPane(store: store).inspect().find(
+				text: "Converting natural language to cron…"
+			)
 		}
 	}
 
@@ -477,10 +499,12 @@ struct SchedulesViewTests {
 		)
 		store.schedules = [schedule]
 		store.selectedScheduleId = schedule.id
-		store.values[store.key(for: schedule.id, field: .cron)] = "every weekday at 9am"
-		let pane = detailsPane(store: store, schedule: schedule)
+		store.startEdit(id: schedule.id)
+		store.editor?.cron = "every weekday at 9am"
 		#expect(throws: Never.self) {
-			try pane.inspect().find(viewWithAccessibilityIdentifier: "cron-needs-convert-hint")
+			try ScheduleEditorDetailsPane(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "cron-needs-convert-hint"
+			)
 		}
 	}
 
@@ -538,6 +562,38 @@ struct SchedulesViewTests {
 		store.applyRunDetailToSchedules(detail)
 		#expect(store.schedules.first?.recentRuns.first?.status == "success")
 		#expect(store.schedules.first?.recentRuns.first?.label == "7/15/2026, 3:01:11 PM · SUCCESS")
+	}
+
+	@Test("startCreate opens a draft without adding a schedule")
+	func startCreateDoesNotAddScheduleUntilSave() throws {
+		let store = SchedulesStore()
+		store.startCreate()
+		#expect(store.schedules.isEmpty)
+		#expect(store.editor?.isNew == true)
+		#expect(store.isEditorDirty == false)
+		var draft = store.editor!
+		draft.name = "Morning brief"
+		store.editor = draft
+		#expect(store.isEditorDirty == true)
+		store.cancelEditor()
+		#expect(store.editor == nil)
+		#expect(store.schedules.isEmpty)
+
+		store.startCreate()
+		let pane = ScheduleEditorDetailsPane(store: store)
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "schedule-title-field")
+		}
+		#expect(throws: Never.self) {
+			try ScheduleEditorSheet(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "schedule-editor-sheet"
+			)
+		}
+		#expect(throws: Never.self) {
+			try ScheduleEditorSheet(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "schedule-editor-tabs"
+			)
+		}
 	}
 }
 

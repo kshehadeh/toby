@@ -51,6 +51,11 @@ struct ProjectsView: View {
 		.task {
 			await projectsStore.ensureLoaded()
 		}
+		.sheet(item: editorSheetItem($projectsStore.editor, onDismiss: {
+			projectsStore.cancelEditor()
+		})) { _ in
+			ProjectEditorSheet(store: projectsStore)
+		}
 		.alert(
 			"Delete Project?",
 			isPresented: Binding(
@@ -119,7 +124,7 @@ struct ProjectsView: View {
 				systemImage: DetailRoute.projects.systemImage,
 				title: "No project selected",
 				prompt: "Select a project",
-				onCreate: { Task { await projectsStore.createProject() } },
+				onCreate: { projectsStore.startCreate() },
 				createAccessibilityIdentifier: "empty-create-project-button"
 			)
 		}

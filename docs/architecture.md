@@ -136,9 +136,9 @@ formatted start date when unnamed) and the formatted date/time as
 name with status as the subtitle (project chats keep the session name and
 activity line). Names are edited in the Edit Recording sheet or About card, not as
 an inline toolbar title — putting the title in the toolbar packs trailing actions off
-the window edge. A selected flow uses its display name and id; the flow editor
-uses the draft name as the window title, **New flow** / **Edit flow** as the
-subtitle, and Cancel/Save in the trailing toolbar. Detail panes do not
+the window edge. A selected flow uses its display name and id. Create and edit
+open an EditorSheet (`New Flow` / `Edit Flow`) with Cancel/Save in the sheet
+title bar; the window toolbar stays on the inspect route. Detail panes do not
 repeat a large header.
 The route title is the system `navigationTitle` (plus `navigationSubtitle` for
 activity, recording date, or the selected item’s status), not a toolbar item. Back/Forward use `.navigation`; Record, Settings,

@@ -17,6 +17,7 @@ final class FlowsStore {
 	var errorMessage: String?
 	var runDetailError: String?
 	var editor: FlowEditorDraft?
+	var editorBaseline: FlowEditorDraft?
 	var catalog: FlowToolCatalog?
 	var isSaving = false
 	var isRunning = false
@@ -27,6 +28,11 @@ final class FlowsStore {
 	var personaOptions: [PersonaOption] = []
 	/// Details / Recent runs tab in the flow detail.
 	var selectedDetailTab: FlowDetailTab = .details
+
+	var isEditorDirty: Bool {
+		guard let editor else { return false }
+		return editor != editorBaseline
+	}
 
 	private let client = TobyClient()
 
@@ -53,6 +59,7 @@ final class FlowsStore {
 		errorMessage = nil
 		runDetailError = nil
 		editor = nil
+		editorBaseline = nil
 		catalog = nil
 		isSaving = false
 		isRunning = false
@@ -165,7 +172,9 @@ final class FlowsStore {
 
 	func startCreate() async {
 		editorError = nil
-		editor = .blank()
+		let draft = FlowEditorDraft.blank()
+		editor = draft
+		editorBaseline = draft
 		async let catalog: () = loadCatalog()
 		async let personas: () = loadPersonas()
 		_ = await (catalog, personas)
@@ -177,7 +186,9 @@ final class FlowsStore {
 		async let personas: () = loadPersonas()
 		do {
 			let document = try await client.fetchFlowDocument(id: id)
-			editor = .from(document: document)
+			let draft = FlowEditorDraft.from(document: document)
+			editor = draft
+			editorBaseline = draft
 		} catch {
 			editorError = error.localizedDescription
 		}
@@ -186,6 +197,7 @@ final class FlowsStore {
 
 	func cancelEditor() {
 		editor = nil
+		editorBaseline = nil
 		editorError = nil
 	}
 
@@ -208,6 +220,7 @@ final class FlowsStore {
 				flows.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 			}
 			editor = nil
+			editorBaseline = nil
 			await selectFlow(id: response.flow.id)
 		} catch {
 			editorError = error.localizedDescription

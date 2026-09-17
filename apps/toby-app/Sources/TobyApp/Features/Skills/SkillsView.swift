@@ -24,8 +24,10 @@ struct SkillsView: View {
 		.task {
 			await store.ensureLoaded()
 		}
-		.onDisappear {
-			Task { await store.flushPendingSave() }
+		.sheet(item: editorSheetItem($store.editor, onDismiss: {
+			store.cancelEditor()
+		})) { _ in
+			SkillEditorSheet(store: store)
 		}
 		.alert(
 			"Delete Skill?",

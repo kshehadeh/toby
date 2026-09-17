@@ -59,6 +59,7 @@ struct RootView: View {
     private var rootNotificationRouter: RootNotificationRouter {
         RootNotificationRouter(
             onStartNewSchedule: startNewSchedule,
+            onStartNewSkill: startNewSkill,
             onStartNewProject: startNewProject,
             onStartNewMemory: startNewMemory,
             onMemoriesDidChange: { memoriesStore.handleExternalMemoryChange() },
@@ -424,6 +425,8 @@ struct RootView: View {
                 isServerReady: store.isServerReady,
                 onRefresh: { Task { await refreshDashboardData() } },
                 onSelectRoute: navigateToRoute,
+                onCreateSchedule: startNewSchedule,
+                onCreateSkill: startNewSkill,
                 recentWork: DashboardRecentWorkItem.merged(
                     sessions: store.sessions,
                     projects: projectsStore.projects
@@ -522,10 +525,13 @@ struct RootView: View {
                                             isShowingChat: projectsStore.isShowingChat,
                                             hasSelection: projectsStore.selectedProjectId != nil,
                                             onNewProject: {
-                                                Task { await projectsStore.createProject() }
+                                                projectsStore.startCreate()
                                             },
                                             onNewChat: {
                                                 Task { await projectsStore.createChat(chatStore: store) }
+                                            },
+                                            onEdit: {
+                                                projectsStore.startEdit()
                                             },
                                             onDelete: {
                                                 guard let project = projectsStore.selectedProject else { return }
@@ -556,7 +562,10 @@ struct RootView: View {
                                             isRunning: schedulesStore.runningScheduleId != nil,
                                             isDeleting: schedulesStore.deletingScheduleId != nil,
                                             onNew: {
-                                                Task { await schedulesStore.createSchedule() }
+                                                schedulesStore.startCreate()
+                                            },
+                                            onEdit: {
+                                                schedulesStore.startEdit()
                                             },
                                             onRun: {
                                                 guard let id = schedulesStore.selectedSchedule?.id else { return }
@@ -622,7 +631,10 @@ struct RootView: View {
                                             hasSelection: skillsStore.selectedSkill != nil,
                                             isSaving: skillsStore.isSaving,
                                             onNew: {
-                                                Task { await skillsStore.createSkill() }
+                                                skillsStore.startCreate()
+                                            },
+                                            onEdit: {
+                                                skillsStore.startEdit()
                                             },
                                             onDelete: {
                                                 guard let skill = skillsStore.selectedSkill else { return }
@@ -638,13 +650,11 @@ struct RootView: View {
                                         RootToolbars.flows(
                                             common: commonToolbarModel,
                                             title: RootToolbars.flowsNavigationTitle(
-                                                selectedName: flowsStore.selectedFlow?.displayName,
-                                                editor: flowsStore.editor
+                                                selectedName: flowsStore.selectedFlow?.displayName
                                             ),
                                             isListLoading: flowsStore.isListLoading,
                                             isRunsLoading: flowsStore.isRunsLoading,
                                             hasSelection: flowsStore.selectedFlow != nil,
-                                            isEditing: flowsStore.editor != nil,
                                             canEdit: flowsStore.selectedFlow?.builtin == false,
                                             canRun: flowsStore.selectedFlow?.builtin == false,
                                             canDelete: flowsStore.selectedFlow?.builtin == false,
@@ -667,11 +677,7 @@ struct RootView: View {
                                             onDelete: {
                                                 guard let flow = flowsStore.selectedFlow, !flow.builtin else { return }
                                                 flowsStore.confirmDelete(id: flow.id)
-                                            },
-                                            isSaving: flowsStore.isSaving,
-                                            canSave: flowEditorCanSave,
-                                            onCancel: { flowsStore.cancelEditor() },
-                                            onSave: { Task { await flowsStore.saveEditor() } }
+                                            }
                                         )
 
         }
@@ -702,8 +708,7 @@ struct RootView: View {
             RootToolbars.routeTitle(.skills, selectedItemName: skillNavigationName)
         case .flows:
             RootToolbars.flowsNavigationTitle(
-                selectedName: flowsStore.selectedFlow?.displayName,
-                editor: flowsStore.editor
+                selectedName: flowsStore.selectedFlow?.displayName
             )
         }
     }
@@ -733,49 +738,34 @@ struct RootView: View {
             skillNavigationSubtitle
         case .flows:
             RootToolbars.flowsNavigationSubtitle(
-                flowsStore.selectedFlow,
-                editor: flowsStore.editor
+                flowsStore.selectedFlow
             )
         }
     }
 
     private var scheduleNavigationName: String? {
-        guard let schedule = schedulesStore.selectedSchedule else { return nil }
-        let value = schedulesStore.value(for: schedulesStore.key(for: schedule.id, field: .name))
-        return value.isEmpty ? schedule.displayName : value
+        schedulesStore.selectedSchedule?.displayName
     }
 
     private var skillNavigationName: String? {
-        guard let skill = skillsStore.selectedSkill else { return nil }
-        let value = skillsStore.value(for: skillsStore.key(for: skill.dirName, field: .name))
-        return value.isEmpty ? skill.name : value
+        skillsStore.selectedSkill?.name
     }
 
     private var scheduleNavigationSubtitle: String {
         guard let schedule = schedulesStore.selectedSchedule else { return "" }
-        let value = schedulesStore.value(for: schedulesStore.key(for: schedule.id, field: .enabled))
-        let isEnabled = value.isEmpty ? schedule.enabled : value.lowercased() == "yes"
         return RootToolbars.schedulesNavigationSubtitle(
-            isEnabled: isEnabled,
+            isEnabled: schedule.enabled,
             nextRunText: schedule.nextRunText
         )
     }
 
     private var skillNavigationSubtitle: String {
         guard let skill = skillsStore.selectedSkill else { return "" }
-        let value = skillsStore.value(for: skillsStore.key(for: skill.dirName, field: .enabled))
-        let isEnabled = value.isEmpty ? skill.enabled : value == "true"
         return RootToolbars.skillsNavigationSubtitle(
-            isEnabled: isEnabled,
+            isEnabled: skill.enabled,
             updatedAt: skill.updatedAt,
             createdAt: skill.createdAt
         )
-    }
-
-    private var flowEditorCanSave: Bool {
-        guard let editor = flowsStore.editor else { return false }
-        return !editor.nodes.isEmpty
-            && !editor.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var commonToolbarModel: RootCommonToolbarModel {
@@ -943,13 +933,19 @@ struct RootView: View {
     private func startNewSchedule() {
         bringMainWindowToFront()
         navigateToRoute(.schedules)
-        Task { await schedulesStore.createSchedule() }
+        schedulesStore.startCreate()
+    }
+
+    private func startNewSkill() {
+        bringMainWindowToFront()
+        navigateToRoute(.skills)
+        skillsStore.startCreate()
     }
 
     private func startNewProject() {
         bringMainWindowToFront()
         navigateToRoute(.projects)
-        Task { await projectsStore.createProject() }
+        projectsStore.startCreate()
     }
 
     private func startNewMemory() {

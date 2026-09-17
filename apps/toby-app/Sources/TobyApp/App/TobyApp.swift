@@ -179,6 +179,10 @@ struct TobyApp: App {
 					NotificationCenter.default.post(name: .startNewSchedule, object: nil)
 				}
 
+				Button("New Skill") {
+					NotificationCenter.default.post(name: .startNewSkill, object: nil)
+				}
+
 				Button("New Project") {
 					NotificationCenter.default.post(name: .startNewProject, object: nil)
 				}

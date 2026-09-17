@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 enum SkillDetailTab: String, Hashable, CaseIterable {
 	case about
@@ -10,21 +9,15 @@ struct SkillDetailContent: View {
 	@Bindable var store: SkillsStore
 	let skill: SkillDetail
 
-	@State private var isIconPickerPresented = false
-
 	var body: some View {
 		TabView(selection: $store.selectedDetailTab) {
 			Tab(value: SkillDetailTab.about) {
-				SkillAboutPane(
-					store: store,
-					skill: skill,
-					isIconPickerPresented: $isIconPickerPresented
-				)
+				SkillAboutPane(skill: skill)
 			} label: {
 				Text("About")
 			}
 			Tab(value: SkillDetailTab.instructions) {
-				SkillInstructionsPane(store: store, skill: skill)
+				SkillInstructionsPane(skill: skill)
 			} label: {
 				Text("Instructions")
 			}
@@ -33,162 +26,52 @@ struct SkillDetailContent: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
 		.accessibilityIdentifier("skill-detail-tabs")
-		.fileImporter(
-			isPresented: $isIconPickerPresented,
-			allowedContentTypes: [.png, .jpeg, .image],
-			allowsMultipleSelection: false,
-		) { result in
-			handleIconPickerResult(result)
-		}
-	}
-
-	private func handleIconPickerResult(_ result: Result<[URL], Error>) {
-		switch result {
-		case .success(let urls):
-			guard let url = urls.first else { return }
-			Task {
-				do {
-					let accessed = url.startAccessingSecurityScopedResource()
-					defer {
-						if accessed { url.stopAccessingSecurityScopedResource() }
-					}
-					let data = try Data(contentsOf: url)
-					await store.uploadIcon(fileData: data, filename: url.lastPathComponent)
-				} catch {
-					store.errorMessage = error.localizedDescription
-				}
-			}
-		case .failure(let error):
-			store.errorMessage = error.localizedDescription
-		}
 	}
 }
 
 struct SkillAboutPane: View {
-	@Bindable var store: SkillsStore
 	let skill: SkillDetail
-	@Binding var isIconPickerPresented: Bool
 
 	var body: some View {
 		ScrollView {
-			VStack(alignment: .leading, spacing: 16) {
+			VStack(alignment: .leading, spacing: 22) {
 				HStack(alignment: .center, spacing: 12) {
-					EditableSkillIcon(
-						iconURL: skill.resolvedIconURL,
-						hasCustomIcon: skill.iconUrl != nil,
-						isDisabled: store.isSaving,
-						onChoose: { isIconPickerPresented = true },
-						onReset: { Task { await store.resetIcon() } },
+					SkillIconView(iconURL: skill.resolvedIconURL, size: 48, cornerRadius: 12)
+					DetailHeading(
+						title: skill.name,
+						accessibilityIdentifier: "skill-detail-name"
 					)
-					VStack(alignment: .leading, spacing: 2) {
-						Text("Icon")
-							.font(.system(size: 12, weight: .semibold))
+				}
+
+				if !skill.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+					DetailSection(title: "Summary") {
+						Text(skill.summary)
+							.font(.system(size: 13))
 							.foregroundStyle(SettingsDesign.rowTitle)
-						Text("Click to change. Reset a custom icon from the context menu.")
-							.font(.system(size: 11))
-							.foregroundStyle(SettingsDesign.rowDescription)
+							.fixedSize(horizontal: false, vertical: true)
+							.textSelection(.enabled)
 					}
 				}
 
-				SkillSidebarField(
-					title: "Name",
-					placeholder: "Skill name",
-					accessibilityIdentifier: "skill-title-field",
-					text: nameBinding,
-				)
-
-				SkillSidebarField(
-					title: "Summary",
-					hint: "Used to display and choose this skill",
-					placeholder: "What this skill does and when to use it",
-					axis: .vertical,
-					text: binding(for: .summary),
-				)
-				enableRow
-				metadataSection
+				VStack(alignment: .leading, spacing: 12) {
+					DetailMetadataRow(
+						label: "Enabled",
+						value: skill.enabled ? "Offered to the model" : "Hidden from the model"
+					)
+					if let created = formattedDate(skill.createdAt) {
+						DetailMetadataRow(label: "Created", value: created)
+					}
+					if let edited = formattedDate(skill.updatedAt) {
+						DetailMetadataRow(label: "Edited", value: edited)
+					}
+				}
 			}
+			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80)
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.accessibilityIdentifier("skill-about-tab")
-	}
-
-	private var enableRow: some View {
-		HStack {
-			VStack(alignment: .leading, spacing: 2) {
-				Text("Enabled")
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				Text(
-					enabledBinding.wrappedValue
-						? "Offered to the model"
-						: "Hidden from the model"
-				)
-					.font(.system(size: 11))
-					.foregroundStyle(SettingsDesign.rowDescription)
-			}
-			Spacer()
-			SettingsToggle(isOn: enabledBinding)
-		}
-	}
-
-	private var metadataSection: some View {
-		VStack(alignment: .leading, spacing: 8) {
-			if let created = formattedDate(skill.createdAt) {
-				metadataRow(label: "Created", value: created)
-			}
-			if let edited = formattedDate(skill.updatedAt) {
-				metadataRow(label: "Edited", value: edited)
-			}
-		}
-	}
-
-	private func metadataRow(label: String, value: String) -> some View {
-		HStack {
-			Text(label)
-				.font(.system(size: 11))
-				.foregroundStyle(SettingsDesign.rowDescription)
-			Spacer()
-			Text(value)
-				.font(.system(size: 11))
-				.foregroundStyle(SettingsDesign.rowTitle)
-		}
-	}
-
-	private var nameBinding: Binding<String> {
-		Binding(
-			get: { store.value(for: store.key(for: skill.dirName, field: .name)) },
-			set: {
-				store.setDraftValue(
-					store.key(for: skill.dirName, field: .name),
-					$0,
-					autosaveImmediately: true,
-				)
-			},
-		)
-	}
-
-	private func binding(for field: SkillField) -> Binding<String> {
-		Binding(
-			get: { store.value(for: store.key(for: skill.dirName, field: field)) },
-			set: { store.setDraftValue(store.key(for: skill.dirName, field: field), $0) },
-		)
-	}
-
-	private var enabledBinding: Binding<Bool> {
-		Binding(
-			get: {
-				store.value(for: store.key(for: skill.dirName, field: .enabled)) == "true"
-			},
-			set: {
-				store.setDraftValue(
-					store.key(for: skill.dirName, field: .enabled),
-					$0 ? "true" : "false",
-					autosaveImmediately: true,
-				)
-			},
-		)
 	}
 
 	private func formattedDate(_ iso: String?) -> String? {
@@ -205,42 +88,42 @@ struct SkillAboutPane: View {
 }
 
 struct SkillInstructionsPane: View {
-	@Bindable var store: SkillsStore
 	let skill: SkillDetail
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 8) {
-			Text("Sent to the model when this skill runs")
-				.font(.caption)
-				.foregroundStyle(SettingsDesign.rowDescription)
-			SkillMarkdownEditor(text: binding(for: .body))
+		Group {
+			if skill.bodyMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+				ContentUnavailableView {
+					Label {
+						Text("No instructions")
+					} icon: {
+						Image(systemName: "doc.text")
+							.accessibilityHidden(true)
+					}
+				} description: {
+					Text("Add instructions in Edit Skill.")
+				}
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else {
+				VStack(alignment: .leading, spacing: 8) {
+					Text("Sent to the model when this skill runs")
+						.font(.caption)
+						.foregroundStyle(SettingsDesign.rowDescription)
+					ScrollView {
+						MarkdownText(
+							text: skill.bodyMarkdown,
+							font: .body,
+							foregroundStyle: SettingsDesign.rowTitle
+						)
+						.textSelection(.enabled)
+						.frame(maxWidth: .infinity, alignment: .leading)
+					}
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
+				}
+			}
 		}
 		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.accessibilityIdentifier("skill-instructions-tab")
-	}
-
-	private func binding(for field: SkillField) -> Binding<String> {
-		Binding(
-			get: { store.value(for: store.key(for: skill.dirName, field: field)) },
-			set: { store.setDraftValue(store.key(for: skill.dirName, field: field), $0) },
-		)
-	}
-}
-
-extension SkillDetail {
-	/// Full URL for the skill's custom icon, with a cache-busting token so
-	/// re-uploads (which reuse the `icon.png` filename) reload in the UI.
-	var resolvedIconURL: URL? {
-		guard let iconUrl, !iconUrl.isEmpty else { return nil }
-		let base = ConfigReader.baseURL().absoluteString
-		let token = (updatedAt ?? "")
-			.unicodeScalars
-			.filter { CharacterSet.alphanumerics.contains($0) }
-			.map(String.init)
-			.joined()
-		let suffix = token.isEmpty ? "" : "?v=\(token)"
-		return URL(string: base + iconUrl + suffix)
 	}
 }

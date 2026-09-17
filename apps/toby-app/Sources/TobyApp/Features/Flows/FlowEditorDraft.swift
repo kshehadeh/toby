@@ -1,6 +1,6 @@
 import Foundation
 
-struct FlowEditorDraft: Equatable {
+struct FlowEditorDraft: Equatable, Identifiable {
 	var existingId: String?
 	var name: String
 	var description: String
@@ -8,6 +8,8 @@ struct FlowEditorDraft: Equatable {
 	var personaName: String
 	var nodes: [FlowEditorNode]
 	var destinations: [FlowEditorDestination]
+
+	var id: String { existingId ?? "new" }
 
 	var isNew: Bool { existingId == nil }
 

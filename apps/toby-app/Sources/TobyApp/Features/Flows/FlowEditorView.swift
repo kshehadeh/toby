@@ -11,9 +11,6 @@ struct FlowEditorView: View {
 				metaFields
 				nodesSection
 				destinationsSection
-				if let editorError = store.editorError, !editorError.isEmpty {
-					InlineStatusMessage(message: editorError, tone: .error, font: .caption)
-				}
 			}
 			.padding(24)
 			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80, alignment: .leading)

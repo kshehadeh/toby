@@ -52,11 +52,13 @@ You do not pick skills manually each message—Toby chooses from names and summa
 Open **Toby.app** and click **Skills** in the sidebar. The Skills workspace lists
 each skill in a second column. Nothing is selected until you choose a skill.
 Select one to open its page, or click empty space in the list to clear the
-selection. The skill page has **About** and **Instructions** tabs. Rename it or
-change the icon on **About**; edit summary and enabled state there too.
-**Instructions** is the markdown body sent to the model. Use **New Skill** in
-the toolbar, or the create link when nothing is selected. You can also delete
-existing skills and run a skill directly from the toolbar.
+selection. The skill page has **About** and **Instructions** tabs. **About**
+shows the icon, name, summary, and enabled state. **Instructions** shows the
+markdown body sent to the model. Use toolbar **Edit** to change those fields
+in a sheet (**Save** persists, **Cancel** discards). Use **+** in
+the toolbar, or the create link when nothing is selected, to open a **New
+Skill** sheet (nothing is created until you Save). You can also delete
+existing skills from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 

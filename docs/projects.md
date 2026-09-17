@@ -50,12 +50,12 @@ There is **no** terminal `/project` or `/config` slash-command UI; interactive
 management lives in Toby.app. The global sidebar is a destination list; **Projects**
 opens a list of every project beside the project page. Selecting a project
 opens a details page in the main pane with **Details** and **Chats** tabs
-(metadata and file tree on Details; every project chat on Chats). Each project
+(inspect metadata, summary, and file tree on Details; every project chat on Chats). Each project
 row has a **+** split control: click **+** to start a new chat for that project,
 or open the chevron for its ten most recently updated chats. Right-click a
 project for the same recent chats, **New Chat**, and delete. File → **New Chat** (⌘N) starts a
 new chat in the selected project. The main-window toolbar is context-sensitive:
-**+** (new project) when nothing is selected; **+ Chat** and **Delete** on a
+**+** (new project sheet) when nothing is selected; **Edit**, **+ Chat**, and **Delete** on a
 project page. Clicking
 **Projects** again in the destination list clears the selection.
 Project chats are not listed in the main Chats workspace — open them from the project. While a project chat is open, the
@@ -72,7 +72,7 @@ or reveal it in Finder. A new project chat identifies its project with a **New
 
 | Field | Description |
 | ----- | ----------- |
-| **Name** | Display name, edited on the project page Details tab |
+| **Name** | Display name, edited in the Edit Project sheet |
 | **Summary** | Short description included in project prompt context |
 | **Persona** | Optional project-default persona |
 | **Folder path** | Absolute path to the project canvas directory |

@@ -5,7 +5,13 @@ struct FlowsView: View {
 	@State private var preferList = false
 
 	private var hasSelection: Bool {
-		store.selectedFlow != nil || store.editor != nil
+		store.selectedFlow != nil
+	}
+
+	private var flowEditorCanSave: Bool {
+		guard let editor = store.editor else { return false }
+		return !editor.nodes.isEmpty
+			&& !editor.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 	}
 
 	var body: some View {
@@ -26,6 +32,28 @@ struct FlowsView: View {
 		}
 		.task {
 			await store.ensureLoaded()
+		}
+		.sheet(item: editorSheetItem($store.editor, onDismiss: {
+			store.cancelEditor()
+		})) { _ in
+			EditorSheet(
+				title: store.editor?.isNew == true ? "New Flow" : "Edit Flow",
+				isSaving: store.isSaving,
+				canSave: flowEditorCanSave,
+				isDirty: store.isEditorDirty,
+				errorMessage: store.editorError,
+				size: .wide,
+				accessibilityIdentifier: "flow-editor-sheet",
+				cancelAccessibilityIdentifier: "flow-editor-cancel",
+				saveAccessibilityIdentifier: "flow-editor-save",
+				onCancel: { store.cancelEditor() },
+				onSave: { Task { await store.saveEditor() } }
+			) {
+				FlowEditorView(
+					store: store,
+					draft: editorDraftBinding($store.editor, fallback: .blank())
+				)
+			}
 		}
 		.sheet(isPresented: Binding(
 			get: { store.selectedRunId != nil },

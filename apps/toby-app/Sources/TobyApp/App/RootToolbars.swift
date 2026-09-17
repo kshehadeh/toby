@@ -239,24 +239,14 @@ enum RootToolbars {
 	}
 
 	static func flowsNavigationTitle(
-		selectedName: String?,
-		editor: FlowEditorDraft? = nil
+		selectedName: String?
 	) -> String {
-		if let editor {
-			let name = editor.name.trimmingCharacters(in: .whitespacesAndNewlines)
-			if !name.isEmpty { return name }
-			return editor.isNew ? "New flow" : "Edit flow"
-		}
-		return routeTitle(.flows, selectedItemName: selectedName)
+		routeTitle(.flows, selectedItemName: selectedName)
 	}
 
 	static func flowsNavigationSubtitle(
-		_ flow: FlowListItem?,
-		editor: FlowEditorDraft? = nil
+		_ flow: FlowListItem?
 	) -> String {
-		if let editor {
-			return editor.isNew ? "New flow" : "Edit flow"
-		}
 		guard let flow else { return "" }
 		return flow.id
 	}
@@ -356,7 +346,7 @@ enum RootToolbars {
 	enum ProjectToolbarMode: Equatable {
 		/// All-projects / empty state: only New Project.
 		case home
-		/// Project details: New Chat + Delete.
+		/// Project details: Edit + New Chat + Delete.
 		case project
 		/// Project chat: return to the project page.
 		case projectChat
@@ -380,6 +370,7 @@ enum RootToolbars {
 		hasSelection: Bool = false,
 		onNewProject: @escaping () -> Void,
 		onNewChat: @escaping () -> Void = {},
+		onEdit: @escaping () -> Void = {},
 		onDelete: @escaping () -> Void = {},
 		onReturnToProject: @escaping () -> Void = {},
 		isFilesSidebarPresented: Bool = false,
@@ -403,6 +394,12 @@ enum RootToolbars {
 				.accessibilityLabel("Back to \(selectedProjectName)")
 				.accessibilityIdentifier("project-chat-home-button")
 			case .project:
+				Button(action: onEdit) {
+					Image(systemName: "square.and.pencil")
+				}
+				.help("Edit Project")
+				.accessibilityIdentifier("edit-project-button")
+				.accessibilityLabel("Edit Project")
 				Button(action: onNewChat) {
 					Label("Chat", systemImage: "plus")
 				}
@@ -452,6 +449,7 @@ enum RootToolbars {
 		isRunning: Bool,
 		isDeleting: Bool,
 		onNew: @escaping () -> Void,
+		onEdit: @escaping () -> Void = {},
 		onRun: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
@@ -466,12 +464,17 @@ enum RootToolbars {
 				.accessibilityIdentifier("toolbar-new-schedule-button")
 				.accessibilityLabel("New Schedule")
 			} else {
+				Button(action: onEdit) {
+					Image(systemName: "square.and.pencil")
+				}
+				.help("Edit Schedule")
+				.accessibilityIdentifier("edit-schedule-button")
+				.accessibilityLabel("Edit Schedule")
 				Button(action: onRun) {
 					Image(systemName: "play.fill")
 				}
 				.help("Run Now")
 				.accessibilityLabel("Run Now")
-				// Autosave must not disable Run; only block while a run is in flight.
 				.disabled(isRunning)
 				.accessibilityIdentifier("run-schedule-button")
 			}
@@ -616,6 +619,7 @@ enum RootToolbars {
 		hasSelection: Bool,
 		isSaving: Bool,
 		onNew: @escaping () -> Void,
+		onEdit: @escaping () -> Void = {},
 		onDelete: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model, header: RootHeaderTitle(title: title))
@@ -629,6 +633,12 @@ enum RootToolbars {
 				.accessibilityIdentifier("toolbar-new-skill-button")
 				.accessibilityLabel("New Skill")
 			} else {
+				Button(action: onEdit) {
+					Image(systemName: "square.and.pencil")
+				}
+				.help("Edit Skill")
+				.accessibilityIdentifier("edit-skill-button")
+				.accessibilityLabel("Edit Skill")
 				Button(role: .destructive, action: onDelete) {
 					Image(systemName: "trash")
 				}
@@ -645,14 +655,10 @@ enum RootToolbars {
 		case home
 		/// Selected flow detail: Edit / Run / Delete for custom flows.
 		case detail
-		/// Create / edit sheet content: no list or detail actions.
-		case editor
 	}
 
-	static func flowsToolbarMode(hasSelection: Bool, isEditing: Bool) -> FlowsToolbarMode {
-		if isEditing { return .editor }
-		if hasSelection { return .detail }
-		return .home
+	static func flowsToolbarMode(hasSelection: Bool) -> FlowsToolbarMode {
+		hasSelection ? .detail : .home
 	}
 
 	@ToolbarContentBuilder
@@ -662,7 +668,6 @@ enum RootToolbars {
 		isListLoading: Bool,
 		isRunsLoading: Bool,
 		hasSelection: Bool,
-		isEditing: Bool,
 		canEdit: Bool,
 		canRun: Bool,
 		canDelete: Bool,
@@ -672,17 +677,11 @@ enum RootToolbars {
 		onEdit: @escaping () -> Void,
 		onRun: @escaping () -> Void,
 		onDelete: @escaping () -> Void,
-		isSaving: Bool = false,
-		canSave: Bool = false,
-		onCancel: @escaping () -> Void = {},
-		onSave: @escaping () -> Void = {},
 	) -> some ToolbarContent {
-		let mode = flowsToolbarMode(hasSelection: hasSelection, isEditing: isEditing)
+		let mode = flowsToolbarMode(hasSelection: hasSelection)
 		common(model, header: RootHeaderTitle(title: title))
 		contextualActions(
-			isVisible: mode == .home
-				|| mode == .editor
-				|| (mode == .detail && (canEdit || canRun || canDelete))
+			isVisible: mode == .home || (mode == .detail && (canEdit || canRun || canDelete))
 		) {
 			switch mode {
 			case .home:
@@ -701,15 +700,6 @@ enum RootToolbars {
 					.accessibilityIdentifier("edit-flow-button")
 					.accessibilityLabel("Edit Flow")
 				}
-			case .editor:
-				Button(action: onCancel) {
-					Image(systemName: "xmark")
-				}
-				.help("Cancel")
-				.disabled(isSaving)
-				.keyboardShortcut(.cancelAction)
-				.accessibilityIdentifier("flow-editor-cancel")
-				.accessibilityLabel("Cancel")
 			}
 			switch mode {
 			case .home:
@@ -731,15 +721,6 @@ enum RootToolbars {
 					.accessibilityIdentifier("run-flow-button")
 					.accessibilityLabel("Run Now")
 				}
-			case .editor:
-				Button(action: onSave) {
-					Image(systemName: "checkmark")
-				}
-				.help("Save")
-				.disabled(isSaving || !canSave)
-				.keyboardShortcut(.defaultAction)
-				.accessibilityIdentifier("flow-editor-save")
-				.accessibilityLabel(isSaving ? "Saving" : "Save")
 			}
 			if mode == .detail, canDelete {
 				Button(role: .destructive, action: onDelete) {

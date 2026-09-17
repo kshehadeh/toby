@@ -297,6 +297,15 @@ struct RecordingsViewTests {
 		#expect(throws: Never.self) {
 			try sheet.inspect().find(viewWithAccessibilityIdentifier: "recording-name-field")
 		}
+		#expect(throws: Never.self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "recording-edit-cancel-button")
+		}
+		#expect(throws: Never.self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "recording-edit-save-button")
+		}
+		#expect(throws: Never.self) {
+			try sheet.inspect().find(viewWithAccessibilityIdentifier: "recording-edit-sheet")
+		}
 	}
 
 	@Test("detail view omits start chat button in sidebar when a single recording is selected")

@@ -151,6 +151,28 @@ final class SchedulesStore {
 
 	/// Details / Prompt tab in the schedule detail.
 	var selectedDetailTab: ScheduleDetailTab = .details
+	/// Create / edit sheet draft. Nil when the editor is dismissed.
+	var editor: ScheduleEditorDraft?
+	var editorBaseline: ScheduleEditorDraft?
+	var editorError: String?
+	var editorCronError: String?
+
+	var isEditorDirty: Bool {
+		guard let editor else { return false }
+		return editor != editorBaseline
+	}
+
+	var isParsingEditorCron: Bool {
+		parsingCronScheduleId == editorCronToken
+	}
+
+	var isEditorCronValid: Bool {
+		guard let cron = editor?.cron else { return false }
+		let value = cron.trimmingCharacters(in: .whitespacesAndNewlines)
+		return !value.isEmpty && Self.isValidCronExpression(value)
+	}
+
+	private var editorCronToken: String { "editor" }
 
 	private let client = TobyClient()
 	private var autosaveTask: Task<Void, Never>?
@@ -186,6 +208,10 @@ final class SchedulesStore {
 		selectedRunDetail = nil
 		isRunDetailLoading = false
 		runDetailError = nil
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
+		editorCronError = nil
 		isSaveInFlight = false
 		loadedTree = nil
 	}
@@ -249,24 +275,68 @@ final class SchedulesStore {
 		closeRunDetail()
 	}
 
-	func createSchedule() async {
-		await flushPendingSave()
+	func startCreate() {
+		let persona = personaOptions.first(where: { $0.isDefault == true })?.name
+			?? personaOptions.first?.name
+			?? ""
+		let draft = ScheduleEditorDraft.blank(personaName: persona)
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+		editorCronError = nil
+	}
+
+	func startEdit(id: String? = nil) {
+		guard let schedule = schedules.first(where: { $0.id == id ?? selectedScheduleId }) else { return }
+		let draft = ScheduleEditorDraft.from(schedule: schedule, values: values)
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+		editorCronError = nil
+	}
+
+	func cancelEditor() {
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
+		editorCronError = nil
+		parsingCronScheduleId = nil
+	}
+
+	func applyEditorAction(_ action: String) {
+		guard var draft = editor else { return }
+		draft.action = action == "flow" ? "flow" : "prompt"
+		if draft.action == "prompt" {
+			draft.flowId = "(none)"
+		} else if draft.flowId.isEmpty || draft.flowId == "(none)" {
+			draft.flowId = flowOptions.first?.id ?? "(none)"
+		}
+		editor = draft
+	}
+
+	func saveEditor() async {
+		guard let draft = editor, draft.canSave else { return }
 		isSaving = true
-		errorMessage = nil
+		editorError = nil
 		defer { isSaving = false }
 		do {
-			let result = try await client.runConfigureAction("create-schedule", body: [:])
-			let response = try await client.fetchConfigureTree()
-			apply(response: response, resetDraft: true)
-			if let newId = result.scheduleId {
-				selectedScheduleId = newId
-				selectedDetailTab = .details
-			} else if let first = schedules.first {
-				selectedScheduleId = first.id
-				selectedDetailTab = .details
+			let scheduleId: String
+			if let existingId = draft.existingId {
+				scheduleId = existingId
+			} else {
+				let result = try await client.runConfigureAction("create-schedule", body: [:])
+				guard let createdId = result.scheduleId else {
+					throw TobyClientError.serverError("Create schedule did not return an id")
+				}
+				scheduleId = createdId
 			}
+			let response = try await client.patchConfigure(changes: draft.configureChanges(scheduleId: scheduleId))
+			apply(response: response, resetDraft: true)
+			cancelEditor()
+			selectedScheduleId = scheduleId
+			selectedDetailTab = .details
 		} catch {
-			errorMessage = error.localizedDescription
+			editorError = error.localizedDescription
 		}
 	}
 
@@ -460,42 +530,32 @@ final class SchedulesStore {
 		await deleteSchedule(id: id)
 	}
 
-	func parseCron(for scheduleId: String) async {
-		guard parsingCronScheduleId == nil else { return }
-		let key = key(for: scheduleId, field: .cron)
-		let value = self.value(for: key)
+	func parseEditorCron() async {
+		guard var draft = editor else { return }
+		let value = draft.cron.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !value.isEmpty else { return }
-		// Already a valid crontab — nothing to convert.
 		if Self.isValidCronExpression(value) {
-			cronValidationErrors[scheduleId] = nil
+			editorCronError = nil
 			return
 		}
-		parsingCronScheduleId = scheduleId
-		errorMessage = nil
-		// Suppress "invalid cron" while the LLM converts natural language.
-		cronValidationErrors[scheduleId] = nil
+		parsingCronScheduleId = editorCronToken
+		editorCronError = nil
 		defer { parsingCronScheduleId = nil }
 		do {
 			let converted = try await client.parseCronExpression(input: value)
-			setDraftValue(key, converted)
-			await save()
-			cronValidationErrors[scheduleId] = nil
+			draft.cron = converted
+			editor = draft
+			editorCronError = nil
 		} catch {
-			cronValidationErrors[scheduleId] = "Could not interpret schedule expression: \(error.localizedDescription)"
+			editorCronError = "Could not interpret schedule expression: \(error.localizedDescription)"
 		}
 	}
 
-	func validateCronOnBlur(for scheduleId: String) {
-		// Don't flash validation UI while a conversion is already in flight (focus often
-		// leaves the field when the user clicks Convert).
-		guard parsingCronScheduleId != scheduleId else { return }
-		let key = key(for: scheduleId, field: .cron)
-		let value = self.value(for: key)
-		// Clear hard errors on blur when empty or valid. Natural-language text is
-		// expected input and is handled as a soft "needs convert" hint in the view —
-		// not as a validation error — so we do not set cronValidationErrors for it.
+	func validateEditorCronOnBlur() {
+		guard parsingCronScheduleId != editorCronToken else { return }
+		let value = editor?.cron.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 		if value.isEmpty || Self.isValidCronExpression(value) {
-			cronValidationErrors[scheduleId] = nil
+			editorCronError = nil
 		}
 	}
 

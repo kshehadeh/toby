@@ -402,10 +402,9 @@ Modal is UI-only: the run response includes `result` for the app to display.
 ### Toby.app UI
 
 The main window **Flows** surface (`DetailRoute.flows`) lists flows in a second
-column and opens detail with node steps and
-recent runs. **New flow** in the toolbar opens a step-list editor. The window
-title is the draft name, with **New flow** or **Edit flow** as the subtitle;
-Cancel and Save sit in the trailing toolbar. The editor covers name, curated SF
+column and opens inspect-only detail with node steps and
+recent runs. **New flow** or **Edit** opens a step-list editor in a sheet.
+Cancel and Save sit in the sheet toolbar. The editor covers name, curated SF
 Symbol icon, tool picker, const inputs, optional last LLM, destinations. The selected
 icon follows the custom flow into Flows, schedules, and custom home dashboard
 cards or action runners. Documents without an icon retain the existing

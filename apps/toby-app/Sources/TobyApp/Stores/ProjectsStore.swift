@@ -24,6 +24,15 @@ final class ProjectsStore {
 	/// Details / Chats tab on the project page.
 	var selectedDetailTab: ProjectDetailTab = .details
 	var treeChanges: [ProjectTreeChange] = []
+	/// Create / edit sheet draft. Nil when the editor is dismissed.
+	var editor: ProjectEditorDraft?
+	var editorBaseline: ProjectEditorDraft?
+	var editorError: String?
+
+	var isEditorDirty: Bool {
+		guard let editor else { return false }
+		return editor != editorBaseline
+	}
 
 	struct PendingDelete {
 		let projectId: String
@@ -33,16 +42,12 @@ final class ProjectsStore {
 	private let client = TobyClient()
 	@ObservationIgnored
 	nonisolated(unsafe)
-	private var autosaveTask: Task<Void, Never>?
-	@ObservationIgnored
-	nonisolated(unsafe)
 	private var folderWatchTask: Task<Void, Never>?
 	@ObservationIgnored
 	nonisolated(unsafe)
 	private var clearTreeChangesTask: Task<Void, Never>?
 	private var selectedProjectDetailId: String?
 	private var treeProjectId: String?
-	private let autosaveDelay: Duration = .milliseconds(500)
 
 	var selectedProjectName: String {
 		selectedProject?.name ?? "Projects"
@@ -66,15 +71,12 @@ final class ProjectsStore {
 	}
 
 	deinit {
-		autosaveTask?.cancel()
 		folderWatchTask?.cancel()
 		clearTreeChangesTask?.cancel()
 	}
 
 	/// Clears projects state after a Toby home directory switch.
 	func resetForHomeSwitch() {
-		autosaveTask?.cancel()
-		autosaveTask = nil
 		folderWatchTask?.cancel()
 		folderWatchTask = nil
 		clearTreeChangesTask?.cancel()
@@ -97,6 +99,9 @@ final class ProjectsStore {
 		selectedDetailTab = .details
 		treeChanges = []
 		treeProjectId = nil
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
 	}
 
 	func load() async {
@@ -141,23 +146,71 @@ final class ProjectsStore {
 		await loadList()
 	}
 
-	func createProject() async {
-		await flushPendingSave()
+	func startCreate() {
+		let draft = ProjectEditorDraft.blank()
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+	}
+
+	func startEdit() {
+		guard let project = selectedProject else { return }
+		let draft = ProjectEditorDraft.from(project: project)
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+	}
+
+	func cancelEditor() {
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
+	}
+
+	func saveEditor() async {
+		guard let draft = editor, draft.canSave else { return }
 		isSaving = true
-		errorMessage = nil
+		editorError = nil
 		defer { isSaving = false }
 		do {
-			let created = try await client.createProject()
-			projects = try await client.listProjects()
-			await refreshProjectSessions()
-			await selectProject(id: created.id)
+			if let id = draft.existingId {
+				let saved = try await client.updateProject(
+					id: id,
+					name: draft.trimmedName,
+					summary: draft.summary,
+					personaName: draft.personaName
+				)
+				applySavedProject(saved)
+			} else {
+				var created = try await client.createProject(name: draft.trimmedName)
+				if !draft.summary.isEmpty || !draft.personaName.isEmpty {
+					created = try await client.updateProject(
+						id: created.id,
+						name: draft.trimmedName,
+						summary: draft.summary,
+						personaName: draft.personaName
+					)
+				}
+				projects = try await client.listProjects()
+				await refreshProjectSessions()
+				cancelEditor()
+				await selectProject(id: created.id)
+				return
+			}
+			cancelEditor()
 		} catch {
-			errorMessage = error.localizedDescription
+			editorError = error.localizedDescription
+		}
+	}
+
+	private func applySavedProject(_ saved: ProjectSummary) {
+		selectedProject = saved
+		if let idx = projects.firstIndex(where: { $0.id == saved.id }) {
+			projects[idx] = saved
 		}
 	}
 
 	func deleteProject(id: String, chatStore: ChatStore? = nil) async {
-		await flushPendingSave()
 		isSaving = true
 		errorMessage = nil
 		defer { isSaving = false }
@@ -189,9 +242,7 @@ final class ProjectsStore {
 	}
 
 	func selectHome(flush: Bool = true) async {
-		if flush {
-			await flushPendingSave()
-		}
+		_ = flush
 		folderWatchTask?.cancel()
 		folderWatchTask = nil
 		clearTreeChangesTask?.cancel()
@@ -211,7 +262,6 @@ final class ProjectsStore {
 	/// `isShowingChat` or the details/chats tab — callers that open a chat
 	/// must not flash the project page.
 	func ensureProjectSelected(id: String) async {
-		await flushPendingSave()
 		let alreadyLoaded = selectedProjectId == id && selectedProjectDetailId == id
 		selectedProjectId = id
 		if alreadyLoaded {
@@ -284,98 +334,6 @@ final class ProjectsStore {
 		}
 	}
 
-	func updateName(_ name: String) {
-		guard var project = selectedProject else { return }
-		project = ProjectSummary(
-			id: project.id,
-			slug: project.slug,
-			name: name,
-			summary: project.summary,
-			folderPath: project.folderPath,
-			personaName: project.personaName,
-			outputsDir: project.outputsDir,
-			skillsDir: project.skillsDir,
-			createdAt: project.createdAt,
-			updatedAt: project.updatedAt
-		)
-		selectedProject = project
-		scheduleAutosave()
-	}
-
-	func updateSummary(_ summary: String) {
-		guard var project = selectedProject else { return }
-		project = ProjectSummary(
-			id: project.id,
-			slug: project.slug,
-			name: project.name,
-			summary: summary,
-			folderPath: project.folderPath,
-			personaName: project.personaName,
-			outputsDir: project.outputsDir,
-			skillsDir: project.skillsDir,
-			createdAt: project.createdAt,
-			updatedAt: project.updatedAt
-		)
-		selectedProject = project
-		scheduleAutosave()
-	}
-
-	func updatePersona(_ personaName: String) {
-		guard var project = selectedProject else { return }
-		let normalized = personaName.isEmpty ? nil : personaName
-		project = ProjectSummary(
-			id: project.id,
-			slug: project.slug,
-			name: project.name,
-			summary: project.summary,
-			folderPath: project.folderPath,
-			personaName: normalized,
-			outputsDir: project.outputsDir,
-			skillsDir: project.skillsDir,
-			createdAt: project.createdAt,
-			updatedAt: project.updatedAt
-		)
-		selectedProject = project
-		scheduleAutosave()
-	}
-
-	func flushPendingSave() async {
-		autosaveTask?.cancel()
-		autosaveTask = nil
-		await save()
-	}
-
-	private func scheduleAutosave() {
-		autosaveTask?.cancel()
-		autosaveTask = Task { [weak self, autosaveDelay] in
-			do {
-				try await Task.sleep(for: autosaveDelay)
-			} catch {
-				return
-			}
-			await self?.save()
-		}
-	}
-
-	private func save() async {
-		guard let project = selectedProject else { return }
-		isSaving = true
-		defer { isSaving = false }
-		do {
-			let saved = try await client.updateProject(
-				id: project.id,
-				name: project.name,
-				summary: project.summary,
-				personaName: project.personaName ?? ""
-			)
-			selectedProject = saved
-			if let idx = projects.firstIndex(where: { $0.id == saved.id }) {
-				projects[idx] = saved
-			}
-		} catch {
-			errorMessage = error.localizedDescription
-		}
-	}
 
 	private func refreshProjectSessions() async {
 		var next: [String: [SessionSummary]] = [:]

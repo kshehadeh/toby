@@ -23,7 +23,7 @@ struct SchedulesDetailView: View {
 					systemImage: DetailRoute.schedules.systemImage,
 					title: "No schedule selected",
 					prompt: "Select a schedule",
-					onCreate: { Task { await store.createSchedule() } },
+					onCreate: { store.startCreate() },
 					createAccessibilityIdentifier: "empty-create-schedule-button"
 				)
 			}

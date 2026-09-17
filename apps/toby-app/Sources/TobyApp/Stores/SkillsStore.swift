@@ -70,6 +70,20 @@ extension SkillDetail {
 		tools = try c.decodeIfPresent([String].self, forKey: .tools)
 		integrations = try c.decodeIfPresent([String].self, forKey: .integrations)
 	}
+
+	/// Full URL for the skill's custom icon, with a cache-busting token so
+	/// re-uploads (which reuse the `icon.png` filename) reload in the UI.
+	var resolvedIconURL: URL? {
+		guard let iconUrl, !iconUrl.isEmpty else { return nil }
+		let base = ConfigReader.baseURL().absoluteString
+		let token = (updatedAt ?? "")
+			.unicodeScalars
+			.filter { CharacterSet.alphanumerics.contains($0) }
+			.map(String.init)
+			.joined()
+		let suffix = token.isEmpty ? "" : "?v=\(token)"
+		return URL(string: base + iconUrl + suffix)
+	}
 }
 
 enum SkillField: String {
@@ -106,6 +120,15 @@ final class SkillsStore {
 	var pendingDelete: PendingDelete?
 	/// About / Instructions tab in the skill detail.
 	var selectedDetailTab: SkillDetailTab = .about
+	/// Create / edit sheet draft. Nil when the editor is dismissed.
+	var editor: SkillEditorDraft?
+	var editorBaseline: SkillEditorDraft?
+	var editorError: String?
+
+	var isEditorDirty: Bool {
+		guard let editor else { return false }
+		return editor != editorBaseline
+	}
 
 	struct PendingDelete {
 		let dirName: String
@@ -121,10 +144,7 @@ final class SkillsStore {
 	private(set) var isDirty = false
 
 	private let client: any SkillsClient
-	private var autosaveTask: Task<Void, Never>?
 	private var detailLoadTask: Task<Void, Never>?
-	private let autosaveDelay: Duration = .milliseconds(450)
-	private var draft: [String: String] = [:]
 	private var isQuietRefreshing = false
 	/// Bumped on select/deselect so in-flight detail fetches cannot land on a
 	/// stale selection.
@@ -136,8 +156,6 @@ final class SkillsStore {
 
 	/// Clears skills state after a Toby home directory switch.
 	func resetForHomeSwitch() {
-		autosaveTask?.cancel()
-		autosaveTask = nil
 		detailLoadTask?.cancel()
 		detailLoadTask = nil
 		skills = []
@@ -152,8 +170,10 @@ final class SkillsStore {
 		pendingDelete = nil
 		selectedDetailTab = .about
 		isDirty = false
-		draft = [:]
 		isQuietRefreshing = false
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
 		detailEpoch += 1
 	}
 
@@ -228,7 +248,6 @@ final class SkillsStore {
 				if let detail = try? await client.fetchSkill(dirName: requestedId) {
 					guard epoch == detailEpoch, selectedSkillId == requestedId else { return }
 					selectedSkill = detail
-					pruneDraft()
 				}
 			} else {
 				selectedSkill = nil
@@ -239,13 +258,10 @@ final class SkillsStore {
 	}
 
 	func selectSkill(id: String) {
-		// Re-tapping the selected row should not remount the AppKit markdown editor.
+		// Re-tapping the selected row should not remount the detail.
 		if selectedSkillId == id, selectedSkill != nil { return }
 		detailLoadTask?.cancel()
 		AppKitFocus.resignTextViewIfNeeded()
-		let pendingChanges = allPendingChanges
-		autosaveTask?.cancel()
-		autosaveTask = nil
 		detailEpoch += 1
 		let epoch = detailEpoch
 		selectedSkillId = id
@@ -253,8 +269,6 @@ final class SkillsStore {
 		selectedDetailTab = .about
 		isDetailLoading = true
 
-		// Record selection intent before the first suspension. A later selection
-		// or deselection cancels this entire save/fetch sequence.
 		detailLoadTask = Task { [weak self] in
 			guard let self else { return }
 			defer {
@@ -263,10 +277,6 @@ final class SkillsStore {
 					self.detailLoadTask = nil
 				}
 			}
-			await self.persistPendingChanges(
-				changes: pendingChanges,
-				reloadDetail: false
-			)
 			guard !Task.isCancelled,
 				epoch == self.detailEpoch,
 				self.selectedSkillId == id
@@ -279,53 +289,66 @@ final class SkillsStore {
 		detailLoadTask?.cancel()
 		detailLoadTask = nil
 		AppKitFocus.resignTextViewIfNeeded()
-		let pendingChanges = allPendingChanges
-		autosaveTask?.cancel()
-		autosaveTask = nil
 		detailEpoch += 1
 		selectedSkillId = nil
 		selectedSkill = nil
 		selectedDetailTab = .about
 		isDetailLoading = false
-
-		// Deselecting keeps the feature mounted, so flush now rather than waiting
-		// for `SkillsView.onDisappear`.
-		Task { [weak self] in
-			await self?.persistPendingChanges(
-				changes: pendingChanges,
-				reloadDetail: false
-			)
-		}
 	}
 
-	func createSkill() async {
-		await flushPendingSave()
+	func startCreate() {
+		let draft = SkillEditorDraft.blank()
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+	}
+
+	func startEdit() {
+		guard let skill = selectedSkill else { return }
+		let draft = SkillEditorDraft.from(detail: skill)
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+	}
+
+	func cancelEditor() {
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
+	}
+
+	func saveEditor() async {
+		guard let draft = editor, draft.canSave else { return }
 		isSaving = true
-		errorMessage = nil
+		editorError = nil
 		defer { isSaving = false }
 		do {
-			let result = try await client.runConfigureAction("create-skill", body: [:])
-			skills = try await client.listSkills()
-			if let newId = result.dirName {
-				detailEpoch += 1
-				let epoch = detailEpoch
-				selectedSkillId = newId
-				selectedDetailTab = .about
-				await loadDetail(id: newId, epoch: epoch)
-			} else if let first = skills.first {
-				detailEpoch += 1
-				let epoch = detailEpoch
-				selectedSkillId = first.id
-				selectedDetailTab = .about
-				await loadDetail(id: first.id, epoch: epoch)
+			let dirName: String
+			if let existingId = draft.existingId {
+				dirName = existingId
+				try await persistEditorFields(draft: draft, dirName: dirName, baseline: editorBaseline)
+			} else {
+				let result = try await client.runConfigureAction("create-skill", body: [:])
+				guard let createdId = result.dirName else {
+					throw TobyClientError.serverError("Create skill did not return an id")
+				}
+				dirName = createdId
+				try await persistEditorFields(draft: draft, dirName: dirName, baseline: nil)
 			}
+			try await persistEditorIcon(draft: draft, dirName: dirName)
+			skills = try await client.listSkills()
+			cancelEditor()
+			detailEpoch += 1
+			let epoch = detailEpoch
+			selectedSkillId = dirName
+			selectedDetailTab = .about
+			await loadDetail(id: dirName, epoch: epoch)
 		} catch {
-			errorMessage = error.localizedDescription
+			editorError = error.localizedDescription
 		}
 	}
 
 	func deleteSkill(id: String) async {
-		await flushPendingSave()
 		detailLoadTask?.cancel()
 		detailLoadTask = nil
 		isSaving = true
@@ -350,9 +373,6 @@ final class SkillsStore {
 	}
 
 	func value(for key: String) -> String {
-		if let draftValue = draft[key] {
-			return draftValue
-		}
 		guard let skill = selectedSkill else { return "" }
 		let parts = key.split(separator: ".", maxSplits: 1)
 		guard parts.count == 2, String(parts[0]) == skill.dirName else { return "" }
@@ -364,44 +384,6 @@ final class SkillsStore {
 		case .body: return skill.bodyMarkdown
 		default: return ""
 		}
-	}
-
-	func setDraftValue(_ key: String, _ value: String, autosaveImmediately: Bool = false) {
-		let saved = self.value(forSavedKey: key)
-		if value == saved {
-			draft.removeValue(forKey: key)
-		} else {
-			draft[key] = value
-		}
-		if autosaveImmediately {
-			autosaveTask?.cancel()
-			autosaveTask = nil
-			Task { await savePendingChanges() }
-		} else {
-			scheduleAutosave()
-		}
-	}
-
-	func flushPendingSave(reloadDetail: Bool = true) async {
-		autosaveTask?.cancel()
-		autosaveTask = nil
-		await persistPendingChanges(changes: nil, reloadDetail: reloadDetail)
-	}
-
-	private func persistPendingChanges(
-		changes: [String: String]?,
-		reloadDetail: Bool
-	) async {
-		while isSaving {
-			guard !Task.isCancelled else { return }
-			do {
-				try await Task.sleep(for: .milliseconds(20))
-			} catch {
-				return
-			}
-		}
-		guard !Task.isCancelled else { return }
-		await savePendingChanges(changes: changes, reloadDetail: reloadDetail)
 	}
 
 	private func loadDetail(id: String, epoch: Int? = nil) async {
@@ -417,12 +399,9 @@ final class SkillsStore {
 			let loaded = try await client.fetchSkill(dirName: id)
 			guard epoch == detailEpoch, selectedSkillId == id else { return }
 			selectedSkill = loaded
-			pruneDraft()
 		} catch {
 			guard epoch == detailEpoch else { return }
 			errorMessage = error.localizedDescription
-			// If we have nothing to show, drop the dangling selection so the
-			// detail pane cannot stick on a spinner after a failed fetch.
 			if selectedSkill?.id != id {
 				selectedSkill = nil
 			}
@@ -440,156 +419,61 @@ final class SkillsStore {
 		isDirty = false
 	}
 
-	private func pruneDraft() {
-		guard let skill = selectedSkill else {
-			draft = [:]
-			return
+	private func persistEditorFields(
+		draft: SkillEditorDraft,
+		dirName: String,
+		baseline: SkillEditorDraft?
+	) async throws {
+		func needsUpdate<T: Equatable>(_ keyPath: KeyPath<SkillEditorDraft, T>) -> Bool {
+			guard let baseline else { return true }
+			return draft[keyPath: keyPath] != baseline[keyPath: keyPath]
 		}
-		for key in draft.keys {
-			let saved = value(forSavedKey: key, skill: skill)
-			if draft[key] == saved {
-				draft.removeValue(forKey: key)
-			}
-		}
-	}
-
-	private func value(forSavedKey key: String, skill: SkillDetail? = nil) -> String {
-		let target = skill ?? selectedSkill
-		guard let target else { return "" }
-		let parts = key.split(separator: ".", maxSplits: 1)
-		guard parts.count == 2, String(parts[0]) == target.dirName else { return "" }
-		let field = String(parts[1])
-		switch SkillField(rawValue: field) {
-		case .name: return target.name
-		case .summary: return target.summary
-		case .enabled: return target.enabled ? "true" : "false"
-		case .body: return target.bodyMarkdown
-		default: return ""
-		}
-	}
-
-	private func scheduleAutosave() {
-		autosaveTask?.cancel()
-		guard hasPendingChanges else {
-			autosaveTask = nil
-			return
-		}
-		autosaveTask = Task { [weak self, autosaveDelay] in
-			do {
-				try await Task.sleep(for: autosaveDelay)
-			} catch {
-				return
-			}
-			await self?.runAutosaveTask()
-		}
-	}
-
-	private func runAutosaveTask() async {
-		autosaveTask = nil
-		await savePendingChanges()
-	}
-
-	private var hasPendingChanges: Bool {
-		!allPendingChanges.isEmpty
-	}
-
-	private var allPendingChanges: [String: String] {
-		var changes: [String: String] = [:]
-		for (key, draftValue) in draft {
-			let saved = self.value(forSavedKey: key)
-			if draftValue != saved {
-				changes[key] = draftValue
-			}
-		}
-		return changes
-	}
-
-	private func savePendingChanges(
-		changes suppliedChanges: [String: String]? = nil,
-		reloadDetail: Bool = true
-	) async {
-		if isSaving {
-			scheduleAutosave()
-			return
-		}
-		let changes = suppliedChanges ?? allPendingChanges
-		guard !changes.isEmpty else { return }
-		isSaving = true
-		errorMessage = nil
-		defer { isSaving = false }
-		do {
-			var listChanged = false
-			for (key, value) in changes {
-				let parts = key.split(separator: ".", maxSplits: 1)
-				guard parts.count == 2 else { continue }
-				let dirName = String(parts[0])
-				let field = String(parts[1])
-				if field == SkillField.body.rawValue {
-					_ = try await client.runConfigureAction(
-						"update-skill-body",
-						body: ["dirName": dirName, "body": value],
-					)
-				} else {
-					_ = try await client.runConfigureAction(
-						"update-skill-field",
-						body: ["dirName": dirName, "field": field, "value": value],
-					)
-					if field == SkillField.name.rawValue
-						|| field == SkillField.enabled.rawValue
-						|| field == SkillField.summary.rawValue
-					{
-						listChanged = true
-					}
-				}
-			}
-			for (key, savedValue) in changes where draft[key] == savedValue {
-				draft.removeValue(forKey: key)
-			}
-			if listChanged {
-				skills = try await client.listSkills()
-			}
-			if reloadDetail, let selectedSkillId {
-				await loadDetail(id: selectedSkillId)
-			}
-		} catch {
-			errorMessage = error.localizedDescription
-		}
-	}
-
-	func uploadIcon(fileData: Data, filename: String) async {
-		guard let dirName = selectedSkillId else { return }
-		await flushPendingSave()
-		isSaving = true
-		errorMessage = nil
-		defer { isSaving = false }
-		do {
-			let base64 = fileData.base64EncodedString()
+		if needsUpdate(\.name) {
 			_ = try await client.runConfigureAction(
-				"upload-skill-icon",
-				body: ["dirName": dirName, "imageBase64": base64, "filename": filename],
+				"update-skill-field",
+				body: ["dirName": dirName, "field": SkillField.name.rawValue, "value": draft.trimmedName],
 			)
-			skills = try await client.listSkills()
-			await loadDetail(id: dirName, epoch: detailEpoch)
-		} catch {
-			errorMessage = error.localizedDescription
+		}
+		if needsUpdate(\.summary) {
+			_ = try await client.runConfigureAction(
+				"update-skill-field",
+				body: ["dirName": dirName, "field": SkillField.summary.rawValue, "value": draft.summary],
+			)
+		}
+		if needsUpdate(\.enabled) {
+			_ = try await client.runConfigureAction(
+				"update-skill-field",
+				body: [
+					"dirName": dirName,
+					"field": SkillField.enabled.rawValue,
+					"value": draft.enabled ? "true" : "false",
+				],
+			)
+		}
+		if needsUpdate(\.bodyMarkdown) {
+			_ = try await client.runConfigureAction(
+				"update-skill-body",
+				body: ["dirName": dirName, "body": draft.bodyMarkdown],
+			)
 		}
 	}
 
-	func resetIcon() async {
-		guard let dirName = selectedSkillId else { return }
-		await flushPendingSave()
-		isSaving = true
-		errorMessage = nil
-		defer { isSaving = false }
-		do {
+	private func persistEditorIcon(draft: SkillEditorDraft, dirName: String) async throws {
+		if draft.resetIcon {
 			_ = try await client.runConfigureAction(
 				"reset-skill-icon",
 				body: ["dirName": dirName],
 			)
-			skills = try await client.listSkills()
-			await loadDetail(id: dirName, epoch: detailEpoch)
-		} catch {
-			errorMessage = error.localizedDescription
+		}
+		if let data = draft.pendingIconData, let filename = draft.pendingIconFilename {
+			_ = try await client.runConfigureAction(
+				"upload-skill-icon",
+				body: [
+					"dirName": dirName,
+					"imageBase64": data.base64EncodedString(),
+					"filename": filename,
+				],
+			)
 		}
 	}
 }

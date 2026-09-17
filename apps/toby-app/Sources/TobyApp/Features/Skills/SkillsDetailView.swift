@@ -32,7 +32,7 @@ struct SkillsDetailView: View {
 					systemImage: DetailRoute.skills.systemImage,
 					title: "No skill selected",
 					prompt: "Select a skill",
-					onCreate: { Task { await store.createSkill() } },
+					onCreate: { store.startCreate() },
 					createAccessibilityIdentifier: "empty-create-skill-button"
 				)
 			}

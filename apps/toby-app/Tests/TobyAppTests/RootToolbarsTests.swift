@@ -167,26 +167,13 @@ struct RootToolbarsTests {
 		)
 	}
 
-	@Test("Flow editor title uses the draft name and New/Edit subtitle")
+	@Test("Flow window title uses the selected flow name")
 	func flowEditorWindowTitleAndSubtitle() {
-		var draft = FlowEditorDraft.blank()
+		#expect(RootToolbars.flowsNavigationTitle(selectedName: nil) == "Flows")
+		#expect(RootToolbars.flowsNavigationSubtitle(nil).isEmpty)
 		#expect(
-			RootToolbars.flowsNavigationTitle(selectedName: nil, editor: draft)
-				== "Untitled flow"
-		)
-		#expect(
-			RootToolbars.flowsNavigationSubtitle(nil, editor: draft)
-				== "New flow"
-		)
-		draft.existingId = "flow.custom"
-		draft.name = "Focus mode"
-		#expect(
-			RootToolbars.flowsNavigationTitle(selectedName: "Old name", editor: draft)
+			RootToolbars.flowsNavigationTitle(selectedName: "Focus mode")
 				== "Focus mode"
-		)
-		#expect(
-			RootToolbars.flowsNavigationSubtitle(nil, editor: draft)
-				== "Edit flow"
 		)
 	}
 
@@ -380,20 +367,22 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.recordingsSummarizeHelp(hasSummary: true) == "Re-Summarize")
 	}
 
-	@Test("flows toolbar is home, detail, or editor")
+	@Test("flows toolbar is home or detail")
 	func flowsToolbarMode() {
+		#expect(RootToolbars.flowsToolbarMode(hasSelection: false) == .home)
+		#expect(RootToolbars.flowsToolbarMode(hasSelection: true) == .detail)
+	}
+
+	@Test("selected project/schedule/skill/flow toolbars include edit")
+	func selectedEntityToolbarsIncludeEdit() {
 		#expect(
-			RootToolbars.flowsToolbarMode(hasSelection: false, isEditing: false) == .home
+			RootToolbars.projectToolbarMode(hasSelection: true, isShowingChat: false) == .project
 		)
 		#expect(
-			RootToolbars.flowsToolbarMode(hasSelection: true, isEditing: false) == .detail
+			RootToolbars.projectToolbarMode(hasSelection: false, isShowingChat: false) == .home
 		)
-		#expect(
-			RootToolbars.flowsToolbarMode(hasSelection: false, isEditing: true) == .editor
-		)
-		#expect(
-			RootToolbars.flowsToolbarMode(hasSelection: true, isEditing: true) == .editor
-		)
+		#expect(RootToolbars.flowsToolbarMode(hasSelection: true) == .detail)
+		#expect(RootToolbars.flowsToolbarMode(hasSelection: false) == .home)
 	}
 }
 

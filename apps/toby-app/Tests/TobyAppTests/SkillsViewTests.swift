@@ -339,18 +339,24 @@ struct SkillsViewTests {
 		store.selectedDetailTab = .about
 		let pane = aboutPane(store: store)
 		#expect(throws: Never.self) {
-			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-title-field")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-detail-name")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "Research")
 		}
 		#expect(throws: Never.self) {
 			try pane.inspect().find(text: "Summary")
+		}
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-title-field")
 		}
 		#expect(throws: (any Error).self) {
 			try pane.inspect().find(text: "Description")
 		}
 	}
 
-	@Test("markdown editor shows write mode by default")
-	func markdownEditorShowsWriteModeByDefault() throws {
+	@Test("markdown body is shown as read-only instructions")
+	func markdownInstructionsAreReadOnly() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
@@ -362,10 +368,10 @@ struct SkillsViewTests {
 		)
 		let pane = instructionsPane(store: store)
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Write")
+			try pane.inspect().find(text: "Sent to the model when this skill runs")
 		}
-		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Preview")
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(text: "Write")
 		}
 	}
 
@@ -400,13 +406,13 @@ struct SkillsViewTests {
 			try view.inspect().tabView()
 		}
 		#expect(throws: Never.self) {
-			try aboutPane(store: store).inspect().find(text: "Used to display and choose this skill")
+			try aboutPane(store: store).inspect().find(text: "Research assistant")
 		}
 		#expect(throws: Never.self) {
 			try aboutPane(store: store).inspect().find(text: "Summary")
 		}
 		#expect(throws: (any Error).self) {
-			try aboutPane(store: store).inspect().find(text: "Optional")
+			try aboutPane(store: store).inspect().find(text: "Used to display and choose this skill")
 		}
 
 		store.selectedDetailTab = .instructions
@@ -435,8 +441,8 @@ struct SkillsViewTests {
 		#expect(store.selectedDetailTab == .about)
 	}
 
-	@Test("skill detail edits the icon from the about tab, not a form row")
-	func skillDetailEditsIconFromAboutCard() throws {
+	@Test("skill editor edits the icon, not the about tab")
+	func skillEditorEditsIcon() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
 			dirName: "skill-1",
@@ -446,20 +452,25 @@ struct SkillsViewTests {
 			tools: nil,
 			integrations: nil
 		)
-		store.selectedDetailTab = .about
-		let pane = aboutPane(store: store)
+		store.startEdit()
+		var iconPickerPresented = false
+		let pane = SkillEditorAboutPane(
+			store: store,
+			isIconPickerPresented: Binding(
+				get: { iconPickerPresented },
+				set: { iconPickerPresented = $0 }
+			)
+		)
 		#expect(throws: Never.self) {
 			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
 		}
+		let inspectPane = aboutPane(store: store)
 		#expect(throws: (any Error).self) {
-			try pane.inspect().find(text: "Change…")
-		}
-		#expect(throws: (any Error).self) {
-			try pane.inspect().find(button: "Reset")
+			try inspectPane.inspect().find(viewWithAccessibilityIdentifier: "skill-icon-edit-button")
 		}
 	}
 
-	@Test("skill detail shows enabled toggle in the about tab")
+	@Test("skill detail shows enabled status in the about tab")
 	func skillDetailShowsEnabledStatus() throws {
 		let store = SkillsStore()
 		store.selectedSkill = SkillDetail(
@@ -474,6 +485,9 @@ struct SkillsViewTests {
 		let pane = aboutPane(store: store)
 		#expect(throws: Never.self) { try pane.inspect().find(text: "Enabled") }
 		#expect(throws: Never.self) { try pane.inspect().find(text: "Offered to the model") }
+		#expect(throws: (any Error).self) {
+			try pane.inspect().find(ViewType.Toggle.self)
+		}
 	}
 
 	@Test("store exposes summary and enabled field values")
@@ -560,18 +574,53 @@ struct SkillsViewTests {
 		store.markDirty()
 		#expect(store.isDirty == true)
 	}
+
+	@Test("startCreate opens a draft without adding a skill")
+	func startCreateDoesNotAddSkillUntilSave() throws {
+		let store = SkillsStore()
+		store.startCreate()
+		#expect(store.skills.isEmpty)
+		#expect(store.editor?.isNew == true)
+		#expect(store.isEditorDirty == false)
+		var draft = store.editor!
+		draft.name = "Research helper"
+		store.editor = draft
+		#expect(store.isEditorDirty == true)
+		store.cancelEditor()
+		#expect(store.editor == nil)
+		#expect(store.skills.isEmpty)
+
+		store.startCreate()
+		var iconPickerPresented = false
+		let pane = SkillEditorAboutPane(
+			store: store,
+			isIconPickerPresented: Binding(
+				get: { iconPickerPresented },
+				set: { iconPickerPresented = $0 }
+			)
+		)
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-title-field")
+		}
+		#expect(throws: Never.self) {
+			try SkillEditorSheet(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "skill-editor-sheet"
+			)
+		}
+		#expect(throws: Never.self) {
+			try SkillEditorSheet(store: store).inspect().find(
+				viewWithAccessibilityIdentifier: "skill-editor-tabs"
+			)
+		}
+	}
 }
 
 @MainActor
 private func aboutPane(store: SkillsStore) -> SkillAboutPane {
-	SkillAboutPane(
-		store: store,
-		skill: store.selectedSkill!,
-		isIconPickerPresented: .constant(false)
-	)
+	SkillAboutPane(skill: store.selectedSkill!)
 }
 
 @MainActor
 private func instructionsPane(store: SkillsStore) -> SkillInstructionsPane {
-	SkillInstructionsPane(store: store, skill: store.selectedSkill!)
+	SkillInstructionsPane(skill: store.selectedSkill!)
 }

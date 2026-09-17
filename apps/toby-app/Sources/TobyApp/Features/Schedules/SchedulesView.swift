@@ -25,8 +25,12 @@ struct SchedulesView: View {
 		.task {
 			await store.ensureLoaded()
 		}
+		.sheet(item: editorSheetItem($store.editor, onDismiss: {
+			store.cancelEditor()
+		})) { _ in
+			ScheduleEditorSheet(store: store)
+		}
 		.onDisappear {
-			Task { await store.flushPendingSave() }
 			store.closeRunDetail()
 		}
 		.sheet(isPresented: Binding(

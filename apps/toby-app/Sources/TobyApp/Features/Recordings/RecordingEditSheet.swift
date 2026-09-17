@@ -4,11 +4,9 @@ struct RecordingEditSheet: View {
 	@Bindable var store: RecordingsStore
 	let detail: ListenRecordingDetail
 	var isLoadingHeavyContent: Bool = false
-	@Environment(\.dismiss) private var dismiss
 
 	@State private var nameText = ""
-	@State private var saveTask: Task<Void, Never>?
-	@FocusState private var nameFieldFocused: Bool
+	@State private var didLoadDraft = false
 
 	private var visibleErrors: [String] {
 		(detail.metadata.errors ?? []).filter { !isNonFatalScreenCaptureDecline($0) }
@@ -20,8 +18,35 @@ struct RecordingEditSheet: View {
 		return "Saved"
 	}
 
+	private var currentName: String {
+		detail.metadata.name ?? ""
+	}
+
+	private var trimmedName: String {
+		nameText.trimmingCharacters(in: .whitespacesAndNewlines)
+	}
+
+	private var isDirty: Bool {
+		trimmedName != currentName
+	}
+
 	var body: some View {
-		NavigationStack {
+		EditorSheet(
+			title: "Edit Recording",
+			isSaving: false,
+			canSave: true,
+			isDirty: isDirty,
+			size: .compact,
+			accessibilityIdentifier: "recording-edit-sheet",
+			cancelAccessibilityIdentifier: "recording-edit-cancel-button",
+			saveAccessibilityIdentifier: "recording-edit-save-button",
+			onCancel: {
+				store.isEditSheetPresented = false
+			},
+			onSave: {
+				Task { await saveAndDismiss() }
+			}
+		) {
 			ScrollView {
 				VStack(alignment: .leading, spacing: 18) {
 					nameSection
@@ -37,22 +62,17 @@ struct RecordingEditSheet: View {
 				.padding(20)
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
-			.background(SettingsDesign.canvasBackground)
-			.navigationTitle("Edit Recording")
-			.toolbar {
-				ToolbarItem(placement: .confirmationAction) {
-					Button("Done") {
-						saveNow()
-						dismiss()
-					}
-					.keyboardShortcut(.defaultAction)
-					.accessibilityIdentifier("recording-edit-done-button")
-				}
+		}
+		.onAppear {
+			if !didLoadDraft {
+				nameText = currentName
+				didLoadDraft = true
 			}
 		}
-		.frame(minWidth: 420, idealWidth: 460, minHeight: 480, idealHeight: 560)
-		.accessibilityIdentifier("recording-edit-sheet")
-		.onDisappear { saveNow() }
+		.onChange(of: detail.id) { _, _ in
+			nameText = currentName
+			didLoadDraft = true
+		}
 	}
 
 	@ViewBuilder
@@ -64,60 +84,25 @@ struct RecordingEditSheet: View {
 			TextField("Recording name", text: $nameText)
 				.textFieldStyle(.roundedBorder)
 				.font(.system(size: 13))
-				.focused($nameFieldFocused)
-				.onChange(of: nameText) { _, _ in scheduleSave() }
-				.onChange(of: nameFieldFocused) { _, focused in
-					if !focused { saveNow() }
-				}
 				.accessibilityIdentifier("recording-name-field")
 		}
-		.onAppear { nameText = detail.metadata.name ?? "" }
-		.onChange(of: detail.id) { _, _ in
-			saveTask?.cancel()
-			nameText = detail.metadata.name ?? ""
-		}
-		.onChange(of: detail.metadata.name) { _, newValue in
-			if !nameFieldFocused { nameText = newValue ?? "" }
-		}
-	}
-
-	private func scheduleSave() {
-		saveTask?.cancel()
-		saveTask = Task {
-			try? await Task.sleep(for: .milliseconds(600))
-			guard !Task.isCancelled else { return }
-			await saveName()
-		}
-	}
-
-	private func saveNow() {
-		saveTask?.cancel()
-		saveTask = nil
-		Task { await saveName() }
-	}
-
-	private func saveName() async {
-		let trimmed = nameText.trimmingCharacters(in: .whitespacesAndNewlines)
-		let current = detail.metadata.name ?? ""
-		guard trimmed != current else { return }
-		await store.renameRecording(id: detail.id, name: trimmed)
 	}
 
 	private var metadataSection: some View {
 		VStack(alignment: .leading, spacing: 10) {
-			metadataRow(label: "Started", value: friendlyRecordingDate(detail.metadata.startedAt, fallback: detail.metadata.createdAt))
-			metadataRow(label: "Duration", value: durationText(detail.metadata.durationMs))
-			metadataRow(label: "Sources", value: sourceText(detail.metadata.sources))
-			metadataRow(label: "Status", value: recordingStatusText)
-			metadataRow(label: "Location", value: detail.dir)
+			DetailMetadataRow(
+				label: "Started",
+				value: friendlyRecordingDate(detail.metadata.startedAt, fallback: detail.metadata.createdAt)
+			)
+			DetailMetadataRow(label: "Duration", value: durationText(detail.metadata.durationMs))
+			DetailMetadataRow(label: "Sources", value: sourceText(detail.metadata.sources))
+			DetailMetadataRow(label: "Status", value: recordingStatusText)
+			DetailMetadataRow(label: "Location", value: detail.dir, monospaced: true)
 		}
 	}
 
 	private var audioSection: some View {
-		VStack(alignment: .leading, spacing: 10) {
-			Text("Audio")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
+		DetailSection(title: "Audio") {
 			if isLoadingHeavyContent && detail.hasAudio && !detail.hasLoadedAudioPaths {
 				RecordingAudioPlayerSkeleton()
 			} else if detail.hasAudio, !detail.playableAudioSources.isEmpty {
@@ -136,10 +121,7 @@ struct RecordingEditSheet: View {
 
 	@ViewBuilder
 	private var errorsSection: some View {
-		VStack(alignment: .leading, spacing: 8) {
-			Text("Errors")
-				.font(.system(size: 12, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
+		DetailSection(title: "Errors") {
 			InlineStatusMessage(
 				message: visibleErrors.joined(separator: "\n"),
 				tone: .error,
@@ -149,17 +131,10 @@ struct RecordingEditSheet: View {
 		}
 	}
 
-	private func metadataRow(label: String, value: String) -> some View {
-		VStack(alignment: .leading, spacing: 2) {
-			Text(label)
-				.font(.system(size: 11))
-				.foregroundStyle(SettingsDesign.rowDescription)
-			Text(value)
-				.font(.system(size: 12))
-				.foregroundStyle(SettingsDesign.rowTitle)
-				.lineLimit(2)
-				.textSelection(.enabled)
+	private func saveAndDismiss() async {
+		if isDirty {
+			await store.renameRecording(id: detail.id, name: trimmedName)
 		}
-		.frame(maxWidth: .infinity, alignment: .leading)
+		store.isEditSheetPresented = false
 	}
 }

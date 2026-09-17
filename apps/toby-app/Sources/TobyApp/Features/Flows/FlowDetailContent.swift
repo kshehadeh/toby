@@ -37,7 +37,7 @@ struct FlowDetailsPane: View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 22) {
 				if let description = flow.description, !description.isEmpty {
-					section(title: "Description") {
+					DetailSection(title: "Description") {
 						Text(description)
 							.font(.body)
 							.foregroundStyle(SettingsDesign.rowTitle)
@@ -46,17 +46,17 @@ struct FlowDetailsPane: View {
 					}
 				}
 
-				section(title: "Steps") {
+				DetailSection(title: "Steps") {
 					FlowNodePipeline(nodes: flow.nodes)
 				}
 
 				VStack(alignment: .leading, spacing: 12) {
-					metadataRow(label: "ID", value: flow.id, monospaced: true)
-					metadataRow(label: "Persona", value: flow.personaLabel)
-					metadataRow(label: "Steps", value: "\(flow.nodes.count)")
-					metadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
+					DetailMetadataRow(label: "ID", value: flow.id, monospaced: true)
+					DetailMetadataRow(label: "Persona", value: flow.personaLabel)
+					DetailMetadataRow(label: "Steps", value: "\(flow.nodes.count)")
+					DetailMetadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
 					if let updatedAt = flow.updatedAt, let date = FlowISO8601.date(from: updatedAt) {
-						metadataRow(
+						DetailMetadataRow(
 							label: "Updated",
 							value: DateFormatter.localizedString(
 								from: date,
@@ -67,7 +67,7 @@ struct FlowDetailsPane: View {
 					}
 				}
 
-				section(title: "About flows") {
+				DetailSection(title: "About flows") {
 					VStack(alignment: .leading, spacing: 8) {
 						Text("Flows run a fixed sequence of Tool Executor and LLM Prompter nodes. They power dashboard AI blurbs and other non-chat workflows.")
 							.font(.system(size: 13))
@@ -84,7 +84,7 @@ struct FlowDetailsPane: View {
 				}
 
 				if let destinations = flow.destinations, !destinations.isEmpty {
-					section(title: "When it finishes") {
+					DetailSection(title: "When it finishes") {
 						VStack(alignment: .leading, spacing: 6) {
 							ForEach(Array(destinations.enumerated()), id: \.offset) { _, dest in
 								Text(dest.summary)
@@ -105,32 +105,6 @@ struct FlowDetailsPane: View {
 		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.accessibilityIdentifier("flow-details-tab")
-	}
-
-	private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-		VStack(alignment: .leading, spacing: 10) {
-			Text(title)
-				.font(.system(size: 13, weight: .semibold))
-				.foregroundStyle(SettingsDesign.rowTitle)
-			content()
-				.frame(maxWidth: .infinity, alignment: .leading)
-		}
-	}
-
-	private func metadataRow(label: String, value: String, monospaced: Bool = false) -> some View {
-		HStack(alignment: .firstTextBaseline) {
-			Text(label)
-				.font(.system(size: 12))
-				.foregroundStyle(SettingsDesign.rowDescription)
-			Spacer(minLength: 12)
-			Text(value)
-				.font(monospaced ? .system(size: 12, design: .monospaced) : .system(size: 12))
-				.foregroundStyle(SettingsDesign.rowTitle)
-				.multilineTextAlignment(.trailing)
-				.lineLimit(3)
-				.textSelection(.enabled)
-		}
-		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }
 
