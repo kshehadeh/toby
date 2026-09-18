@@ -17,7 +17,9 @@ final class MemoriesStore {
 	var searchQuery: String = ""
 	var total: Int = 0
 	var hasMore: Bool = false
-	var isCreatingNew: Bool = false
+	var editor: MemoryEditorDraft?
+	var editorBaseline: MemoryEditorDraft?
+	var editorError: String?
 
 	struct PendingDelete: Identifiable {
 		let ids: Set<String>
@@ -40,6 +42,17 @@ final class MemoriesStore {
 		set {
 			selectedMemoryIds = newValue.map { [$0] } ?? []
 		}
+	}
+
+	var isEditorDirty: Bool {
+		editor != editorBaseline
+	}
+
+	/// List row or fetched detail for the single selected memory.
+	var inspectedMemory: MemoryItem? {
+		if let selectedMemory { return selectedMemory }
+		guard let id = selectedMemoryId else { return nil }
+		return memories.first { $0.id == id }
 	}
 
 	/// Tools that create, update, or delete durable memory.
@@ -76,7 +89,9 @@ final class MemoriesStore {
 		searchQuery = ""
 		total = 0
 		hasMore = false
-		isCreatingNew = false
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
 		isDirty = false
 		isQuietRefreshing = false
 	}
@@ -88,9 +103,7 @@ final class MemoriesStore {
 		defer { isListLoading = false }
 		do {
 			try await loadListData()
-			if isCreatingNew {
-				// Keep create mode; don't force a selection.
-			} else if let selectedMemoryId {
+			if let selectedMemoryId {
 				await loadDetail(id: selectedMemoryId)
 			} else {
 				selectedMemory = nil
@@ -121,9 +134,8 @@ final class MemoriesStore {
 		defer { isQuietRefreshing = false }
 		do {
 			try await loadListData()
-			// Only refresh the open detail when it is still selected and not in create mode.
-			// Avoid clobbering an in-progress editor draft unless the item vanished.
-			if !isCreatingNew, let id = selectedMemoryId {
+			// Refresh the open inspect detail when it is still selected.
+			if let id = selectedMemoryId {
 				if let listed = memories.first(where: { $0.id == id }) {
 					// Prefer list payload for selected row freshness without a detail spinner.
 					if selectedMemory?.updatedAt != listed.updatedAt
@@ -151,7 +163,7 @@ final class MemoriesStore {
 
 	func ensureLoaded() async {
 		if hasLoadedOnce, !isDirty {
-			if let selectedMemoryId, selectedMemory == nil, !isCreatingNew {
+			if let selectedMemoryId, selectedMemory == nil {
 				await loadDetail(id: selectedMemoryId)
 			}
 			return
@@ -186,19 +198,30 @@ final class MemoriesStore {
 	}
 
 	func startCreate() {
-		isCreatingNew = true
-		selectedMemoryIds = []
-		selectedMemory = nil
+		let draft = MemoryEditorDraft.blank()
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+	}
+
+	func startEdit(_ memory: MemoryItem? = nil) {
+		let source = memory ?? inspectedMemory
+		guard let source else { return }
+		let draft = MemoryEditorDraft.from(memory: source)
+		editor = draft
+		editorBaseline = draft
+		editorError = nil
+	}
+
+	func cancelEditor() {
+		editor = nil
+		editorBaseline = nil
+		editorError = nil
 	}
 
 	func clearSelection() {
-		isCreatingNew = false
 		selectedMemoryIds = []
 		selectedMemory = nil
-	}
-
-	func cancelCreate() {
-		isCreatingNew = false
 	}
 
 	func selectMemory(id: String) async {
@@ -207,10 +230,13 @@ final class MemoriesStore {
 	}
 
 	func selectMemories(ids: Set<String>) {
-		isCreatingNew = false
 		selectedMemoryIds = ids
 		detailLoadToken = nil
-		selectedMemory = nil
+		if ids.count == 1, let id = ids.first {
+			selectedMemory = memories.first { $0.id == id }
+		} else {
+			selectedMemory = nil
+		}
 	}
 
 	func loadSelectedMemory() async {
@@ -220,73 +246,54 @@ final class MemoriesStore {
 		await loadDetail(id: id)
 	}
 
-	@discardableResult
-	func createMemory(
-		type: String,
-		subject: String?,
-		value: String,
-		confidence: Double?,
-		sensitivity: String?,
-		visibility: String?
-	) async -> Bool {
+	func saveEditor() async {
+		guard let draft = editor, draft.canSave else { return }
 		isSaving = true
-		errorMessage = nil
+		editorError = nil
 		defer { isSaving = false }
-		let request = MemoryCreateRequest(
-			type: type,
-			subject: subject,
-			value: value,
-			confidence: confidence,
-			sensitivity: sensitivity,
-			visibility: visibility
-		)
+		let subject = draft.trimmedSubject.isEmpty ? nil : draft.trimmedSubject
 		do {
-			let created = try await client.createMemory(request)
-			isCreatingNew = false
-			await load()
-			selectedMemoryIds = [created.id]
-			await loadDetail(id: created.id)
-			return true
+			if draft.isNew {
+				let created = try await client.createMemory(
+					MemoryCreateRequest(
+						type: draft.type,
+						subject: subject,
+						value: draft.trimmedValue,
+						confidence: draft.confidence,
+						sensitivity: draft.sensitivity,
+						visibility: draft.visibility
+					)
+				)
+				cancelEditor()
+				await load()
+				selectedMemoryIds = [created.id]
+				await loadDetail(id: created.id)
+			} else if let id = draft.existingId {
+				let updated = try await client.patchMemory(
+					id: id,
+					patch: MemoryPatchRequest(
+						type: draft.type,
+						subject: subject,
+						value: draft.trimmedValue,
+						confidence: draft.confidence,
+						sensitivity: draft.sensitivity,
+						visibility: draft.visibility
+					)
+				)
+				if let idx = memories.firstIndex(where: { $0.id == id }) {
+					memories[idx] = updated
+				}
+				if selectedMemoryId == id {
+					selectedMemory = updated
+				}
+				cancelEditor()
+			}
 		} catch {
-			errorMessage = error.localizedDescription
-			return false
+			editorError = error.localizedDescription
 		}
 	}
 
-	func updateMemory(
-		id: String,
-		type: String?,
-		subject: String?,
-		value: String?,
-		confidence: Double?,
-		sensitivity: String?,
-		visibility: String?
-	) async {
-		isSaving = true
-		errorMessage = nil
-		defer { isSaving = false }
-		let patch = MemoryPatchRequest(
-			type: type,
-			subject: subject,
-			value: value,
-			confidence: confidence,
-			sensitivity: sensitivity,
-			visibility: visibility
-		)
-		do {
-			let updated = try await client.patchMemory(id: id, patch: patch)
-			if let idx = memories.firstIndex(where: { $0.id == id }) {
-				memories[idx] = updated
-			}
-			if selectedMemoryId == id {
-				selectedMemory = updated
-			}
-		} catch {
-			errorMessage = error.localizedDescription
-		}
-	}
-
-	/// Stages the confirmation alert used by the table, sidebar, and editor.
+	/// Stages the confirmation alert used by the list, inspector, and editor.
 	func requestDelete(_ memory: MemoryItem) {
 		pendingDelete = PendingDelete(ids: [memory.id], value: memory.value)
 	}
@@ -371,11 +378,9 @@ final class MemoriesStore {
 		memories = response.memories
 		total = response.total ?? memories.count
 		hasMore = response.hasMore ?? false
-		if !isCreatingNew {
-			selectedMemoryIds.formIntersection(memories.map(\.id))
-			if selectedMemoryIds.isEmpty {
-				selectedMemory = nil
-			}
+		selectedMemoryIds.formIntersection(memories.map(\.id))
+		if selectedMemoryIds.isEmpty {
+			selectedMemory = nil
 		}
 		hasLoadedOnce = true
 		lastLoadedAt = Date()

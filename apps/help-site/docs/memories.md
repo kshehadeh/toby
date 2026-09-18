@@ -32,7 +32,7 @@ You can also ask directly:
 
 ### Browse and edit in the app
 
-Open **Toby.app** and choose **View → Memories** (⌘6), or search for **Open Memories** in the command palette (⌘K). Nothing is selected until you choose a memory; the main page asks you to pick one or create a new memory. Click empty space in the list to clear the selection. Search, add, edit, or delete memories, and inspect their type, sensitivity, visibility, and last-updated timestamp.
+Open **Toby.app** and choose **View → Memories** (⌘6), or search for **Open Memories** in the command palette (⌘K). The window is a list of memories. A details bar stays at the bottom: when nothing is selected it says **No memory selected**. Click a row to inspect the full value, type, sensitivity, visibility, confidence, and dates. Click empty space in the list to clear the selection. Use the toolbar to search, add a memory, or refresh. **New** and **Edit** open a sheet; **Save** persists, **Cancel** discards.
 
 Search matches **keywords and meaning**. If your AI provider can create embeddings, a phrase like “where is my home” can find “Lives in Baltimore, Maryland” even when the words do not overlap. Repeating the same fact in different wording is merged into the existing memory instead of creating a duplicate.
 

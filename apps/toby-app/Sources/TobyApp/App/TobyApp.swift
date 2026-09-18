@@ -166,7 +166,7 @@ struct TobyApp: App {
 				}
 		}
 		.windowStyle(.automatic)
-		.defaultSize(width: 980, height: 680)
+		.defaultSize(width: 720, height: 620)
 		.commandsRemoved()
 
 		.commands {

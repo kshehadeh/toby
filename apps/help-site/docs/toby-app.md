@@ -170,10 +170,11 @@ toolbar.
 
 The Memories window lists the durable facts Toby keeps about you, such as
 preferences, projects, and relationships. Open it from **View → Memories** (⌘6)
-or the command palette. Nothing is selected until you choose a memory; the main
-page asks you to pick one or create a new memory. Search, add, edit, or delete
-memories, and inspect their type, sensitivity, visibility, and last-updated
-timestamp. Click empty space in the list to clear the selection. It is not a
+or the command palette. The window is a single list — there is no sidebar.
+A details bar stays at the bottom; when nothing is selected it says **No
+memory selected**. Click a row to inspect it. Search, add, or refresh from
+the toolbar. **New** and **Edit** open a sheet; **Save** persists, **Cancel**
+discards. Click empty space in the list to clear the selection. It is not a
 sidebar workspace in the main window.
 
 ![Toby.app Memories window](/img/toby-app-memories.png)

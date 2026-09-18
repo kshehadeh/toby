@@ -6,43 +6,37 @@ import ViewInspector
 @MainActor
 @Suite("MemoriesView")
 struct MemoriesViewTests {
-	@Test("memories detail view renders empty state")
-	func memoriesDetailViewRendersEmptyState() throws {
+	@Test("empty memories list shows no memories caption")
+	func emptyMemoriesListShowsCaption() throws {
 		let store = MemoriesStore()
-		let view = MemoriesDetailView(store: store)
+		let view = MemoriesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+			try view.inspect().find(text: "No memories")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-memory-button")
+			try view.inspect().find(text: "No memory selected")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "create-memory-button")
 		}
 	}
 
-	@Test("unselected memories show a placeholder")
-	func unselectedMemoriesShowPlaceholder() throws {
+	@Test("unselected memories show the empty inspector")
+	func unselectedMemoriesShowEmptyInspector() throws {
 		let store = MemoriesStore()
-		store.memories = [
-			MemoryItem(
-				id: "m1",
-				userId: "u",
-				type: "fact",
-				subject: nil,
-				value: "Likes dark mode",
-				confidence: 1,
-				sensitivity: "normal",
-				visibility: "usable_by_ai",
-				sourceIds: nil,
-				createdAt: "2026-01-01T00:00:00Z",
-				updatedAt: "2026-01-01T00:00:00Z",
-				expiresAt: nil
-			),
-		]
-		let view = MemoriesDetailView(store: store)
+		store.memories = [sampleMemory()]
+		let view = MemoriesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "feature-browser-placeholder")
+			try view.inspect().find(text: "Likes dark mode")
 		}
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "empty-create-memory-button")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memories-inspector-bar")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No memory selected")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Select a memory to view its details")
 		}
 	}
 
@@ -50,49 +44,36 @@ struct MemoriesViewTests {
 	func clearSelectionDropsCurrentMemory() {
 		let store = MemoriesStore()
 		store.selectedMemoryIds = ["m1"]
-		store.isCreatingNew = true
+		store.startCreate()
 		store.clearSelection()
 		#expect(store.selectedMemoryIds.isEmpty)
 		#expect(store.selectedMemory == nil)
-		#expect(store.isCreatingNew == false)
+		#expect(store.editor?.isNew == true)
 	}
 
-	@Test("memories sidebar empty-area tap clears selection")
-	func memoriesSidebarEmptyAreaTapClearsSelection() throws {
+	@Test("memories list empty-area tap clears selection")
+	func memoriesListEmptyAreaTapClearsSelection() throws {
 		let store = MemoriesStore()
-		store.memories = [
-			MemoryItem(
-				id: "m1",
-				userId: "u",
-				type: "fact",
-				subject: nil,
-				value: "Likes dark mode",
-				confidence: 1,
-				sensitivity: "normal",
-				visibility: "usable_by_ai",
-				sourceIds: nil,
-				createdAt: "2026-01-01T00:00:00Z",
-				updatedAt: "2026-01-01T00:00:00Z",
-				expiresAt: nil
-			),
-		]
+		store.memories = [sampleMemory()]
 		store.selectedMemoryId = "m1"
-		let view = MemoriesSidebarView(store: store)
+		store.selectedMemory = store.memories[0]
+		let view = MemoriesListView(store: store)
 		let target = try view.inspect().find(
 			viewWithAccessibilityIdentifier: "feature-browser-list-deselect"
 		)
 		try target.button().tap()
 		#expect(store.selectedMemoryIds.isEmpty)
+		#expect(store.selectedMemory == nil)
 	}
 
-	@Test("memories sidebar shows memory values")
-	func memoriesSidebarShowsMemoryValues() throws {
+	@Test("memories list shows memory values")
+	func memoriesListShowsMemoryValues() throws {
 		let store = MemoriesStore()
 		store.memories = [
-			MemoryItem(id: "m1", userId: "u", type: "fact", subject: nil, value: "Likes dark mode", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
-			MemoryItem(id: "m2", userId: "u", type: "preference", subject: "Editor", value: "Prefers VS Code", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
+			sampleMemory(),
+			sampleMemory(id: "m2", type: "preference", subject: "Editor", value: "Prefers VS Code"),
 		]
-		let view = MemoriesSidebarView(store: store)
+		let view = MemoriesListView(store: store)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Likes dark mode")
 		}
@@ -101,10 +82,10 @@ struct MemoriesViewTests {
 		}
 	}
 
-	@Test("memories sidebar shows empty state when no memories")
-	func memoriesSidebarShowsEmptyState() throws {
+	@Test("memories list shows empty state when no memories")
+	func memoriesListShowsEmptyState() throws {
 		let store = MemoriesStore()
-		let view = MemoriesSidebarView(store: store)
+		let view = MemoriesListView(store: store)
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "No memories")
 		}
@@ -115,30 +96,14 @@ struct MemoriesViewTests {
 		let store = MemoriesStore()
 		store.pendingDelete = MemoriesStore.PendingDelete(ids: ["m1"], value: "Test memory")
 		let view = MemoriesView(store: store)
-		// The alert should be present when pendingDelete is non-nil
 		#expect(store.pendingDelete != nil)
-		// Keep view alive so SwiftUI does not tear down mid-assertion.
 		_ = view
 	}
 
-	@Test("requestDelete stages the same confirmation as the editor")
+	@Test("requestDelete stages the same confirmation as the inspector")
 	func requestDeleteStagesConfirmation() {
 		let store = MemoriesStore()
-		let memory = MemoryItem(
-			id: "m1",
-			userId: "u",
-			type: "fact",
-			subject: nil,
-			value: "Likes dark mode",
-			confidence: 1,
-			sensitivity: "normal",
-			visibility: "usable_by_ai",
-			sourceIds: nil,
-			createdAt: "2026-01-01T00:00:00Z",
-			updatedAt: "2026-01-01T00:00:00Z",
-			expiresAt: nil
-		)
-		store.requestDelete(memory)
+		store.requestDelete(sampleMemory())
 		#expect(store.pendingDelete?.ids == ["m1"])
 		#expect(store.pendingDelete?.value == "Likes dark mode")
 	}
@@ -158,20 +123,11 @@ struct MemoriesViewTests {
 	@Test("selecting multiple memories synchronously preserves the full selection")
 	func selectingMultipleMemoriesPreservesFullSelection() {
 		let store = MemoriesStore()
-		store.selectedMemory = MemoryItem(
-			id: "m1",
-			userId: "u",
-			type: "fact",
-			subject: nil,
-			value: "Likes dark mode",
-			confidence: 1,
-			sensitivity: "normal",
-			visibility: "usable_by_ai",
-			sourceIds: nil,
-			createdAt: "2026-01-01T00:00:00Z",
-			updatedAt: "2026-01-01T00:00:00Z",
-			expiresAt: nil
-		)
+		store.memories = [
+			sampleMemory(),
+			sampleMemory(id: "m2", value: "Prefers compact UI"),
+		]
+		store.selectedMemory = store.memories[0]
 
 		store.selectMemories(ids: ["m1", "m2"])
 
@@ -179,16 +135,16 @@ struct MemoriesViewTests {
 		#expect(store.selectedMemory == nil)
 	}
 
-	@Test("memories detail view summarizes multiple selection")
-	func memoriesDetailViewSummarizesMultipleSelection() throws {
+	@Test("memories inspector summarizes multiple selection")
+	func memoriesInspectorSummarizesMultipleSelection() throws {
 		let store = MemoriesStore()
 		store.memories = [
-			MemoryItem(id: "m1", userId: "u", type: "fact", subject: nil, value: "Likes dark mode", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
-			MemoryItem(id: "m2", userId: "u", type: "preference", subject: nil, value: "Prefers compact UI", confidence: 1, sensitivity: "normal", visibility: "usable_by_ai", sourceIds: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", expiresAt: nil),
+			sampleMemory(),
+			sampleMemory(id: "m2", type: "preference", value: "Prefers compact UI"),
 		]
 		store.selectedMemoryIds = ["m1", "m2"]
 
-		let view = MemoriesDetailView(store: store)
+		let view = MemoriesInspectorBar(store: store)
 
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "2 memories selected")
@@ -198,32 +154,28 @@ struct MemoriesViewTests {
 		}
 	}
 
-	@Test("memories detail view shows table chrome when memories exist")
-	func memoriesDetailViewShowsTableChromeWhenMemoriesExist() throws {
+	@Test("selected memory shows inspect-only details")
+	func selectedMemoryShowsInspector() throws {
 		let store = MemoriesStore()
-		let memory = MemoryItem(
-			id: "m1",
-			userId: "u",
-			type: "fact",
-			subject: nil,
-			value: "Likes dark mode",
-			confidence: 1,
-			sensitivity: "normal",
-			visibility: "usable_by_ai",
-			sourceIds: nil,
-			createdAt: "2026-01-01T00:00:00Z",
-			updatedAt: "2026-01-01T00:00:00Z",
-			expiresAt: nil
-		)
+		let memory = sampleMemory(subject: "Work")
 		store.memories = [memory]
 		store.selectedMemoryId = memory.id
 		store.selectedMemory = memory
-		let view = MemoriesDetailView(store: store)
+		let view = MemoriesView(store: store)
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "new-memory-button")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memories-inspector-bar")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memories-inspector-value")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "edit-memory-button")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "delete-memory-button")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "fact")
 		}
 	}
 
@@ -234,9 +186,61 @@ struct MemoriesViewTests {
 		#expect(store.selectedMemoryIds.isEmpty)
 		#expect(store.selectedMemoryId == nil)
 		#expect(store.selectedMemory == nil)
+		#expect(store.editor == nil)
 		#expect(store.isListLoading == false)
 		#expect(store.errorMessage == nil)
 		#expect(store.isDirty == false)
+	}
+
+	@Test("startCreate opens a draft without changing selection")
+	func startCreateOpensDraftWithoutChangingSelection() {
+		let store = MemoriesStore()
+		store.memories = [sampleMemory()]
+		store.selectedMemoryIds = ["m1"]
+		store.startCreate()
+		#expect(store.editor?.isNew == true)
+		#expect(store.selectedMemoryIds == ["m1"])
+		#expect(store.isEditorDirty == false)
+		var draft = store.editor!
+		draft.value = "Remember this"
+		store.editor = draft
+		#expect(store.isEditorDirty == true)
+		store.cancelEditor()
+		#expect(store.editor == nil)
+		#expect(store.selectedMemoryIds == ["m1"])
+	}
+
+	@Test("startEdit loads the selected memory into the editor")
+	func startEditLoadsSelectedMemory() {
+		let store = MemoriesStore()
+		let memory = sampleMemory(subject: "Work")
+		store.memories = [memory]
+		store.selectedMemory = memory
+		store.selectedMemoryIds = [memory.id]
+		store.startEdit()
+		#expect(store.editor?.isNew == false)
+		#expect(store.editor?.value == "Likes dark mode")
+		#expect(store.editor?.subject == "Work")
+		#expect(store.editor?.canSave == true)
+	}
+
+	@Test("memory editor sheet shows title and save cancel")
+	func memoryEditorSheetChrome() throws {
+		let store = MemoriesStore()
+		store.startCreate()
+		let view = MemoryEditorSheet(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memory-editor-save")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memory-editor-sheet")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memory-value-field")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "memory-editor-cancel")
+		}
 	}
 
 	@Test("markDirty flags store for reload")
@@ -311,27 +315,12 @@ struct MemoriesViewTests {
 @MainActor
 @Suite("MemoriesWindowView")
 struct MemoriesWindowViewTests {
-	@Test("window view renders sidebar and refresh control")
-	func windowViewRendersSidebarAndRefresh() throws {
+	@Test("window view renders list and refresh control without a split")
+	func windowViewRendersListAndRefresh() throws {
 		let store = MemoriesStore()
-		store.memories = [
-			MemoryItem(
-				id: "m1",
-				userId: "u",
-				type: "fact",
-				subject: nil,
-				value: "Likes dark mode",
-				confidence: 1,
-				sensitivity: "normal",
-				visibility: "usable_by_ai",
-				sourceIds: nil,
-				createdAt: "2026-01-01T00:00:00Z",
-				updatedAt: "2026-01-01T00:00:00Z",
-				expiresAt: nil
-			),
-		]
+		store.memories = [sampleMemory()]
 		let view = MemoriesWindowView(store: store)
-		#expect(throws: Never.self) {
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(ViewType.NavigationSplitView.self)
 		}
 		#expect(throws: Never.self) {
@@ -349,4 +338,26 @@ struct MemoriesWindowViewTests {
 	func detailRouteOmitsMemories() {
 		#expect(!DetailRoute.allCases.contains(where: { $0.rawValue == "memories" }))
 	}
+}
+
+private func sampleMemory(
+	id: String = "m1",
+	type: String = "fact",
+	subject: String? = nil,
+	value: String = "Likes dark mode"
+) -> MemoryItem {
+	MemoryItem(
+		id: id,
+		userId: "u",
+		type: type,
+		subject: subject,
+		value: value,
+		confidence: 1,
+		sensitivity: "normal",
+		visibility: "usable_by_ai",
+		sourceIds: nil,
+		createdAt: "2026-01-01T00:00:00Z",
+		updatedAt: "2026-01-01T00:00:00Z",
+		expiresAt: nil
+	)
 }
