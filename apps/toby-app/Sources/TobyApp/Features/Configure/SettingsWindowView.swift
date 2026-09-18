@@ -162,15 +162,16 @@ struct SettingsWindowView: View {
 				get: { store.pendingDelete != nil },
 				set: { if !$0 { store.pendingDelete = nil } },
 			),
-		) {
+			presenting: store.pendingDelete,
+		) { pending in
 			Button("Cancel", role: .cancel) {
 				store.pendingDelete = nil
 			}
-			Button(store.pendingDelete?.confirmLabel ?? "Delete", role: .destructive) {
-				Task { await store.confirmDelete() }
+			Button(pending.confirmLabel, role: .destructive) {
+				Task { await store.confirmDelete(pending) }
 			}
-		} message: {
-			Text(store.pendingDelete?.message ?? "")
+		} message: { pending in
+			Text(pending.message)
 		}
 		.sheet(
 			isPresented: Binding(

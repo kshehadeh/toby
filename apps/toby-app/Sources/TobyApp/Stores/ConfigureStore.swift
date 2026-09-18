@@ -535,16 +535,17 @@ final class ConfigureStore {
 		)
 	}
 
-	func confirmDelete() async {
-		guard let pendingDelete else { return }
-		let action = pendingDelete.action
-		let body = pendingDelete.body
-		self.pendingDelete = nil
-		if action == "remove-connection", let id = body["id"] {
+	/// Confirm a destructive settings action. Pass the alert's captured
+	/// `pending` value — SwiftUI dismisses the alert (and nils `pendingDelete`)
+	/// before the confirm button action runs.
+	func confirmDelete(_ pending: PendingDelete? = nil) async {
+		guard let pending = pending ?? pendingDelete else { return }
+		pendingDelete = nil
+		if pending.action == "remove-connection", let id = pending.body["id"] {
 			await removeConnection(id: id)
 			return
 		}
-		await runAction(action, body: body)
+		await runAction(pending.action, body: pending.body)
 	}
 
 	/// Called when personas change externally (e.g. via the Persona Editor

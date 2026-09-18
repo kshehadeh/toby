@@ -522,6 +522,43 @@ struct IntegrationsSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Remove") }
 	}
 
+	@Test("MCP remove stages a remove-connection confirmation")
+	func mcpRemoveStagesPendingDelete() throws {
+		let store = ConfigureStore()
+		store.integrationLabels["mcp_github"] = "GitHub"
+		let section = SettingsItem(
+			label: "GitHub", kind: .section, key: "mcp_github", navKey: "mcp_github", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		store.integrationStatus["mcp_github"] = IntegrationStatus(
+			name: "mcp_github", displayName: "GitHub", description: nil,
+			connected: true, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil, health: nil, authMethods: nil
+		)
+		let view = ConfigureSectionDetailView(store: store, section: section)
+		try view.inspect().find(button: "Remove").tap()
+		#expect(store.pendingDelete?.action == "remove-connection")
+		#expect(store.pendingDelete?.body["id"] == "mcp_github")
+		#expect(store.pendingDelete?.confirmLabel == "Remove")
+	}
+
+	@Test("settings window presents the captured MCP remove confirmation")
+	func settingsWindowPresentsMcpRemoveConfirmation() throws {
+		let store = ConfigureStore()
+		store.pendingDelete = ConfigureStore.PendingDelete(
+			action: "remove-connection",
+			body: ["id": "mcp_github"],
+			title: "Remove MCP server?",
+			message: "This disconnects GitHub and deletes its saved configuration.",
+			confirmLabel: "Remove"
+		)
+		let view = SettingsWindowView(store: store)
+		let alert = try view.inspect().find(ViewType.Alert.self)
+		#expect(try alert.title().string() == "Remove MCP server?")
+		#expect(try alert.message().text().string().contains("GitHub"))
+	}
+
 	@Test("integration meta sections omit the duplicate status row")
 	func integrationMetaSectionsOmitStatusRow() throws {
 		let status = IntegrationStatus(
