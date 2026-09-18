@@ -36,15 +36,44 @@ struct ConfigureFieldRowView: View {
 				}
 			}
 			.toggleStyle(.switch)
+		} else if usesNativeFormTextField {
+			formTextField
+			formDescription
 		} else {
 			LabeledContent(field.label) {
 				fieldControl
 			}
-			if let fieldDescription {
-				Text(fieldDescription)
-					.font(.caption)
-					.foregroundStyle(.secondary)
-			}
+			formDescription
+		}
+	}
+
+	/// Grouped Form text fields use the system trailing field, with the field
+	/// name as the leading title — not a second "Enter value" label.
+	private var usesNativeFormTextField: Bool {
+		if field.masked == true { return true }
+		if field.readOnly == true { return false }
+		if field.kind == .value { return true }
+		if field.kind == .select, field.options == nil || field.options?.isEmpty == true {
+			return true
+		}
+		return false
+	}
+
+	@ViewBuilder
+	private var formTextField: some View {
+		if field.masked == true {
+			SecureField(field.label, text: maskedDraftBinding, prompt: Text(maskedPlaceholder))
+		} else {
+			TextField(field.label, text: draftBinding)
+		}
+	}
+
+	@ViewBuilder
+	private var formDescription: some View {
+		if let fieldDescription {
+			Text(fieldDescription)
+				.font(.caption)
+				.foregroundStyle(.secondary)
 		}
 	}
 
@@ -76,7 +105,7 @@ struct ConfigureFieldRowView: View {
 					placeholder: maskedPlaceholder,
 				)
 			} else if field.kind == .value || field.kind == .select {
-				SettingsInlineField(text: draftBinding, placeholder: "Enter value")
+				SettingsInlineField(text: draftBinding)
 			} else if field.readOnly == true {
 				Text(store.value(for: field.key).isEmpty ? "Not set" : "Configured")
 					.font(.body)
@@ -122,7 +151,7 @@ struct ConfigureFieldRowView: View {
 		{
 			return "••••••"
 		}
-		return "Enter value"
+		return ""
 	}
 
 	private func selectField(options: [String]) -> some View {

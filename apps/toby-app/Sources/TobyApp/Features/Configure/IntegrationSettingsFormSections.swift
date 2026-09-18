@@ -8,20 +8,6 @@ struct IntegrationSettingsMetaSections: View {
 	@ViewBuilder
 	var body: some View {
 		if let status {
-			Section("Status") {
-				LabeledContent("Connection") {
-					Text(status.connected ? "Connected" : "Not connected")
-						.foregroundStyle(.secondary)
-				}
-				if let health = status.health, let details = health.details, !details.isEmpty {
-					InlineStatusMessage(
-						message: details,
-						tone: health.ok ? .success : .error,
-						font: .caption,
-						allowsTextSelection: true
-					)
-				}
-			}
 			if let pluginPath = status.pluginPath, !pluginPath.isEmpty {
 				Section("Location") {
 					RevealPathButton(path: pluginPath, label: "Plugin folder")
@@ -76,11 +62,14 @@ struct IntegrationSettingsToolsAndGuideSections: View {
 								.foregroundStyle(.secondary)
 								.fixedSize(horizontal: false, vertical: true)
 						}
+						.formLeadingAligned()
 						.padding(.vertical, 4)
 					}
 				} label: {
 					Text("Tools (\(tools.count))")
+						.formLeadingAligned()
 				}
+				.formLeadingAligned()
 				.accessibilityLabel(isToolsExpanded ? "Collapse tools" : "Expand tools")
 			}
 		}
@@ -92,6 +81,7 @@ struct IntegrationSettingsToolsAndGuideSections: View {
 					Text("Loading setup guide…")
 						.foregroundStyle(.secondary)
 				}
+				.formLeadingAligned()
 			}
 		} else if let guide, guide.ok, let steps = guide.steps, !steps.isEmpty {
 			Section {
@@ -101,7 +91,9 @@ struct IntegrationSettingsToolsAndGuideSections: View {
 					}
 				} label: {
 					Text("Setup Guide")
+						.formLeadingAligned()
 				}
+				.formLeadingAligned()
 				.accessibilityLabel(
 					isSetupGuideExpanded ? "Collapse setup guide" : "Expand setup guide"
 				)
@@ -129,6 +121,7 @@ struct IntegrationSettingsToolsAndGuideSections: View {
 						Link(destination: url) {
 							Label(link.label, systemImage: "link")
 						}
+						.formLeadingAligned()
 					}
 				}
 			}
@@ -155,9 +148,19 @@ struct IntegrationSettingsToolsAndGuideSections: View {
 								.foregroundStyle(.tertiary)
 						}
 					}
+					.formLeadingAligned()
 				}
 			}
 		}
+		.formLeadingAligned()
 		.padding(.vertical, 4)
+	}
+}
+
+private extension View {
+	/// Grouped `Form` centers intrinsic-width rows; fill the row and pin leading.
+	func formLeadingAligned() -> some View {
+		frame(maxWidth: .infinity, alignment: .leading)
+			.multilineTextAlignment(.leading)
 	}
 }

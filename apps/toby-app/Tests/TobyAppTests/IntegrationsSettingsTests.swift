@@ -309,6 +309,38 @@ struct IntegrationsSettingsTests {
 		)
 		let view = IntegrationSettingsToolsAndGuideSections(store: store, section: section)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Tools (1)") }
+		let stack = try view.inspect().find(ViewType.VStack.self)
+		#expect(try stack.alignment() == .leading)
+	}
+
+	@Test("setup guide steps are leading aligned")
+	func setupGuideStepsAreLeadingAligned() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		store.setupGuide = IntegrationSetupGuide(
+			ok: true,
+			name: "gmail",
+			displayName: "Gmail",
+			description: nil,
+			steps: [
+				IntegrationSetupGuideStep(
+					id: "overview",
+					title: "What Gmail can do",
+					description: "Read and organize email.",
+					links: nil,
+					artifacts: nil
+				),
+			],
+			error: nil
+		)
+		let view = IntegrationSettingsToolsAndGuideSections(store: store, section: section)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Setup Guide") }
+		let stack = try view.inspect().find(ViewType.VStack.self)
+		#expect(try stack.alignment() == .leading)
 	}
 
 	@Test("integrations empty catalog mentions MCP servers")
@@ -405,5 +437,78 @@ struct IntegrationsSettingsTests {
 			onRemove: {}
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Remove") }
+	}
+
+	@Test("integration meta sections omit the duplicate status row")
+	func integrationMetaSectionsOmitStatusRow() throws {
+		let status = IntegrationStatus(
+			name: "gmail", displayName: "Gmail", description: nil,
+			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
+			setupDescription: nil, health: nil, authMethods: nil
+		)
+		let view = IntegrationSettingsMetaSections(status: status)
+		#expect(throws: Never.self) { try view.inspect().find(RevealPathButton.self) }
+		#expect((try? view.inspect().find(text: "Connection")) == nil)
+		#expect((try? view.inspect().find(text: "Status")) == nil)
+	}
+
+	@Test("plugin form text field uses the field label instead of Enter value")
+	func pluginFormTextFieldUsesFieldLabel() throws {
+		let store = ConfigureStore()
+		store.savedValues["gmail.displayName"] = "Test"
+		let field = SettingsItem(
+			label: "Display name",
+			kind: .value,
+			key: "gmail.displayName",
+			navKey: "gmail.displayName",
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: "Test",
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let view = ConfigureFieldRowView(
+			store: store,
+			field: field,
+			sectionLabel: "Gmail",
+			showsDivider: false,
+			usesFormChrome: true
+		)
+		#expect(throws: Never.self) { try view.inspect().find(ViewType.TextField.self) }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Display name") }
+		#expect((try? view.inspect().find(text: "Enter value")) == nil)
+	}
+
+	@Test("empty integration config shows a tip card")
+	func emptyIntegrationConfigShowsTipCard() throws {
+		let store = ConfigureStore()
+		let field = SettingsItem(
+			label: "No configuration options for this integration.",
+			kind: .hint,
+			key: "macos._hint",
+			navKey: "macos._hint",
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let view = ConfigureBlockFieldView(
+			store: store,
+			field: field,
+			sectionLabel: "macOS",
+			usesFormChrome: true
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "configure-tip-hint")
+		}
+		let card = try view.inspect().find(SetupTipCard.self).actualView()
+		#expect(card.title == "No configuration options for this integration.")
 	}
 }

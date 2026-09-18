@@ -32,6 +32,7 @@ struct TobyApp: App {
 		AppearancePreferences.applyStoredTobyDirEnvironment()
 		// Apply saved appearance before first window draws.
 		AppearancePreferences.shared.applyToApp()
+		TobyTips.configure()
 	}
 
 	var body: some Scene {

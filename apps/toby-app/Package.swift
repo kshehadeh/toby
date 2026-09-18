@@ -40,6 +40,7 @@ let package = Package(
 				.linkedFramework("CoreLocation"),
 				.linkedFramework("MapKit"),
 				.linkedFramework("ServiceManagement"),
+				.linkedFramework("TipKit"),
 				.unsafeFlags([
 					"-Xlinker",
 					"-rpath",

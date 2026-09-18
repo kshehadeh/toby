@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Setup tip shown on an AI provider’s credential page (accent-tinted tip card).
+/// Setup tip shown on an AI provider’s credential page.
 struct AIProviderSetupHelpView: View {
 	let section: SettingsItem
 
@@ -16,31 +16,18 @@ struct AIProviderSetupHelpView: View {
 		return "Follow the setup guide to create credentials for \(section.label)."
 	}
 
-	var body: some View {
-		SetupTipCard {
-			VStack(alignment: .leading, spacing: 10) {
-				Text(message)
-					.font(.body)
-					.foregroundStyle(SetupTipCardStyle.message)
-					.textSelection(.enabled)
-					.fixedSize(horizontal: false, vertical: true)
-					.frame(maxWidth: .infinity, alignment: .leading)
+	private var actionTitle: String {
+		section.key == "ai.ollama" ? "Setup guide" : "How to get an API key"
+	}
 
-				if let docURL {
-					Link(destination: docURL) {
-						HStack(spacing: 4) {
-							Text(section.key == "ai.ollama" ? "Setup guide" : "How to get an API key")
-								.font(.subheadline.weight(.semibold))
-							Image(systemName: "arrow.up.right.square")
-								.font(.subheadline.weight(.semibold))
-						}
-						.foregroundStyle(SetupTipCardStyle.link)
-					}
-					.help(docURL.absoluteString)
-				}
-			}
-		}
-		.accessibilityElement(children: .combine)
-		.accessibilityIdentifier("ai-provider-setup-help")
+	var body: some View {
+		SetupTipCard(
+			tipId: "ai-setup-\(section.key)",
+			title: "Set up \(section.label)",
+			message: message,
+			actionTitle: docURL == nil ? nil : actionTitle,
+			actionURL: docURL,
+			accessibilityId: "ai-provider-setup-help"
+		)
 	}
 }

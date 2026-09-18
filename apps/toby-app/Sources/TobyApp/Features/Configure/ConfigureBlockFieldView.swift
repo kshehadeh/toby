@@ -48,22 +48,12 @@ struct ConfigureBlockFieldView: View {
 		return value.isEmpty
 	}
 
-	private var tipMessage: String {
-		field.label
-	}
-
-	/// Accent-tinted tip card with a large rotated lightbulb stamp.
 	private var tipHintCard: some View {
-		SetupTipCard {
-			Text(tipMessage)
-				.font(.body)
-				.foregroundStyle(SetupTipCardStyle.message)
-				.textSelection(.enabled)
-				.fixedSize(horizontal: false, vertical: true)
-				.frame(maxWidth: .infinity, alignment: .leading)
-		}
-		.accessibilityElement(children: .combine)
-		.accessibilityIdentifier("configure-tip-hint")
+		SetupTipCard(
+			tipId: field.key,
+			title: field.label,
+			accessibilityId: "configure-tip-hint"
+		)
 	}
 
 	private var standardBlock: some View {

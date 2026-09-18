@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// Trailing text control for settings rows that are not inside a grouped `Form`.
+/// The visible title lives on the row; this view uses `prompt` so macOS does
+/// not draw a second field label (e.g. "Enter value") beside the box.
 struct SettingsInlineField: View {
 	@Binding var text: String
 	var isSecure = false
@@ -10,14 +13,23 @@ struct SettingsInlineField: View {
 	var body: some View {
 		Group {
 			if isSecure {
-				SecureField(placeholder, text: $text)
+				SecureField(text: $text, prompt: prompt) {
+					EmptyView()
+				}
 			} else {
-				TextField(placeholder, text: $text)
+				TextField(text: $text, prompt: prompt) {
+					EmptyView()
+				}
 			}
 		}
+		.labelsHidden()
 		.textFieldStyle(.roundedBorder)
 		.multilineTextAlignment(.leading)
 		.frame(minWidth: minWidth, maxWidth: maxWidth)
 		.controlSize(.regular)
+	}
+
+	private var prompt: Text? {
+		placeholder.isEmpty ? nil : Text(placeholder)
 	}
 }

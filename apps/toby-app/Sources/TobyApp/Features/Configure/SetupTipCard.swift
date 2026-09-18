@@ -1,94 +1,82 @@
+import AppKit
 import SwiftUI
+import TipKit
 
-/// Shared amber-style tip card chrome, tinted with the user's accent preset.
-enum SetupTipCardStyle {
-	/// Dark base so body text stays readable over any accent.
-	static var fillBase: Color { Color.black.opacity(0.72) }
+/// Inline help card using TipKit’s macOS tip chrome (icon, title, message,
+/// close, optional Learn More). Presentation is view-local (`isPresented`) so
+/// settings copy is not stored in TipKit’s dismiss datastore.
+struct SetupTipCard: View {
+	var tipId: String
+	var title: String
+	var message: String? = nil
+	var actionTitle: String? = nil
+	var actionURL: URL? = nil
+	var accessibilityId: String = "setup-tip-card"
 
-	/// Accent wash layered on the base.
-	static var fillAccent: LinearGradient {
-		LinearGradient(
-			colors: [
-				AppTheme.accent.opacity(0.52),
-				AppTheme.accent.opacity(0.30),
-				AppTheme.accent.opacity(0.16),
-			],
-			startPoint: .topLeading,
-			endPoint: .bottomTrailing
-		)
-	}
-
-	static var border: LinearGradient {
-		LinearGradient(
-			colors: [
-				AppTheme.accent.opacity(0.65),
-				AppTheme.accent.opacity(0.22),
-			],
-			startPoint: .topLeading,
-			endPoint: .bottomTrailing
-		)
-	}
-
-	static var icon: LinearGradient {
-		LinearGradient(
-			colors: [
-				Color.white.opacity(0.95),
-				AppTheme.accent,
-			],
-			startPoint: .top,
-			endPoint: .bottom
-		)
-	}
-
-	static var link: LinearGradient {
-		LinearGradient(
-			colors: [
-				Color.white.opacity(0.98),
-				AppTheme.accent.opacity(0.95),
-			],
-			startPoint: .leading,
-			endPoint: .trailing
-		)
-	}
-
-	static var message: Color { Color.white.opacity(0.92) }
-}
-
-/// Tip blurb chrome: accent-tinted fill, border, and overhanging lightbulb stamp.
-struct SetupTipCard<Content: View>: View {
-	@Environment(\.tobyThemeEpoch) private var themeEpoch
-	@ViewBuilder let content: Content
+	@State private var isPresented = true
 
 	var body: some View {
-		content
-			.padding(.leading, 36)
-			.padding(.trailing, SettingsDesign.rowHorizontalPadding + 6)
-			.padding(.vertical, SettingsDesign.rowVerticalPadding + 10)
-			.background {
-				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-					.fill(SetupTipCardStyle.fillBase)
-				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-					.fill(SetupTipCardStyle.fillAccent)
+		TipView(tip, isPresented: $isPresented, arrowEdge: nil) { action in
+			if action.id == "learn-more", let actionURL {
+				NSWorkspace.shared.open(actionURL)
 			}
-			.overlay {
-				RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
-					.stroke(SetupTipCardStyle.border, lineWidth: 1)
-			}
-			.overlay(alignment: .topLeading) {
-				Image(systemName: "lightbulb.fill")
-					.font(.system(size: 48, weight: .semibold))
-					.symbolRenderingMode(.hierarchical)
-					.foregroundStyle(SetupTipCardStyle.icon)
-					.rotationEffect(.degrees(-30))
-					.shadow(color: .black.opacity(0.45), radius: 10, x: 1, y: 3)
-					.offset(x: -14, y: -18)
-					.allowsHitTesting(false)
-					.accessibilityHidden(true)
-			}
-			// Room so the overhanging icon isn't clipped by the scroll view.
-			.padding(.top, 18)
-			.padding(.leading, 14)
-			// Re-tint when accent / scheme epoch changes.
-			.id("setup-tip-card-\(themeEpoch)")
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+		.listRowBackground(Color.clear)
+		.listRowSeparator(.hidden)
+		.accessibilityIdentifier(accessibilityId)
+		.task {
+			TobyTips.configure()
+		}
+	}
+
+	private var tip: SetupHelpTip {
+		SetupHelpTip(
+			id: tipId,
+			titleText: title,
+			messageText: message,
+			actionTitle: actionURL == nil ? nil : actionTitle
+		)
+	}
+}
+
+struct SetupHelpTip: Tip {
+	let id: String
+	let titleText: String
+	let messageText: String?
+	let actionTitle: String?
+
+	var title: Text {
+		Text(titleText)
+	}
+
+	var message: Text? {
+		guard let messageText, !messageText.isEmpty else { return nil }
+		return Text(messageText)
+	}
+
+	var image: Image? {
+		Image(systemName: "lightbulb")
+	}
+
+	var actions: [Action] {
+		guard let actionTitle, !actionTitle.isEmpty else { return [] }
+		return [Action(id: "learn-more", title: actionTitle)]
+	}
+
+	var options: [TipOption] {
+		[Tips.IgnoresDisplayFrequency(true)]
+	}
+}
+
+@MainActor
+enum TobyTips {
+	private static var didConfigure = false
+
+	static func configure() {
+		guard !didConfigure else { return }
+		didConfigure = true
+		try? Tips.configure([.displayFrequency(.immediate)])
 	}
 }
