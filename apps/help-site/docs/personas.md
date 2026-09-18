@@ -51,6 +51,8 @@ Inbox reviews lead with what needs attention and collapse the ignore pile into a
 Open **Toby.app** and click **Settings**, then open **Personas**. That catalog
 lists every persona; click a row to edit it:
 
+![Toby.app Personas catalog](/img/toby-app-settings-personas.png)
+
 - **Add Persona** — add a name, instructions, prompt mode, provider, and model
 - **Set as default** — the persona used when chat starts
 - **Delete** — remove personas you no longer need
