@@ -9,11 +9,11 @@ Every integration follows the same pattern: **configure credentials → connect 
 
 ## 1. Open Integrations
 
-Open **Toby.app → Settings → Integrations**. The catalog lists every available integration and its connection status.
+Open **Toby.app → Settings → Integrations**. The catalog groups **Integrations** (first-party plugins) and **MCP servers**, each with connection status.
 
 ![Toby.app Integrations window](/img/toby-app-integrations-overview.png)
 
-Click any integration to open its detail page, where you can fill in credentials, run a setup guide, connect, and check status. Use **Add MCP server** to attach any Model Context Protocol server (stdio, HTTP, or SSE) — see [MCP servers](../integrations/mcp).
+Click any integration to open its detail page, where you can fill in credentials, run a setup guide, connect, and check status. Use **Add new MCP server** at the bottom of the MCP list to attach any Model Context Protocol server (stdio, HTTP, or SSE) — see [MCP servers](../integrations/mcp).
 
 ## 2. Configure credentials
 

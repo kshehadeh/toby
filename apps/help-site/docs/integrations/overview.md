@@ -85,7 +85,7 @@ Open **Toby.app** and use the **Setup Guide** button on any integration. It show
 
 Email, Todoist, Jira, Notion, Slack, Apple Calendar, Apple Reminders, Apple Contacts, macOS, News, and other first-party integrations ship as **plugins** bundled with Toby.app. When you install or update Toby from a release, they are placed under `~/.toby/plugins/` automatically.
 
-[MCP servers](./mcp) are **not** plugins. Add as many as you want from **Settings → Integrations → Add MCP server**.
+[MCP servers](./mcp) are **not** plugins. They appear in their own **MCP servers** group on **Settings → Integrations**. Add as many as you want with **Add new MCP server**.
 
 **Web Search** and **Weather** are not integrations—they are built-in Settings features. See [Web Search](../configuration/web-search) and [Weather](../configuration/weather).
 

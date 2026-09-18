@@ -108,6 +108,35 @@ struct SettingsCatalogTests {
 		#expect(path.isEmpty)
 	}
 
+	@Test("untitled empty catalog shows the unavailable description")
+	func untitledEmptyCatalogShowsUnavailable() throws {
+		let store = ConfigureStore()
+		var path: [String] = []
+		let view = SettingsCatalogView(
+			store: store,
+			path: Binding(
+				get: { path },
+				set: { path = $0 }
+			),
+			title: "AI",
+			subtitle: SettingsCatalogView.subtitle(for: SettingsItem.aiSectionKey, section: nil),
+			systemImage: "sparkles",
+			children: [],
+			accessibilityCatalogId: "settings-ai-catalog",
+			accessibilityRowPrefix: "settings-ai-row",
+			fallbackIcon: "sparkles",
+			emptyTitle: "No providers",
+			emptyDescription: "No AI providers are available."
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-ai-catalog")
+		}
+		#expect(throws: Never.self) { try view.inspect().find(text: "No providers") }
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No AI providers are available.")
+		}
+	}
+
 	@Test("settings window shows AI as a single sidebar row")
 	func settingsWindowShowsAISidebarRow() throws {
 		let store = ConfigureStore()

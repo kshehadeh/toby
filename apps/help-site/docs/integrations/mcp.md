@@ -10,7 +10,7 @@ Toby can connect to any [Model Context Protocol](https://modelcontextprotocol.io
 ## Add a server
 
 1. Open **Settings → Integrations**.
-2. Click **Add MCP server**.
+2. In **MCP servers**, click **Add new MCP server**.
 3. Give it a display name.
 4. Choose a transport:
    - **Local command (stdio)** — runs a command on this Mac (`npx`, a binary, …)
@@ -23,7 +23,7 @@ Toby can connect to any [Model Context Protocol](https://modelcontextprotocol.io
    - OAuth 2.1 (HTTP/SSE; Toby opens a browser)
 6. Save. Toby connects and loads the server’s tools into chat.
 
-Each MCP server appears as its own row in Integrations. **Disconnect** stops it but keeps the configuration. **Remove** deletes it.
+Each MCP server appears as its own row under **MCP servers**. **Disconnect** stops it but keeps the configuration. **Remove** deletes it.
 
 ## Tools in chat
 

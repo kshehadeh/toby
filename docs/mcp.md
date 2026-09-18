@@ -51,9 +51,10 @@ provider category).
 
 **Toby.app → Settings → Integrations**
 
-- Plugin rows are unchanged.
-- Each MCP server is its own row.
-- **Add MCP server** opens a wizard (name, transport, auth, connect).
+- Plugin rows appear under **Integrations**.
+- Each MCP server appears under **MCP servers**.
+- **Add new MCP server** at the bottom of the MCP list opens a wizard (name, transport, auth, connect).
+- A tip below the lists explains the difference between an integration and an MCP server.
 - **Remove** deletes that MCP connection.
 
 **CLI**

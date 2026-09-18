@@ -1,5 +1,27 @@
 import SwiftUI
 
+/// Optional titled group inside a settings catalog (for example Integrations
+/// vs MCP servers). When `groups` is nil, `children` render as one untitled list.
+struct SettingsCatalogGroup: Identifiable {
+	let id: String
+	var title: String? = nil
+	var children: [SettingsItem]
+	var emptyDescription: String? = nil
+	var addTitle: String? = nil
+	var addAccessibilityIdentifier: String = "settings-catalog-add-row"
+	var onAdd: (() -> Void)? = nil
+}
+
+/// Inline TipKit card shown below catalog groups.
+struct SettingsCatalogTip {
+	var id: String
+	var title: String
+	var message: String
+	var actionTitle: String? = nil
+	var actionURL: URL? = nil
+	var accessibilityId: String = "settings-catalog-tip"
+}
+
 /// Grouped Form catalog that pushes a section detail in a `NavigationStack`
 /// while the Settings sidebar stays on the parent row (Integrations, AI, …).
 struct SettingsCatalogView: View {
@@ -19,6 +41,8 @@ struct SettingsCatalogView: View {
 	var statusText: ((SettingsItem) -> String?)? = nil
 	var onAdd: (() -> Void)? = nil
 	var addTitle: String? = nil
+	var groups: [SettingsCatalogGroup]? = nil
+	var catalogTip: SettingsCatalogTip? = nil
 
 	var body: some View {
 		NavigationStack(path: $path) {
@@ -54,7 +78,7 @@ struct SettingsCatalogView: View {
 				} description: {
 					Text(errorMessage)
 				}
-			} else if children.isEmpty {
+			} else if children.isEmpty, groups == nil {
 				ContentUnavailableView {
 					Label(emptyTitle, systemImage: systemImage)
 				} description: {
@@ -67,6 +91,11 @@ struct SettingsCatalogView: View {
 		.accessibilityIdentifier(accessibilityCatalogId)
 	}
 
+	private var resolvedGroups: [SettingsCatalogGroup] {
+		if let groups { return groups }
+		return [SettingsCatalogGroup(id: "catalog", children: children)]
+	}
+
 	private var catalogForm: some View {
 		Form {
 			Section {
@@ -76,23 +105,64 @@ struct SettingsCatalogView: View {
 					.listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 8, trailing: 0))
 			}
 
-			Section {
-				ForEach(children) { section in
-					let key = ConfigureTreeHelpers.sectionIdentityKey(section)
-					NavigationLink(value: key) {
-						SettingsCatalogRow(
-							section: section,
-							statusText: statusText?(section),
-							fallbackIcon: fallbackIcon
-						)
-					}
-					.buttonStyle(.plain)
-					.accessibilityIdentifier("\(accessibilityRowPrefix)-\(key)")
+			ForEach(resolvedGroups) { group in
+				catalogGroupSection(group)
+			}
+
+			if let catalogTip {
+				Section {
+					SetupTipCard(
+						tipId: catalogTip.id,
+						title: catalogTip.title,
+						message: catalogTip.message,
+						actionTitle: catalogTip.actionTitle,
+						actionURL: catalogTip.actionURL,
+						accessibilityId: catalogTip.accessibilityId
+					)
 				}
 			}
 		}
 		.tobySettingsFormStyle()
 		.tobyThemeRefreshable()
+	}
+
+	@ViewBuilder
+	private func catalogGroupSection(_ group: SettingsCatalogGroup) -> some View {
+		Section {
+			catalogGroupRows(group)
+		} header: {
+			if let title = group.title {
+				Text(title)
+					.accessibilityIdentifier("settings-catalog-group-\(group.id)")
+			}
+		}
+	}
+
+	@ViewBuilder
+	private func catalogGroupRows(_ group: SettingsCatalogGroup) -> some View {
+		ForEach(group.children) { section in
+			let key = ConfigureTreeHelpers.sectionIdentityKey(section)
+			NavigationLink(value: key) {
+				SettingsCatalogRow(
+					section: section,
+					statusText: statusText?(section),
+					fallbackIcon: fallbackIcon
+				)
+			}
+			.buttonStyle(.plain)
+			.accessibilityIdentifier("\(accessibilityRowPrefix)-\(key)")
+		}
+		if group.children.isEmpty, let emptyDescription = group.emptyDescription, group.onAdd == nil {
+			Text(emptyDescription)
+				.foregroundStyle(.secondary)
+		}
+		if let onAdd = group.onAdd, let addTitle = group.addTitle {
+			SettingsCatalogAddRow(
+				title: addTitle,
+				accessibilityIdentifier: group.addAccessibilityIdentifier,
+				action: onAdd
+			)
+		}
 	}
 
 	private var catalogHeader: some View {
@@ -159,6 +229,30 @@ struct SettingsCatalogView: View {
 		default:
 			return "Configure this section."
 		}
+	}
+}
+
+struct SettingsCatalogAddRow: View {
+	let title: String
+	var accessibilityIdentifier: String = "settings-catalog-add-row"
+	let action: () -> Void
+
+	var body: some View {
+		Button(action: action) {
+			HStack(spacing: 10) {
+				Image(systemName: "plus")
+					.font(.system(size: 14, weight: .semibold))
+					.foregroundStyle(AppTheme.accent)
+					.frame(width: 24, height: 24)
+					.accessibilityHidden(true)
+				Text(title)
+					.foregroundStyle(AppTheme.accent)
+				Spacer(minLength: 8)
+			}
+		}
+		.buttonStyle(.plain)
+		.accessibilityLabel(title)
+		.accessibilityIdentifier(accessibilityIdentifier)
 	}
 }
 

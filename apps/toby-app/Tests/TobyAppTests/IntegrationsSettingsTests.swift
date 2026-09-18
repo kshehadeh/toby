@@ -6,6 +6,44 @@ import ViewInspector
 @MainActor
 @Suite("IntegrationsSettings")
 struct IntegrationsSettingsTests {
+	private func sectionItem(label: String, key: String) -> SettingsItem {
+		SettingsItem(
+			label: label,
+			kind: .section,
+			key: key,
+			navKey: key,
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+	}
+
+	private func makeMixedIntegrationsSection() -> SettingsItem {
+		SettingsItem(
+			label: "Integrations",
+			kind: .section,
+			key: "integrations",
+			navKey: "integrations",
+			children: [
+				sectionItem(label: "Gmail", key: "gmail"),
+				sectionItem(label: "Todoist", key: "todoist"),
+				sectionItem(label: "GitHub", key: "mcp_github"),
+			],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+	}
+
 	private func makeTree() -> SettingsItem {
 		SettingsItem(
 			label: "Root",
@@ -123,6 +161,46 @@ struct IntegrationsSettingsTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-integration-row-gmail")
 		}
 		#expect(path.isEmpty)
+	}
+
+	@Test("catalog groups plugins separately from MCP servers")
+	func catalogGroupsPluginsAndMcpServers() throws {
+		let store = ConfigureStore()
+		store.settingsSections = [makeMixedIntegrationsSection()]
+		var path: [String] = []
+		let view = IntegrationsSettingsView(
+			store: store,
+			path: Binding(
+				get: { path },
+				set: { path = $0 }
+			)
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-catalog-group-integrations")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-catalog-group-mcp-servers")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-integration-row-gmail")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-integration-row-mcp_github")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-add-mcp-server")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: IntegrationsSettingsView.addMcpTitle)
+		}
+		let tip = try view.inspect().find(SetupTipCard.self).actualView()
+		#expect(tip.tipId == IntegrationsSettingsView.tipId)
+		#expect(tip.title == IntegrationsSettingsView.tipTitle)
+		#expect(tip.message == IntegrationsSettingsView.tipMessage)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "integrations-vs-mcp-tip")
+		}
+		#expect((try? view.inspect().find(viewWithAccessibilityIdentifier: "settings-catalog-add")) == nil)
 	}
 
 	@Test("select integration home clears the selected section")
@@ -343,33 +421,38 @@ struct IntegrationsSettingsTests {
 		#expect(try stack.alignment() == .leading)
 	}
 
-	@Test("integrations empty catalog mentions MCP servers")
-	func integrationsEmptyCatalogMentionsMcp() throws {
+	@Test("empty integrations catalog still shows MCP add and the grouping tip")
+	func emptyIntegrationsCatalogShowsMcpAddAndTip() throws {
 		let store = ConfigureStore()
 		var path: [String] = []
-		let view = SettingsCatalogView(
+		let view = IntegrationsSettingsView(
 			store: store,
 			path: Binding(
 				get: { path },
 				set: { path = $0 }
-			),
-			title: "Integrations",
-			subtitle: "Connect plugins and MCP servers",
-			systemImage: "puzzlepiece.extension",
-			children: [],
-			accessibilityCatalogId: "settings-integrations-catalog",
-			accessibilityRowPrefix: "settings-integration-row",
-			fallbackIcon: "puzzlepiece.extension",
-			emptyTitle: "No integrations",
-			emptyDescription: "Install a plugin or add an MCP server Toby can use in chat."
+			)
 		)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-integrations-catalog")
 		}
-		#expect(throws: Never.self) { try view.inspect().find(text: "No integrations") }
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Install a plugin or add an MCP server Toby can use in chat.")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-catalog-group-integrations")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "No plugins are available.")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-catalog-group-mcp-servers")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-add-mcp-server")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: IntegrationsSettingsView.addMcpTitle)
+		}
+		let tip = try view.inspect().find(SetupTipCard.self).actualView()
+		#expect(tip.title == IntegrationsSettingsView.tipTitle)
+		#expect((try? view.inspect().find(text: "No integrations")) == nil)
 	}
 
 	@Test("MCP draft encodes a create request")

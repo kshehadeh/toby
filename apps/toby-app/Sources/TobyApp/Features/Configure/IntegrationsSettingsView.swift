@@ -7,6 +7,14 @@ struct IntegrationsSettingsView: View {
 	@Binding var path: [String]
 	@State private var mcpDraft: McpConnectionDraft?
 
+	private var pluginSections: [SettingsItem] {
+		store.integrationSections.filter { !$0.isMcpConnection }
+	}
+
+	private var mcpSections: [SettingsItem] {
+		store.integrationSections.filter(\.isMcpConnection)
+	}
+
 	var body: some View {
 		SettingsCatalogView(
 			store: store,
@@ -30,8 +38,28 @@ struct IntegrationsSettingsView: View {
 				guard let status = store.integrationStatus[section.key] else { return "Unknown" }
 				return status.connected ? "Connected" : "Not connected"
 			},
-			onAdd: { mcpDraft = McpConnectionDraft() },
-			addTitle: "Add MCP server"
+			groups: [
+				SettingsCatalogGroup(
+					id: "integrations",
+					title: Self.pluginSectionTitle,
+					children: pluginSections,
+					emptyDescription: "No plugins are available."
+				),
+				SettingsCatalogGroup(
+					id: "mcp-servers",
+					title: Self.mcpSectionTitle,
+					children: mcpSections,
+					addTitle: Self.addMcpTitle,
+					addAccessibilityIdentifier: "settings-add-mcp-server",
+					onAdd: { mcpDraft = McpConnectionDraft() }
+				),
+			],
+			catalogTip: SettingsCatalogTip(
+				id: Self.tipId,
+				title: Self.tipTitle,
+				message: Self.tipMessage,
+				accessibilityId: "integrations-vs-mcp-tip"
+			)
 		)
 		.sheet(item: editorSheetItem($mcpDraft, onDismiss: { mcpDraft = nil })) { _ in
 			AddMcpConnectionView(store: store, draft: $mcpDraft)
@@ -42,6 +70,14 @@ struct IntegrationsSettingsView: View {
 			}
 		}
 	}
+
+	static let pluginSectionTitle = "Integrations"
+	static let mcpSectionTitle = "MCP servers"
+	static let addMcpTitle = "Add new MCP server"
+	static let tipId = "integrations-vs-mcp"
+	static let tipTitle = "Integrations and MCP servers"
+	static let tipMessage =
+		"Integrations are Toby plugins for a specific service, such as Slack or Apple Calendar. MCP servers are any Model Context Protocol endpoint you add yourself so Toby can use its tools in chat."
 }
 
 struct IntegrationsSettingsRow: View {

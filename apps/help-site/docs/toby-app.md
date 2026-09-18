@@ -129,7 +129,7 @@ again, to clear the selection.
 
 ### Integrations
 
-Open **Settings → Integrations** (⌘, then choose Integrations, or ⌘3). The catalog lists every available plugin. Click one to slide to its detail page: connection status, setup instructions, credentials, and **Connect** / **Disconnect**.
+Open **Settings → Integrations** (⌘, then choose Integrations, or ⌘3). The catalog groups **Integrations** (first-party plugins) and **MCP servers**. Click a row to slide to its detail page: connection status, setup instructions, credentials, and **Connect** / **Disconnect**. Use **Add new MCP server** at the bottom of the MCP list to attach any Model Context Protocol server.
 
 ![Toby.app Integrations window](/img/toby-app-integrations.png)
 
