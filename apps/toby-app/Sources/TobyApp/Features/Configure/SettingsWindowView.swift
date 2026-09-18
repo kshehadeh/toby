@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Tahoe-style Settings window: sidebar `NavigationSplitView` plus grouped
 /// Form detail. Client-only panes (General, Sync, Personas, Integrations) sit
-/// alongside daemon-backed configure sections. Nested sections (Integrations,
-/// AI) are catalog tabs that push child detail in a `NavigationStack`.
+/// alongside daemon-backed configure sections. Nested sections (Personas,
+/// Integrations, AI) are catalog tabs that push child detail in a `NavigationStack`.
 struct SettingsWindowView: View {
 	@Bindable var store: ConfigureStore
 	/// Soft-resets the app onto a new Toby data root (`nil` = default `~/.toby`).
@@ -60,7 +60,7 @@ struct SettingsWindowView: View {
 	}
 
 	private var isCatalogTab: Bool {
-		isIntegrationsTab || store.isCatalogSectionKey(selectedTabKey)
+		isIntegrationsTab || isPersonasTab || store.isCatalogSectionKey(selectedTabKey)
 	}
 
 	private var sidebarSelection: Binding<String?> {
@@ -141,6 +141,11 @@ struct SettingsWindowView: View {
 		}
 		.onChange(of: catalogPath) { _, newPath in
 			guard !isRestoringTab, !isHistoryNavigation, isCatalogTab else { return }
+			if isPersonasTab {
+				lastTabKey = SettingsItem.personasSectionKey
+				recordNavigation(newPath.last ?? SettingsItem.personasSectionKey)
+				return
+			}
 			if let key = newPath.last {
 				if store.selectedNavKey != key {
 					store.selectSection(key)
@@ -227,7 +232,7 @@ struct SettingsWindowView: View {
 					onSwitchTobyHome: onSwitchTobyHome
 				)
 			} else if isPersonasTab {
-				PersonasSettingsView(store: store)
+				PersonasSettingsView(store: store, path: $catalogPath)
 			} else if isICloudTab {
 				ICloudSyncSettingsView()
 			} else if isIntegrationsTab {
@@ -276,7 +281,12 @@ struct SettingsWindowView: View {
 
 	private var detailTitle: String {
 		if isGeneralTab { return "General" }
-		if isPersonasTab { return "Personas" }
+		if isPersonasTab {
+			if let key = catalogPath.last {
+				return PersonasSettingsNavigation.title(for: key)
+			}
+			return "Personas"
+		}
 		if isICloudTab { return "Sync" }
 		if isCatalogTab {
 			if let key = catalogPath.last {
@@ -300,6 +310,9 @@ struct SettingsWindowView: View {
 	}
 
 	private var restoredTabKey: String? {
+		if PersonasSettingsNavigation.isPathKey(lastTabKey) {
+			return lastTabKey
+		}
 		if Self.clientOnlyTabKeys.contains(lastTabKey) {
 			return lastTabKey
 		}
@@ -315,6 +328,17 @@ struct SettingsWindowView: View {
 	}
 
 	private func selectKey(_ key: String, recordHistory: Bool = true) {
+		if PersonasSettingsNavigation.isPathKey(key) {
+			selectedTabKey = SettingsItem.personasSectionKey
+			lastTabKey = SettingsItem.personasSectionKey
+			catalogPath = PersonasSettingsNavigation.isChildKey(key) ? [key] : []
+			store.selectedNavKey = nil
+			if recordHistory {
+				recordNavigation(key)
+			}
+			return
+		}
+
 		if store.isCatalogSectionKey(key) || store.isCatalogChildKey(key) {
 			let parent = store.catalogParentKey(for: key) ?? key
 			selectedTabKey = parent
@@ -356,7 +380,7 @@ struct SettingsWindowView: View {
 		if let key = store.selectedNavKey, Self.clientOnlyTabKeys.contains(key) {
 			selectedTabKey = key
 			lastTabKey = key
-			if store.isCatalogSectionKey(key) {
+			if key == SettingsItem.personasSectionKey || store.isCatalogSectionKey(key) {
 				catalogPath = []
 			}
 			store.selectedNavKey = nil

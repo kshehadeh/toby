@@ -30,8 +30,8 @@ final class ConfigureStore {
 	/// switches filter client-side and no longer set this.
 	var sectionFieldsReloading: String?
 
-	/// Deep-link target for the client-only Personas settings pane. When non-nil,
-	/// `PersonasSettingsView` selects this persona on appear. Cleared after
+	/// Deep-link target for the client-only Personas catalog. When non-nil,
+	/// `PersonasSettingsView` pushes this persona on appear. Cleared after
 	/// consumption.
 	var pendingPersonaSelection: String?
 

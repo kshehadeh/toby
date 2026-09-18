@@ -166,24 +166,7 @@ struct SettingsCatalogView: View {
 	}
 
 	private var catalogHeader: some View {
-		VStack(spacing: 10) {
-			RoundedRectangle(cornerRadius: 16, style: .continuous)
-				.fill(AppTheme.accent.opacity(0.18))
-				.frame(width: 64, height: 64)
-				.overlay {
-					Image(systemName: systemImage)
-						.font(.system(size: 28, weight: .medium))
-						.foregroundStyle(AppTheme.accent)
-				}
-			Text(title)
-				.font(.title2.weight(.semibold))
-				.foregroundStyle(.primary)
-			Text(subtitle)
-				.font(.subheadline)
-				.foregroundStyle(.secondary)
-				.multilineTextAlignment(.center)
-		}
-		.padding(.vertical, 8)
+		SettingsCatalogHeader(title: title, subtitle: subtitle, systemImage: systemImage)
 	}
 
 	@ViewBuilder
@@ -226,9 +209,38 @@ struct SettingsCatalogView: View {
 			return "Connect services Toby can use in chat."
 		case SettingsItem.aiSectionKey:
 			return "Choose a provider Toby can use for chat."
+		case SettingsItem.personasSectionKey:
+			return SettingsItem.personasCatalogSubtitle
 		default:
 			return "Configure this section."
 		}
+	}
+}
+
+struct SettingsCatalogHeader: View {
+	let title: String
+	let subtitle: String
+	let systemImage: String
+
+	var body: some View {
+		VStack(spacing: 10) {
+			RoundedRectangle(cornerRadius: 16, style: .continuous)
+				.fill(AppTheme.accent.opacity(0.18))
+				.frame(width: 64, height: 64)
+				.overlay {
+					Image(systemName: systemImage)
+						.font(.system(size: 28, weight: .medium))
+						.foregroundStyle(AppTheme.accent)
+				}
+			Text(title)
+				.font(.title2.weight(.semibold))
+				.foregroundStyle(.primary)
+			Text(subtitle)
+				.font(.subheadline)
+				.foregroundStyle(.secondary)
+				.multilineTextAlignment(.center)
+		}
+		.padding(.vertical, 8)
 	}
 }
 

@@ -3,12 +3,15 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Reusable persona editor form (header + content + footer). Used both by the
-/// standalone `PersonaEditorView` window and the inline `PersonasSettingsView`
-/// detail pane.
+/// standalone `PersonaEditorView` window and the Personas settings catalog
+/// destination.
 struct PersonaEditorFormView: View {
 	@Bindable var store: PersonaEditorStore
 	var showDeleteButton: Bool = false
 	var showCancelButton: Bool = true
+	/// When false, the in-content title is omitted so a navigation title can
+	/// own the chrome (catalog destination in Settings).
+	var showsChromeHeader: Bool = true
 	var onDelete: (() -> Void)? = nil
 	let onSaved: () -> Void
 	var onCancel: (() -> Void)? = nil
@@ -22,7 +25,9 @@ struct PersonaEditorFormView: View {
 
 	var body: some View {
 		VStack(spacing: 0) {
-			header
+			if showsChromeHeader {
+				header
+			}
 			content
 			footer
 		}
@@ -38,22 +43,29 @@ struct PersonaEditorFormView: View {
 				.font(.title3.weight(.semibold))
 				.foregroundStyle(AppTheme.primaryText)
 			Spacer()
-			if showDeleteButton, let onDelete {
-				Button(role: .destructive) {
-					onDelete()
-				} label: {
-					Label("Delete", systemImage: "trash")
-						.font(.callout)
-				}
-				.buttonStyle(.plain)
-				.foregroundStyle(.red)
-				.disabled(store.saveState == .saving)
-				.accessibilityIdentifier("persona-editor-delete-button")
+			if showDeleteButton {
+				deleteButton
 			}
 		}
 		.padding(.horizontal, 20)
 		.padding(.top, 20)
 		.padding(.bottom, 16)
+	}
+
+	@ViewBuilder
+	private var deleteButton: some View {
+		if let onDelete {
+			Button(role: .destructive) {
+				onDelete()
+			} label: {
+				Label("Delete", systemImage: "trash")
+					.font(.callout)
+			}
+			.buttonStyle(.plain)
+			.foregroundStyle(.red)
+			.disabled(store.saveState == .saving)
+			.accessibilityIdentifier("persona-editor-delete-button")
+		}
 	}
 
 	@ViewBuilder
@@ -251,6 +263,9 @@ struct PersonaEditorFormView: View {
 
 	private var footer: some View {
 		HStack(spacing: 12) {
+			if showDeleteButton, !showsChromeHeader {
+				deleteButton
+			}
 			if let errorMessage = store.errorMessage {
 				InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 					.lineLimit(2)

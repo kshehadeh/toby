@@ -81,7 +81,7 @@ Tahoe System Settings is a **sidebar** `NavigationSplitView` plus grouped `Form`
    - Load top-level sections from the configure API / `ConfigureStore.settingsSections`.
    - Use `NavigationSplitView` with `.listStyle(.sidebar)` for General, Sync, Personas, Integrations, and daemon sections.
    - Detail panes: `Form { Section { … } }.formStyle(.grouped).scrollContentBackground(.hidden)`.
-   - Nested sections (Integrations, AI) are catalog tabs: one sidebar row, child detail pushed in a `NavigationStack`.
+   - Nested sections (Personas, Integrations, AI) are catalog tabs: one sidebar row, child detail pushed in a `NavigationStack`.
    - `SettingsCard` remains valid for in-app settings-style **content** (schedule editor), not for the Settings window itself.
 3. Open via `openWindow(id: "settings")` / `OpenWindowBridge` / Cmd+, (`OpenSettingsMenuItem`). Do **not** use a main-window `DetailRoute` for Settings.
 4. Deep links set `ConfigureStore` selection (`selectSection` / `selectedNavKey`) then open the window.

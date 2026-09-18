@@ -108,6 +108,20 @@ struct SettingsCatalogTests {
 		#expect(path.isEmpty)
 	}
 
+	@Test("personas catalog uses a dedicated subtitle")
+	func personasCatalogSubtitle() {
+		#expect(
+			SettingsCatalogView.subtitle(for: SettingsItem.personasSectionKey, section: nil)
+				== SettingsItem.personasCatalogSubtitle
+		)
+		#expect(
+			SettingsCatalogView.subtitle(
+				for: SettingsItem.personasSectionKey,
+				section: SettingsItem.personasSection
+			) == SettingsItem.personasCatalogSubtitle
+		)
+	}
+
 	@Test("untitled empty catalog shows the unavailable description")
 	func untitledEmptyCatalogShowsUnavailable() throws {
 		let store = ConfigureStore()

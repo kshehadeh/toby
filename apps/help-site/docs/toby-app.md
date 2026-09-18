@@ -211,8 +211,8 @@ See [Flows](./flows) for a fuller explanation.
 ### Settings
 
 The Settings window lets you configure chat defaults, AI providers, personas,
-and other preferences. **Integrations** and **AI** open a catalog; click a row
-to slide to that plugin or provider.
+and other preferences. **Personas**, **Integrations**, and **AI** open a catalog;
+click a row to slide to that persona, plugin, or provider.
 
 ![Toby.app Settings window](/img/toby-app-settings.png)
 

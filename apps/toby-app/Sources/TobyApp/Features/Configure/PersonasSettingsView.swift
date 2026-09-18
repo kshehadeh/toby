@@ -1,40 +1,46 @@
 import SwiftUI
 
-/// Personas management view for the Settings window: a sidebar list of
-/// personas on the left and an inline editor detail pane on the right.
-/// Supports creating, editing, and deleting personas.
+/// Catalog of personas for the Settings window. Selecting a row pushes the
+/// editor in a `NavigationStack` while the sidebar stays on Personas.
 struct PersonasSettingsView: View {
 	@Bindable var store: ConfigureStore
+	@Binding var path: [String]
 
-	@State private var personas: [PersonaOption] = []
-	@State private var selectedPersonaName: String?
+	@State private var personas: [PersonaOption]
 	@State private var editorStore: PersonaEditorStore?
-	@State private var isLoading = false
+	@State private var isLoading: Bool
+	@State private var isRefreshing = false
 	@State private var listErrorMessage: String?
 	@State private var pendingDelete: PersonaOption?
-	/// Captured when the user tries to switch personas or create a new one
-	/// while the current editor has unsaved changes. If they confirm, the
-	/// pending switch is performed.
-	@State private var pendingNavigation: PendingNavigation?
 
 	private let client = TobyClient()
 
+	init(
+		store: ConfigureStore,
+		path: Binding<[String]>,
+		initialPersonas: [PersonaOption] = []
+	) {
+		self.store = store
+		self._path = path
+		_personas = State(initialValue: initialPersonas)
+		_isLoading = State(initialValue: initialPersonas.isEmpty)
+	}
+
 	var body: some View {
-		HStack(spacing: 0) {
-			sidebar
-				.frame(width: 220)
-				.frame(maxHeight: .infinity)
-
-			Divider()
-				.background(AppTheme.separator)
-
-			detailPane
-				.frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
-				.clipped()
+		NavigationStack(path: $path) {
+			catalog
+				.navigationDestination(for: String.self) { key in
+					personaDetail(for: key)
+						.navigationBarBackButtonHidden(true)
+						.navigationTitle(PersonasSettingsNavigation.title(for: key))
+				}
 		}
 		.task {
 			await loadPersonas()
 			consumePendingSelection()
+		}
+		.onChange(of: path) { _, newPath in
+			syncEditor(to: newPath)
 		}
 		.onChange(of: store.pendingPersonaSelection) { _, _ in
 			consumePendingSelection()
@@ -60,97 +66,77 @@ struct PersonasSettingsView: View {
 		} message: {
 			Text("Are you sure you want to delete \"\(pendingDelete?.label ?? "")\"? This cannot be undone.")
 		}
-		.alert(
-			"Discard Unsaved Changes?",
-			isPresented: Binding(
-				get: { pendingNavigation != nil },
-				set: { if !$0 { pendingNavigation = nil } },
-			),
-		) {
-			Button("Keep Editing", role: .cancel) {
-				pendingNavigation = nil
-			}
-			Button("Discard Changes", role: .destructive) {
-				if let nav = pendingNavigation {
-					pendingNavigation = nil
-					performNavigation(nav)
-				}
-			}
-		} message: {
-			Text("The current persona has unsaved changes. Discarding them will switch away without saving.")
-		}
 	}
-
-	// MARK: - Sidebar
-
-	private var sidebar: some View {
-		VStack(alignment: .leading, spacing: 0) {
-			Text("Personas")
-				.font(.caption)
-				.foregroundStyle(AppTheme.tertiaryText)
-				.padding(.horizontal, 12)
-				.padding(.top, 12)
-				.padding(.bottom, 6)
-
-			ScrollView {
-				VStack(alignment: .leading, spacing: 2) {
-					if isLoading && personas.isEmpty {
-						VStack(spacing: 8) {
-							ForEach(0..<3, id: \.self) { _ in
-								RoundedRectangle(cornerRadius: 8)
-									.fill(SettingsDesign.sidebarSelection.opacity(0.3))
-									.frame(height: 34)
-									.padding(.horizontal, 4)
-							}
-						}
-						.padding(.vertical, 4)
-					} else {
-						ForEach(personas) { persona in
-							PersonaSettingsSidebarRow(
-								persona: persona,
-								isSelected: selectedPersonaName == persona.name,
-								onSelect: { selectPersona(persona) },
-							)
-						}
-					}
-				}
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.horizontal, 8)
-				.padding(.bottom, 10)
-			}
-
-			Divider()
-				.background(AppTheme.separator)
-				.opacity(0.5)
-
-			Button {
-				startCreate()
-			} label: {
-				Label("Add Persona", systemImage: "plus.circle")
-					.font(.callout.weight(.medium))
-					.foregroundStyle(AppTheme.accent)
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.contentShape(Rectangle())
-			}
-			.buttonStyle(.plain)
-			.padding(.horizontal, 12)
-			.padding(.vertical, 10)
-			.accessibilityIdentifier("personas-settings-add-button")
-		}
-		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-	}
-
-	// MARK: - Detail pane
 
 	@ViewBuilder
-	private var detailPane: some View {
-		if let currentStore = editorStore {
+	private var catalog: some View {
+		Group {
+			if isLoading && personas.isEmpty {
+				ProgressView("Loading personas…")
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
+			} else if let listErrorMessage, personas.isEmpty {
+				ContentUnavailableView {
+					Label("Personas unavailable", systemImage: "exclamationmark.triangle")
+				} description: {
+					Text(listErrorMessage)
+				}
+			} else {
+				catalogForm
+			}
+		}
+		.accessibilityIdentifier("settings-personas-catalog")
+	}
+
+	private var catalogForm: some View {
+		Form {
+			Section {
+				SettingsCatalogHeader(
+					title: "Personas",
+					subtitle: PersonasSettingsNavigation.catalogSubtitle,
+					systemImage: "person.crop.circle"
+				)
+				.frame(maxWidth: .infinity)
+				.listRowBackground(Color.clear)
+				.listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 8, trailing: 0))
+			}
+
+			Section {
+				ForEach(personas) { persona in
+					let key = PersonasSettingsNavigation.pathKey(forPersonaName: persona.name)
+					NavigationLink(value: key) {
+						PersonasCatalogRow(persona: persona)
+					}
+					.buttonStyle(.plain)
+					.accessibilityIdentifier("personas-settings-row-\(persona.name)")
+				}
+				if personas.isEmpty {
+					Text("No personas are available yet.")
+						.foregroundStyle(.secondary)
+				}
+				SettingsCatalogAddRow(
+					title: PersonasSettingsNavigation.addTitle,
+					accessibilityIdentifier: "personas-settings-add-button",
+					action: startCreate
+				)
+			} header: {
+				Text("Personas")
+					.accessibilityIdentifier("settings-catalog-group-personas")
+			}
+		}
+		.tobySettingsFormStyle()
+		.tobyThemeRefreshable()
+	}
+
+	@ViewBuilder
+	private func personaDetail(for key: String) -> some View {
+		if let currentStore = editorStore, editorMatches(key, store: currentStore) {
 			PersonaEditorFormView(
 				store: currentStore,
-				showDeleteButton: canDeleteCurrentPersona,
+				showDeleteButton: canDelete(currentStore),
 				showCancelButton: false,
+				showsChromeHeader: false,
 				onDelete: {
-					if let name = selectedPersonaName,
+					if let name = currentStore.mode.editedName,
 						let persona = personas.first(where: { $0.name == name })
 					{
 						pendingDelete = persona
@@ -160,69 +146,58 @@ struct PersonasSettingsView: View {
 					Task { await handleSaved() }
 					NotificationCenter.default.post(name: .personasDidChange, object: nil)
 				},
-				onReset: {},
+				onReset: {}
 			)
-		} else if isLoading {
+		} else {
 			ProgressView("Loading…")
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
-		} else {
-			ContentUnavailableView {
-				Label("No Persona Selected", systemImage: "person.crop.circle")
-			} description: {
-				Text("Select a persona from the list to edit it, or click Add Persona to create a new one.")
-			}
+				.task(id: key) {
+					syncEditor(to: [key])
+				}
 		}
 	}
 
-	private var canDeleteCurrentPersona: Bool {
-		guard let editorStore, editorStore.mode.isEdit, !editorStore.isBuiltIn else {
-			return false
-		}
-		return true
+	private func canDelete(_ editorStore: PersonaEditorStore) -> Bool {
+		editorStore.mode.isEdit && !editorStore.isBuiltIn
 	}
 
-	// MARK: - Actions
-
-	private func selectPersona(_ persona: PersonaOption) {
-		let nav: PendingNavigation = .selectPersona(persona)
-		if editorStore?.hasUnsavedChanges == true {
-			pendingNavigation = nav
-		} else {
-			performNavigation(nav)
+	private func editorMatches(_ key: String, store: PersonaEditorStore) -> Bool {
+		if key == PersonasSettingsNavigation.createKey {
+			return store.mode.isCreate
 		}
+		return store.mode.editedName == PersonasSettingsNavigation.personaName(fromPathKey: key)
 	}
 
 	private func startCreate() {
-		let nav: PendingNavigation = .startCreate
-		if editorStore?.hasUnsavedChanges == true {
-			pendingNavigation = nav
-		} else {
-			performNavigation(nav)
-		}
+		path = [PersonasSettingsNavigation.createKey]
 	}
 
-	/// Executes a deferred sidebar navigation (persona switch or create).
-	private func performNavigation(_ nav: PendingNavigation) {
-		switch nav {
-		case .selectPersona(let persona):
-			selectedPersonaName = persona.name
-			editorStore = PersonaEditorStore(mode: .edit(name: persona.name))
-		case .startCreate:
-			selectedPersonaName = nil
-			editorStore = PersonaEditorStore(mode: .create)
+	private func syncEditor(to path: [String]) {
+		guard let key = path.last else {
+			editorStore = nil
+			return
+		}
+		if key == PersonasSettingsNavigation.createKey {
+			if editorStore?.mode.isCreate != true {
+				editorStore = PersonaEditorStore(mode: .create)
+			}
+			return
+		}
+		guard let name = PersonasSettingsNavigation.personaName(fromPathKey: key) else {
+			editorStore = nil
+			return
+		}
+		if editorStore?.mode.editedName != name {
+			editorStore = PersonaEditorStore(mode: .edit(name: name))
 		}
 	}
 
 	private func handleSaved() async {
 		let savedName = editorStore?.name
+		let wasCreate = editorStore?.mode.isCreate == true
 		await loadPersonas()
-		// After creating a new persona, switch to edit mode for it so the
-		// user can continue tweaking (e.g. uploading an image).
-		if let savedName, editorStore?.mode.isCreate == true,
-			personas.contains(where: { $0.name == savedName })
-		{
-			selectedPersonaName = savedName
-			editorStore = PersonaEditorStore(mode: .edit(name: savedName))
+		if wasCreate, let savedName, personas.contains(where: { $0.name == savedName }) {
+			path = [PersonasSettingsNavigation.pathKey(forPersonaName: savedName)]
 		}
 	}
 
@@ -232,8 +207,8 @@ struct PersonasSettingsView: View {
 		await store.delete()
 		if case .saved = store.saveState {
 			await loadPersonas()
-			if selectedPersonaName == persona.name {
-				selectedPersonaName = nil
+			if path.last == PersonasSettingsNavigation.pathKey(forPersonaName: persona.name) {
+				path = []
 				editorStore = nil
 			}
 			NotificationCenter.default.post(name: .personasDidChange, object: nil)
@@ -242,13 +217,17 @@ struct PersonasSettingsView: View {
 		}
 	}
 
-	// MARK: - Data
-
 	private func loadPersonas() async {
-		guard !isLoading else { return }
-		isLoading = true
+		guard !isRefreshing else { return }
+		isRefreshing = true
+		if personas.isEmpty {
+			isLoading = true
+		}
 		listErrorMessage = nil
-		defer { isLoading = false }
+		defer {
+			isRefreshing = false
+			isLoading = false
+		}
 		do {
 			personas = try await client.listPersonas()
 		} catch {
@@ -259,26 +238,43 @@ struct PersonasSettingsView: View {
 	private func consumePendingSelection() {
 		guard let name = store.pendingPersonaSelection else { return }
 		store.pendingPersonaSelection = nil
-		selectedPersonaName = name
-		editorStore = PersonaEditorStore(mode: .edit(name: name))
+		path = [PersonasSettingsNavigation.pathKey(forPersonaName: name)]
 	}
 }
 
-/// Deferred sidebar action captured when the user attempts to navigate away
-/// from an editor with unsaved changes.
-private enum PendingNavigation {
-	case selectPersona(PersonaOption)
-	case startCreate
+enum PersonasSettingsNavigation {
+	static let createKey = "personas.__new__"
+	static let addTitle = "Add Persona"
+	static var catalogSubtitle: String { SettingsItem.personasCatalogSubtitle }
+
+	static func pathKey(forPersonaName name: String) -> String {
+		"\(SettingsItem.personasSectionKey).\(name)"
+	}
+
+	static func isChildKey(_ key: String) -> Bool {
+		key.hasPrefix("\(SettingsItem.personasSectionKey).")
+	}
+
+	static func isPathKey(_ key: String) -> Bool {
+		key == SettingsItem.personasSectionKey || isChildKey(key)
+	}
+
+	static func personaName(fromPathKey key: String) -> String? {
+		let prefix = "\(SettingsItem.personasSectionKey)."
+		guard key.hasPrefix(prefix) else { return nil }
+		let name = String(key.dropFirst(prefix.count))
+		guard !name.isEmpty, name != "__new__" else { return nil }
+		return name
+	}
+
+	static func title(for pathKey: String) -> String {
+		if pathKey == createKey { return "New Persona" }
+		return personaName(fromPathKey: pathKey) ?? "Personas"
+	}
 }
 
-// MARK: - Sidebar row
-
-private struct PersonaSettingsSidebarRow: View {
+struct PersonasCatalogRow: View {
 	let persona: PersonaOption
-	let isSelected: Bool
-	let onSelect: () -> Void
-
-	@State private var isHovered = false
 
 	private var imageURL: URL {
 		let base = ConfigReader.baseURL().absoluteString
@@ -291,71 +287,31 @@ private struct PersonaSettingsSidebarRow: View {
 			.appendingPathComponent("api/personas/image/default.png")
 	}
 
-	private var iconColor: Color {
-		if isSelected { return AppTheme.accent }
-		if isHovered { return AppTheme.primaryText }
-		return AppTheme.tertiaryText
-	}
-
-	private var labelColor: Color {
-		if isSelected || isHovered { return AppTheme.primaryText }
-		return AppTheme.secondaryText
-	}
-
-	private var backgroundFill: Color {
-		if isSelected {
-			return AppTheme.accent.opacity(0.18)
-		}
-		if isHovered { return SettingsDesign.sidebarSelection.opacity(0.7) }
-		return .clear
+	private var statusText: String? {
+		if persona.isDefault == true { return "Default" }
+		if persona.isBuiltIn == true { return "Built-in" }
+		return nil
 	}
 
 	var body: some View {
-		Button {
-			onSelect()
-		} label: {
-			HStack(spacing: 10) {
-				RoundedRectangle(cornerRadius: 1.5)
-					.fill(isSelected ? AppTheme.accent : Color.clear)
-					.frame(width: 3, height: 18)
-					.accessibilityHidden(true)
-
-				PersonaImageView(url: imageURL, size: 22)
-					.accessibilityHidden(true)
-
-				Text(persona.label)
-					.font(.callout.weight(isSelected ? .semibold : .medium))
-					.foregroundStyle(labelColor)
-					.lineLimit(1)
-
-				Spacer(minLength: 0)
-
-				if persona.isDefault == true {
-					Image(systemName: "star.fill")
-						.font(.system(size: 10))
-						.foregroundStyle(AppTheme.accent.opacity(0.7))
-						.accessibilityLabel("Default persona")
-				}
-
-				if persona.isBuiltIn == true {
-					Text("Built-in")
-						.font(.caption2)
-						.foregroundStyle(AppTheme.tertiaryText)
-				}
+		HStack(spacing: 10) {
+			PersonaImageView(url: imageURL, size: 24)
+				.accessibilityHidden(true)
+			Text(persona.label)
+				.foregroundStyle(.primary)
+			Spacer(minLength: 8)
+			if let statusText {
+				Text(statusText)
+					.font(.caption)
+					.foregroundStyle(.secondary)
 			}
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.padding(.vertical, 7)
-			.padding(.trailing, 8)
-			.padding(.leading, 5)
-			.contentShape(Rectangle())
-			.background(
-				RoundedRectangle(cornerRadius: 8)
-					.fill(backgroundFill)
-			)
+			Image(systemName: "chevron.right")
+				.font(.caption.weight(.semibold))
+				.foregroundStyle(.tertiary)
 		}
-		.buttonStyle(.plain)
-		.onHover { isHovered = $0 }
-		.accessibilityAddTraits(isSelected ? .isSelected : [])
-		.accessibilityIdentifier("personas-settings-row-\(persona.name)")
+		.accessibilityElement(children: .combine)
+		.accessibilityLabel(
+			statusText.map { "\(persona.label), \($0)" } ?? persona.label
+		)
 	}
 }

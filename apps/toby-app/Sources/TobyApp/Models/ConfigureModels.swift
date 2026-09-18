@@ -50,9 +50,12 @@ struct SettingsItem: Decodable, Identifiable {
 	/// Key remains `appearance` for stable identity across upgrades.
 	static let appearanceSectionKey = "appearance"
 
-	/// Client-only Personas pane (sidebar list + inline editor; not from the
+	/// Client-only Personas catalog (list + pushed editor; not from the
 	/// daemon configure-sections API).
 	static let personasSectionKey = "personas"
+
+	static let personasCatalogSubtitle =
+		"Create and edit how Toby thinks and which model it uses."
 
 	/// Client-only settings sync pane (daemon `/api/config/sync*` + native I/O).
 	/// Key remains `icloud` for stable identity across upgrades.
@@ -104,7 +107,7 @@ struct SettingsItem: Decodable, Identifiable {
 			iconUrl: nil,
 			icon: nil,
 			group: nil,
-			description: nil,
+			description: personasCatalogSubtitle,
 			docUrl: nil
 		)
 	}

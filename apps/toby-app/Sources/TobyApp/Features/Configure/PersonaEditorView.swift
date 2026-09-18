@@ -41,4 +41,9 @@ extension PersonaEditorStore.Mode {
 		if case .edit = self { return true }
 		return false
 	}
+
+	var editedName: String? {
+		if case .edit(let name) = self { return name }
+		return nil
+	}
 }
