@@ -26,6 +26,7 @@ Toby's memory subsystem stores durable, user-relevant personal context for futur
 | sensitivity | TEXT | `normal`, `sensitive`, `restricted` |
 | visibility | TEXT | `usable_by_ai`, `requires_confirmation`, `private` |
 | expires_at | TEXT | Optional expiry |
+| content_hash | TEXT | SHA-256 of normalized subject+value for exact dedup |
 | created_at | TEXT | ISO timestamp |
 | updated_at | TEXT | ISO timestamp |
 
@@ -39,21 +40,33 @@ Pending proposals before they become accepted memory. Contains the candidate, co
 
 ### memory_audit_log
 
-Every action (proposed, saved, rejected, updated, forgotten, retrieved) is logged with a timestamp and optional detail JSON.
+Every action (proposed, saved, rejected, updated, forgotten, retrieved, merged) is logged with a timestamp and optional detail JSON.
 
 ### memory_embeddings
 
-Reserved for future vector search. Currently stub-ready.
+One embedding vector per memory item (`embedding_blob` + `model`). Written on save/update when the user’s AI provider can embed (same models as tool routing: OpenAI `text-embedding-3-small`, Gateway `openai/text-embedding-3-small`, or Ollama `nomic-embed-text`). Missing or stale rows (wrong model) are backfilled on the next semantic search. If no embed model is configured, search stays keyword-only.
 
 ## Proposal flow
 
 ```
 AI observes data → memory.propose() → policy classifies sensitivity
   ├─ auto-eligible (high-confidence normal preference) → save immediately
+  │    (near-duplicates merge into an existing item instead of inserting)
   └─ needs review → stays as pending proposal
-       ├─ memory.save(proposalId) → creates memory_item
+       ├─ memory.save(proposalId) → creates or merges into a memory_item
        └─ memory.reject(proposalId) → marks rejected
 ```
+
+### Deduplication
+
+Before inserting an accepted memory (auto-save, `memorySave`, or manual create):
+
+1. **Exact** — normalized `subject` + `value` hash matches an existing item → attach the new source, bump `updated_at` / confidence, do not insert.
+2. **Near-exact** — cosine similarity ≥ 0.95 → same as exact (keep the existing wording).
+3. **Near-duplicate** — cosine ≥ 0.88 and the same `type` → attach the source; replace `value` only when the new text is strictly more specific (longer and contains the old text). Otherwise keep the existing value.
+4. **Otherwise** — insert a new row and store its embedding.
+
+Merges are recorded as `merged` in `memory_audit_log`. Wrong merges are treated as worse than a leftover duplicate, so the cosine thresholds are conservative. Without an embed model, only exact-hash dedup runs.
 
 ### Auto-save rules
 
@@ -82,11 +95,11 @@ The policy engine scans the value and subject for keywords:
 
 `retrieveForTask(userId, taskDescription)` returns a compact `MemoryContextBundle`:
 
-- **memories**: items matching the task, ranked by keyword overlap and confidence
+- **memories**: items matching the task, ranked by embedding similarity (when available), then keyword overlap and confidence
 - **summary**: short text describing what was found
 - **omitted**: count of items excluded due to privacy
 
-`memorySearch` / `search()` tokenizes the query (stopwords removed) and matches **any** remaining term against `value`, `subject`, or `type`. A stuffed phrase such as “where I live home address residence” still finds “Lives in Baltimore, Maryland”. Results are ranked by full-phrase hit, keyword overlap, then confidence.
+`memorySearch` / `search()` is **hybrid**: keyword `LIKE` (stopwords removed, any remaining term against `value` / `subject` / `type`) unioned with cosine search over stored embeddings. A stuffed phrase such as “where I live home address residence” still finds “Lives in Baltimore, Maryland” from keywords; a paraphrase such as “where is my home” can find the same fact from embeddings. Results are ranked by semantic score first, then full-phrase hit, keyword overlap, and confidence. If no embed model is configured, ranking is keyword-only as before.
 
 ### System-prompt injection
 
@@ -112,12 +125,12 @@ Memory is exposed as tools to the AI harness:
 
 | Tool | Description |
 | ---- | ----------- |
-| `memorySearch` | Search memories by independent keywords (not one exact substring) |
-| `memoryPropose` | Propose a new memory (never direct writes) |
+| `memorySearch` | Hybrid semantic + keyword search |
+| `memoryPropose` | Propose a new memory (never direct writes; near-duplicates merge on save) |
 | `memorySave` | Confirm a pending proposal |
 | `memoryForget` | Delete a memory |
 | `memoryExplain` | Show provenance and audit trail |
-| `memoryRetrieveForTask` | Get context relevant to a task |
+| `memoryRetrieveForTask` | Get context relevant to a task (hybrid search) |
 
 ## Native app UI refresh
 
@@ -134,8 +147,13 @@ Toby.app’s `MemoriesStore` keeps the Memories window in sync with writes that 
 src/memory/
   types.ts            # TypeScript types
   memory-store.ts     # SQLite repository layer
-  memory-service.ts   # Public API
+  memory-service.ts   # Public API (async propose/save/search)
+  embeddings.ts       # Embed on write, backfill, near-dup + semantic search
+  text.ts             # Content hash + embed-text formatting
+  keywords.ts         # Keyword extract/rank + hybrid rank
   policy.ts           # Sensitivity classification + auto-save rules
   prompt.ts           # System-prompt formatting (≤20k, privacy-filtered)
   tools.ts            # AI tool wrappers
 ```
+
+Shared embedding helpers used by memory and tool routing live in [`packages/core/src/ai/embeddings.ts`](../packages/core/src/ai/embeddings.ts) and [`packages/core/src/ai/vector.ts`](../packages/core/src/ai/vector.ts). Cosine search is in-process (no sqlite-vec). Entity/relation tables for a memory graph are a later slice; this phase is embeddings, hybrid search, and dedup.

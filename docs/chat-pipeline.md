@@ -174,7 +174,7 @@ named tools on the next step of the same turn. So “top 8” means eight
 | `TOBY_ROUTING_SKILL_MIN_SCORE` | Minimum cosine similarity for skills (default `0.35` — higher than tools to avoid false-positive skill activation). |
 | `TOBY_ROUTING_EMBED_MODEL` | Embedding model (`text-embedding-3-small` or gateway `openai/text-embedding-3-small`). |
 
-Embedding calls use the active persona’s AI provider (OpenAI or Vercel AI Gateway), same credentials as chat.
+Embedding calls use the active persona’s AI provider (OpenAI, Vercel AI Gateway, or Ollama), same credentials as chat. Memory search reuses the same helpers in [`packages/core/src/ai/embeddings.ts`](../packages/core/src/ai/embeddings.ts) to embed stored facts for hybrid `memorySearch`.
 
 ### Legacy LLM pretreatment (`TOBY_SEMANTIC_ROUTING=0`)
 

@@ -802,7 +802,7 @@ Response `201`: `{ session: … }`.
 
 | Query | Default | Description |
 | --- | ---: | --- |
-| `q` | — | Search query |
+| `q` | — | Search query (keywords and meaning) |
 | `limit` | `50` (max 500) | Page size |
 | `offset` | `0` | Skip count |
 

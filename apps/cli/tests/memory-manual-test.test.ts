@@ -30,8 +30,8 @@ afterEach(() => {
 });
 
 describe.skipIf(!isBun)("memory-manual-create", () => {
-	it("creates a memory directly via createManual", () => {
-		const item = memory.createManual("user1", {
+	it("creates a memory directly via createManual", async () => {
+		const item = await memory.createManual("user1", {
 			value: "Likes dark mode",
 			subject: "theme",
 		});
@@ -44,14 +44,14 @@ describe.skipIf(!isBun)("memory-manual-create", () => {
 		expect(item.confidence).toBe(1);
 	});
 
-	it("throws when value is empty", () => {
-		expect(() => memory.createManual("user1", { value: "  " })).toThrow(
+	it("throws when value is empty", async () => {
+		await expect(memory.createManual("user1", { value: "  " })).rejects.toThrow(
 			"Memory value is required",
 		);
 	});
 
-	it("respects provided type, sensitivity, and visibility", () => {
-		const item = memory.createManual("user1", {
+	it("respects provided type, sensitivity, and visibility", async () => {
+		const item = await memory.createManual("user1", {
 			value: "Has a dog named Rex",
 			type: "fact",
 			sensitivity: "sensitive",
@@ -64,9 +64,9 @@ describe.skipIf(!isBun)("memory-manual-create", () => {
 		expect(item.confidence).toBe(0.8);
 	});
 
-	it("created memory appears in listMemoryItems and countMemoryItems", () => {
-		memory.createManual("user1", { value: "Test memory 1" });
-		memory.createManual("user1", { value: "Test memory 2" });
+	it("created memory appears in listMemoryItems and countMemoryItems", async () => {
+		await memory.createManual("user1", { value: "Test memory 1" });
+		await memory.createManual("user1", { value: "Test memory 2" });
 
 		const items = memory.listMemoryItems("user1", { limit: 10 });
 		expect(items.length).toBe(2);
@@ -75,18 +75,18 @@ describe.skipIf(!isBun)("memory-manual-create", () => {
 		expect(count).toBe(2);
 	});
 
-	it("countMemoryItems filters by query", () => {
-		memory.createManual("user1", { value: "Likes coffee" });
-		memory.createManual("user1", { value: "Prefers tea" });
+	it("countMemoryItems filters by query", async () => {
+		await memory.createManual("user1", { value: "Likes coffee" });
+		await memory.createManual("user1", { value: "Prefers tea" });
 
 		expect(memory.countMemoryItems("user1", { query: "coffee" })).toBe(1);
 		expect(memory.countMemoryItems("user1", { query: "tea" })).toBe(1);
 		expect(memory.countMemoryItems("user1", { query: "xyz" })).toBe(0);
 	});
 
-	it("listMemoryItems paginates with offset", () => {
+	it("listMemoryItems paginates with offset", async () => {
 		for (let i = 0; i < 5; i++) {
-			memory.createManual("user1", { value: `Memory ${i}` });
+			await memory.createManual("user1", { value: `Memory ${i}` });
 		}
 		const page1 = memory.listMemoryItems("user1", { limit: 2, offset: 0 });
 		const page2 = memory.listMemoryItems("user1", { limit: 2, offset: 2 });
@@ -95,26 +95,26 @@ describe.skipIf(!isBun)("memory-manual-create", () => {
 		expect(page1[0].id).not.toBe(page2[0].id);
 	});
 
-	it("update can change type field", () => {
-		const item = memory.createManual("user1", {
+	it("update can change type field", async () => {
+		const item = await memory.createManual("user1", {
 			value: "Works at Acme",
 			type: "fact",
 		});
-		const updated = memory.update("user1", item.id, { type: "project" });
+		const updated = await memory.update("user1", item.id, { type: "project" });
 		expect(updated.type).toBe("project");
 		expect(updated.value).toBe("Works at Acme");
 	});
 
-	it("forget deletes a memory", () => {
-		const item = memory.createManual("user1", { value: "Temporary" });
+	it("forget deletes a memory", async () => {
+		const item = await memory.createManual("user1", { value: "Temporary" });
 		expect(memory.get("user1", item.id)).not.toBeNull();
 		memory.forget("user1", item.id);
 		expect(memory.get("user1", item.id)).toBeNull();
 	});
 
-	it("listMemoryItems respects query filter", () => {
-		memory.createManual("user1", { value: "Likes hiking" });
-		memory.createManual("user1", { value: "Prefers swimming" });
+	it("listMemoryItems respects query filter", async () => {
+		await memory.createManual("user1", { value: "Likes hiking" });
+		await memory.createManual("user1", { value: "Prefers swimming" });
 
 		const results = memory.listMemoryItems("user1", { query: "hiking" });
 		expect(results.length).toBe(1);

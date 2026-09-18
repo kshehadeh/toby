@@ -50,7 +50,8 @@ export type MemoryAuditAction =
 	| "rejected"
 	| "updated"
 	| "forgotten"
-	| "retrieved";
+	| "retrieved"
+	| "merged";
 
 export interface MemoryItem {
 	readonly id: string;

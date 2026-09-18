@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { bufferToVector } from "../ai/vector";
 import { ensureTobyDir, getMemoryDbPath } from "../config/index";
 import { escapeLikePattern } from "./keywords";
+import { memoryContentHash } from "./text";
 import type {
 	MemoryAuditAction,
 	MemoryAuditEntry,
@@ -49,6 +51,7 @@ export function getDb(): SqliteDb {
 	const BunDatabase = bunSqlite.Database as new (path: string) => SqliteDb;
 	const db = new BunDatabase(getMemoryDbPath());
 	ensureSchema(db);
+	migrateMemoryItemsSchema(db);
 	dbSingleton = db;
 	return db;
 }
@@ -65,6 +68,7 @@ CREATE TABLE IF NOT EXISTS memory_items (
   sensitivity TEXT NOT NULL DEFAULT 'normal',
   visibility TEXT NOT NULL DEFAULT 'usable_by_ai',
   expires_at TEXT,
+  content_hash TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -135,6 +139,42 @@ CREATE INDEX IF NOT EXISTS idx_memory_audit_log_user
 `);
 }
 
+function tableColumns(db: SqliteDb, table: string): Set<string> {
+	const cols = db.query(`PRAGMA table_info(${table})`).all() as Array<{
+		name: string;
+	}>;
+	return new Set(cols.map((c) => c.name));
+}
+
+function migrateMemoryItemsSchema(db: SqliteDb): void {
+	const cols = tableColumns(db, "memory_items");
+	if (!cols.has("content_hash")) {
+		db.exec("ALTER TABLE memory_items ADD COLUMN content_hash TEXT");
+	}
+	db.exec(`
+CREATE INDEX IF NOT EXISTS idx_memory_items_user_content_hash
+  ON memory_items(user_id, content_hash);
+`);
+	const missing = db
+		.query(
+			`SELECT id, subject, value FROM memory_items
+       WHERE content_hash IS NULL OR content_hash = ''`,
+		)
+		.all() as Array<{
+		id: string;
+		subject: string | null;
+		value: string;
+	}>;
+	for (const row of missing) {
+		db.query("UPDATE memory_items SET content_hash = $hash WHERE id = $id").run(
+			{
+				$id: row.id,
+				$hash: memoryContentHash(row.value, row.subject),
+			},
+		);
+	}
+}
+
 function nowIso(): string {
 	return new Date().toISOString();
 }
@@ -154,9 +194,10 @@ export function insertItem(
 	const db = getDb();
 	const id = randomUUID();
 	const ts = nowIso();
+	const hash = memoryContentHash(value, subject);
 	db.query(
-		`INSERT INTO memory_items (id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at)
-     VALUES ($id, $uid, $type, $subject, $value, $conf, $sens, $vis, $exp, $ca, $ua)`,
+		`INSERT INTO memory_items (id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, content_hash, created_at, updated_at)
+     VALUES ($id, $uid, $type, $subject, $value, $conf, $sens, $vis, $exp, $hash, $ca, $ua)`,
 	).run({
 		$id: id,
 		$uid: userId,
@@ -167,6 +208,7 @@ export function insertItem(
 		$sens: sensitivity,
 		$vis: visibility,
 		$exp: expiresAt ?? null,
+		$hash: hash,
 		$ca: ts,
 		$ua: ts,
 	});
@@ -276,6 +318,13 @@ export function updateItem(
 	if (patch.expiresAt !== undefined) {
 		sets.push("expires_at = $exp");
 		params.$exp = patch.expiresAt;
+	}
+	const nextValue = patch.value !== undefined ? patch.value : existing.value;
+	const nextSubject =
+		patch.subject !== undefined ? patch.subject : existing.subject;
+	if (patch.value !== undefined || patch.subject !== undefined) {
+		sets.push("content_hash = $hash");
+		params.$hash = memoryContentHash(nextValue, nextSubject);
 	}
 	db.query(
 		`UPDATE memory_items SET ${sets.join(", ")} WHERE id = $id AND user_id = $uid`,
@@ -535,6 +584,78 @@ export function getItemsForRetrieval(
 		updated_at: string;
 	}>;
 	return rows.map(rowToItem);
+}
+
+export function findItemByContentHash(
+	userId: string,
+	contentHash: string,
+): MemoryItem | null {
+	if (!contentHash) return null;
+	const db = getDb();
+	const row = db
+		.query(
+			`${ITEM_SELECT}
+       WHERE user_id = $uid AND content_hash = $hash
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+		)
+		.get({ $uid: userId, $hash: contentHash }) as
+		| {
+				id: string;
+				user_id: string;
+				type: string;
+				subject: string | null;
+				value: string;
+				confidence: number;
+				sensitivity: string;
+				visibility: string;
+				expires_at: string | null;
+				created_at: string;
+				updated_at: string;
+		  }
+		| undefined;
+	if (!row) return null;
+	return rowToItem(row);
+}
+
+export function getItemsByIds(
+	userId: string,
+	ids: readonly string[],
+): MemoryItem[] {
+	if (ids.length === 0) return [];
+	const db = getDb();
+	const idParams: Record<string, unknown> = { $uid: userId };
+	const placeholders: string[] = [];
+	for (let i = 0; i < ids.length; i++) {
+		const id = ids[i];
+		if (!id) continue;
+		const key = `$id${i}`;
+		placeholders.push(key);
+		idParams[key] = id;
+	}
+	if (placeholders.length === 0) return [];
+	const rows = db
+		.query(
+			`${ITEM_SELECT}
+       WHERE user_id = $uid AND id IN (${placeholders.join(", ")})`,
+		)
+		.all(idParams) as Array<{
+		id: string;
+		user_id: string;
+		type: string;
+		subject: string | null;
+		value: string;
+		confidence: number;
+		sensitivity: string;
+		visibility: string;
+		expires_at: string | null;
+		created_at: string;
+		updated_at: string;
+	}>;
+	const byId = new Map(rows.map((r) => [r.id, rowToItem(r)]));
+	return ids
+		.map((id) => byId.get(id))
+		.filter((item): item is MemoryItem => item !== undefined);
 }
 
 function rowToItem(r: {
@@ -816,7 +937,21 @@ export function getAuditEntriesForMemory(memoryId: string): MemoryAuditEntry[] {
 	}));
 }
 
-// ── Embeddings (stub-ready) ───────────────────────────────────────────
+// ── Embeddings ────────────────────────────────────────────────────────
+
+export type StoredMemoryEmbedding = {
+	readonly memoryId: string;
+	readonly vector: number[];
+	readonly model: string;
+	readonly type: MemoryItem["type"];
+	readonly visibility: MemoryVisibility;
+};
+
+export type MemoryEmbedSeed = {
+	readonly id: string;
+	readonly subject?: string;
+	readonly value: string;
+};
 
 export function insertEmbedding(
 	memoryId: string,
@@ -844,8 +979,69 @@ export function getEmbedding(
 			"SELECT embedding_blob, model FROM memory_embeddings WHERE memory_id = $mid",
 		)
 		.get({ $mid: memoryId }) as
-		| { embedding_blob: Buffer; model: string }
+		| { embedding_blob: Buffer | Uint8Array; model: string }
 		| undefined;
 	if (!row) return null;
-	return { blob: row.embedding_blob, model: row.model };
+	const blob = Buffer.isBuffer(row.embedding_blob)
+		? row.embedding_blob
+		: Buffer.from(row.embedding_blob);
+	return { blob, model: row.model };
+}
+
+export function listEmbeddingsForUser(userId: string): StoredMemoryEmbedding[] {
+	const db = getDb();
+	const rows = db
+		.query(
+			`SELECT e.memory_id as memory_id, e.embedding_blob as embedding_blob,
+              e.model as model, i.type as type, i.visibility as visibility
+       FROM memory_embeddings e
+       JOIN memory_items i ON i.id = e.memory_id
+       WHERE i.user_id = $uid`,
+		)
+		.all({ $uid: userId }) as Array<{
+		memory_id: string;
+		embedding_blob: Buffer | Uint8Array;
+		model: string;
+		type: string;
+		visibility: string;
+	}>;
+	const out: StoredMemoryEmbedding[] = [];
+	for (const row of rows) {
+		const blob = Buffer.isBuffer(row.embedding_blob)
+			? row.embedding_blob
+			: Buffer.from(row.embedding_blob);
+		out.push({
+			memoryId: row.memory_id,
+			vector: bufferToVector(blob),
+			model: row.model,
+			type: row.type as MemoryItem["type"],
+			visibility: row.visibility as MemoryVisibility,
+		});
+	}
+	return out;
+}
+
+export function listItemsNeedingEmbedding(
+	userId: string,
+	model: string,
+): MemoryEmbedSeed[] {
+	const db = getDb();
+	const rows = db
+		.query(
+			`SELECT i.id as id, i.subject as subject, i.value as value
+       FROM memory_items i
+       LEFT JOIN memory_embeddings e ON e.memory_id = i.id
+       WHERE i.user_id = $uid
+         AND (e.memory_id IS NULL OR e.model != $model)`,
+		)
+		.all({ $uid: userId, $model: model }) as Array<{
+		id: string;
+		subject: string | null;
+		value: string;
+	}>;
+	return rows.map((r) => ({
+		id: r.id,
+		subject: r.subject ?? undefined,
+		value: r.value,
+	}));
 }

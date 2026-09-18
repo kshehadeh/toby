@@ -19,6 +19,7 @@ import { searchTopKByCosine } from "./search";
 export {
 	cosineSimilarity,
 	searchTopKByCosine,
+	searchTopKScoredByCosine,
 	vectorToBuffer,
 	bufferToVector,
 } from "./search";

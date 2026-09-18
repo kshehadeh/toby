@@ -1,4 +1,11 @@
-import { extractKeywords, rankMemories } from "./keywords";
+import {
+	embedMemoryText,
+	findNearDuplicate,
+	resolveMemoryEmbedder,
+	semanticMemoryHits,
+	storeMemoryEmbedding,
+} from "./embeddings";
+import { extractKeywords, rankMemories, rankMemoriesHybrid } from "./keywords";
 import * as store from "./memory-store";
 import {
 	classifySensitivity,
@@ -6,6 +13,11 @@ import {
 	shouldAutoSave,
 	suggestVisibility,
 } from "./policy";
+import {
+	formatMemoryEmbedText,
+	isMoreSpecificMemoryValue,
+	memoryContentHash,
+} from "./text";
 import type {
 	MemoryCandidate,
 	MemoryContextBundle,
@@ -13,21 +25,38 @@ import type {
 	MemoryItem,
 	MemoryProposal,
 	MemorySensitivity,
-	MemorySource,
 	MemorySourceSystem,
 	MemoryVisibility,
 	RetrieveForTaskOptions,
 } from "./types";
 
-export function search(userId: string, query: string): MemoryItem[] {
+export async function search(
+	userId: string,
+	query: string,
+): Promise<MemoryItem[]> {
 	const trimmed = query.trim();
 	if (!trimmed) return [];
 	const keywords = extractKeywords(trimmed);
-	const items =
+	const keywordItems =
 		keywords.length === 0
 			? store.searchItems(userId, trimmed)
 			: store.searchItemsByKeywords(userId, keywords);
-	return rankMemories(items, trimmed, keywords);
+	const semanticScores = await semanticMemoryHits({ userId, query: trimmed });
+	if (semanticScores.size === 0) {
+		return rankMemories(keywordItems, trimmed, keywords);
+	}
+	const byId = new Map(keywordItems.map((item) => [item.id, item]));
+	for (const id of semanticScores.keys()) {
+		if (byId.has(id)) continue;
+		const item = store.getItem(userId, id);
+		if (item) byId.set(id, item);
+	}
+	return rankMemoriesHybrid(
+		[...byId.values()],
+		trimmed,
+		keywords,
+		semanticScores,
+	);
 }
 
 export function get(userId: string, memoryId: string): MemoryItem | null {
@@ -67,10 +96,10 @@ export interface ManualMemoryInput {
 }
 
 /** Create a memory directly from manual user input (no proposal flow). */
-export function createManual(
+export async function createManual(
 	userId: string,
 	input: ManualMemoryInput,
-): MemoryItem {
+): Promise<MemoryItem> {
 	const value = input.value.trim();
 	if (!value) {
 		throw new Error("Memory value is required");
@@ -90,26 +119,30 @@ export function createManual(
 		{ manual: true },
 	);
 
-	const item = store.insertItem(
+	const { item, merged } = await persistNewOrMerge(
 		userId,
-		type,
-		input.subject?.trim() || undefined,
-		value,
-		confidence,
-		sensitivity,
-		visibility,
-		input.expiresAt ?? null,
+		{
+			type,
+			subject: input.subject?.trim() || undefined,
+			value,
+			confidence,
+			sensitivity,
+			visibility,
+			expiresAt: input.expiresAt ?? null,
+		},
+		source.id,
 	);
-	store.linkItemSource(item.id, source.id);
-	store.insertAuditEntry(userId, item.id, "saved", {
-		reason: "Manual creation",
-		autoSaved: false,
-		manual: true,
-	});
+	if (!merged) {
+		store.insertAuditEntry(userId, item.id, "saved", {
+			reason: "Manual creation",
+			autoSaved: false,
+			manual: true,
+		});
+	}
 	return item;
 }
 
-export function propose(
+export async function propose(
 	userId: string,
 	candidate: MemoryCandidate,
 	source: {
@@ -121,7 +154,7 @@ export function propose(
 		metadata?: Record<string, unknown>;
 	},
 	reason: string,
-): MemoryProposal {
+): Promise<MemoryProposal> {
 	const sourceRecord = store.insertSource(
 		userId,
 		source.system,
@@ -151,7 +184,7 @@ export function propose(
 	);
 
 	if (shouldAutoSave(proposal)) {
-		const item = saveFromProposal(userId, proposal, sourceRecord.id);
+		const item = await saveFromProposal(userId, proposal, sourceRecord.id);
 		store.insertAuditEntry(userId, item.id, "saved", {
 			reason,
 			autoSaved: true,
@@ -173,28 +206,33 @@ export function propose(
 	return proposal;
 }
 
-function saveFromProposal(
+async function saveFromProposal(
 	userId: string,
 	proposal: MemoryProposal,
 	sourceId: string,
-): MemoryItem {
+): Promise<MemoryItem> {
 	const c = proposal.candidate;
-	const item = store.insertItem(
+	const { item } = await persistNewOrMerge(
 		userId,
-		c.type,
-		c.subject,
-		c.value,
-		c.confidence,
-		proposal.sensitivity,
-		proposal.suggestedVisibility,
-		c.expiresAt,
+		{
+			type: c.type,
+			subject: c.subject,
+			value: c.value,
+			confidence: c.confidence,
+			sensitivity: proposal.sensitivity,
+			visibility: proposal.suggestedVisibility,
+			expiresAt: c.expiresAt,
+		},
+		sourceId,
 	);
-	store.linkItemSource(item.id, sourceId);
 	store.updateProposalStatus(userId, proposal.id, "accepted");
 	return item;
 }
 
-export function save(userId: string, proposalId: string): MemoryItem {
+export async function save(
+	userId: string,
+	proposalId: string,
+): Promise<MemoryItem> {
 	const proposal = store.getProposal(userId, proposalId);
 	if (!proposal) {
 		throw new Error(`Proposal ${proposalId} not found for user ${userId}`);
@@ -205,7 +243,7 @@ export function save(userId: string, proposalId: string): MemoryItem {
 		);
 	}
 
-	const item = saveFromProposal(userId, proposal, proposal.sourceId);
+	const item = await saveFromProposal(userId, proposal, proposal.sourceId);
 	store.insertAuditEntry(userId, item.id, "saved", {
 		proposalId,
 		autoSaved: false,
@@ -227,14 +265,14 @@ export function reject(
 			`Proposal ${proposalId} is ${proposal.status}, not pending`,
 		);
 	}
-	store.updateProposalStatus(userId, proposalId, "rejected", reason);
+	store.updateProposalStatus(userId, proposal.id, "rejected", reason);
 	store.insertAuditEntry(userId, undefined, "rejected", {
 		proposalId,
 		rejectionReason: reason,
 	});
 }
 
-export function update(
+export async function update(
 	userId: string,
 	memoryId: string,
 	patch: {
@@ -246,7 +284,7 @@ export function update(
 		type?: MemoryItem["type"];
 		expiresAt?: string | null;
 	},
-): MemoryItem {
+): Promise<MemoryItem> {
 	const existing = store.getItem(userId, memoryId);
 	if (!existing) {
 		throw new Error(`Memory ${memoryId} not found for user ${userId}`);
@@ -256,6 +294,12 @@ export function update(
 		throw new Error(`Failed to update memory ${memoryId}`);
 	}
 	store.insertAuditEntry(userId, memoryId, "updated", { patch });
+	if (patch.value !== undefined || patch.subject !== undefined) {
+		const embedder = resolveMemoryEmbedder();
+		if (embedder) {
+			await storeMemoryEmbedding(updated, embedder);
+		}
+	}
 	return updated;
 }
 
@@ -278,31 +322,52 @@ export function explain(userId: string, memoryId: string): MemoryExplanation {
 	return { item, sources, auditTrail };
 }
 
-export function retrieveForTask(
+export async function retrieveForTask(
 	userId: string,
 	taskDescription: string,
 	options?: RetrieveForTaskOptions,
-): MemoryContextBundle {
+): Promise<MemoryContextBundle> {
 	const maxItems = options?.maxItems ?? 10;
-	const visibilities = ["usable_by_ai"];
+	const visibilities: MemoryVisibility[] = ["usable_by_ai"];
 	if (options?.includeUnconfirmed) {
 		visibilities.push("requires_confirmation");
 	}
 
 	const keywords = extractKeywords(taskDescription);
 	const fetchLimit = Math.max(maxItems * 5, 25);
-	const candidates = store.getItemsForRetrieval(
+	const keywordCandidates = store.getItemsForRetrieval(
 		userId,
 		visibilities,
 		keywords,
 		fetchLimit,
 	);
-	const memories = rankMemories(candidates, taskDescription, keywords).slice(
-		0,
-		maxItems,
-	);
+	const semanticScores = await semanticMemoryHits({
+		userId,
+		query: taskDescription,
+		visibilities,
+		topK: fetchLimit,
+	});
+	const byId = new Map(keywordCandidates.map((item) => [item.id, item]));
+	if (semanticScores.size > 0) {
+		const extra = store.getItemsByIds(userId, [...semanticScores.keys()]);
+		for (const item of extra) {
+			if (visibilities.includes(item.visibility)) {
+				byId.set(item.id, item);
+			}
+		}
+	}
+	const ranked =
+		semanticScores.size > 0
+			? rankMemoriesHybrid(
+					[...byId.values()],
+					taskDescription,
+					keywords,
+					semanticScores,
+				)
+			: rankMemories(keywordCandidates, taskDescription, keywords);
+	const memories = ranked.slice(0, maxItems);
 
-	const omittedCount = countOmitted(userId, taskDescription);
+	const omittedCount = countOmitted(userId);
 
 	const summary =
 		memories.length === 0
@@ -326,7 +391,130 @@ export function retrieveForTask(
 	};
 }
 
-function countOmitted(userId: string, _taskDescription: string): number {
+type PersistCandidate = {
+	readonly type: MemoryItem["type"];
+	readonly subject?: string;
+	readonly value: string;
+	readonly confidence: number;
+	readonly sensitivity: MemorySensitivity;
+	readonly visibility: MemoryVisibility;
+	readonly expiresAt?: string | null;
+};
+
+async function persistNewOrMerge(
+	userId: string,
+	candidate: PersistCandidate,
+	sourceId: string,
+): Promise<{ item: MemoryItem; merged: boolean }> {
+	const hash = memoryContentHash(candidate.value, candidate.subject);
+	const exact = store.findItemByContentHash(userId, hash);
+	if (exact) {
+		return {
+			item: await mergeIntoExisting(userId, exact, candidate, sourceId, {
+				score: 1,
+				reason: "exact",
+				updateValue: false,
+			}),
+			merged: true,
+		};
+	}
+
+	const embedder = resolveMemoryEmbedder();
+	let queryVector: number[] | undefined;
+	if (embedder) {
+		queryVector =
+			(await embedMemoryText(embedder, formatMemoryEmbedText(candidate))) ??
+			undefined;
+	}
+
+	const near = await findNearDuplicate({
+		userId,
+		type: candidate.type,
+		value: candidate.value,
+		subject: candidate.subject,
+		queryVector,
+		embedder,
+	});
+	if (near) {
+		const updateValue =
+			near.reason === "near-dup" &&
+			isMoreSpecificMemoryValue(candidate.value, near.item.value);
+		return {
+			item: await mergeIntoExisting(userId, near.item, candidate, sourceId, {
+				score: near.score,
+				reason: near.reason,
+				updateValue,
+				queryVector: updateValue ? queryVector : undefined,
+				embedder,
+			}),
+			merged: true,
+		};
+	}
+
+	const item = store.insertItem(
+		userId,
+		candidate.type,
+		candidate.subject,
+		candidate.value,
+		candidate.confidence,
+		candidate.sensitivity,
+		candidate.visibility,
+		candidate.expiresAt,
+	);
+	store.linkItemSource(item.id, sourceId);
+	if (embedder) {
+		await storeMemoryEmbedding(item, embedder, queryVector);
+	}
+	return { item, merged: false };
+}
+
+async function mergeIntoExisting(
+	userId: string,
+	existing: MemoryItem,
+	candidate: PersistCandidate,
+	sourceId: string,
+	opts: {
+		readonly score: number;
+		readonly reason: "exact" | "near-exact" | "near-dup";
+		readonly updateValue: boolean;
+		readonly queryVector?: readonly number[];
+		readonly embedder?: ReturnType<typeof resolveMemoryEmbedder>;
+	},
+): Promise<MemoryItem> {
+	store.linkItemSource(existing.id, sourceId);
+	const patch: {
+		value?: string;
+		confidence?: number;
+	} = {};
+	if (opts.updateValue) {
+		patch.value = candidate.value;
+	}
+	const nextConfidence = Math.max(existing.confidence, candidate.confidence);
+	if (nextConfidence !== existing.confidence) {
+		patch.confidence = nextConfidence;
+	}
+	const updated =
+		Object.keys(patch).length > 0
+			? (store.updateItem(userId, existing.id, patch) ?? existing)
+			: (store.updateItem(userId, existing.id, {
+					confidence: existing.confidence,
+				}) ?? existing);
+	store.insertAuditEntry(userId, existing.id, "merged", {
+		reason: opts.reason,
+		score: opts.score,
+		sourceId,
+		updatedValue: opts.updateValue,
+	});
+	if (opts.updateValue) {
+		const embedder = opts.embedder ?? resolveMemoryEmbedder();
+		if (embedder) {
+			await storeMemoryEmbedding(updated, embedder, opts.queryVector);
+		}
+	}
+	return store.getItem(userId, existing.id) ?? updated;
+}
+
+function countOmitted(userId: string): number {
 	const db = store.getDb();
 	const row = db
 		.query(

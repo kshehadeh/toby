@@ -970,7 +970,7 @@ Query parameters:
 
 | Name | Default | Max | Description |
 | --- | ---: | ---: | --- |
-| `q` | none | n/a | Optional memory search query. |
+| `q` | none | n/a | Optional memory search query (hybrid keyword + embedding similarity when embeddings are available). |
 | `limit` | `50` | `500` | Maximum number of memories to return. Invalid or values less than `1` fall back to the default. |
 | `offset` | `0` | n/a | Number of memories to skip. Negative or invalid values become `0`. |
 

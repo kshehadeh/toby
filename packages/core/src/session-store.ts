@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CoreMessage } from "./ai/chat";
 import type { AIContextWindowInfo } from "./ai/context-window";
 import type { UserIntentSpec } from "./ai/pretreatment";
+import { bufferToVector, vectorToBuffer } from "./ai/vector";
 import type { ChatSessionSettings } from "./api/chat-api";
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 import { ensureTobyDir, getChatDbPath } from "./config/index";
@@ -1383,7 +1384,7 @@ export function loadRoutingEmbeddings(params: {
 		out.push({
 			entityType: row.entityType,
 			entityId: row.entityId,
-			vector: bufferToRoutingVector(row.embeddingBlob),
+			vector: bufferToVector(row.embeddingBlob),
 		});
 	}
 	return out;
@@ -1406,7 +1407,7 @@ export function upsertRoutingEmbedding(params: {
 		$id: params.entityId,
 		$sig: params.catalogSignature,
 		$model: params.model,
-		$blob: routingVectorToBuffer(params.vector),
+		$blob: vectorToBuffer(params.vector),
 		$created: nowIso(),
 	});
 }
@@ -1420,21 +1421,4 @@ export function deleteRoutingEmbeddingsNotMatching(params: {
 		`DELETE FROM routing_embeddings
      WHERE model = $model AND catalog_signature != $sig`,
 	).run({ $model: params.model, $sig: params.catalogSignature });
-}
-
-function routingVectorToBuffer(vec: readonly number[]): Buffer {
-	const f32 = new Float32Array(vec.length);
-	for (let i = 0; i < vec.length; i++) {
-		f32[i] = vec[i] ?? 0;
-	}
-	return Buffer.from(f32.buffer);
-}
-
-function bufferToRoutingVector(blob: Buffer): number[] {
-	const f32 = new Float32Array(
-		blob.buffer,
-		blob.byteOffset,
-		blob.byteLength / Float32Array.BYTES_PER_ELEMENT,
-	);
-	return Array.from(f32);
 }

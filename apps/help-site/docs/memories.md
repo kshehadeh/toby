@@ -34,6 +34,8 @@ You can also ask directly:
 
 Open **Toby.app** and choose **View → Memories** (⌘6), or search for **Open Memories** in the command palette (⌘K). Nothing is selected until you choose a memory; the main page asks you to pick one or create a new memory. Click empty space in the list to clear the selection. Search, add, edit, or delete memories, and inspect their type, sensitivity, visibility, and last-updated timestamp.
 
+Search matches **keywords and meaning**. If your AI provider can create embeddings, a phrase like “where is my home” can find “Lives in Baltimore, Maryland” even when the words do not overlap. Repeating the same fact in different wording is merged into the existing memory instead of creating a duplicate.
+
 The list refreshes when you open the Memories window, when chat creates or updates a memory, and on a short poll while the window is open. Use the **refresh** control in the toolbar if you want an immediate reload.
 
 ![Toby.app Memories window](/img/toby-app-memories.png)

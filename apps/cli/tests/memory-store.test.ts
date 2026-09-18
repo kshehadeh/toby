@@ -9,6 +9,7 @@ const isBun =
 import {
 	closeMemoryDbForTests,
 	deleteItem,
+	findItemByContentHash,
 	getAuditEntriesForMemory,
 	getEmbedding,
 	getItem,
@@ -27,6 +28,7 @@ import {
 	updateItem,
 	updateProposalStatus,
 } from "@toby/core/memory/memory-store";
+import { memoryContentHash } from "@toby/core/memory/text";
 
 const TMP_DIR = path.join(
 	os.tmpdir(),
@@ -445,6 +447,26 @@ describe.skipIf(!isBun)("memory-store", () => {
 
 		it("returns null for non-existent embedding", () => {
 			expect(getEmbedding("nonexistent")).toBeNull();
+		});
+	});
+
+	describe("content_hash", () => {
+		it("finds an item by content hash", () => {
+			const item = insertItem(
+				"user1",
+				"fact",
+				"theme",
+				"Prefers dark mode",
+				0.8,
+				"normal",
+				"usable_by_ai",
+				null,
+			);
+			const found = findItemByContentHash(
+				"user1",
+				memoryContentHash("Prefers dark mode", "theme"),
+			);
+			expect(found?.id).toBe(item.id);
 		});
 	});
 

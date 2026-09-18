@@ -33,20 +33,20 @@ export function createMemoryTools(
 	return {
 		memorySearch: tool({
 			description:
-				'Search the user\'s personal memory for preferences, relationships, projects, facts, and other stored context. Each word is matched independently, so a phrase like "where I live" still finds "Lives in Baltimore". Prefer a short natural-language phrase or a few keywords.',
+				'Search the user\'s personal memory for preferences, relationships, projects, facts, and other stored context. Matches meaning (embeddings) and keywords, so "where I live" still finds "Lives in Baltimore". Prefer a short natural-language phrase.',
 			inputSchema: z.object({
 				query: z
 					.string()
 					.min(1)
 					.describe(
-						"Natural-language phrase or keywords (matched independently, not as one exact substring)",
+						"Natural-language phrase or keywords (semantic and keyword match, not one exact substring)",
 					),
 			}),
 			execute: async ({ query }) => {
 				if (ctx.dryRun) {
 					return { dryRun: true, message: `Would search memory for: ${query}` };
 				}
-				const results = memory.search(ctx.userId, query);
+				const results = await memory.search(ctx.userId, query);
 				if (results.length === 0) {
 					return {
 						count: 0,
@@ -124,7 +124,7 @@ export function createMemoryTools(
 						message: `Would propose memory: (${type}) ${value.slice(0, 80)}`,
 					};
 				}
-				const proposal = memory.propose(
+				const proposal = await memory.propose(
 					ctx.userId,
 					{
 						userId: ctx.userId,
@@ -179,7 +179,7 @@ export function createMemoryTools(
 					};
 				}
 				try {
-					const item = memory.save(ctx.userId, proposalId);
+					const item = await memory.save(ctx.userId, proposalId);
 					const msg = `Saved memory: (${item.type}) ${item.value.slice(0, 60)}`;
 					ctx.appliedActions.push(msg);
 					return {
@@ -265,7 +265,7 @@ export function createMemoryTools(
 
 		memoryRetrieveForTask: tool({
 			description:
-				"Retrieve memories relevant to a specific task or instruction. Returns a compact context bundle with relevant memories, a summary, and a count of omitted (private/unconfirmed) items.",
+				"Retrieve memories relevant to a specific task or instruction using semantic and keyword search. Returns a compact context bundle with relevant memories, a summary, and a count of omitted (private/unconfirmed) items.",
 			inputSchema: z.object({
 				taskDescription: z
 					.string()
@@ -285,9 +285,13 @@ export function createMemoryTools(
 						message: `Would retrieve memories for task: ${taskDescription.slice(0, 80)}`,
 					};
 				}
-				const bundle = memory.retrieveForTask(ctx.userId, taskDescription, {
-					includeUnconfirmed,
-				});
+				const bundle = await memory.retrieveForTask(
+					ctx.userId,
+					taskDescription,
+					{
+						includeUnconfirmed,
+					},
+				);
 				return {
 					summary: bundle.summary,
 					memories: bundle.memories.map((m) => ({

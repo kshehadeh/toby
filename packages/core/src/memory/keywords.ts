@@ -153,3 +153,22 @@ export function rankMemories(
 		return b.updatedAt.localeCompare(a.updatedAt);
 	});
 }
+
+/** Rank by semantic cosine first, then keyword/confidence score, then recency. */
+export function rankMemoriesHybrid(
+	items: readonly MemoryItem[],
+	query: string,
+	keywords: readonly string[],
+	semanticScores: ReadonlyMap<string, number>,
+): MemoryItem[] {
+	return [...items].sort((a, b) => {
+		const sa = semanticScores.get(a.id) ?? 0;
+		const sb = semanticScores.get(b.id) ?? 0;
+		if (sa !== sb) return sb - sa;
+		const delta =
+			scoreMemoryMatch(b, query, keywords) -
+			scoreMemoryMatch(a, query, keywords);
+		if (delta !== 0) return delta;
+		return b.updatedAt.localeCompare(a.updatedAt);
+	});
+}

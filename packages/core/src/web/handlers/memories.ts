@@ -17,19 +17,29 @@ const VALID_TYPES = new Set<string>(MemoryTypeValues);
 const VALID_SENSITIVITIES = new Set<string>(MemorySensitivityValues);
 const VALID_VISIBILITIES = new Set<string>(MemoryVisibilityValues);
 
-export function handleMemoriesList(url: URL): Response {
+export async function handleMemoriesList(url: URL): Promise<Response> {
 	const query = url.searchParams.get("q") ?? undefined;
 	const limit = parseIntParam(url.searchParams.get("limit"), 50, 500);
 	const offset = Math.max(
 		0,
 		Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0,
 	);
+	if (query?.trim()) {
+		const all = await memory.search(DEFAULT_USER_ID, query);
+		const sliced = all.slice(offset, offset + limit);
+		return jsonResponse({
+			memories: sliced,
+			limit,
+			offset,
+			total: all.length,
+			hasMore: offset + sliced.length < all.length,
+		});
+	}
 	const items = memory.listMemoryItems(DEFAULT_USER_ID, {
-		query,
 		limit,
 		offset,
 	});
-	const total = memory.countMemoryItems(DEFAULT_USER_ID, { query });
+	const total = memory.countMemoryItems(DEFAULT_USER_ID);
 	return jsonResponse({
 		memories: items,
 		limit,
@@ -102,7 +112,7 @@ export async function handleMemoryCreate(req: Request): Promise<Response> {
 				: undefined;
 
 	try {
-		const item = memory.createManual(DEFAULT_USER_ID, {
+		const item = await memory.createManual(DEFAULT_USER_ID, {
 			type: type as memory.ManualMemoryInput["type"],
 			subject,
 			value,
@@ -184,7 +194,11 @@ export async function handleMemoryPatch(
 	}
 
 	try {
-		const updated = memory.update(DEFAULT_USER_ID, memoryId, patch as never);
+		const updated = await memory.update(
+			DEFAULT_USER_ID,
+			memoryId,
+			patch as never,
+		);
 		return jsonResponse({ memory: updated });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

@@ -36,15 +36,15 @@ afterEach(() => {
 });
 
 describe.skipIf(!isBun)("injectMemoriesIntoFirstSystemMessage", () => {
-	it("appends usable memories to the first system message", () => {
-		memory.createManual("default", {
+	it("appends usable memories to the first system message", async () => {
+		await memory.createManual("default", {
 			value: "Lives in Baltimore, Maryland",
 		});
-		memory.createManual("default", {
+		await memory.createManual("default", {
 			value: "Hidden address",
 			visibility: "requires_confirmation",
 		});
-		memory.createManual("default", {
+		await memory.createManual("default", {
 			value: "Private note",
 			visibility: "private",
 		});
@@ -62,8 +62,10 @@ describe.skipIf(!isBun)("injectMemoriesIntoFirstSystemMessage", () => {
 		expect(content).not.toContain("Private note");
 	});
 
-	it("replaces a prior memories appendix", () => {
-		memory.createManual("default", { value: "My name is Karim Shehadeh" });
+	it("replaces a prior memories appendix", async () => {
+		await memory.createManual("default", {
+			value: "My name is Karim Shehadeh",
+		});
 		const messages: CoreMessage[] = [
 			{
 				role: "system",
@@ -77,8 +79,8 @@ describe.skipIf(!isBun)("injectMemoriesIntoFirstSystemMessage", () => {
 		expect((content.match(/Known memories/g) ?? []).length).toBe(1);
 	});
 
-	it("strips a prior appendix when nothing is usable", () => {
-		memory.createManual("default", {
+	it("strips a prior appendix when nothing is usable", async () => {
+		await memory.createManual("default", {
 			value: "restricted",
 			visibility: "private",
 		});

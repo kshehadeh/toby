@@ -30,8 +30,8 @@ afterEach(() => {
 });
 
 describe.skipIf(!isBun)("memory-service", () => {
-	it("saves a normal preference via auto-save", () => {
-		const proposal = memory.propose(
+	it("saves a normal preference via auto-save", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -48,13 +48,13 @@ describe.skipIf(!isBun)("memory-service", () => {
 		);
 		expect(proposal.status).toBe("accepted");
 
-		const results = memory.search("user1", "dark mode");
+		const results = await memory.search("user1", "dark mode");
 		expect(results).toHaveLength(1);
 		expect(results[0]?.value).toBe("I prefer dark mode");
 	});
 
-	it("proposes a sensitive memory and keeps it pending", () => {
-		const proposal = memory.propose(
+	it("proposes a sensitive memory and keeps it pending", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -74,8 +74,8 @@ describe.skipIf(!isBun)("memory-service", () => {
 		expect(proposal.suggestedVisibility).toBe("requires_confirmation");
 	});
 
-	it("rejects direct writes — propose always goes through proposal flow", () => {
-		const proposal = memory.propose(
+	it("rejects direct writes — propose always goes through proposal flow", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -91,21 +91,23 @@ describe.skipIf(!isBun)("memory-service", () => {
 			"AI inferred relationship",
 		);
 		expect(proposal.status).toBe("pending");
-		const searchResults = memory.search("user1", "Jane");
+		const searchResults = await memory.search("user1", "Jane");
 		expect(searchResults).toHaveLength(0);
 	});
 
-	it("lists only usable, non-expired memories for the prompt", () => {
-		memory.createManual("user1", { value: "Lives in Baltimore, Maryland" });
-		memory.createManual("user1", {
+	it("lists only usable, non-expired memories for the prompt", async () => {
+		await memory.createManual("user1", {
+			value: "Lives in Baltimore, Maryland",
+		});
+		await memory.createManual("user1", {
 			value: "Needs confirmation",
 			visibility: "requires_confirmation",
 		});
-		memory.createManual("user1", {
+		await memory.createManual("user1", {
 			value: "Private",
 			visibility: "private",
 		});
-		memory.createManual("user1", {
+		await memory.createManual("user1", {
 			value: "Expired",
 			expiresAt: "2020-01-01T00:00:00.000Z",
 		});
@@ -116,8 +118,8 @@ describe.skipIf(!isBun)("memory-service", () => {
 		]);
 	});
 
-	it("finds a home-location memory from a natural-language query", () => {
-		const proposal = memory.propose(
+	it("finds a home-location memory from a natural-language query", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -133,7 +135,7 @@ describe.skipIf(!isBun)("memory-service", () => {
 		);
 		expect(proposal.status).toBe("accepted");
 
-		const results = memory.search(
+		const results = await memory.search(
 			"user1",
 			"where I live home address residence",
 		);
@@ -141,8 +143,8 @@ describe.skipIf(!isBun)("memory-service", () => {
 		expect(results[0]?.value).toBe("Lives in Baltimore, Maryland");
 	});
 
-	it("ranks a phrase match above a single-keyword overlap", () => {
-		memory.propose(
+	it("ranks a phrase match above a single-keyword overlap", async () => {
+		await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -156,7 +158,7 @@ describe.skipIf(!isBun)("memory-service", () => {
 			{ system: "chat" },
 			"Stated by user",
 		);
-		memory.propose(
+		await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -171,15 +173,15 @@ describe.skipIf(!isBun)("memory-service", () => {
 			"Stated by user",
 		);
 
-		const results = memory.search("user1", "lives in baltimore");
+		const results = await memory.search("user1", "lives in baltimore");
 		expect(results.map((r) => r.value)).toContain(
 			"Lives in Baltimore, Maryland",
 		);
 		expect(results[0]?.value).toBe("Lives in Baltimore, Maryland");
 	});
 
-	it("retrieves relevant memories for a task", () => {
-		memory.propose(
+	it("retrieves relevant memories for a task", async () => {
+		await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -194,7 +196,7 @@ describe.skipIf(!isBun)("memory-service", () => {
 			{ system: "chat" },
 			"User stated preference",
 		);
-		memory.propose(
+		await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -210,7 +212,7 @@ describe.skipIf(!isBun)("memory-service", () => {
 			"User stated preference",
 		);
 
-		const bundle = memory.retrieveForTask(
+		const bundle = await memory.retrieveForTask(
 			"user1",
 			"Draft a reply to this email",
 		);
@@ -218,8 +220,8 @@ describe.skipIf(!isBun)("memory-service", () => {
 		expect(bundle.summary).toContain("relevant");
 	});
 
-	it("excludes private/requires-confirmation memories from normal retrieval", () => {
-		const proposal = memory.propose(
+	it("excludes private/requires-confirmation memories from normal retrieval", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -236,15 +238,15 @@ describe.skipIf(!isBun)("memory-service", () => {
 		);
 		expect(proposal.status).toBe("pending");
 
-		const bundle = memory.retrieveForTask("user1", "health information");
+		const bundle = await memory.retrieveForTask("user1", "health information");
 		const hasHealth = bundle.memories.some((m) =>
 			m.value.includes("medication"),
 		);
 		expect(hasHealth).toBe(false);
 	});
 
-	it("explains why a memory exists", () => {
-		const proposal = memory.propose(
+	it("explains why a memory exists", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -261,7 +263,7 @@ describe.skipIf(!isBun)("memory-service", () => {
 		);
 		expect(proposal.status).toBe("accepted");
 
-		const searchResults = memory.search("user1", "reports");
+		const searchResults = await memory.search("user1", "reports");
 		expect(searchResults.length).toBeGreaterThanOrEqual(1);
 		const itemId = searchResults[0]?.id;
 
@@ -271,8 +273,8 @@ describe.skipIf(!isBun)("memory-service", () => {
 		expect(explanation.auditTrail.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("forgets a memory", () => {
-		const proposal = memory.propose(
+	it("forgets a memory", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -289,15 +291,15 @@ describe.skipIf(!isBun)("memory-service", () => {
 		);
 		expect(proposal.status).toBe("accepted");
 
-		const searchResults = memory.search("user1", "timezone");
+		const searchResults = await memory.search("user1", "timezone");
 		expect(searchResults).toHaveLength(1);
 
 		memory.forget("user1", searchResults[0]?.id);
-		expect(memory.search("user1", "timezone")).toHaveLength(0);
+		expect(await memory.search("user1", "timezone")).toHaveLength(0);
 	});
 
-	it("uses memory.sqlite, not chat.sqlite", () => {
-		memory.propose(
+	it("uses memory.sqlite, not chat.sqlite", async () => {
+		await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -317,8 +319,8 @@ describe.skipIf(!isBun)("memory-service", () => {
 		expect(fs.existsSync(chatDbPath)).toBe(false);
 	});
 
-	it("allows manual save of a pending proposal", () => {
-		const proposal = memory.propose(
+	it("allows manual save of a pending proposal", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -335,16 +337,16 @@ describe.skipIf(!isBun)("memory-service", () => {
 		);
 		expect(proposal.status).toBe("pending");
 
-		const item = memory.save("user1", proposal.id);
+		const item = await memory.save("user1", proposal.id);
 		expect(item.value).toBe("Bob is my manager");
 		expect(item.visibility).toBe("requires_confirmation");
 
-		const searchResults = memory.search("user1", "Bob");
+		const searchResults = await memory.search("user1", "Bob");
 		expect(searchResults).toHaveLength(1);
 	});
 
-	it("allows rejecting a proposal", () => {
-		const proposal = memory.propose(
+	it("allows rejecting a proposal", async () => {
+		const proposal = await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -362,12 +364,14 @@ describe.skipIf(!isBun)("memory-service", () => {
 
 		memory.reject("user1", proposal.id, "Not accurate");
 
-		expect(() => memory.save("user1", proposal.id)).toThrow(/not pending/);
-		expect(memory.search("user1", "inferred")).toHaveLength(0);
+		await expect(memory.save("user1", proposal.id)).rejects.toThrow(
+			/not pending/,
+		);
+		expect(await memory.search("user1", "inferred")).toHaveLength(0);
 	});
 
-	it("allows updating a memory item", () => {
-		memory.propose(
+	it("allows updating a memory item", async () => {
+		await memory.propose(
 			"user1",
 			{
 				userId: "user1",
@@ -383,13 +387,27 @@ describe.skipIf(!isBun)("memory-service", () => {
 			"User stated",
 		);
 
-		const item = memory.search("user1", "dark mode")[0];
+		const item = (await memory.search("user1", "dark mode"))[0];
 		if (!item) throw new Error("Expected memory item");
-		const updated = memory.update("user1", item.id, {
+		const updated = await memory.update("user1", item.id, {
 			value: "I prefer light mode now",
 			confidence: 1.0,
 		});
 		expect(updated.value).toBe("I prefer light mode now");
 		expect(updated.confidence).toBe(1.0);
+	});
+
+	it("merges an exact duplicate instead of inserting a second row", async () => {
+		const first = await memory.createManual("user1", {
+			value: "Prefers dark mode",
+			subject: "theme",
+		});
+		const second = await memory.createManual("user1", {
+			value: "Prefers dark mode",
+			subject: "theme",
+		});
+		expect(second.id).toBe(first.id);
+		expect(memory.countMemoryItems("user1")).toBe(1);
+		expect(second.sourceIds.length).toBeGreaterThanOrEqual(1);
 	});
 });

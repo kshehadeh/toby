@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	escapeLikePattern,
 	extractKeywords,
+	rankMemoriesHybrid,
 	scoreMemoryMatch,
 } from "@toby/core/memory/keywords";
 import type { MemoryItem } from "@toby/core/memory/types";
@@ -47,5 +48,24 @@ describe("memory keywords", () => {
 			["lives", "baltimore"],
 		);
 		expect(phrase).toBeGreaterThan(single);
+	});
+
+	it("ranks semantic score ahead of keyword score", () => {
+		const a = item("Lives in Baltimore, Maryland");
+		const b = {
+			...item("Baltimore is a great city", 0.95),
+			id: "m2",
+			updatedAt: "2026-01-02T00:00:00Z",
+		};
+		const ranked = rankMemoriesHybrid(
+			[a, b],
+			"home city",
+			["home", "city"],
+			new Map([
+				[a.id, 0.9],
+				[b.id, 0.4],
+			]),
+		);
+		expect(ranked[0]?.id).toBe(a.id);
 	});
 });
