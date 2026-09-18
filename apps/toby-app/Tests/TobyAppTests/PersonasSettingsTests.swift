@@ -239,6 +239,8 @@ struct PersonasSettingsTests {
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Toby") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Default") }
+		let images = try view.inspect().findAll(ViewType.Image.self)
+		#expect(!images.contains { (try? $0.actualImage().name()) == "chevron.right" })
 	}
 
 	@Test("path keys encode and decode persona names")

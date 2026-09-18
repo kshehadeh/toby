@@ -209,4 +209,30 @@ struct SettingsCatalogTests {
 		)
 		#expect(throws: Never.self) { try view.inspect().find(SidebarIconView.self) }
 	}
+
+	@Test("catalog row does not draw its own disclosure chevron")
+	func catalogRowOmitsCustomChevron() throws {
+		let section = SettingsItem(
+			label: "Slack",
+			kind: .section,
+			key: "slack",
+			navKey: "slack",
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let view = SettingsCatalogRow(
+			section: section,
+			statusText: "Connected",
+			fallbackIcon: "puzzlepiece.extension"
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Connected") }
+		let images = try view.inspect().findAll(ViewType.Image.self)
+		#expect(!images.contains { (try? $0.actualImage().name()) == "chevron.right" })
+	}
 }
