@@ -108,6 +108,7 @@ describe("project CRUD", () => {
 		expect(fs.existsSync(orgSkill)).toBe(true);
 		const orgBody = fs.readFileSync(orgSkill, "utf-8");
 		expect(orgBody).toContain("name: project-organization");
+		expect(orgBody).toContain("writeTextFile");
 		expect(orgBody).toContain("Folder map");
 		const loaded = loadProjectSkills(project);
 		expect(loaded.some((s) => s.name === PROJECT_ORGANIZATION_SKILL_NAME)).toBe(

@@ -114,6 +114,9 @@ map stays current; other skills still require an explicit user request.
 
 ## Writing files within a project
 
+`writeTextFile` is always in the built-in tool set for project chats (it does
+not need to be routed or enabled mid-turn).
+
 | `writeTextFile` location | Destination when a project is active |
 | ------------------------ | ------------------------------------ |
 | `outputs` (default) | `<projectFolder>/outputs/` |
@@ -141,8 +144,10 @@ To read a PDF already in the project (including
 project-relative path. See [`pdf-read.md`](pdf-read.md).
 
 Project chats expose `listProjectFiles`, `searchProjectFiles`,
-`readProjectFile`, `createProjectFolder`, `renameProjectFile`,
-`deleteProjectFile`, and `deleteProjectFolder`.
+`readProjectFile`, `writeTextFile`, `createProjectFolder`, `renameProjectFile`,
+`deleteProjectFile`, and `deleteProjectFolder`. These file tools are always in
+the built-in set for project chats (in addition to routing’s top-K integration
+tools), so writing or organizing project files does not depend on tool routing.
 
 Toby **lists and searches project files first** when answering questions about
 the project's work, then reads matching text files with `readProjectFile` (or

@@ -231,6 +231,11 @@ describe("project file management", () => {
 			"call `listProjectFiles` to inspect the project tree",
 		);
 		expect(prompt).toContain("**createProjectFolder**");
+		expect(prompt).toContain("**writeTextFile**");
+		expect(prompt).toContain("is always in the project chat tool set");
+		expect(prompt).toContain(
+			"To create or update a text file, call `writeTextFile`",
+		);
 		expect(prompt).toContain("**deleteProjectFolder**");
 		expect(prompt).toContain(
 			"To move a file to another folder, call `renameProjectFile`",

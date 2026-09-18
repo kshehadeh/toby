@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	ALWAYS_INCLUDED_TOOLS,
+	PROJECT_GROUNDED_TOOLS,
 	filterToolNamesByRelevance,
 } from "@toby/core/chat-pipeline/run-turn";
 
@@ -16,6 +17,10 @@ describe("filterToolNamesByRelevance", () => {
 		"listProjectFiles",
 		"searchProjectFiles",
 		"readProjectFile",
+		"createProjectFolder",
+		"renameProjectFile",
+		"deleteProjectFile",
+		"deleteProjectFolder",
 	];
 
 	it("passes all tools when pretreatment did not run", () => {
@@ -54,7 +59,7 @@ describe("filterToolNamesByRelevance", () => {
 		).toEqual(["askUser", "enableTools", "fetchOpenTasks", "memorySearch"]);
 	});
 
-	it("does not always include write, pdf, or project mutation tools", () => {
+	it("does not always include write, pdf, or project file tools outside project chats", () => {
 		expect(ALWAYS_INCLUDED_TOOLS.has("writeTextFile")).toBe(false);
 		expect(ALWAYS_INCLUDED_TOOLS.has("readPdf")).toBe(false);
 		expect(ALWAYS_INCLUDED_TOOLS.has("createProjectFolder")).toBe(false);
@@ -77,7 +82,17 @@ describe("filterToolNamesByRelevance", () => {
 		).toEqual(["askUser", "enableTools", "fetchOpenTasks", "memorySearch"]);
 	});
 
-	it("includes createLocalSkill and project read tools in project chats", () => {
+	it("includes project file tools in the built-in set for project chats", () => {
+		expect(PROJECT_GROUNDED_TOOLS).toEqual([
+			"listProjectFiles",
+			"searchProjectFiles",
+			"readProjectFile",
+			"writeTextFile",
+			"createProjectFolder",
+			"renameProjectFile",
+			"deleteProjectFile",
+			"deleteProjectFolder",
+		]);
 		expect(
 			filterToolNamesByRelevance(all, ["fetchOpenTasks"], {
 				projectActive: true,
@@ -88,9 +103,33 @@ describe("filterToolNamesByRelevance", () => {
 			"enableTools",
 			"fetchOpenTasks",
 			"memorySearch",
+			"writeTextFile",
 			"listProjectFiles",
 			"searchProjectFiles",
 			"readProjectFile",
+			"createProjectFolder",
+			"renameProjectFile",
+			"deleteProjectFile",
+			"deleteProjectFolder",
+		]);
+	});
+
+	it("fail-closes to discovery plus project file tools in project chats", () => {
+		expect(
+			filterToolNamesByRelevance(all, [], { projectActive: true }),
+		).toEqual([
+			"askUser",
+			"createLocalSkill",
+			"enableTools",
+			"memorySearch",
+			"writeTextFile",
+			"listProjectFiles",
+			"searchProjectFiles",
+			"readProjectFile",
+			"createProjectFolder",
+			"renameProjectFile",
+			"deleteProjectFile",
+			"deleteProjectFolder",
 		]);
 	});
 });

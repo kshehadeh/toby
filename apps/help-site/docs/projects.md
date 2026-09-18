@@ -104,8 +104,8 @@ organized from the project description (or a sensible default if you have not
 written one). That layout is saved in the project's **project-organization**
 skill so the next chat continues the same way.
 
-You can still ask Toby to create or delete folders, move or rename a file, or
-delete a file already in the project. For example: “Create a `references/designs`
+You can still ask Toby to write a file, create or delete folders, move or rename a file, or
+delete a file already in the project. For example: “Save this to `research/notes.md`,” “Create a `references/designs`
 folder,” “Move `attachments/brief.pdf` to
 `references/designs/final-brief.pdf`,” “Delete `outputs/old-report.md`,” or
 “Delete the `archive` folder.”

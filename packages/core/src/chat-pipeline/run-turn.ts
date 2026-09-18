@@ -97,11 +97,20 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"memorySearch",
 ]);
 
-/** Project chats also keep these so folder grounding does not depend on routing. */
+/**
+ * Project chats keep file tools in the built-in set so read/write/organize
+ * work does not depend on routing top-K. These are in addition to the
+ * discovery core and do not consume the routed-tool budget.
+ */
 const PROJECT_GROUNDED_TOOLS: readonly string[] = [
 	"listProjectFiles",
 	"searchProjectFiles",
 	"readProjectFile",
+	"writeTextFile",
+	"createProjectFolder",
+	"renameProjectFile",
+	"deleteProjectFile",
+	"deleteProjectFolder",
 ];
 
 export { ALWAYS_INCLUDED_TOOLS, PROJECT_GROUNDED_TOOLS };
@@ -123,9 +132,10 @@ type ChatTurnOptions = {
 	readonly chatWithToolsOptions?: ChatWithToolsOptions;
 	/**
 	 * Tool names selected by pretreatment as relevant for this turn.
-	 * When defined, these plus ALWAYS_INCLUDED_TOOLS are the initial `activeTools`
-	 * (fail-closed if the list is empty). The full catalog is still passed to
-	 * the model loop so enableTools can expand the set mid-turn.
+	 * When defined, these plus ALWAYS_INCLUDED_TOOLS (and project file tools
+	 * when a project is active) are the initial `activeTools` (fail-closed if
+	 * the list is empty). The full catalog is still passed to the model loop so
+	 * enableTools can expand the set mid-turn.
 	 * When undefined (pretreatment skipped), all tools are active.
 	 */
 	readonly relevantTools?: readonly string[];
@@ -339,7 +349,10 @@ export async function buildToolsCatalogForPretreatment(
  * (fail-closed). Explicit-request-only tools stay excluded unless selected.
  */
 export type ToolRelevanceOptions = {
-	/** When true, `createLocalSkill` is always available so project-organization can be maintained. */
+	/**
+	 * When true, project file tools and `createLocalSkill` are always available
+	 * so organization and file I/O do not depend on routing.
+	 */
 	readonly projectActive?: boolean;
 };
 

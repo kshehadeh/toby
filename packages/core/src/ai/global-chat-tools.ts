@@ -646,6 +646,7 @@ ${
 - **listProjectFiles**: List the current project file tree, including each item's project-relative path. Use this to identify existing files before organizing, moving, searching, or deleting them.
 - **searchProjectFiles**: Search file contents inside this project (substring or regex). Use this before answering questions about the project's work so you can ground the reply in existing files. Optional: \`pathPrefix\` to scope the search, \`isRegex\` for a JavaScript regular expression.
 - **readProjectFile**: Read a UTF-8 text file already in this project by project-relative path. Use after listing or searching to load the file into this turn. For PDFs, use **readPdf** instead.
+- **writeTextFile**: Always available in project chats. Create or update a UTF-8 text file in this project. Default \`location='outputs'\` for generated artifacts; \`location='context'\` for notes and reference files anywhere in the project folder (path may include subfolders). Required: \`path\`, \`content\`. Optional: \`overwrite\`.
 - **createProjectFolder**: Create a folder inside this project. Call this to establish or extend the project layout (including without an explicit "create a folder" request) and when the user asks to create a folder. Required: \`path\`, relative to the project folder.
 - **renameProjectFile**: Move or rename a file already in this project. Call this to place files into the project layout and when the user asks to move or rename. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
 - **deleteProjectFile**: Permanently delete a file already in this project. Only call when the user explicitly asks to delete it. Required: \`path\`, relative to the project folder.
@@ -667,6 +668,7 @@ Project PDF rules:
 
 Project file-management rules:
 - Before organizing, moving, renaming, searching, or deleting files whose paths are not already known, call \`listProjectFiles\` to inspect the project tree.
+- To create or update a text file, call \`writeTextFile\` with a project-relative \`path\`. Use \`location='outputs'\` (default) for generated artifacts, or \`location='context'\` to write elsewhere in the project folder (including under folders created with \`createProjectFolder\`).
 - To move a file to another folder, call \`renameProjectFile\` with its new project-relative path. Create a missing destination folder first with \`createProjectFolder\`.
 - Create, move, rename, and delete paths must be inside the project. Never create through or rename folders or symbolic links, and never delete symbolic links.
 - Never overwrite a destination file unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
@@ -698,8 +700,8 @@ Create or update a skill (explicit request only${project ? ", except project-org
 - When the request is to author a skill, **always prefer createLocalSkill over writeTextFile** — do not hand-write a SKILL.md with writeTextFile.
 - Required: \`description\`. Optional: \`preferredFolderName\` (kebab-case). Optional: \`updateExisting\` (boolean, default false).
 
-Write a text file (explicit request only):
-- **writeTextFile** is available only when the user explicitly asks to write, generate, or save a file (Markdown or any text format). Do not use it for general notes or memories.
+Write a text file${project ? "" : " (explicit request only)"}:
+- **writeTextFile** ${project ? "is always in the project chat tool set. Call it when the user asks to write, generate, or save a file, or when saving a generated project artifact." : "is available only when the user explicitly asks to write, generate, or save a file (Markdown or any text format). Do not use it for general notes or memories."}
 - Do not use writeTextFile to author Toby skills (SKILL.md). Use **createLocalSkill** instead.
 - When a project is active, writes go to the project's **outputs** folder by default (for generated artifacts). Use \`location='context'\` to place a file elsewhere in the project folder according to the \`project-organization\` skill (notes, drafts, references). When no project is active, writes go to \`~/.toby/generated-files\`.
 - Required: \`path\` (relative) and \`content\`. Optional: \`location\` (\`outputs\` | \`context\`), \`overwrite\` (default false).

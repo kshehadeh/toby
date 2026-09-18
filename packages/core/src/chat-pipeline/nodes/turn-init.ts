@@ -14,7 +14,10 @@ import type {
 	TurnContext,
 	TurnRequest,
 } from "../pipeline";
-import { buildToolsCatalogForPretreatment } from "../run-turn";
+import {
+	PROJECT_GROUNDED_TOOLS,
+	buildToolsCatalogForPretreatment,
+} from "../run-turn";
 
 function sha256CatalogDigest(catalogText: string): string {
 	return crypto
@@ -77,6 +80,7 @@ export const turnInitNode: PipelineNode<TurnRequest, InitedTurn> = {
 			toolsCatalogSignature,
 			skillsCatalogSignature,
 			abortSignal: ctx.abortSignal,
+			extraExcludedToolNames: ctx.project ? PROJECT_GROUNDED_TOOLS : [],
 		});
 		routingIndex = warm.index;
 		if (onStatus && warm.rebuilt) {

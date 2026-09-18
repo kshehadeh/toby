@@ -65,7 +65,9 @@ export function buildRoutingCatalogSignature(params: {
 	return `${params.toolsCatalogSignature}:${params.skillsCatalogSignature}:${params.embedModelId}`;
 }
 
-function routingExcludedToolNames(): ReadonlySet<string> {
+function routingExcludedToolNames(
+	extraExcludedToolNames?: readonly string[],
+): ReadonlySet<string> {
 	return new Set([
 		"askUser",
 		"getCurrentDateTime",
@@ -75,6 +77,7 @@ function routingExcludedToolNames(): ReadonlySet<string> {
 		"tobyListTools",
 		"tobyListSkills",
 		"createLocalSkill",
+		...(extraExcludedToolNames ?? []),
 	]);
 }
 
@@ -118,6 +121,12 @@ export type WarmRoutingIndexParams = {
 	readonly toolsCatalogSignature: string;
 	readonly skillsCatalogSignature: string;
 	readonly abortSignal?: AbortSignal;
+	/**
+	 * Extra tool names to omit from the routing index (already in the turn's
+	 * built-in set). Project chats pass file I/O tools here so they do not
+	 * consume the routed top-K budget.
+	 */
+	readonly extraExcludedToolNames?: readonly string[];
 };
 
 export type WarmRoutingIndexResult = {
@@ -157,7 +166,7 @@ export async function warmRoutingIndex(
 		return { index: null, rebuilt: false };
 	}
 
-	const excluded = routingExcludedToolNames();
+	const excluded = routingExcludedToolNames(params.extraExcludedToolNames);
 	const toolLines = parseCatalogLines(params.toolsCatalogText).filter(
 		(e) => !excluded.has(e.id),
 	);

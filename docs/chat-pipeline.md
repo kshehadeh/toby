@@ -151,12 +151,14 @@ By default, Toby uses **embedding-based routing** ([`packages/core/src/routing/`
 `getCurrentDateTime`, `loadLocalSkillInstructions`, `enableTools`,
 `tobyListIntegrations`, `tobyListTools`, `tobyListSkills`, `delegateToSubAgent`,
 and `memorySearch`. They are **not** part of the top-K count. Project chats also
-always include `createLocalSkill`, `listProjectFiles`, `searchProjectFiles`, and
-`readProjectFile` so project-organization and file grounding do not depend on
-routing. Write tools (`writeTextFile`, memory writes, project mutations),
-`readPdf`, `webSearch`, `getWeather`, and integration tools must be routed,
-accumulated from a prior turn, enabled mid-turn, or (for `readPdf`) forced when
-a PDF is attached.
+always include `createLocalSkill` and the project file tools
+(`listProjectFiles`, `searchProjectFiles`, `readProjectFile`, `writeTextFile`,
+`createProjectFolder`, `renameProjectFile`, `deleteProjectFile`,
+`deleteProjectFolder`) so organization and file I/O do not depend on routing.
+Those project tools are omitted from the routing index so they do not consume
+the top-K budget. Memory writes, `readPdf`, `webSearch`, `getWeather`, and
+integration tools must still be routed, accumulated from a prior turn, enabled
+mid-turn, or (for `readPdf`) forced when a PDF is attached.
 
 Empty routing is **fail-closed**: only the discovery core is active, not the
 full catalog. The model can call `tobyListTools` then `enableTools` to add
@@ -228,7 +230,11 @@ If pretreatment is skipped (`shouldPretreat` false) or disabled (`TOBY_DISABLE_P
 
 To author a new skill from chat, ask explicitly (for example “create a skill for …”). The global tool **`createLocalSkill`** (see [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts)) is **not** in the always-included tool set for ordinary chats: pretreatment must select it, matching Cursor’s `disable-model-invocation` pattern for skills that should not auto-apply. **Project chats** always include `createLocalSkill` so Toby can create or update the project-local `project-organization` skill; other skills still require an explicit user request.
 
-Project chats also always include `listProjectFiles`, `searchProjectFiles`, and `readProjectFile` so answers can be grounded in project files before web search or general knowledge.
+Project chats also always include the project file tools (`listProjectFiles`,
+`searchProjectFiles`, `readProjectFile`, `writeTextFile`, `createProjectFolder`,
+`renameProjectFile`, `deleteProjectFile`, `deleteProjectFolder`) so answers can
+be grounded in project files and the model can write or organize the folder
+without depending on routing.
 
 ## Toby self-reflection tools
 

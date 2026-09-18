@@ -81,7 +81,7 @@ Add any additional guidance for this project below.
 const PROJECT_ORGANIZATION_SKILL_MARKDOWN = `---
 name: project-organization
 description: How this project's folder is laid out. Apply on every project chat to keep files organized and to find existing work before answering.
-tools: listProjectFiles, searchProjectFiles, readProjectFile, createProjectFolder, renameProjectFile, createLocalSkill
+tools: listProjectFiles, searchProjectFiles, readProjectFile, writeTextFile, createProjectFolder, renameProjectFile, deleteProjectFile, deleteProjectFolder, createLocalSkill
 ---
 
 # Project organization
@@ -92,7 +92,7 @@ This skill is the source of truth for this project's folder layout. Follow it on
 
 1. Call \`listProjectFiles\` to inspect the current tree.
 2. Infer a layout from the project summary. If the summary is empty, use a small generic layout.
-3. Create missing folders with \`createProjectFolder\`. Move misplaced files with \`renameProjectFile\`.
+3. Create missing folders with \`createProjectFolder\`. Write new text files with \`writeTextFile\`. Move misplaced files with \`renameProjectFile\`.
 4. Document the actual folder map under **Folder map** below. Update this skill (\`createLocalSkill\` with \`preferredFolderName=project-organization\` and \`updateExisting=true\`) whenever the map changes.
 5. Never delete or overwrite files or folders unless the user explicitly asks.
 
