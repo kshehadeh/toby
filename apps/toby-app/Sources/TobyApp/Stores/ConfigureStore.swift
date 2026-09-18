@@ -593,11 +593,16 @@ final class ConfigureStore {
 	func createMcpConnection(_ request: CreateMcpConnectionRequest) async throws -> McpConnectionPayload {
 		isSaving = true
 		defer { isSaving = false }
-		let created = try await client.createMcpConnection(request)
-		await loadSettingsSections(selectDefaultIfNeeded: false)
-		await loadIntegrationStatus(for: created.id)
-		onChangesSaved?()
-		return created
+		do {
+			let created = try await client.createMcpConnection(request)
+			await loadSettingsSections(selectDefaultIfNeeded: false)
+			await loadIntegrationStatus(for: created.id)
+			onChangesSaved?()
+			return created
+		} catch {
+			await loadSettingsSections(selectDefaultIfNeeded: false)
+			throw error
+		}
 	}
 
 	func removeConnection(id: String) async {

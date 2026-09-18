@@ -63,8 +63,11 @@ export const MCP_SECRET_FIELDS = [
 	"oauthClientId",
 	"oauthClientSecret",
 	"oauthExpiresAt",
-	"oauthTokenEndpoint",
+	"oauthCodeVerifier",
+	"oauthState",
+	/** Authorization server URL (issuer) pinned by the MCP OAuth SDK. */
 	"oauthAuthorizationEndpoint",
+	"oauthTokenEndpoint",
 ] as const;
 
 export type McpSecretField = (typeof MCP_SECRET_FIELDS)[number];

@@ -9,6 +9,10 @@ struct IntegrationDetailHeader: View {
 	let onAction: (IntegrationAction) -> Void
 	var onRemove: (() -> Void)? = nil
 
+	private var isRemoving: Bool {
+		store.integrationActionLoading == "\(section.key).remove"
+	}
+
 	private var iconUrl: URL? {
 		guard let iconUrl = section.iconUrl else { return nil }
 		return URL(string: ConfigReader.baseURL().absoluteString + iconUrl)
@@ -45,41 +49,45 @@ struct IntegrationDetailHeader: View {
 						tone: health.ok ? .success : .error
 					)
 				}
+			}
 
+			if status != nil || (section.isMcpConnection && onRemove != nil) {
 				HStack(spacing: 10) {
-					SettingsActionButton(title: "Setup Guide") {
-						Task {
-							await store.presentSetupGuide(for: section.key)
-						}
-					}
-					.disabled(isActionLoading)
-					if !status.connected {
-						SettingsActionButton(title: "Connect") {
-							onAction(.connect)
+					if let status {
+						SettingsActionButton(title: "Setup Guide") {
+							Task {
+								await store.presentSetupGuide(for: section.key)
+							}
 						}
 						.disabled(isActionLoading)
-					}
-					if status.connected {
-						SettingsActionButton(title: "Disconnect") {
-							onAction(.disconnect)
+						if !status.connected {
+							SettingsActionButton(title: "Connect") {
+								onAction(.connect)
+							}
+							.disabled(isActionLoading)
 						}
-						.disabled(isActionLoading)
-						SettingsActionButton(title: status.reconnectionLabel) {
-							onAction(.reauthorize)
+						if status.connected {
+							SettingsActionButton(title: "Disconnect") {
+								onAction(.disconnect)
+							}
+							.disabled(isActionLoading)
+							SettingsActionButton(title: status.reconnectionLabel) {
+								onAction(.reauthorize)
+							}
+							.disabled(isActionLoading)
 						}
-						.disabled(isActionLoading)
-					}
-					if status.supportsSetup {
-						SettingsActionButton(title: "Run Setup") {
-							onAction(.setup)
+						if status.supportsSetup {
+							SettingsActionButton(title: "Run Setup") {
+								onAction(.setup)
+							}
+							.disabled(isActionLoading)
 						}
-						.disabled(isActionLoading)
 					}
 					if section.isMcpConnection, let onRemove {
 						SettingsActionButton(title: "Remove") {
 							onRemove()
 						}
-						.disabled(isActionLoading)
+						.disabled(isRemoving)
 					}
 				}
 				.padding(.top, 4)

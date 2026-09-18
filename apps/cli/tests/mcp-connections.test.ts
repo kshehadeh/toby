@@ -168,27 +168,86 @@ describe("MCP connections", () => {
 		expect(tools.map((t) => t.name)).toEqual(["mcp_linear_search"]);
 	});
 
-	it("DELETE removes the connection", async () => {
+	it("DELETE removes a connection that never connected", async () => {
+		const created = await handleWebRequest(
+			new Request("http://127.0.0.1/api/connections", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					type: "mcp",
+					displayName: "Orphan",
+					transport: "http",
+					url: "https://example.com/mcp",
+					connect: false,
+				}),
+			}),
+		);
+		expect(created.status).toBe(201);
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/connections/mcp_orphan", {
+				method: "DELETE",
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(readConfig().connections?.mcp_orphan).toBeUndefined();
+	});
+
+	it("keeps a failed MCP record so it can be removed", async () => {
+		setMcpClientFactory(async () => {
+			throw new Error("Could not reach MCP server");
+		});
+		const created = await handleWebRequest(
+			new Request("http://127.0.0.1/api/connections", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					type: "mcp",
+					displayName: "Jira",
+					transport: "http",
+					url: "https://mcp.atlassian.com/v2/mcp",
+					authMethod: "oauth",
+				}),
+			}),
+		);
+		expect(created.status).toBe(500);
+		expect(readConfig().connections?.mcp_jira?.url).toBe(
+			"https://mcp.atlassian.com/v2/mcp",
+		);
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/connections/mcp_jira", {
+				method: "DELETE",
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(readConfig().connections?.mcp_jira).toBeUndefined();
+	});
+
+	it("does not start an MCP session from status checks", async () => {
 		await handleWebRequest(
 			new Request("http://127.0.0.1/api/connections", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					type: "mcp",
-					displayName: "Docs",
-					transport: "stdio",
-					command: "npx",
-					args: ["-y", "docs-mcp"],
+					displayName: "Idle",
+					transport: "http",
+					url: "https://example.com/mcp",
+					authMethod: "oauth",
+					connect: false,
 				}),
 			}),
 		);
-		const res = await handleWebRequest(
-			new Request("http://127.0.0.1/api/connections/mcp_docs", {
-				method: "DELETE",
-			}),
-		);
-		expect(res.status).toBe(200);
-		expect(readConfig().connections?.mcp_docs).toBeUndefined();
+		let started = false;
+		setMcpClientFactory(async () => {
+			started = true;
+			throw new Error("should not connect");
+		});
+		const mod = getIntegrationModule("mcp_idle");
+		expect(mod).toBeDefined();
+		const health = await mod?.testConnection({ validateTools: true });
+		expect(started).toBe(false);
+		expect(health?.ok).toBe(false);
+		expect(getMcpSession("mcp_idle")).toBeUndefined();
 	});
 
 	it("two MCP servers can expose the same original tool name", async () => {

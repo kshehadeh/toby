@@ -46,29 +46,27 @@ export function createMcpIntegrationModule(
 		},
 
 		async testConnection(options?: TestConnectionOptions) {
-			try {
-				const session = getMcpSession(id) ?? (await connectMcpSession(id));
-				const tools = listMcpSessionTools(id);
-				return {
-					ok: true,
-					details: `${session.record.displayName} is healthy (${tools.length} tool${tools.length === 1 ? "" : "s"}).`,
-					tools: options?.validateTools
-						? tools.map((tool) => ({
-								tool: tool.name,
-								ok: true,
-								details: tool.description,
-							}))
-						: undefined,
-				};
-			} catch (error) {
+			const session = getMcpSession(id);
+			if (!session) {
 				return {
 					ok: false,
-					details:
-						error instanceof Error
-							? error.message
-							: `Failed to reach ${record.displayName}`,
+					details: record.connectedAt
+						? `${record.displayName} is saved but not currently connected.`
+						: `${record.displayName} is not connected.`,
 				};
 			}
+			const tools = listMcpSessionTools(id);
+			return {
+				ok: true,
+				details: `${session.record.displayName} is healthy (${tools.length} tool${tools.length === 1 ? "" : "s"}).`,
+				tools: options?.validateTools
+					? tools.map((tool) => ({
+							tool: tool.name,
+							ok: true,
+							details: tool.description,
+						}))
+					: undefined,
+			};
 		},
 
 		async disconnect(): Promise<void> {

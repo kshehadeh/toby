@@ -497,6 +497,41 @@ struct IntegrationsSettingsTests {
 		#expect(draft.canSave)
 	}
 
+	@Test("MCP header shows remove even before status loads")
+	func mcpHeaderShowsRemoveWithoutStatus() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Jira", kind: .section, key: "mcp_jira", navKey: "mcp_jira", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: nil,
+			isLoading: true,
+			isActionLoading: true,
+			onAction: { _ in },
+			onRemove: {}
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Remove") }
+	}
+
+	@Test("MCP remove is available when status never loaded")
+	func mcpRemoveWithoutStatus() throws {
+		let store = ConfigureStore()
+		store.integrationLabels["mcp_jira"] = "Jira"
+		let section = SettingsItem(
+			label: "Jira", kind: .section, key: "mcp_jira", navKey: "mcp_jira", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let view = ConfigureSectionDetailView(store: store, section: section)
+		try view.inspect().find(button: "Remove").tap()
+		#expect(store.pendingDelete?.action == "remove-connection")
+		#expect(store.pendingDelete?.body["id"] == "mcp_jira")
+	}
+
 	@Test("MCP header shows remove")
 	func mcpHeaderShowsRemove() throws {
 		let store = ConfigureStore()

@@ -20,4 +20,5 @@ export {
 	createMcpOAuthProvider,
 	parseEnvBag,
 	parseHeaderBag,
+	startMcpAuthCallback,
 } from "./oauth";

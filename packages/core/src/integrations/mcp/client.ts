@@ -10,10 +10,10 @@ import type { Tool } from "ai";
 import type { ConnectionRecord } from "../connection-types";
 import { getConnectionCredentials } from "../connections";
 import {
-	captureMcpAuthCallback,
 	createMcpOAuthProvider,
 	parseEnvBag,
 	parseHeaderBag,
+	startMcpAuthCallback,
 } from "./oauth";
 
 export type McpClientHandle = {
@@ -122,14 +122,20 @@ async function completeMcpOAuth(
 	authProvider: OAuthClientProvider,
 	serverUrl: string,
 ): Promise<void> {
-	const callback = captureMcpAuthCallback();
-	await auth(authProvider, { serverUrl });
-	const { code, state } = await callback;
-	await auth(authProvider, {
-		serverUrl,
-		authorizationCode: code,
-		callbackState: state,
-	});
+	const callback = await startMcpAuthCallback();
+	try {
+		await callback.ready;
+		const outcome = await auth(authProvider, { serverUrl });
+		if (outcome === "AUTHORIZED") return;
+		const { code, state } = await callback.result;
+		await auth(authProvider, {
+			serverUrl,
+			authorizationCode: code,
+			callbackState: state,
+		});
+	} finally {
+		await callback.close();
+	}
 }
 
 async function wrapClient(

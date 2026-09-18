@@ -73,6 +73,14 @@ export async function connectMcpSession(id: string): Promise<McpLiveSession> {
 	}
 	validateMcpRecord(record);
 	const handle = await createMcpClientForRecord(record);
+	if (!getConnection(id)) {
+		try {
+			await handle.close();
+		} catch {
+			// Connection was removed while OAuth/connect was in flight.
+		}
+		throw new Error("MCP connection was removed during connect.");
+	}
 	const connected: ConnectionRecord = {
 		...record,
 		connectedAt: record.connectedAt ?? new Date().toISOString(),

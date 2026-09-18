@@ -118,6 +118,7 @@ export async function handleConnectionCreate(req: Request): Promise<Response> {
 		try {
 			await connectMcpSession(id);
 		} catch (error) {
+			invalidateSettingsCache();
 			return errorResponse(
 				error instanceof Error ? error.message : String(error),
 				500,
