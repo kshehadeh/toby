@@ -34,13 +34,32 @@ struct UpdateStoreTests {
 	private func makeStore(
 		latestVersion: String? = nil,
 		error: Error? = nil,
-		nativeUpdater: NativeAppUpdating = MockNativeAppUpdater()
+		nativeUpdater: NativeAppUpdating = MockNativeAppUpdater(),
+		defaults: UserDefaults? = nil,
+		now: @escaping () -> Date = Date.init
 	) -> (UpdateStore, MockAppcastFetcher) {
 		let fetcher = MockAppcastFetcher()
 		fetcher.latestVersion = latestVersion
 		fetcher.error = error
-		let store = UpdateStore(appcastFetcher: fetcher, nativeUpdater: nativeUpdater)
+		let isolatedDefaults = defaults ?? UserDefaults(suiteName: "toby.tests.update.\(UUID().uuidString)")!
+		let store = UpdateStore(
+			appcastFetcher: fetcher,
+			nativeUpdater: nativeUpdater,
+			defaults: isolatedDefaults,
+			now: now
+		)
 		return (store, fetcher)
+	}
+
+	private func markUpdateAvailable(
+		_ store: UpdateStore,
+		current: String = "0.65.2",
+		latest: String = "0.66.0"
+	) {
+		store.currentVersion = current
+		store.latestVersion = latest
+		store.isUpdateAvailable = true
+		store.refreshUpdateTipVisibility()
 	}
 
 	@Test("isVersionNewer detects newer version")
@@ -153,5 +172,65 @@ struct UpdateStoreTests {
 		#expect(store.latestVersion == "0.67.0")
 
 		store.stopCheckLoop()
+	}
+
+	@Test("checkForUpdates records current version and shows the sidebar tip")
+	func checkRecordsCurrentVersionAndShowsTip() async {
+		let (store, _) = makeStore(latestVersion: "0.66.0")
+		await store.checkForUpdates(currentVersion: "v0.65.2")
+		#expect(store.currentVersion == "0.65.2")
+		#expect(store.shouldShowUpdateTip == true)
+	}
+
+	@Test("sidebar tip stays hidden when already on the latest version")
+	func tipHiddenWhenOnLatest() async {
+		let (store, _) = makeStore(latestVersion: "0.65.2")
+		await store.checkForUpdates(currentVersion: "0.65.2")
+		#expect(store.shouldShowUpdateTip == false)
+	}
+
+	@Test("sidebar tip shows when never dismissed")
+	func tipShowsWhenNeverDismissed() {
+		let (store, _) = makeStore()
+		markUpdateAvailable(store)
+		#expect(store.shouldShowUpdateTip == true)
+	}
+
+	@Test("dismissing the sidebar tip hides it for the same version")
+	func dismissHidesTipForSameVersion() {
+		let (store, _) = makeStore()
+		markUpdateAvailable(store)
+		store.dismissUpdateTip()
+		#expect(store.shouldShowUpdateTip == false)
+	}
+
+	@Test("sidebar tip returns more than two days after dismiss")
+	func tipReturnsAfterTwoDays() {
+		let start = Date(timeIntervalSince1970: 1_700_000_000)
+		var now = start
+		let (store, _) = makeStore(now: { now })
+		markUpdateAvailable(store)
+		store.dismissUpdateTip()
+		#expect(store.shouldShowUpdateTip == false)
+
+		now = start.addingTimeInterval(UpdateStore.updateTipReshowInterval)
+		store.refreshUpdateTipVisibility()
+		#expect(store.shouldShowUpdateTip == false)
+
+		now = start.addingTimeInterval(UpdateStore.updateTipReshowInterval + 1)
+		store.refreshUpdateTipVisibility()
+		#expect(store.shouldShowUpdateTip == true)
+	}
+
+	@Test("sidebar tip returns immediately when a newer version is available")
+	func tipReturnsForNewerVersion() {
+		let (store, _) = makeStore()
+		markUpdateAvailable(store, latest: "0.66.0")
+		store.dismissUpdateTip()
+		#expect(store.shouldShowUpdateTip == false)
+
+		store.latestVersion = "0.67.0"
+		store.refreshUpdateTipVisibility()
+		#expect(store.shouldShowUpdateTip == true)
 	}
 }

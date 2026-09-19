@@ -160,23 +160,37 @@ extension SparkleNativeAppUpdater: SPUUpdaterDelegate {
 @Observable
 @MainActor
 final class UpdateStore {
+	static let updateTipReshowInterval: TimeInterval = 60 * 60 * 24 * 2
+	static let dismissedVersionDefaultsKey = "toby.updateTip.dismissedVersion"
+	static let dismissedAtDefaultsKey = "toby.updateTip.dismissedAt"
+
 	var latestVersion: String?
+	var currentVersion: String?
 	var isUpdateAvailable = false
 	var isUpgrading = false
 	var upgradeError: String?
 	var upgradeComplete = false
+	/// Sidebar TipKit card only. Toolbar / About / menu stay available during cooldown.
+	var shouldShowUpdateTip = false
 
 	private let appcastFetcher: AppcastFetchable
 	private let nativeUpdater: NativeAppUpdating
+	private let defaults: UserDefaults
+	private let now: () -> Date
 	private var checkTask: Task<Void, Never>?
 	private var lastCheckAt: Date?
 
 	init(
 		appcastFetcher: AppcastFetchable = AppcastFetcher(),
-		nativeUpdater: NativeAppUpdating = SparkleNativeAppUpdater()
+		nativeUpdater: NativeAppUpdating = SparkleNativeAppUpdater(),
+		defaults: UserDefaults = .standard,
+		now: @escaping () -> Date = Date.init
 	) {
 		self.appcastFetcher = appcastFetcher
 		self.nativeUpdater = nativeUpdater
+		self.defaults = defaults
+		self.now = now
+		refreshUpdateTipVisibility()
 	}
 
 	func startCheckLoop(currentVersionProvider: @escaping () -> String? = UpdateStore.appBundleVersion) {
@@ -202,18 +216,61 @@ final class UpdateStore {
 
 	func checkForUpdates(currentVersion: String?) async {
 		guard let currentVersion, !currentVersion.isEmpty else { return }
+		self.currentVersion = UpdateStore.normalizedVersion(currentVersion)
 		if let lastCheckAt, Date().timeIntervalSince(lastCheckAt) < 60 {
+			refreshUpdateTipVisibility()
 			return
 		}
 		lastCheckAt = Date()
 
 		do {
-			guard let latest = try await appcastFetcher.fetchLatestVersion() else { return }
-			latestVersion = latest.hasPrefix("v") ? String(latest.dropFirst()) : latest
+			guard let latest = try await appcastFetcher.fetchLatestVersion() else {
+				refreshUpdateTipVisibility()
+				return
+			}
+			latestVersion = UpdateStore.normalizedVersion(latest)
 			isUpdateAvailable = UpdateStore.isVersionNewer(latestVersion ?? latest, currentVersion)
+			refreshUpdateTipVisibility()
 		} catch {
 			// Silently ignore update check failures
+			refreshUpdateTipVisibility()
 		}
+	}
+
+	func dismissUpdateTip() {
+		if let latestVersion {
+			defaults.set(latestVersion, forKey: Self.dismissedVersionDefaultsKey)
+			defaults.set(now(), forKey: Self.dismissedAtDefaultsKey)
+		}
+		refreshUpdateTipVisibility()
+	}
+
+	func refreshUpdateTipVisibility() {
+		guard isUpdateAvailable,
+			let latestVersion, !latestVersion.isEmpty,
+			let currentVersion, !currentVersion.isEmpty
+		else {
+			shouldShowUpdateTip = false
+			return
+		}
+
+		let dismissedVersion = defaults.string(forKey: Self.dismissedVersionDefaultsKey)
+		let dismissedAt = defaults.object(forKey: Self.dismissedAtDefaultsKey) as? Date
+		guard let dismissedVersion, let dismissedAt else {
+			shouldShowUpdateTip = true
+			return
+		}
+
+		if dismissedVersion != latestVersion {
+			shouldShowUpdateTip = true
+			return
+		}
+
+		shouldShowUpdateTip = now().timeIntervalSince(dismissedAt) > Self.updateTipReshowInterval
+	}
+
+	static func normalizedVersion(_ version: String) -> String {
+		version.hasPrefix("v") ? String(version.dropFirst()) : version
 	}
 
 	func performUpgrade() async {

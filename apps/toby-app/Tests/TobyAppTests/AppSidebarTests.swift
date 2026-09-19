@@ -11,7 +11,8 @@ struct AppSidebarTests {
         status: AppStatus? = nil,
         daemonStatus: DaemonStatus? = nil,
         isServerRestarting: Bool = false,
-        onSelectRoute: @escaping (DetailRoute) -> Void = { _ in }
+        onSelectRoute: @escaping (DetailRoute) -> Void = { _ in },
+        updateStore: UpdateStore? = nil
     ) -> AppSidebar {
         AppSidebar(
             currentRoute: currentRoute,
@@ -23,7 +24,8 @@ struct AppSidebarTests {
             onCreatePersona: {},
             onEditPersona: { _ in },
             onPersonaSelected: {},
-            onRestartServer: {}
+            onRestartServer: {},
+            updateStore: updateStore
         )
     }
 
@@ -42,6 +44,22 @@ struct AppSidebarTests {
             skills: nil,
             transcription: nil
         )
+    }
+
+    private func makeUpdateStore(
+        currentVersion: String,
+        latestVersion: String,
+        isUpdateAvailable: Bool
+    ) -> UpdateStore {
+        let suiteName = "toby.tests.sidebar.update.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let store = UpdateStore(defaults: defaults)
+        store.currentVersion = currentVersion
+        store.latestVersion = latestVersion
+        store.isUpdateAvailable = isUpdateAvailable
+        store.refreshUpdateTipVisibility()
+        return store
     }
 
     @Test("destination list exposes every main route")
@@ -151,6 +169,46 @@ struct AppSidebarTests {
             (try? btn.accessibilityLabel().string()) == "Server starting"
         }
         #expect(!labeled.isEmpty, "Server starting control not found")
+    }
+
+    @Test("update tip appears when an update is available")
+    func updateTipAppearsWhenAvailable() throws {
+        let store = makeUpdateStore(
+            currentVersion: "0.65.2",
+            latestVersion: "0.66.0",
+            isUpdateAvailable: true
+        )
+        let sidebar = makeSidebar(updateStore: store)
+        #expect(throws: Never.self) {
+            try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-update-available-tip")
+        }
+    }
+
+    @Test("update tip is hidden when no update is available")
+    func updateTipHiddenWhenUnavailable() throws {
+        let store = makeUpdateStore(
+            currentVersion: "0.66.0",
+            latestVersion: "0.66.0",
+            isUpdateAvailable: false
+        )
+        let sidebar = makeSidebar(updateStore: store)
+        #expect(throws: (any Error).self) {
+            try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-update-available-tip")
+        }
+    }
+
+    @Test("update tip is hidden during dismiss cooldown")
+    func updateTipHiddenDuringDismissCooldown() throws {
+        let store = makeUpdateStore(
+            currentVersion: "0.65.2",
+            latestVersion: "0.66.0",
+            isUpdateAvailable: true
+        )
+        store.dismissUpdateTip()
+        let sidebar = makeSidebar(updateStore: store)
+        #expect(throws: (any Error).self) {
+            try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-update-available-tip")
+        }
     }
 
     @Test("persona picker shows the model caption")

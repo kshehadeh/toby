@@ -397,7 +397,8 @@ struct RootView: View {
                 },
                 onRestartServer: {
                     Task { await store.restartServer() }
-                }
+                },
+                updateStore: updateStore
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
@@ -1272,13 +1273,20 @@ struct RootView: View {
         guard let latestVersion, !latestVersion.isEmpty else { return }
 
         let currentVersion = environment["TOBY_DEBUG_CURRENT_VERSION"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        updateStore.latestVersion = latestVersion.hasPrefix("v") ? String(latestVersion.dropFirst()) : latestVersion
+        updateStore.latestVersion = UpdateStore.normalizedVersion(latestVersion)
         updateStore.isUpdateAvailable = true
+
+        if let currentVersion, !currentVersion.isEmpty {
+            updateStore.currentVersion = UpdateStore.normalizedVersion(currentVersion)
+        } else if let bundleVersion = UpdateStore.appBundleVersion() {
+            updateStore.currentVersion = UpdateStore.normalizedVersion(bundleVersion)
+        }
+        updateStore.refreshUpdateTipVisibility()
 
         if let currentVersion, !currentVersion.isEmpty {
             let currentStatus = store.status
             store.status = AppStatus(
-                version: currentVersion.hasPrefix("v") ? String(currentVersion.dropFirst()) : currentVersion,
+                version: UpdateStore.normalizedVersion(currentVersion),
                 persona: currentStatus?.persona ?? "default",
                 model: currentStatus?.model ?? "debug",
                 hasConfiguredAIProvider: currentStatus?.hasConfiguredAIProvider,
