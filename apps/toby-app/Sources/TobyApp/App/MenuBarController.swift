@@ -9,14 +9,11 @@ final class MenuBarController: NSObject {
 	private(set) var menu: NSMenu?
 	private var recordingChrome: RecordingChromeState = .idle
 	private var baseMenuImage: NSImage?
-	private var originalDockImage: NSImage?
-	private var appliedDockIndicatorImage: NSImage?
 	private var testMenuBarImageIsMarked = false
 	/// When false, skip creating a real status item and updating dock chrome (tests).
 	private let managesAppChrome: Bool
 
 	static let recordingStateChanged = Notification.Name("menuBarRecordingStateChanged")
-	private static let recordingDockImageName = NSImage.Name("TobyRecordingDockIndicator")
 
 	init(registerStatusItem: Bool = true, showStatusItem: Bool = true) {
 		self.managesAppChrome = registerStatusItem
@@ -365,100 +362,37 @@ final class MenuBarController: NSObject {
 	}
 
 	private func updateMenuBarIcon() {
-		guard statusItem != nil else {
+		guard let button = statusItem?.button else {
 			testMenuBarImageIsMarked = recordingChrome != .idle
 			return
 		}
-		guard let base = baseMenuImage else { return }
-		let image: NSImage
-		switch recordingChrome {
-		case .idle:
-			image = base
-			image.isTemplate = true
-		case .recording:
-			image = Self.imageWithRecordingIndicator(base, color: .systemRed)
-			image.isTemplate = false
-		case .processing:
-			image = Self.imageWithRecordingIndicator(base, color: .systemOrange)
-			image.isTemplate = false
+		if let base = baseMenuImage {
+			base.size = NSSize(width: 18, height: 18)
+			button.image = base
 		}
-		image.size = NSSize(width: 18, height: 18)
-		statusItem?.button?.image = image
+		RecordingIndicatorOverlay.apply(
+			to: button,
+			color: RecordingIndicatorOverlay.color(for: recordingChrome),
+			dotFraction: RecordingIndicatorOverlay.menuBarDotFraction,
+		)
+		button.toolTip = menuBarRecordingTooltip
+		button.setAccessibilityValue(menuBarRecordingTooltip)
+	}
+
+	private var menuBarRecordingTooltip: String? {
+		switch recordingChrome {
+		case .idle: nil
+		case .recording: "Recording"
+		case .processing: "Processing Recording"
+		}
 	}
 
 	private func updateDockIcon() {
 		// Dock indicator should work even when the menu bar icon is hidden.
 		guard managesAppChrome else { return }
-		switch recordingChrome {
-		case .idle:
-			restoreDockIcon()
-		case .recording, .processing:
-			if originalDockImage == nil {
-				let current = NSApp.applicationIconImage
-				if current?.name() != Self.recordingDockImageName {
-					originalDockImage = current
-				}
-			}
-			let base = originalDockImage ?? Self.cleanDockFallbackImage() ?? baseMenuImage ?? NSImage()
-			let color: NSColor = recordingChrome == .recording ? .systemRed : .systemOrange
-			let image = Self.imageWithRecordingIndicator(base, color: color, dotFraction: 0.4)
-			image.setName(Self.recordingDockImageName)
-			appliedDockIndicatorImage = image
-			NSApp.applicationIconImage = image
-		}
-	}
-
-	private func restoreDockIcon() {
-		// Clear the marker name before restoring so later state checks do not
-		// treat the clean base image as an active recording indicator.
-		if let originalDockImage {
-			let restored = originalDockImage.copy() as? NSImage
-			restored?.setName(nil)
-			NSApp.applicationIconImage = restored
-		} else if let fallback = Self.cleanDockFallbackImage() {
-			NSApp.applicationIconImage = fallback
-		} else {
-			// Setting to nil restores the bundle's AppIcon.icns.
-			NSApp.applicationIconImage = nil
-		}
-		originalDockImage = nil
-		appliedDockIndicatorImage = nil
-	}
-
-	private static func cleanDockFallbackImage() -> NSImage? {
-		guard let logoURL = Bundle.tobyResources.url(forResource: "toby-128", withExtension: "png"),
-			let image = NSImage(contentsOf: logoURL)
-		else {
-			return nil
-		}
-		image.setName(nil)
-		return image
-	}
-
-	/// Composites a status-color circle at the bottom-right of `image`.
-	private static func imageWithRecordingIndicator(
-		_ image: NSImage,
-		color: NSColor = .systemRed,
-		dotFraction: CGFloat = 0.45,
-	) -> NSImage {
-		let result = image.copy() as! NSImage
-		result.lockFocus()
-		let size = result.size
-		let radius = min(size.width, size.height) * dotFraction * 0.5
-		let dotRect = NSRect(
-			x: size.width - radius * 1.6,
-			y: size.height - radius * 1.6,
-			width: radius * 1.2,
-			height: radius * 1.2
+		RecordingIndicatorOverlay.applyToDockTile(
+			color: RecordingIndicatorOverlay.color(for: recordingChrome),
 		)
-		color.setFill()
-		NSBezierPath(ovalIn: dotRect).fill()
-		NSColor.white.withAlphaComponent(0.9).setStroke()
-		let border = NSBezierPath(ovalIn: dotRect.insetBy(dx: -1, dy: -1))
-		border.lineWidth = 1
-		border.stroke()
-		result.unlockFocus()
-		return result
 	}
 
 	private func updateRecordingItem() {
@@ -495,18 +429,28 @@ final class MenuBarController: NSObject {
 		updateRecordingUI()
 	}
 
-	/// Whether the current menu bar status item image has the recording indicator
-	/// overlay applied. Returns `nil` if no image is set. (for testing)
+	/// Whether the menu bar extra currently has the recording overlay attached.
+	/// Returns `nil` if no image is set. (for testing)
 	var menuBarImageIsMarked: Bool? {
-		guard statusItem != nil else { return testMenuBarImageIsMarked }
-		guard let current = statusItem?.button?.image, let base = baseMenuImage else { return nil }
-		// The indicator image is a different instance than the base
-		return current !== base
+		guard let button = statusItem?.button else { return testMenuBarImageIsMarked }
+		guard button.image != nil || baseMenuImage != nil else { return nil }
+		return RecordingIndicatorOverlay.isInstalled(on: button)
 	}
 
-	/// Whether the current Dock icon image has the recording indicator overlay
-	/// applied. (for testing)
+	/// Whether the status item still shows the original template image. (for testing)
+	var menuBarKeepsBaseImage: Bool {
+		guard let image = statusItem?.button?.image, let base = baseMenuImage else { return false }
+		return image === base
+	}
+
+	/// Whether the live status item image is still a template. (for testing)
+	var statusItemButtonImageIsTemplate: Bool {
+		statusItem?.button?.image?.isTemplate == true
+	}
+
+	/// Whether the Dock tile currently has the recording overlay content view. (for testing)
 	var dockImageIsMarked: Bool {
-		appliedDockIndicatorImage != nil
+		guard managesAppChrome else { return false }
+		return RecordingIndicatorOverlay.isInstalledOnDock
 	}
 }

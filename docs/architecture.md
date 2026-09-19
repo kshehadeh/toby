@@ -116,8 +116,11 @@ alongside the daemon-backed summary persona:
 
 **Start at login** uses `ServiceManagement.SMAppService`; macOS may require the
 user to approve Toby under **System Settings → General → Login Items**. **Menu
-bar** visibility is applied by `MenuBarController` (dock recording indicator
-still works when the status item is hidden). **Chat mode** only changes what
+bar** visibility is applied by `MenuBarController`. While recording or
+processing, a colored overlay is added on top of the template menu-bar extra
+(`NSStatusBarButton` subview) and the Dock tile (`NSDockTile.contentView`);
+the app icon itself is not replaced via `applicationIconImage`. The Dock overlay
+still updates when the status item is hidden. **Chat mode** only changes what
 Toby.app renders in the transcript; the daemon still emits the same pipeline
 events either way. Semantic colors live in `AppTheme` / `SettingsDesign` as
 dynamic `NSColor` pairs. Only true monochrome alpha-glyphs (AI provider marks,

@@ -95,6 +95,23 @@ struct MenuBarControllerTests {
 		#expect(controller.menuBarImageIsMarked == false)
 	}
 
+	@Test("menu bar keeps the template image and overlays a recording dot")
+	func menuBarKeepsTemplateImageWhenRecording() throws {
+		let controller = MenuBarController()
+		defer { controller.setRecordingActive(false) }
+		#expect(controller.menuBarKeepsBaseImage)
+		#expect(controller.menuBarImageIsMarked == false)
+
+		controller.setRecordingActive(true)
+		#expect(controller.menuBarImageIsMarked == true)
+		#expect(controller.menuBarKeepsBaseImage)
+		#expect(controller.statusItemButtonImageIsTemplate)
+
+		controller.setRecordingActive(false)
+		#expect(controller.menuBarImageIsMarked == false)
+		#expect(controller.menuBarKeepsBaseImage)
+	}
+
 	@Test("recording state change notification updates menu bar icon")
 	func recordingStateNotificationUpdatesIcon() throws {
 		let controller = MenuBarController(registerStatusItem: false)
@@ -107,6 +124,7 @@ struct MenuBarControllerTests {
 	@Test("dock icon recording indicator clears when recording stops")
 	func dockIconIndicatorClearsWhenRecordingStops() throws {
 		let controller = MenuBarController()
+		defer { controller.setRecordingActive(false) }
 		controller.setRecordingActive(true)
 		#expect(controller.dockImageIsMarked)
 
@@ -117,6 +135,7 @@ struct MenuBarControllerTests {
 	@Test("recording state change notification clears dock icon")
 	func recordingStateNotificationClearsDockIcon() throws {
 		let controller = MenuBarController()
+		defer { controller.setRecordingActive(false) }
 		controller.setRecordingActive(true)
 		#expect(controller.dockImageIsMarked)
 
@@ -150,6 +169,7 @@ struct MenuBarControllerTests {
 	@Test("dock recording indicator still updates when status item is hidden")
 	func dockIndicatorWhenStatusItemHidden() throws {
 		let controller = MenuBarController(showStatusItem: false)
+		defer { controller.setRecordingActive(false) }
 		#expect(!controller.isStatusItemVisible)
 
 		controller.setRecordingActive(true)
@@ -200,5 +220,52 @@ struct OpenWindowBridgeTests {
 		#expect(capturedId == "test-window")
 		// Cleanup
 		bridge.openWindow = nil
+	}
+}
+
+@MainActor
+@Suite("RecordingIndicatorOverlay")
+struct RecordingIndicatorOverlayTests {
+	@Test("overlay attaches, recolors, and detaches without replacing the host")
+	func overlayAttachesAndDetaches() throws {
+		let host = NSView(frame: NSRect(x: 0, y: 0, width: 18, height: 18))
+		#expect(!RecordingIndicatorOverlay.isInstalled(on: host))
+
+		RecordingIndicatorOverlay.apply(
+			to: host,
+			color: .systemRed,
+			dotFraction: RecordingIndicatorOverlay.menuBarDotFraction,
+		)
+		#expect(RecordingIndicatorOverlay.isInstalled(on: host))
+		#expect(host.subviews.count == 1)
+		let dot = try #require(host.subviews.first as? RecordingIndicatorDotView)
+		#expect(dot.color == .systemRed)
+
+		RecordingIndicatorOverlay.apply(
+			to: host,
+			color: .systemOrange,
+			dotFraction: RecordingIndicatorOverlay.menuBarDotFraction,
+		)
+		#expect(host.subviews.count == 1)
+		#expect(dot.color == .systemOrange)
+
+		RecordingIndicatorOverlay.apply(
+			to: host,
+			color: nil,
+			dotFraction: RecordingIndicatorOverlay.menuBarDotFraction,
+		)
+		#expect(!RecordingIndicatorOverlay.isInstalled(on: host))
+		#expect(host.subviews.isEmpty)
+	}
+
+	@Test("overlay rect sits at the trailing top of an unflipped host")
+	func overlayRectTrailingTop() {
+		let rect = RecordingIndicatorOverlay.overlayRect(
+			in: NSSize(width: 18, height: 18),
+			dotFraction: 0.45,
+			flipped: false,
+		)
+		#expect(rect.maxX > 14)
+		#expect(rect.minY > 10)
 	}
 }
