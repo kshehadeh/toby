@@ -46,49 +46,35 @@ final class AppcastFetcher: AppcastFetchable {
 	}
 }
 
-/// Simple SAX parser that extracts the first `sparkle:shortVersionString`
-/// from a Sparkle appcast RSS feed. Handles both attribute-on-enclosure
-/// and standalone-element forms.
-private final class AppcastVersionParser: NSObject, XMLParserDelegate {
-	private var shortVersionString: String?
-	private var currentText: String?
-
+/// Extracts the newest `sparkle:shortVersionString` from a Sparkle appcast.
+/// Uses `XMLDocument` so namespaced `sparkle:` elements from `generate_appcast`
+/// are found; `XMLParserDelegate` methods with default arguments are not
+/// registered as the Objective-C selectors, so SAX missed the live feed.
+@MainActor
+enum AppcastVersionParser {
 	static func parse(data: Data) -> String? {
-		let parser = AppcastVersionParser()
-		let xmlParser = XMLParser(data: data)
-		xmlParser.delegate = parser
-		xmlParser.parse()
-		return parser.shortVersionString
-	}
-
-	func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
-		currentText = ""
-
-		// sparkle:shortVersionString as attribute on <enclosure>
-		if shortVersionString == nil {
-			for (key, value) in attributeDict {
-				if key.hasSuffix("shortVersionString") {
-					shortVersionString = value
-					break
-				}
-			}
+		guard let document = try? XMLDocument(data: data) else { return nil }
+		var versions: [String] = []
+		if let nodes = try? document.nodes(forXPath: "//*[local-name()='shortVersionString']") {
+			versions.append(contentsOf: nodes.compactMap(trimmedStringValue))
+		}
+		if let attributes = try? document.nodes(forXPath: "//@*[local-name()='shortVersionString']") {
+			versions.append(contentsOf: attributes.compactMap(trimmedStringValue))
+		}
+		return versions.reduce(nil as String?) { newest, raw in
+			let version = UpdateStore.normalizedVersion(raw)
+			guard let newest else { return version }
+			return UpdateStore.isVersionNewer(version, newest) ? version : newest
 		}
 	}
 
-	func parser(_ parser: XMLParser, foundCharacters string: String) {
-		currentText? += string
-	}
-
-	func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-		// sparkle:shortVersionString as standalone element
-		if shortVersionString == nil,
-			let text = currentText?.trimmingCharacters(in: .whitespacesAndNewlines),
-			!text.isEmpty,
-			elementName.hasSuffix("shortVersionString")
-		{
-			shortVersionString = text
+	private static func trimmedStringValue(_ node: XMLNode) -> String? {
+		guard let value = node.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+			!value.isEmpty
+		else {
+			return nil
 		}
-		currentText = nil
+		return value
 	}
 }
 
@@ -172,6 +158,9 @@ final class UpdateStore {
 	var upgradeComplete = false
 	/// Sidebar TipKit card only. Toolbar / About / menu stay available during cooldown.
 	var shouldShowUpdateTip = false
+	/// Bumped whenever the sidebar tip transitions to shown so TipKit treats it
+	/// as a new tip (it otherwise keeps `id: "update-available"` invalidated).
+	private(set) var updateTipPresentationNonce = 0
 
 	private let appcastFetcher: AppcastFetchable
 	private let nativeUpdater: NativeAppUpdating
@@ -246,27 +235,32 @@ final class UpdateStore {
 	}
 
 	func refreshUpdateTipVisibility() {
+		let shouldShow = computeShouldShowUpdateTip()
+		if shouldShow, !shouldShowUpdateTip {
+			updateTipPresentationNonce += 1
+		}
+		shouldShowUpdateTip = shouldShow
+	}
+
+	private func computeShouldShowUpdateTip() -> Bool {
 		guard isUpdateAvailable,
 			let latestVersion, !latestVersion.isEmpty,
 			let currentVersion, !currentVersion.isEmpty
 		else {
-			shouldShowUpdateTip = false
-			return
+			return false
 		}
 
 		let dismissedVersion = defaults.string(forKey: Self.dismissedVersionDefaultsKey)
 		let dismissedAt = defaults.object(forKey: Self.dismissedAtDefaultsKey) as? Date
 		guard let dismissedVersion, let dismissedAt else {
-			shouldShowUpdateTip = true
-			return
+			return true
 		}
 
 		if dismissedVersion != latestVersion {
-			shouldShowUpdateTip = true
-			return
+			return true
 		}
 
-		shouldShowUpdateTip = now().timeIntervalSince(dismissedAt) > Self.updateTipReshowInterval
+		return now().timeIntervalSince(dismissedAt) > Self.updateTipReshowInterval
 	}
 
 	static func normalizedVersion(_ version: String) -> String {

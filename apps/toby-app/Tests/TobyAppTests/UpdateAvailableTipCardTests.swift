@@ -25,5 +25,11 @@ struct UpdateAvailableTipCardTests {
 		#expect(card.title == "Update available")
 		#expect(card.message == "Toby is on 0.65.2. Version 0.66.0 is ready to install.")
 		#expect(card.actionTitle == "Upgrade to v0.66.0")
+		let tip = UpdateAvailableTip(
+			currentVersion: "0.65.2",
+			latestVersion: "0.66.0",
+			presentationNonce: store.updateTipPresentationNonce
+		)
+		#expect(tip.id == "update-available-0.66.0-\(store.updateTipPresentationNonce)")
 	}
 }

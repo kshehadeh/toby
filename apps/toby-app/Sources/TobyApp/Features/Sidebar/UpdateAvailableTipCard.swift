@@ -54,7 +54,8 @@ struct UpdateAvailableTipCard: View {
 	private var tip: UpdateAvailableTip {
 		UpdateAvailableTip(
 			currentVersion: updateStore.currentVersion ?? "",
-			latestVersion: updateStore.latestVersion ?? ""
+			latestVersion: updateStore.latestVersion ?? "",
+			presentationNonce: updateStore.updateTipPresentationNonce
 		)
 	}
 }
@@ -62,8 +63,9 @@ struct UpdateAvailableTipCard: View {
 struct UpdateAvailableTip: Tip {
 	let currentVersion: String
 	let latestVersion: String
+	let presentationNonce: Int
 
-	var id: String { "update-available" }
+	var id: String { "update-available-\(latestVersion)-\(presentationNonce)" }
 
 	var title: Text {
 		Text("Update available")

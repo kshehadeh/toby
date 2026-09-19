@@ -233,4 +233,81 @@ struct UpdateStoreTests {
 		store.refreshUpdateTipVisibility()
 		#expect(store.shouldShowUpdateTip == true)
 	}
+
+	@Test("sidebar tip nonce changes when the card is shown again")
+	func tipNonceChangesOnReshow() {
+		let start = Date(timeIntervalSince1970: 1_700_000_000)
+		var now = start
+		let (store, _) = makeStore(now: { now })
+		markUpdateAvailable(store)
+		let firstNonce = store.updateTipPresentationNonce
+		#expect(firstNonce > 0)
+
+		store.dismissUpdateTip()
+		#expect(store.updateTipPresentationNonce == firstNonce)
+
+		now = start.addingTimeInterval(UpdateStore.updateTipReshowInterval + 1)
+		store.refreshUpdateTipVisibility()
+		#expect(store.shouldShowUpdateTip == true)
+		#expect(store.updateTipPresentationNonce == firstNonce + 1)
+	}
+}
+
+@MainActor
+@Suite("AppcastVersionParser")
+struct AppcastVersionParserTests {
+	@Test("parses sparkle:shortVersionString elements from generate_appcast XML")
+	func parsesGenerateAppcastElement() {
+		let xml = """
+			<?xml version="1.0" standalone="yes"?>
+			<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+			    <channel>
+			        <title>Toby</title>
+			        <item>
+			            <title>0.163.1</title>
+			            <sparkle:version>273</sparkle:version>
+			            <sparkle:shortVersionString>0.163.1</sparkle:shortVersionString>
+			            <enclosure url="https://example.com/Toby-arm64.dmg" length="1" type="application/octet-stream"/>
+			        </item>
+			    </channel>
+			</rss>
+			"""
+		let version = AppcastVersionParser.parse(data: Data(xml.utf8))
+		#expect(version == "0.163.1")
+	}
+
+	@Test("parses enclosure shortVersionString attributes")
+	func parsesEnclosureAttribute() {
+		let xml = """
+			<?xml version="1.0" encoding="utf-8"?>
+			<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+			  <channel>
+			    <item>
+			      <enclosure url="https://example.com/Toby.dmg" sparkle:shortVersionString="0.162.0" sparkle:version="200"/>
+			    </item>
+			  </channel>
+			</rss>
+			"""
+		let version = AppcastVersionParser.parse(data: Data(xml.utf8))
+		#expect(version == "0.162.0")
+	}
+
+	@Test("selects the newest version when the feed lists several items")
+	func selectsNewestVersion() {
+		let xml = """
+			<?xml version="1.0" encoding="utf-8"?>
+			<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+			  <channel>
+			    <item>
+			      <sparkle:shortVersionString>0.162.0</sparkle:shortVersionString>
+			    </item>
+			    <item>
+			      <sparkle:shortVersionString>0.163.1</sparkle:shortVersionString>
+			    </item>
+			  </channel>
+			</rss>
+			"""
+		let version = AppcastVersionParser.parse(data: Data(xml.utf8))
+		#expect(version == "0.163.1")
+	}
 }
