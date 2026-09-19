@@ -13,10 +13,11 @@ struct MemoryItem: Decodable, Identifiable, Equatable {
 	let createdAt: String
 	let updatedAt: String
 	let expiresAt: String?
+	let embeddingModel: String?
 
 	private enum CodingKeys: String, CodingKey {
 		case id, userId, type, subject, value, confidence, sensitivity, visibility
-		case sourceIds, createdAt, updatedAt, expiresAt
+		case sourceIds, createdAt, updatedAt, expiresAt, embeddingModel
 	}
 
 	init(
@@ -31,7 +32,8 @@ struct MemoryItem: Decodable, Identifiable, Equatable {
 		sourceIds: [String]? = nil,
 		createdAt: String,
 		updatedAt: String,
-		expiresAt: String? = nil
+		expiresAt: String? = nil,
+		embeddingModel: String? = nil
 	) {
 		self.id = id
 		self.userId = userId
@@ -45,6 +47,7 @@ struct MemoryItem: Decodable, Identifiable, Equatable {
 		self.createdAt = createdAt
 		self.updatedAt = updatedAt
 		self.expiresAt = expiresAt
+		self.embeddingModel = embeddingModel
 	}
 
 	init(from decoder: Decoder) throws {
@@ -61,6 +64,7 @@ struct MemoryItem: Decodable, Identifiable, Equatable {
 		createdAt = try c.decode(String.self, forKey: .createdAt)
 		updatedAt = try c.decode(String.self, forKey: .updatedAt)
 		expiresAt = try c.decodeIfPresent(String.self, forKey: .expiresAt)
+		embeddingModel = try c.decodeIfPresent(String.self, forKey: .embeddingModel)
 	}
 }
 

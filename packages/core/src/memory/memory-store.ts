@@ -231,41 +231,10 @@ export function insertItem(
 export function getItem(userId: string, memoryId: string): MemoryItem | null {
 	const db = getDb();
 	const row = db
-		.query(
-			`SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
-       FROM memory_items WHERE id = $id AND user_id = $uid`,
-		)
-		.get({ $id: memoryId, $uid: userId }) as
-		| {
-				id: string;
-				user_id: string;
-				type: string;
-				subject: string | null;
-				value: string;
-				confidence: number;
-				sensitivity: string;
-				visibility: string;
-				expires_at: string | null;
-				created_at: string;
-				updated_at: string;
-		  }
-		| undefined;
+		.query(`${ITEM_SELECT} WHERE i.id = $id AND i.user_id = $uid`)
+		.get({ $id: memoryId, $uid: userId }) as MemoryItemRow | undefined;
 	if (!row) return null;
-	const sourceIds = getItemSourceIds(row.id);
-	return {
-		id: row.id,
-		userId: row.user_id,
-		type: row.type as MemoryItem["type"],
-		subject: row.subject ?? undefined,
-		value: row.value,
-		confidence: row.confidence,
-		sensitivity: row.sensitivity as MemorySensitivity,
-		visibility: row.visibility as MemoryVisibility,
-		sourceIds,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at,
-		expiresAt: row.expires_at ?? undefined,
-	};
+	return rowToItem(row);
 }
 
 export function updateItem(
@@ -343,8 +312,28 @@ export function deleteItem(userId: string, memoryId: string): boolean {
 	return Number((result as { changes: number } | null)?.changes ?? 0) > 0;
 }
 
-const ITEM_SELECT = `SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
-       FROM memory_items`;
+type MemoryItemRow = {
+	id: string;
+	user_id: string;
+	type: string;
+	subject: string | null;
+	value: string;
+	confidence: number;
+	sensitivity: string;
+	visibility: string;
+	expires_at: string | null;
+	created_at: string;
+	updated_at: string;
+	embedding_model: string | null;
+};
+
+const ITEM_SELECT = `SELECT i.id AS id, i.user_id AS user_id, i.type AS type, i.subject AS subject,
+       i.value AS value, i.confidence AS confidence, i.sensitivity AS sensitivity,
+       i.visibility AS visibility, i.expires_at AS expires_at,
+       i.created_at AS created_at, i.updated_at AS updated_at,
+       e.model AS embedding_model
+       FROM memory_items i
+       LEFT JOIN memory_embeddings e ON e.memory_id = i.id`;
 
 export function searchItems(userId: string, query: string): MemoryItem[] {
 	const db = getDb();
@@ -352,23 +341,11 @@ export function searchItems(userId: string, query: string): MemoryItem[] {
 	const rows = db
 		.query(
 			`${ITEM_SELECT}
-       WHERE user_id = $uid
-         AND (value LIKE $pat ESCAPE '!' OR subject LIKE $pat ESCAPE '!' OR type LIKE $pat ESCAPE '!')
-       ORDER BY updated_at DESC`,
+       WHERE i.user_id = $uid
+         AND (i.value LIKE $pat ESCAPE '!' OR i.subject LIKE $pat ESCAPE '!' OR i.type LIKE $pat ESCAPE '!')
+       ORDER BY i.updated_at DESC`,
 		)
-		.all({ $uid: userId, $pat: pattern }) as Array<{
-		id: string;
-		user_id: string;
-		type: string;
-		subject: string | null;
-		value: string;
-		confidence: number;
-		sensitivity: string;
-		visibility: string;
-		expires_at: string | null;
-		created_at: string;
-		updated_at: string;
-	}>;
+		.all({ $uid: userId, $pat: pattern }) as MemoryItemRow[];
 	return rows.map(rowToItem);
 }
 
@@ -381,7 +358,7 @@ export function searchItemsByKeywords(
 	const db = getDb();
 	const likeClauses = keywords.map(
 		(_, i) =>
-			`(value LIKE $kw${i} ESCAPE '!' OR subject LIKE $kw${i} ESCAPE '!' OR type LIKE $kw${i} ESCAPE '!')`,
+			`(i.value LIKE $kw${i} ESCAPE '!' OR i.subject LIKE $kw${i} ESCAPE '!' OR i.type LIKE $kw${i} ESCAPE '!')`,
 	);
 	const kwParams: Record<string, unknown> = { $uid: userId };
 	for (let i = 0; i < keywords.length; i++) {
@@ -392,23 +369,11 @@ export function searchItemsByKeywords(
 	const rows = db
 		.query(
 			`${ITEM_SELECT}
-       WHERE user_id = $uid
+       WHERE i.user_id = $uid
          AND (${likeClauses.join(" OR ")})
-       ORDER BY updated_at DESC`,
+       ORDER BY i.updated_at DESC`,
 		)
-		.all(kwParams) as Array<{
-		id: string;
-		user_id: string;
-		type: string;
-		subject: string | null;
-		value: string;
-		confidence: number;
-		sensitivity: string;
-		visibility: string;
-		expires_at: string | null;
-		created_at: string;
-		updated_at: string;
-	}>;
+		.all(kwParams) as MemoryItemRow[];
 	return rows.map(rowToItem);
 }
 
@@ -421,9 +386,8 @@ export function listItems(
 	const offset = Math.max(0, opts?.offset ?? 0);
 	const query = opts?.query?.trim();
 
-	let sql = `SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
-       FROM memory_items
-       WHERE user_id = $uid`;
+	let sql = `${ITEM_SELECT}
+       WHERE i.user_id = $uid`;
 	const params: Record<string, unknown> = {
 		$uid: userId,
 		$limit: limit,
@@ -431,39 +395,15 @@ export function listItems(
 	};
 
 	if (query) {
-		sql += " AND (value LIKE $pat OR subject LIKE $pat OR type LIKE $pat)";
+		sql +=
+			" AND (i.value LIKE $pat OR i.subject LIKE $pat OR i.type LIKE $pat)";
 		params.$pat = `%${query}%`;
 	}
 
-	sql += " ORDER BY updated_at DESC LIMIT $limit OFFSET $offset";
+	sql += " ORDER BY i.updated_at DESC LIMIT $limit OFFSET $offset";
 
-	const rows = db.query(sql).all(params) as Array<{
-		id: string;
-		user_id: string;
-		type: string;
-		subject: string | null;
-		value: string;
-		confidence: number;
-		sensitivity: string;
-		visibility: string;
-		expires_at: string | null;
-		created_at: string;
-		updated_at: string;
-	}>;
-	return rows.map((r) => ({
-		id: r.id,
-		userId: r.user_id,
-		type: r.type as MemoryItem["type"],
-		subject: r.subject ?? undefined,
-		value: r.value,
-		confidence: r.confidence,
-		sensitivity: r.sensitivity as MemorySensitivity,
-		visibility: r.visibility as MemoryVisibility,
-		sourceIds: getItemSourceIds(r.id),
-		createdAt: r.created_at,
-		updatedAt: r.updated_at,
-		expiresAt: r.expires_at ?? undefined,
-	}));
+	const rows = db.query(sql).all(params) as MemoryItemRow[];
+	return rows.map(rowToItem);
 }
 
 /** Usable-by-AI memories for system-prompt injection (excludes expired). */
@@ -477,25 +417,13 @@ export function listUsableItems(
 	const rows = db
 		.query(
 			`${ITEM_SELECT}
-       WHERE user_id = $uid
-         AND visibility = 'usable_by_ai'
-         AND (expires_at IS NULL OR expires_at > $now)
-       ORDER BY updated_at DESC
+       WHERE i.user_id = $uid
+         AND i.visibility = 'usable_by_ai'
+         AND (i.expires_at IS NULL OR i.expires_at > $now)
+       ORDER BY i.updated_at DESC
        LIMIT $limit`,
 		)
-		.all({ $uid: userId, $now: now, $limit: limit }) as Array<{
-		id: string;
-		user_id: string;
-		type: string;
-		subject: string | null;
-		value: string;
-		confidence: number;
-		sensitivity: string;
-		visibility: string;
-		expires_at: string | null;
-		created_at: string;
-		updated_at: string;
-	}>;
+		.all({ $uid: userId, $now: now, $limit: limit }) as MemoryItemRow[];
 	return rows.map(rowToItem);
 }
 
@@ -528,31 +456,18 @@ export function getItemsForRetrieval(
 	if (keywords.length === 0) {
 		const rows = db
 			.query(
-				`SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
-         FROM memory_items
-         WHERE user_id = $uid AND visibility IN (${visList})
-         ORDER BY confidence DESC, updated_at DESC
+				`${ITEM_SELECT}
+         WHERE i.user_id = $uid AND i.visibility IN (${visList})
+         ORDER BY i.confidence DESC, i.updated_at DESC
          LIMIT $max`,
 			)
-			.all({ ...visParams, $max: maxItems }) as Array<{
-			id: string;
-			user_id: string;
-			type: string;
-			subject: string | null;
-			value: string;
-			confidence: number;
-			sensitivity: string;
-			visibility: string;
-			expires_at: string | null;
-			created_at: string;
-			updated_at: string;
-		}>;
+			.all({ ...visParams, $max: maxItems }) as MemoryItemRow[];
 		return rows.map(rowToItem);
 	}
 
 	const likeClauses = keywords.map(
 		(_, i) =>
-			`(value LIKE $kw${i} ESCAPE '!' OR subject LIKE $kw${i} ESCAPE '!')`,
+			`(i.value LIKE $kw${i} ESCAPE '!' OR i.subject LIKE $kw${i} ESCAPE '!')`,
 	);
 	const kwParams: Record<string, unknown> = {};
 	for (let i = 0; i < keywords.length; i++) {
@@ -562,27 +477,14 @@ export function getItemsForRetrieval(
 	}
 	const rows = db
 		.query(
-			`SELECT id, user_id, type, subject, value, confidence, sensitivity, visibility, expires_at, created_at, updated_at
-       FROM memory_items
-       WHERE user_id = $uid
-         AND visibility IN (${visList})
+			`${ITEM_SELECT}
+       WHERE i.user_id = $uid
+         AND i.visibility IN (${visList})
          AND (${likeClauses.join(" OR ")})
-       ORDER BY confidence DESC, updated_at DESC
+       ORDER BY i.confidence DESC, i.updated_at DESC
        LIMIT $max`,
 		)
-		.all({ ...visParams, ...kwParams, $max: maxItems }) as Array<{
-		id: string;
-		user_id: string;
-		type: string;
-		subject: string | null;
-		value: string;
-		confidence: number;
-		sensitivity: string;
-		visibility: string;
-		expires_at: string | null;
-		created_at: string;
-		updated_at: string;
-	}>;
+		.all({ ...visParams, ...kwParams, $max: maxItems }) as MemoryItemRow[];
 	return rows.map(rowToItem);
 }
 
@@ -595,25 +497,11 @@ export function findItemByContentHash(
 	const row = db
 		.query(
 			`${ITEM_SELECT}
-       WHERE user_id = $uid AND content_hash = $hash
-       ORDER BY updated_at DESC
+       WHERE i.user_id = $uid AND i.content_hash = $hash
+       ORDER BY i.updated_at DESC
        LIMIT 1`,
 		)
-		.get({ $uid: userId, $hash: contentHash }) as
-		| {
-				id: string;
-				user_id: string;
-				type: string;
-				subject: string | null;
-				value: string;
-				confidence: number;
-				sensitivity: string;
-				visibility: string;
-				expires_at: string | null;
-				created_at: string;
-				updated_at: string;
-		  }
-		| undefined;
+		.get({ $uid: userId, $hash: contentHash }) as MemoryItemRow | undefined;
 	if (!row) return null;
 	return rowToItem(row);
 }
@@ -637,40 +525,16 @@ export function getItemsByIds(
 	const rows = db
 		.query(
 			`${ITEM_SELECT}
-       WHERE user_id = $uid AND id IN (${placeholders.join(", ")})`,
+       WHERE i.user_id = $uid AND i.id IN (${placeholders.join(", ")})`,
 		)
-		.all(idParams) as Array<{
-		id: string;
-		user_id: string;
-		type: string;
-		subject: string | null;
-		value: string;
-		confidence: number;
-		sensitivity: string;
-		visibility: string;
-		expires_at: string | null;
-		created_at: string;
-		updated_at: string;
-	}>;
+		.all(idParams) as MemoryItemRow[];
 	const byId = new Map(rows.map((r) => [r.id, rowToItem(r)]));
 	return ids
 		.map((id) => byId.get(id))
 		.filter((item): item is MemoryItem => item !== undefined);
 }
 
-function rowToItem(r: {
-	id: string;
-	user_id: string;
-	type: string;
-	subject: string | null;
-	value: string;
-	confidence: number;
-	sensitivity: string;
-	visibility: string;
-	expires_at: string | null;
-	created_at: string;
-	updated_at: string;
-}): MemoryItem {
+function rowToItem(r: MemoryItemRow): MemoryItem {
 	return {
 		id: r.id,
 		userId: r.user_id,
@@ -684,6 +548,7 @@ function rowToItem(r: {
 		createdAt: r.created_at,
 		updatedAt: r.updated_at,
 		expiresAt: r.expires_at ?? undefined,
+		embeddingModel: r.embedding_model ?? undefined,
 	};
 }
 

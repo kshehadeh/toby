@@ -30,6 +30,8 @@ Toby's memory subsystem stores durable, user-relevant personal context for futur
 | created_at | TEXT | ISO timestamp |
 | updated_at | TEXT | ISO timestamp |
 
+API `MemoryItem` includes optional `embeddingModel` (the stored vector’s model id) when a `memory_embeddings` row exists.
+
 ### memory_sources
 
 Provenance record for where a memory came from (email, calendar, drive, chat, manual, other). Each source can link to the original item via `source_id` / `source_url` and include an `excerpt` and `metadata`.
@@ -44,7 +46,7 @@ Every action (proposed, saved, rejected, updated, forgotten, retrieved, merged) 
 
 ### memory_embeddings
 
-One embedding vector per memory item (`embedding_blob` + `model`). Written on save/update when the user’s AI provider can embed (same models as tool routing: OpenAI `text-embedding-3-small`, Gateway `openai/text-embedding-3-small`, or Ollama `nomic-embed-text`). Missing or stale rows (wrong model) are backfilled on the next semantic search. If no embed model is configured, search stays keyword-only.
+One embedding vector per memory item (`embedding_blob` + `model`). Written on save/update when the user’s AI provider can embed (same models as tool routing: OpenAI `text-embedding-3-small`, Gateway `openai/text-embedding-3-small`, or Ollama `nomic-embed-text`). Missing or stale rows (wrong model) are backfilled on the next semantic search. If no embed model is configured, search stays keyword-only. The Memories window marks items that have a stored vector and shows the model in the details bar.
 
 ## Proposal flow
 

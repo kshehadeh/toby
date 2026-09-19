@@ -177,6 +177,26 @@ struct MemoriesViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "fact")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "None")
+		}
+	}
+
+	@Test("embedded memory shows a list indicator and model")
+	func embeddedMemoryShowsIndicatorAndModel() throws {
+		let store = MemoriesStore()
+		let memory = sampleMemory(embeddingModel: "text-embedding-3-small")
+		store.memories = [memory]
+		store.selectedMemoryId = memory.id
+		store.selectedMemory = memory
+		let list = MemoriesListView(store: store)
+		#expect(throws: Never.self) {
+			try list.inspect().find(viewWithAccessibilityIdentifier: "memory-embedding-indicator")
+		}
+		let view = MemoriesView(store: store)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "text-embedding-3-small")
+		}
 	}
 
 	@Test("memories store initializes with empty state")
@@ -290,7 +310,8 @@ struct MemoriesViewTests {
 			"sourceIds": ["s1"],
 			"createdAt": "2026-01-01T00:00:00Z",
 			"updatedAt": "2026-01-02T00:00:00Z",
-			"expiresAt": null
+			"expiresAt": null,
+			"embeddingModel": "text-embedding-3-small"
 		}
 		""".data(using: .utf8)!
 		let item = try JSONDecoder().decode(MemoryItem.self, from: json)
@@ -299,6 +320,7 @@ struct MemoriesViewTests {
 		#expect(item.value == "Uses Toby daily")
 		#expect(item.subject == "Work")
 		#expect(item.confidence == 0.9)
+		#expect(item.embeddingModel == "text-embedding-3-small")
 	}
 
 	@Test("memory field exposes valid type choices")
@@ -344,7 +366,8 @@ private func sampleMemory(
 	id: String = "m1",
 	type: String = "fact",
 	subject: String? = nil,
-	value: String = "Likes dark mode"
+	value: String = "Likes dark mode",
+	embeddingModel: String? = nil
 ) -> MemoryItem {
 	MemoryItem(
 		id: id,
@@ -358,6 +381,7 @@ private func sampleMemory(
 		sourceIds: nil,
 		createdAt: "2026-01-01T00:00:00Z",
 		updatedAt: "2026-01-01T00:00:00Z",
-		expiresAt: nil
+		expiresAt: nil,
+		embeddingModel: embeddingModel
 	)
 }

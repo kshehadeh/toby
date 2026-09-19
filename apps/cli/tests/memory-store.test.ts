@@ -23,6 +23,7 @@ import {
 	insertProposal,
 	insertSource,
 	linkItemSource,
+	listItems,
 	searchItems,
 	searchItemsByKeywords,
 	updateItem,
@@ -447,6 +448,31 @@ describe.skipIf(!isBun)("memory-store", () => {
 
 		it("returns null for non-existent embedding", () => {
 			expect(getEmbedding("nonexistent")).toBeNull();
+		});
+
+		it("exposes embeddingModel on listed and loaded items", () => {
+			const item = insertItem(
+				"user1",
+				"fact",
+				undefined,
+				"listed embedding",
+				0.8,
+				"normal",
+				"usable_by_ai",
+				null,
+			);
+			expect(getItem("user1", item.id)?.embeddingModel).toBeUndefined();
+			insertEmbedding(
+				item.id,
+				Buffer.from([1, 2, 3, 4]),
+				"text-embedding-3-small",
+			);
+			expect(getItem("user1", item.id)?.embeddingModel).toBe(
+				"text-embedding-3-small",
+			);
+			expect(
+				listItems("user1").find((row) => row.id === item.id)?.embeddingModel,
+			).toBe("text-embedding-3-small");
 		});
 	});
 

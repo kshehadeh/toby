@@ -66,6 +66,8 @@ export interface MemoryItem {
 	readonly createdAt: string;
 	readonly updatedAt: string;
 	readonly expiresAt?: string | null;
+	/** Embedding model id when a vector is stored for this item. */
+	readonly embeddingModel?: string;
 }
 
 export interface MemorySource {
@@ -96,7 +98,7 @@ export interface MemoryProposal {
 
 export type MemoryCandidate = Omit<
 	MemoryItem,
-	"id" | "createdAt" | "updatedAt" | "sourceIds"
+	"id" | "createdAt" | "updatedAt" | "sourceIds" | "embeddingModel"
 >;
 
 export interface MemoryContextBundle {

@@ -300,7 +300,7 @@ export async function update(
 			await storeMemoryEmbedding(updated, embedder);
 		}
 	}
-	return updated;
+	return store.getItem(userId, memoryId) ?? updated;
 }
 
 export function forget(userId: string, memoryId: string): void {
@@ -465,7 +465,7 @@ async function persistNewOrMerge(
 	if (embedder) {
 		await storeMemoryEmbedding(item, embedder, queryVector);
 	}
-	return { item, merged: false };
+	return { item: store.getItem(userId, item.id) ?? item, merged: false };
 }
 
 async function mergeIntoExisting(

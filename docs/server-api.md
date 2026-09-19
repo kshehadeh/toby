@@ -993,6 +993,7 @@ type MemoryItem = {
   visibility: string;
   createdAt: string;
   updatedAt: string;
+  embeddingModel?: string;
 };
 ```
 

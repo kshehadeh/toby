@@ -88,6 +88,10 @@ struct MemoriesInspectorBar: View {
 							if let sources = memory.sourceIds, !sources.isEmpty {
 								inspectorFact("Sources", "\(sources.count)")
 							}
+							inspectorFact(
+								"Embedding",
+								memory.embeddingModel ?? "None"
+							)
 							inspectorFact("Created", MemoryDateFormat.display(memory.createdAt))
 							inspectorFact("Updated", MemoryDateFormat.display(memory.updatedAt))
 						}

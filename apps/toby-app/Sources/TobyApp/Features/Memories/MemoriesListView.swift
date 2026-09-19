@@ -94,6 +94,14 @@ struct MemoryListRow: View {
 				.font(.system(size: 11, weight: .medium))
 				.foregroundStyle(AppTheme.tertiaryText)
 				.monospacedDigit()
+			if memory.embeddingModel != nil {
+				Image(systemName: "point.3.connected.trianglepath.dotted")
+					.font(.system(size: 11, weight: .medium))
+					.foregroundStyle(isSelected ? AppTheme.accent : AppTheme.tertiaryText)
+					.help("Semantic embedding stored")
+					.accessibilityLabel("Embedded")
+					.accessibilityIdentifier("memory-embedding-indicator")
+			}
 		}
 		.padding(.vertical, FeatureBrowserMetrics.rowVerticalPadding)
 		.padding(.horizontal, FeatureBrowserMetrics.rowHorizontalPadding)
@@ -117,6 +125,9 @@ struct MemoryListRow: View {
 		var parts = [memory.value, memory.type, confidenceLabel]
 		if let subject = memory.subject, !subject.isEmpty {
 			parts.insert(subject, at: 1)
+		}
+		if memory.embeddingModel != nil {
+			parts.append("embedded")
 		}
 		return parts.joined(separator: ", ")
 	}
