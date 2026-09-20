@@ -366,18 +366,6 @@ struct SchedulesViewTests {
 	@Test("cron blur validation does not treat natural language as a hard error")
 	func cronBlurValidationDoesNotErrorNaturalLanguage() throws {
 		let store = SchedulesStore()
-		let schedule = ScheduleViewModel(
-			id: "schedule-1",
-			name: "Daily Standup",
-			prompt: "Summarize",
-			personaName: "default",
-			cronExpression: "0 9 * * *",
-			cronHumanReadable: "At 09:00 AM",
-			nextRunAt: nil,
-			enabled: true,
-			lastRunAt: nil,
-			recentRuns: []
-		)
 		store.editor = ScheduleEditorDraft.blank()
 		store.editor?.cron = "every weekday at 9am"
 		store.validateEditorCronOnBlur()
@@ -388,18 +376,6 @@ struct SchedulesViewTests {
 	@Test("cron blur validation clears error for valid expression")
 	func cronBlurValidationClearsError() throws {
 		let store = SchedulesStore()
-		let schedule = ScheduleViewModel(
-			id: "schedule-1",
-			name: "Daily Standup",
-			prompt: "Summarize",
-			personaName: "default",
-			cronExpression: "0 9 * * *",
-			cronHumanReadable: "At 09:00 AM",
-			nextRunAt: nil,
-			enabled: true,
-			lastRunAt: nil,
-			recentRuns: []
-		)
 		store.editor = ScheduleEditorDraft.blank()
 		store.editorCronError = "existing error"
 		store.editor?.cron = "0 9 * * *"
@@ -410,18 +386,6 @@ struct SchedulesViewTests {
 	@Test("cron blur validation is skipped while conversion is in flight")
 	func cronBlurValidationSkippedWhileParsing() throws {
 		let store = SchedulesStore()
-		let schedule = ScheduleViewModel(
-			id: "schedule-1",
-			name: "Daily Standup",
-			prompt: "Summarize",
-			personaName: "default",
-			cronExpression: "0 9 * * *",
-			cronHumanReadable: "At 09:00 AM",
-			nextRunAt: nil,
-			enabled: true,
-			lastRunAt: nil,
-			recentRuns: []
-		)
 		store.editor = ScheduleEditorDraft.blank()
 		store.editor?.cron = "every weekday at 9am"
 		store.parsingCronScheduleId = "editor"
@@ -433,18 +397,6 @@ struct SchedulesViewTests {
 	@Test("cron validity does not treat plain language with numbers as cron")
 	func cronValidityRejectsPlainLanguageWithNumbers() throws {
 		let store = SchedulesStore()
-		let schedule = ScheduleViewModel(
-			id: "schedule-1",
-			name: "Daily Standup",
-			prompt: "Summarize",
-			personaName: "default",
-			cronExpression: "0 9 * * *",
-			cronHumanReadable: "At 09:00 AM",
-			nextRunAt: nil,
-			enabled: true,
-			lastRunAt: nil,
-			recentRuns: []
-		)
 		store.editor = ScheduleEditorDraft.blank()
 		store.editor?.cron = "every 2 days at 9am"
 		#expect(store.isEditorCronValid == false)

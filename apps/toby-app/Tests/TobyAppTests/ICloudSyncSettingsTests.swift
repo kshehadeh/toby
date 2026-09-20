@@ -242,7 +242,7 @@ struct ICloudSyncSettingsTests {
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "icloud-sync-password")
 		_ = try view.inspect().find(text: "Save destination")
 		let save = try view.inspect().find(button: "Save destination")
-		#expect(try save.isDisabled())
+		#expect(save.isDisabled())
 
 	}
 

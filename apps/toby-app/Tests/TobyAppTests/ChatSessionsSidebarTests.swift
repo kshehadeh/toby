@@ -88,7 +88,7 @@ struct ChatSessionsSidebarTests {
 			onDeleteSession: { _ in }
 		)
 		let buttons = try view.inspect().findAll(ViewType.Button.self)
-		let sessionButton = try buttons.first { btn in
+		let sessionButton = buttons.first { btn in
 			(try? btn.find(text: "My Session")) != nil
 		}
 		try #require(sessionButton != nil, "Session button not found")
@@ -110,11 +110,11 @@ struct ChatSessionsSidebarTests {
 			onDeleteSession: { _ in }
 		)
 		let buttons = try view.inspect().findAll(ViewType.Button.self)
-		let sessionButton = try buttons.first { btn in
+		let sessionButton = buttons.first { btn in
 			(try? btn.find(text: "Dated Session")) != nil
 		}
 		try #require(sessionButton != nil, "Session button not found")
-		let texts = try sessionButton!.findAll(ViewType.Text.self)
+		let texts = sessionButton!.findAll(ViewType.Text.self)
 		let subtitleTexts = texts.compactMap { try? $0.string() }.filter { $0.contains("Jun") }
 		#expect(subtitleTexts.count == 1)
 		#expect(subtitleTexts[0].contains("2026"))
@@ -134,11 +134,11 @@ struct ChatSessionsSidebarTests {
 			onDeleteSession: { _ in }
 		)
 		let buttons = try view.inspect().findAll(ViewType.Button.self)
-		let sessionButton = try buttons.first { btn in
+		let sessionButton = buttons.first { btn in
 			(try? btn.find(text: "No Date Session")) != nil
 		}
 		try #require(sessionButton != nil, "Session button not found")
-		let texts = try sessionButton!.findAll(ViewType.Text.self)
+		let texts = sessionButton!.findAll(ViewType.Text.self)
 		#expect(texts.count == 1)
 	}
 }

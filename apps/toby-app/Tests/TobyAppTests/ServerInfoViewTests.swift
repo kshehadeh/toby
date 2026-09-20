@@ -195,7 +195,7 @@ struct ServerInfoViewTests {
 			(try? btn.find(text: "Restarting server…")) != nil
 		}
 		try #require(button != nil, "Restarting button not found")
-		#expect(try button!.isDisabled())
+		#expect(button!.isDisabled())
 	}
 
 	@Test("formatDaemonUptime formats durations")
