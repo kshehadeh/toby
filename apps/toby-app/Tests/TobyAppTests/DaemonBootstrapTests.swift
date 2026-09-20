@@ -190,14 +190,19 @@ struct DaemonBootstrapTests {
 
 	@Test("preferred start command prefers bundled binary when present")
 	func preferredStartUsesBundledWhenAvailable() throws {
-		// In test host, bundle may or may not include Resources/toby.
-		// When no bundle CLI exists, preferred resolution must still return a command.
-		let command = try DaemonBootstrap.resolvePreferredDaemonStartCommand()
-		#expect(command.arguments.contains("daemon"))
-		#expect(command.arguments.contains("start"))
-		if DaemonBootstrap.hasBundledTobyExecutable() {
-			#expect(command.arguments == ["daemon", "start"])
-			#expect(command.currentDirectoryURL == nil)
+		// In the XCTest host, neither a bundled CLI nor a monorepo CLI may exist.
+		// Prefer the bundled binary when present; otherwise accept a resolved
+		// monorepo command, or the expected not-found error.
+		do {
+			let command = try DaemonBootstrap.resolvePreferredDaemonStartCommand()
+			#expect(command.arguments.contains("daemon"))
+			#expect(command.arguments.contains("start"))
+			if DaemonBootstrap.hasBundledTobyExecutable() {
+				#expect(command.arguments == ["daemon", "start"])
+				#expect(command.currentDirectoryURL == nil)
+			}
+		} catch DaemonBootstrapError.tobyExecutableNotFound {
+			#expect(!DaemonBootstrap.hasBundledTobyExecutable())
 		}
 	}
 }
