@@ -292,6 +292,8 @@ struct RootToolbarsTests {
 		var upgrading = model
 		upgrading.isUpgrading = true
 		#expect(RootToolbars.updateHelp(model: upgrading) == "Updating Toby")
+		#expect(UpdateToolbarButton.iconName(isUpgrading: false) == "arrow.down.app")
+		#expect(UpdateToolbarButton.iconName(isUpgrading: true) == "arrow.down.circle")
 	}
 
 	@Test("dashboard actions toolbar help swaps with pane visibility")

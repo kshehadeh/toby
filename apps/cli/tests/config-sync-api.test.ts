@@ -271,6 +271,7 @@ describe("POST /api/config/sync", () => {
 					path: string;
 					includesProjects: boolean;
 					includesRecordings: boolean;
+					includesLibrary: boolean;
 				}>;
 			};
 			expect(body.backups).toHaveLength(1);
@@ -280,6 +281,7 @@ describe("POST /api/config/sync", () => {
 			expect(body.backups[0]?.path).toContain("data-backups");
 			expect(body.backups[0]?.includesProjects).toBe(true);
 			expect(body.backups[0]?.includesRecordings).toBe(true);
+			expect(body.backups[0]?.includesLibrary).toBe(true);
 
 			// Wipe project files and recordings, then restore the snapshot.
 			closeChatDb();
@@ -365,6 +367,7 @@ describe("POST /api/config/sync", () => {
 			expect(listed[0]?.path).toContain(dir);
 			expect(listed[0]?.includesProjects).toBe(false);
 			expect(listed[0]?.includesRecordings).toBe(false);
+			expect(listed[0]?.includesLibrary).toBe(false);
 		});
 	});
 

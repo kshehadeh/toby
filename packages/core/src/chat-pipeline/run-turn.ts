@@ -13,6 +13,7 @@ import { createGlobalChatTools } from "../ai/global-chat-tools";
 import type { Persona } from "../config/index";
 import { getIntegrationModule } from "../integrations/index";
 import type { IntegrationModule } from "../integrations/types";
+import { createLibraryTools } from "../library/tools";
 import { log, logWithSession } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
@@ -95,6 +96,7 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyListSkills",
 	"delegateToSubAgent",
 	"memorySearch",
+	"find_in_library",
 ]);
 
 /**
@@ -121,6 +123,7 @@ export { ALWAYS_INCLUDED_TOOLS, PROJECT_GROUNDED_TOOLS };
  */
 const EXPLICIT_REQUEST_ONLY_TOOLS: ReadonlySet<string> = new Set([
 	"createLocalSkill",
+	"remove_from_library",
 ]);
 
 type ChatTurnOptions = {
@@ -282,6 +285,16 @@ function mergeAuxiliaryChatTools(
 		toolIntegrationLabels[toolName] ??= "Toby";
 	}
 
+	const libraryTools = createLibraryTools({
+		dryRun: options.dryRun,
+		appliedActions: options.globalAppliedActions ?? [],
+		attachments: options.attachments,
+	});
+	Object.assign(mergedTools, libraryTools);
+	for (const toolName of Object.keys(libraryTools)) {
+		toolIntegrationLabels[toolName] ??= "Toby";
+	}
+
 	const blockedToolNames = options.project
 		? []
 		: [...explicitRequestOnlyToolsForTurn({ projectActive: false })];
@@ -375,7 +388,7 @@ function explicitRequestOnlyToolsForTurn(
 	if (!options?.projectActive) {
 		return EXPLICIT_REQUEST_ONLY_TOOLS;
 	}
-	return new Set();
+	return new Set(["remove_from_library"]);
 }
 
 export function filterToolNamesByRelevance(

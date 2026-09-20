@@ -4,6 +4,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	case dashboard
 	case chat
 	case projects
+	case library
 	case schedules
 	case flows
 	case recordings
@@ -17,6 +18,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .dashboard: return "Home"
 		case .chat: return "Chats"
 		case .projects: return "Projects"
+		case .library: return "Library"
 		case .skills: return "Skills"
 		case .schedules: return "Schedules"
 		case .flows: return "Flows"
@@ -30,6 +32,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .dashboard: return "house"
 		case .chat: return "message"
 		case .projects: return "folder"
+		case .library: return "books.vertical"
 		case .skills: return "graduationcap"
 		case .schedules: return "calendar"
 		case .flows: return "arrow.triangle.branch"
@@ -38,7 +41,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	}
 
 	/// Primary destinations, in sidebar order.
-	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .projects, .recordings]
+	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .projects, .library, .recordings]
 	/// Automation section, in sidebar order.
 	static let sidebarAutomation: [DetailRoute] = [.schedules, .flows]
 	/// Tools section, in sidebar order.
@@ -53,6 +56,8 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 			return "Open your chat workspace, continue existing conversations, or start a new session with Toby."
 		case .projects:
 			return "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
+		case .library:
+			return "Browse saved documents, PDFs, and images that Toby has copied and indexed for chat."
 		case .skills:
 			return "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
 		case .schedules:

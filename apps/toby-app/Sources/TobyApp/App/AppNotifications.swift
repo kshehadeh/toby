@@ -28,6 +28,8 @@ extension Notification.Name {
 	static let restoreConfig = Notification.Name("restoreConfig")
 	/// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.
 	static let memoriesDidChange = Notification.Name("toby.memoriesDidChange")
+	/// Posted when chat (or another writer) mutates the file library so the Library UI can refresh.
+	static let libraryDidChange = Notification.Name("toby.libraryDidChange")
 	static let personasDidChange = Notification.Name("toby.personasDidChange")
 	/// Posted when chat (or another writer) creates/updates a local skill so the skills UI can refresh.
 	static let skillsDidChange = Notification.Name("toby.skillsDidChange")

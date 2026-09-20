@@ -10,6 +10,7 @@ struct RootView: View {
     @Bindable var projectsStore: ProjectsStore
     @Bindable var skillsStore: SkillsStore
     @Bindable var memoriesStore: MemoriesStore
+    @Bindable var libraryStore: LibraryStore
     @Bindable var flowsStore: FlowsStore
     let personaEditorCoordinator: PersonaEditorCoordinator
     @Bindable var updateStore: UpdateStore
@@ -63,6 +64,7 @@ struct RootView: View {
             onStartNewProject: startNewProject,
             onStartNewMemory: startNewMemory,
             onMemoriesDidChange: { memoriesStore.handleExternalMemoryChange() },
+            onLibraryDidChange: { libraryStore.handleExternalLibraryChange() },
             onPersonasDidChange: {
                 Task {
                     await configureStore.handlePersonasChanged()
@@ -147,7 +149,7 @@ struct RootView: View {
                         store.toast = AppToastState(
                             style: .success,
                             title: "Toby data restored",
-                            message: "Settings, credentials, chats, memories, project files, and recordings were restored from the backup."
+                            message: "Settings, credentials, chats, memories, project files, recordings, and library items were restored from the backup."
                         )
                         Task {
                             await store.refreshStatus()
@@ -397,8 +399,7 @@ struct RootView: View {
                 },
                 onRestartServer: {
                     Task { await store.restartServer() }
-                },
-                updateStore: updateStore
+                }
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
@@ -465,6 +466,8 @@ struct RootView: View {
             )
         case .projects:
             ProjectsView(projectsStore: projectsStore, chatStore: store)
+        case .library:
+            LibraryView(store: libraryStore)
         case .schedules:
             SchedulesView(store: schedulesStore, onOpenFlow: openDashboardFlow)
         case .recordings:
@@ -547,6 +550,24 @@ struct RootView: View {
                                             isFilesSidebarPresented: projectsStore.isFilesSidebarPresented,
                                             onToggleFilesSidebar: {
                                                 projectsStore.isFilesSidebarPresented.toggle()
+                                            }
+                                        )
+
+            case .library:
+
+                                        RootToolbars.library(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .library,
+                                                selectedItemName: libraryStore.inspectedItem?.title
+                                            ),
+                                            isListLoading: libraryStore.isListLoading,
+                                            isSaving: libraryStore.isSaving,
+                                            onAdd: {
+                                                libraryStore.isImporterPresented = true
+                                            },
+                                            onRefresh: {
+                                                Task { await libraryStore.load() }
                                             }
                                         )
 
@@ -695,6 +716,8 @@ struct RootView: View {
                 .projects,
                 selectedItemName: projectsStore.isShowingChat ? store.sessionName : projectsStore.selectedProjectName
             )
+        case .library:
+            RootToolbars.routeTitle(.library, selectedItemName: libraryStore.inspectedItem?.title)
         case .schedules:
             RootToolbars.routeTitle(
                 .schedules,
@@ -728,6 +751,8 @@ struct RootView: View {
                 chatCount: projectsStore.selectedProjectSessions.count,
                 personaOptions: projectsStore.personaOptions
             )
+        case .library:
+            libraryStore.inspectedItem?.originalFilename ?? ""
         case .recordings:
             RootToolbars.recordingsNavigationSubtitle(
                 recording: recordingsStore.selectedRecording,
@@ -786,7 +811,8 @@ struct RootView: View {
             onForward: { _ = history.goForward() },
             onCheckForUpdates: {
                 Task { await updateStore.checkNativeAppForUpdates() }
-            }
+            },
+            updateStore: updateStore
         )
     }
 
@@ -1011,6 +1037,8 @@ struct RootView: View {
         switch route {
         case .projects:
             Task { await projectsStore.selectHome() }
+        case .library:
+            libraryStore.selectHome()
         case .schedules:
             schedulesStore.selectHome()
         case .flows:
@@ -1171,10 +1199,11 @@ struct RootView: View {
         async let schedules: () = schedulesStore.ensureLoaded()
         async let recordings: () = recordingsStore.ensureListLoaded()
         async let memories: () = memoriesStore.ensureListLoaded()
+        async let library: () = libraryStore.ensureListLoaded()
         async let skills: () = skillsStore.ensureListLoaded()
         async let projects: () = projectsStore.ensureListLoaded()
         async let integrations: () = loadIntegrationsCatalogIfNeeded()
-        _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
+        _ = await (sessions, schedules, recordings, memories, library, skills, projects, integrations)
     }
 
     /// Soft-reset feature stores after Settings → General switches the Toby home.
@@ -1189,6 +1218,7 @@ struct RootView: View {
         projectsStore.resetForHomeSwitch()
         skillsStore.resetForHomeSwitch()
         memoriesStore.resetForHomeSwitch()
+        libraryStore.resetForHomeSwitch()
         flowsStore.resetForHomeSwitch()
         pluginsStore.resetForHomeSwitch()
         changelogStore.resetForHomeSwitch()
@@ -1207,10 +1237,11 @@ struct RootView: View {
         async let schedules: () = schedulesStore.load()
         async let recordings: () = recordingsStore.loadList()
         async let memories: () = memoriesStore.loadList()
+        async let library: () = libraryStore.loadList()
         async let skills: () = skillsStore.loadList()
         async let projects: () = projectsStore.loadList()
         async let integrations: () = loadIntegrationsCatalogIfNeeded()
-        _ = await (sessions, schedules, recordings, memories, skills, projects, integrations)
+        _ = await (sessions, schedules, recordings, memories, library, skills, projects, integrations)
     }
 
     private func refreshDashboardData() async {

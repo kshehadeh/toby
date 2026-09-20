@@ -295,7 +295,8 @@ struct ICloudSyncSettingsTests {
 				createdAt: firstCreated,
 				path: "/tmp/toby-sync/data-backups/dev-1/2026-09-09T09-22-56-736Z.tbybak",
 				includesProjects: true,
-				includesRecordings: true
+				includesRecordings: true,
+				includesLibrary: true
 			),
 			DatabaseSyncBackup(
 				filename: "2026-09-08T10-30-17-678Z.tbybak",
@@ -304,7 +305,8 @@ struct ICloudSyncSettingsTests {
 				createdAt: secondCreated,
 				path: "/tmp/toby-sync/data-backups/dev-1/2026-09-08T10-30-17-678Z.tbybak",
 				includesProjects: true,
-				includesRecordings: true
+				includesRecordings: true,
+				includesLibrary: true
 			),
 		]
 		let view = ICloudSyncSettingsView(
@@ -316,10 +318,10 @@ struct ICloudSyncSettingsTests {
 		_ = try view.inspect().find(text: "UA1GHWQ32M2NF")
 		_ = try view.inspect().find(text: SyncTimestampFormatting.displayString(fromISO: firstCreated))
 		_ = try view.inspect().find(text: SyncTimestampFormatting.displayString(fromISO: secondCreated))
-		_ = try view.inspect().find(text: "Chats, projects, and recordings")
+		_ = try view.inspect().find(text: "Chats, projects, recordings, and library")
 		_ = try view.inspect().find(text: "History")
 		_ = try view.inspect().find(
-			text: "Previous copies of chats, projects, and recordings. Toby keeps the latest 3 per Mac. Restore replaces that data on this Mac and restarts Toby."
+			text: "Previous copies of chats, projects, recordings, and library files. Toby keeps the latest 3 per Mac. Restore replaces that data on this Mac and restarts Toby."
 		)
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "data-backups-enabled")
 		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "data-backups-disable")

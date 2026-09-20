@@ -19,8 +19,8 @@ Same payload as [backup/restore](security.md#backup-and-restore):
 
 | Included | Not included |
 | -------- | ------------ |
-| `config.json` (personas, connection flags, AI/listen/inbound/search/weather prefs) | Live multi-Mac database sync |
-| Full credentials bag (AI keys, plugin tokens) | Recordings, logs |
+| `config.json` (personas, connection flags, AI/listen/inbound/search/weather/library prefs) | Live multi-Mac database sync |
+| Full credentials bag (AI keys, plugin tokens) | Recordings, logs, library files |
 | | `~/.toby/skills/`, persona image files, plugin packages |
 | | App `UserDefaults` (theme, menu bar, `TOBY_DIR`) |
 
@@ -67,7 +67,7 @@ Finder: iCloud Drive → Toby → sync:
 ~/Library/Mobile Documents/com~apple~CloudDocs/Toby/sync/
   settings.json
   settings-history/<utc>-l<lamport>.json   # last 3 previous settings copies
-  data-backups/<device-id>/<utc>.tbybak    # chats, projects, recordings
+  data-backups/<device-id>/<utc>.tbybak    # chats, projects, recordings, library
 ```
 
 The daemon prefers native coordinated I/O when Toby.app is already running
@@ -152,10 +152,12 @@ older snapshots automatically:
 
 Snapshots are streamed file-backed archives (same format as `.tbybak` config
 backups, minus settings/credentials) containing `chat.sqlite` (chats,
-projects, schedules, flows, run history), `memory.sqlite`, complete project
-folders, and saved recordings (audio, transcripts, summaries). They use the
+projects, schedules, flows, run history, library catalog), `memory.sqlite`, complete project
+folders, saved recordings (audio, transcripts, summaries), and library files.
+They use the
 same sync password and transport. Snapshots can be large because they include
-audio. Legacy `.json` snapshots from older versions remain listed and
+audio. Live settings sync does **not** two-way merge library files across Macs;
+only these opt-in snapshots (and File → Backup) copy them. Legacy `.json` snapshots from older versions remain listed and
 restorable (databases only). They are never pulled or applied automatically;
 restore is an explicit replacement followed by a daemon restart. Projects are
 restored into `~/.toby/projects/<id>` with their database paths rewritten;

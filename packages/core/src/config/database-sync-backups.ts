@@ -21,7 +21,7 @@ import { getDeviceName, getSyncBlobStore } from "./sync-engine";
 import { getSyncPassphrase } from "./sync-keychain";
 import { readSyncState, writeSyncState } from "./sync-state";
 
-/** Latest complete snapshots kept per Mac (chats, project files, recordings). */
+/** Latest complete snapshots kept per Mac (chats, project files, recordings, library). */
 export const DATABASE_SYNC_BACKUP_LIMIT = 3;
 const SNAPSHOT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const FORMAT = "toby.database.backup.encrypted";
@@ -34,6 +34,7 @@ export interface DatabaseSyncBackupInfo {
 	readonly path: string;
 	readonly includesProjects: boolean;
 	readonly includesRecordings: boolean;
+	readonly includesLibrary: boolean;
 }
 
 interface DatabaseSyncBackupFile {
@@ -129,6 +130,7 @@ export async function createDatabaseSyncBackup(): Promise<DatabaseSyncBackupInfo
 		path: finalPath,
 		includesProjects: true,
 		includesRecordings: true,
+		includesLibrary: true,
 	};
 }
 
@@ -211,6 +213,7 @@ function readBackupInfo(
 				path: filePath,
 				includesProjects: header.sections["projects-files"] !== undefined,
 				includesRecordings: header.sections["recordings-files"] !== undefined,
+				includesLibrary: header.sections["library-files"] !== undefined,
 			};
 		} catch {
 			return null;
@@ -227,6 +230,7 @@ function readBackupInfo(
 			path: filePath,
 			includesProjects: false,
 			includesRecordings: false,
+			includesLibrary: false,
 		};
 	}
 	return null;
@@ -250,7 +254,7 @@ export async function restoreDatabaseSyncBackup(options: {
 	if (filePath.endsWith(".tbybak")) {
 		const reader = new BackupArchiveReader(filePath, password);
 		try {
-			// Stages databases, project files, and recordings for the next
+			// Stages databases, project files, recordings, and library for the next
 			// daemon startup. Settings are not touched by database backups.
 			await stageArchiveRestore(reader, { requireDatabases: true });
 		} finally {

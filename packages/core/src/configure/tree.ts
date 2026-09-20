@@ -1,3 +1,4 @@
+import { resolveAuxiliaryModelId } from "../ai/model-factory";
 import type { AIProviderForUI } from "../ai/model-list";
 import { formatModelChoiceLabel } from "../ai/model-list";
 import { AI_PROVIDERS } from "../ai/providers";
@@ -893,6 +894,69 @@ export function buildSettingsTree(
 		],
 	};
 
+	const defaultPersona =
+		personas.find((p) => p.name === getDefaultPersonaName()) ?? personas[0];
+	const libraryProviderId =
+		values["library.provider"] ?? defaultPersona?.ai.provider ?? "openai";
+	const libraryProviderInfo = availableProviders.find(
+		(pr) => pr.id === libraryProviderId,
+	);
+	const libraryModelValue =
+		values["library.model"] ?? resolveAuxiliaryModelId(libraryProviderId);
+	const libraryModelItems = [...(libraryProviderInfo?.models ?? [])];
+	if (
+		libraryModelValue &&
+		!libraryModelItems.some((m) => m.id === libraryModelValue)
+	) {
+		libraryModelItems.push({ id: libraryModelValue });
+	}
+	const libraryModelOptions = libraryModelItems.map((m) => m.id);
+	const libraryModelSelectChoices = libraryModelItems.map((m) => ({
+		value: m.id,
+		label: formatModelChoiceLabel(m),
+	}));
+	if (libraryProviderInfo?.allowCustomModel) {
+		libraryModelOptions.push(ADD_CUSTOM_MODEL_SENTINEL);
+		libraryModelSelectChoices.push({
+			value: ADD_CUSTOM_MODEL_SENTINEL,
+			label: "+ Add custom model…",
+		});
+	}
+	const librarySection: SettingsItem = {
+		label: "Library",
+		kind: "section",
+		key: "library",
+		children: [
+			{
+				label:
+					"Used to summarize documents and caption images when they are added to the Library. Defaults to a small model on your default persona's provider.",
+				kind: "hint" as const,
+				key: "library._status",
+			},
+			{
+				label: "Provider",
+				kind: "select" as const,
+				key: "library.provider",
+				navKey: "library.provider",
+				options: availableProviders.map((pr) => pr.id),
+				selectChoices: availableProviders.map((pr) => ({
+					value: pr.id,
+					label: pr.displayName,
+				})),
+				currentValue: libraryProviderId,
+			},
+			{
+				label: "Model",
+				kind: "select" as const,
+				key: "library.model",
+				navKey: "library.model.select",
+				options: libraryModelOptions,
+				selectChoices: libraryModelSelectChoices,
+				currentValue: libraryModelValue,
+			},
+		],
+	};
+
 	return {
 		label: "Toby Configuration",
 		kind: "section",
@@ -956,6 +1020,7 @@ export function buildSettingsTree(
 					},
 				],
 			},
+			librarySection,
 			schedulesSection,
 		],
 	};

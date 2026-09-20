@@ -22,7 +22,7 @@ Drive is off, blocked, or you prefer another service.
 | Shared | Stays on each Mac |
 | ------ | ----------------- |
 | Settings (personas, connected integrations, AI and tool preferences) | Chat history |
-| Secrets (AI keys, Email / Slack / Notion tokens, and other plugin credentials) | Live chat/memory sync, recordings |
+| Secrets (AI keys, Email / Slack / Notion tokens, and other plugin credentials) | Live chat/memory sync, recordings, library files |
 | | Skills, installed plugins, theme / menu bar / home directory |
 
 ## Set up with iCloud Drive
@@ -69,7 +69,7 @@ updates when the app/daemon is running. Last write wins. Previous settings
 copies are kept in **History** on the **Settings backups** pane (last 3) so you
 can restore a bad overwrite.
 
-That pane is the live settings vault only — not chats, projects, or recordings.
+That pane is the live settings vault only — not chats, projects, recordings, or library files.
 Use **Back up settings now** to send this Mac’s settings immediately. Restore a
 previous copy from History if you need to roll settings back. CLI equivalent
 for an immediate upload: `toby config sync push`.
@@ -94,12 +94,12 @@ to it using its password.
 
 ## Data Backups
 
-Chats, projects, schedules, flows, run history, memories, project files, and
-recordings are not continuously synchronized because two Macs changing them at
+Chats, projects, schedules, flows, run history, memories, project files,
+recordings, and library files are not continuously synchronized because two Macs changing them at
 once could lose data. Instead, open **Settings → Sync → Data backups**
 to save an encrypted snapshot of this Mac once a day. Settings sync must
 be on first. Enable or disable daily backups here without changing the sync destination. Disabling overall sync in Sync setup also pauses automatic data backups. Each snapshot includes
-chats, memories, project files, and recordings — audio, transcripts, and
+chats, memories, project files, recordings, and library items — audio, transcripts, and
 summaries — so they can be large. Toby keeps the latest **3** snapshots per
 Mac in the **Sync destination** in Sync setup (the same iCloud
 Drive or selected folder as settings sync) and deletes older ones.
@@ -107,7 +107,7 @@ Drive or selected folder as settings sync) and deletes older ones.
 Use **Back Up Now** at the bottom of the pane to create one immediately.
 History lists the latest copies. Dates are shown in your local format. Click a
 snapshot to show it in Finder. To restore, choose **Restore**.
-This replaces all local chat and memory data, project files, and recordings on
+This replaces all local chat and memory data, project files, recordings, and library items on
 this Mac and restarts Toby; it does not merge data or restore it automatically.
 Projects are restored inside Toby's data folder; original custom project
 folders are left untouched.

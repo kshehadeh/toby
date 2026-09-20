@@ -123,8 +123,11 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/memories` | Create a manual memory. |
 | `GET` | `/api/memories/:id` | Fetch one memory item. |
 | `GET` | `/api/memories/:id/explain` | Fetch source/audit explanation for one memory. |
+| `GET` | `/api/library` | Search or page through library items. |
+| `POST` | `/api/library` | Add a file (`filename`, `mediaType`, `dataBase64`). |
+| `GET` / `PATCH` / `DELETE` | `/api/library/:id` | Library item detail, update, or delete. |
 | `POST` | `/api/config/backup` | Create a password-encrypted complete backup (binary archive response). |
-| `POST` | `/api/config/restore` | Restore settings, credentials, databases, project files, and recordings from a backup (JSON legacy body or binary archive upload). |
+| `POST` | `/api/config/restore` | Restore settings, credentials, databases, project files, recordings, and library files from a backup (JSON legacy body or binary archive upload). |
 | `GET` | `/api/config/sync` | Settings sync status (`backend`, `folderPath`, `storeAvailable`, iCloud flags). |
 | `POST` | `/api/config/sync/enable` | Enable sync (`password`, optional `mode`: `create` / `join` / `replace`, optional `backend`: `icloud` / `folder`, `folderPath` when folder). |
 | `POST` | `/api/config/sync/disable` | Disable sync (`deleteCloud?: boolean` deletes this store’s vault folder). |
@@ -132,11 +135,11 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `POST` | `/api/config/sync/pull` | Apply the remote snapshot (`confirm: true`). |
 | `GET` | `/api/config/sync/history` | List previous snapshots (metadata only). |
 | `POST` | `/api/config/sync/restore-history` | Restore a history file (`filename`, `confirm: true`). |
-| `GET` | `/api/config/sync/data-backups` | List encrypted per-device data snapshots (chats, project files, recordings). Prunes to the latest 3 per Mac. Each item includes `path`, `includesProjects`, and `includesRecordings`. |
+| `GET` | `/api/config/sync/data-backups` | List encrypted per-device data snapshots (chats, project files, recordings, library). Prunes to the latest 3 per Mac. Each item includes `path`, `includesProjects`, `includesRecordings`, and `includesLibrary`. |
 | `POST` | `/api/config/sync/data-backups/enable` | Opt in and create an initial data snapshot. |
 | `POST` | `/api/config/sync/data-backups/disable` | Stop automatic data snapshots. |
 | `POST` | `/api/config/sync/data-backups/create` | Create a data snapshot now. |
-| `POST` | `/api/config/sync/data-backups/restore` | Stage a confirmed data restore (databases, project files, recordings) and restart the daemon. |
+| `POST` | `/api/config/sync/data-backups/restore` | Stage a confirmed data restore (databases, project files, recordings, library) and restart the daemon. |
 | `GET` | `/api/configure/tree` | Fetch configure UI schema and current values. |
 | `GET` | `/api/configure/sections` | Lightweight section structure for the native settings sidebar. |
 | `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |
@@ -1029,11 +1032,90 @@ Errors:
 
 - `404` when the memory does not exist.
 
+## Library
+
+The native app uses the library list endpoint for the sidebar destination.
+Add is asynchronous (`status=pending` until summarize/embed finishes). Chat
+tools wait for indexing. See [library.md](library.md).
+
+### `GET /api/library`
+
+Query parameters:
+
+| Name | Default | Max | Description |
+| --- | ---: | ---: | --- |
+| `q` | none | n/a | Optional hybrid keyword + embedding search. |
+| `limit` | `50` | `500` | Maximum number of items to return. |
+| `offset` | `0` | n/a | Number of items to skip. |
+
+Response:
+
+```ts
+type LibraryListResponse = {
+  items: LibraryItem[];
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+};
+
+type LibraryItem = {
+  id: string;
+  title: string;
+  originalFilename: string;
+  relativePath: string;
+  mimeType: string;
+  byteSize: number;
+  contentHash: string;
+  description: string;
+  status: "pending" | "ready" | "failed";
+  error?: string | null;
+  source: "ui" | "chat" | "tool";
+  createdAt: string;
+  updatedAt: string;
+  embeddingModel?: string;
+};
+```
+
+### `GET /api/library/:id`
+
+```ts
+type LibraryDetailResponse = { item: LibraryItem };
+```
+
+Errors:
+
+- `404` when the item does not exist.
+
+### `POST /api/library`
+
+Body uses the chat-attachment shape:
+
+```ts
+type LibraryCreateRequest = {
+  filename: string;
+  mediaType?: string;
+  dataBase64: string;
+};
+```
+
+Returns `{ item, duplicate }` with `201` for a new copy or `200` when the same
+bytes already exist. Indexing continues in the background.
+
+### `PATCH /api/library/:id`
+
+Body may include `title`, `description`, and/or replacement `filename` /
+`mediaType` / `dataBase64`. Replacing bytes re-indexes.
+
+### `DELETE /api/library/:id`
+
+Removes the catalog row, embedding, and on-disk folder. Returns `{ ok: true, id }`.
+
 ## Config backup / restore
 
 Design overview: [security.md](security.md). Shared helpers live in
 [`packages/core/src/config/backup.ts`](../packages/core/src/config/backup.ts).
-Toby.app **File → Backup Toby Data… / Restore Toby Data…** and `toby config backup` / `restore` use the same format: password-encrypted AES-256-GCM `.tbybak` archives containing settings, credentials, databases, project files, and recordings.
+Toby.app **File → Backup Toby Data… / Restore Toby Data…** and `toby config backup` / `restore` use the same format: password-encrypted AES-256-GCM `.tbybak` archives containing settings, credentials, databases, project files, recordings, and library files.
 
 ### `POST /api/config/backup`
 

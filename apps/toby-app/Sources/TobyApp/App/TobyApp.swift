@@ -13,6 +13,7 @@ struct TobyApp: App {
 	@State private var projectsStore = ProjectsStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var memoriesStore = MemoriesStore()
+	@State private var libraryStore = LibraryStore()
 	@State private var flowsStore = FlowsStore()
 	@State private var changelogStore = ChangelogStore()
 	@State private var pluginsStore = PluginsStore()
@@ -46,6 +47,7 @@ struct TobyApp: App {
 				projectsStore: projectsStore,
 				skillsStore: skillsStore,
 				memoriesStore: memoriesStore,
+				libraryStore: libraryStore,
 				flowsStore: flowsStore,
 				personaEditorCoordinator: personaEditorCoordinator,
 				updateStore: updateStore,
@@ -289,6 +291,7 @@ struct TobyApp: App {
 		case .dashboard: return KeyboardShortcut("1", modifiers: .command)
 		case .chat: return KeyboardShortcut("2", modifiers: .command)
 		case .projects: return KeyboardShortcut("4", modifiers: .command)
+		case .library: return KeyboardShortcut("0", modifiers: .command)
 		case .skills: return KeyboardShortcut("5", modifiers: .command)
 		case .schedules: return KeyboardShortcut("7", modifiers: .command)
 		case .flows: return KeyboardShortcut("8", modifiers: .command)

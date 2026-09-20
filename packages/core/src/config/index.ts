@@ -142,6 +142,20 @@ export function getGeneratedFilesDir(): string {
 	return path.join(resolveTobyDir(), "generated-files");
 }
 
+/** Indexed file library: `~/.toby/library/<id>/<filename>`. */
+export function getLibraryDir(): string {
+	return path.join(resolveTobyDir(), "library");
+}
+
+/** Ensure the library directory exists and return its path. */
+export function ensureLibraryDir(): string {
+	const dir = getLibraryDir();
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+	return dir;
+}
+
 /** Directory for bundled native helper binaries. */
 export function getHelpersDir(): string {
 	return path.join(resolveTobyDir(), "helpers");
@@ -226,6 +240,12 @@ export interface DashboardConfig {
 	readonly persona?: string;
 }
 
+/** Small-model settings used to summarize and caption library items. */
+export interface LibraryConfig {
+	readonly provider?: string;
+	readonly model?: string;
+}
+
 export interface ListenConfig {
 	/** Persona used for recording transcript summaries; falls back to default persona. */
 	readonly summaryPersona?: string;
@@ -263,6 +283,8 @@ export interface TobyConfig {
 	activeProject?: string;
 	dashboard?: DashboardConfig;
 	listen?: ListenConfig;
+	/** Provider + model used to summarize/caption library items on ingest. */
+	library?: LibraryConfig;
 }
 
 interface AICredentials {
@@ -423,6 +445,7 @@ export function readConfig(): TobyConfig {
 		activeProject: parsed.activeProject,
 		dashboard: parsed.dashboard,
 		listen: parsed.listen,
+		library: parsed.library,
 	};
 }
 

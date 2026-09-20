@@ -10,6 +10,10 @@ enum ToolDisplayLabels {
 		"memoryForget": "Forget memory",
 		"memoryExplain": "Explain memory",
 		"memoryRetrieveForTask": "Retrieve memories for task",
+		"add_to_library": "Add to library",
+		"find_in_library": "Find in library",
+		"update_in_library": "Update library item",
+		"remove_from_library": "Remove from library",
 		"listListenRecordings": "List listen recordings",
 		"readTranscript": "Read listen transcript",
 		"getMyLocation": "Get my location",
@@ -224,6 +228,9 @@ enum ToolDisplayLabels {
 		if lower.contains("memory") {
 			return "brain.head.profile"
 		}
+		if lower.contains("library") {
+			return "books.vertical"
+		}
 		if lower.contains("calendar") || lower.contains("event") {
 			return "calendar"
 		}
@@ -284,6 +291,10 @@ enum ToolDisplayLabels {
 		"writeTextFile": "doc.text",
 		"macClipboardRead": "doc.on.clipboard",
 		"macClipboardWrite": "doc.on.clipboard",
+		"add_to_library": "books.vertical",
+		"find_in_library": "books.vertical",
+		"update_in_library": "books.vertical",
+		"remove_from_library": "books.vertical",
 		"createLocalSkill": "wand.and.stars",
 		"loadLocalSkillInstructions": "book",
 		"tobyListIntegrations": "puzzlepiece",

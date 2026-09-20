@@ -104,6 +104,7 @@ struct CommandPaletteViewTests {
         #expect(titles.contains("New chat"))
         #expect(titles.contains("Open settings"))
         #expect(titles.contains("Open Memories"))
+        #expect(titles.contains("Open Library"))
         #expect(titles.contains("Restart server"))
         #expect(titles.contains("Session One"))
         #expect(titles.contains("Gmail"))

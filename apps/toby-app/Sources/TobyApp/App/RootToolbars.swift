@@ -17,6 +17,7 @@ struct RootCommonToolbarModel {
 	var onBack: () -> Void
 	var onForward: () -> Void
 	var onCheckForUpdates: () -> Void = {}
+	var updateStore: UpdateStore? = nil
 }
 
 /// Route title used for `navigationTitle` / tests. Optional `leading` is the only
@@ -149,9 +150,17 @@ enum RootToolbars {
 			)
 			SettingsToolbarButton(onOpenSettings: model.onOpenSettings)
 			SearchToolbarButton(onSearch: model.onSearch)
-			if model.isUpdateAvailable || model.isUpgrading {
+		}
+		if let updateStore = model.updateStore {
+			if updateStore.isUpdateAvailable || updateStore.isUpgrading {
+				ToolbarItem(placement: .primaryAction) {
+					UpdateToolbarButton(updateStore: updateStore)
+				}
+			}
+		} else if model.isUpdateAvailable || model.isUpgrading {
+			ToolbarItem(placement: .primaryAction) {
 				Button(action: model.onCheckForUpdates) {
-					Image(systemName: model.isUpgrading ? "arrow.down.circle" : "arrow.down.circle.badge.clock")
+					Image(systemName: UpdateToolbarButton.iconName(isUpgrading: model.isUpgrading))
 				}
 				.disabled(model.isUpgrading)
 				.help(updateHelp(model: model))
@@ -273,8 +282,12 @@ enum RootToolbars {
 	}
 
 	static func updateHelp(model: RootCommonToolbarModel) -> String {
-		if model.isUpgrading { return "Updating Toby" }
-		if let latest = model.latestVersion {
+		updateHelp(isUpgrading: model.isUpgrading, latestVersion: model.latestVersion)
+	}
+
+	static func updateHelp(isUpgrading: Bool, latestVersion: String?) -> String {
+		if isUpgrading { return "Updating Toby" }
+		if let latest = latestVersion {
 			return "Update to v\(latest) is available"
 		}
 		return "Update available"
@@ -738,5 +751,33 @@ enum RootToolbars {
 			return "Delete Recording"
 		}
 		return "Delete \(selectedCount) Recordings"
+	}
+
+	@ToolbarContentBuilder
+	static func library(
+		common model: RootCommonToolbarModel,
+		title: String = "Library",
+		isListLoading: Bool,
+		isSaving: Bool,
+		onAdd: @escaping () -> Void,
+		onRefresh: @escaping () -> Void,
+	) -> some ToolbarContent {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions {
+			Button(action: onAdd) {
+				Image(systemName: "plus")
+			}
+			.help("Add to Library")
+			.disabled(isSaving)
+			.accessibilityIdentifier("toolbar-add-library-button")
+			.accessibilityLabel("Add to Library")
+			Button(action: onRefresh) {
+				Image(systemName: "arrow.clockwise")
+			}
+			.help("Refresh library")
+			.disabled(isListLoading || isSaving)
+			.accessibilityIdentifier("refresh-library-button")
+			.accessibilityLabel("Refresh library")
+		}
 	}
 }

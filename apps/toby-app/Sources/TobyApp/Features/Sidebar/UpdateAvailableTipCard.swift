@@ -1,27 +1,15 @@
 import SwiftUI
 import TipKit
 
-/// Inline TipKit card for a pending native-app update. Presentation is bound to
-/// `UpdateStore.shouldShowUpdateTip` so dismiss can reshow after a newer version
-/// or a two-day cooldown without using TipKit’s datastore as source of truth.
-struct UpdateAvailableTipCard: View {
+/// Toolbar download control shown when Sparkle finds a newer Toby.app. A TipKit
+/// popover points at this button (not the sidebar) so dismiss can reshow after a
+/// newer version or a two-day cooldown without using TipKit’s datastore as
+/// source of truth.
+struct UpdateToolbarButton: View {
 	@Bindable var updateStore: UpdateStore
 
-	var accessibilityId: String = "sidebar-update-available-tip"
-
-	var body: some View {
-		TipView(tip, isPresented: presentedBinding, arrowEdge: nil) { action in
-			if action.id == "install-update" {
-				Task { await updateStore.performUpgrade() }
-			}
-		}
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.padding(.horizontal, 8)
-		.padding(.vertical, 8)
-		.accessibilityIdentifier(accessibilityId)
-		.task {
-			TobyTips.configure()
-		}
+	static func iconName(isUpgrading: Bool) -> String {
+		isUpgrading ? "arrow.down.circle" : "arrow.down.app"
 	}
 
 	var title: String { "Update available" }
@@ -38,6 +26,33 @@ struct UpdateAvailableTipCard: View {
 	var actionTitle: String? {
 		guard let latestVersion = updateStore.latestVersion else { return nil }
 		return "Upgrade to v\(latestVersion)"
+	}
+
+	var helpText: String {
+		RootToolbars.updateHelp(
+			isUpgrading: updateStore.isUpgrading,
+			latestVersion: updateStore.latestVersion
+		)
+	}
+
+	var body: some View {
+		Button {
+			Task { await updateStore.checkNativeAppForUpdates() }
+		} label: {
+			Image(systemName: Self.iconName(isUpgrading: updateStore.isUpgrading))
+		}
+		.disabled(updateStore.isUpgrading)
+		.help(helpText)
+		.accessibilityLabel(helpText)
+		.accessibilityIdentifier("toolbar-update-button")
+		.popoverTip(tip, isPresented: presentedBinding, arrowEdge: .bottom) { action in
+			if action.id == "install-update" {
+				Task { await updateStore.performUpgrade() }
+			}
+		}
+		.task {
+			TobyTips.configure()
+		}
 	}
 
 	private var presentedBinding: Binding<Bool> {
@@ -77,7 +92,7 @@ struct UpdateAvailableTip: Tip {
 	}
 
 	var image: Image? {
-		Image(systemName: "arrow.down.circle.badge.clock")
+		Image(systemName: UpdateToolbarButton.iconName(isUpgrading: false))
 	}
 
 	var actions: [Action] {

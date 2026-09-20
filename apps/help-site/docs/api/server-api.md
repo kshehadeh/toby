@@ -5,7 +5,7 @@ title: Server API
 
 # Server API
 
-The **Server API** is the localhost HTTP API served by Toby’s background service (daemon). Toby.app, scheduled jobs, and other local clients use it for chat, sessions, configuration, recordings metadata, projects, memories, and more.
+The **Server API** is the localhost HTTP API served by Toby’s background service (daemon). Toby.app, scheduled jobs, and other local clients use it for chat, sessions, configuration, recordings metadata, projects, memories, library files, and more.
 
 This page is the endpoint reference. For access model, config, and how this differs from Toby.app’s **Native API**, see [Local APIs](./overview).
 
@@ -133,6 +133,9 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `PATCH` | `/api/memories/:id` | Update a memory |
 | `DELETE` | `/api/memories/:id` | Delete a memory |
 | `GET` | `/api/memories/:id/explain` | Source / audit explanation |
+| `GET` | `/api/library` | Search / page library items |
+| `POST` | `/api/library` | Add a file (`filename`, `mediaType`, `dataBase64`) |
+| `GET` / `PATCH` / `DELETE` | `/api/library/:id` | Library item detail, update, delete |
 | `GET` | `/api/configure/tree` | Full configure tree + values |
 | `GET` | `/api/configure/sections` | Lightweight settings sections |
 | `GET` | `/api/configure/sections/:sectionKey` | One section detail |
@@ -861,6 +864,65 @@ type MemoryExplainResponse = {
     auditTrail: Array<{ action: string; at: string; reason?: string }>;
   };
 };
+```
+
+## Library
+
+Indexed file catalog. See [Library](../library). Add is asynchronous; chat tools wait for indexing.
+
+### `GET /api/library`
+
+| Query | Default | Description |
+| --- | ---: | --- |
+| `q` | — | Search query (keywords and meaning) |
+| `limit` | `50` (max 500) | Page size |
+| `offset` | `0` | Skip count |
+
+```ts
+type LibraryListResponse = {
+  items: LibraryItem[];
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+};
+
+type LibraryItem = {
+  id: string;
+  title: string;
+  originalFilename: string;
+  relativePath: string;
+  mimeType: string;
+  byteSize: number;
+  contentHash: string;
+  description: string;
+  status: "pending" | "ready" | "failed";
+  error?: string | null;
+  source: "ui" | "chat" | "tool";
+  createdAt: string;
+  updatedAt: string;
+  embeddingModel?: string;
+};
+```
+
+### `POST /api/library`
+
+Body: `{ filename, mediaType?, dataBase64 }`. Returns `{ item, duplicate }` (`201` new, `200` duplicate).
+
+### `GET /api/library/:id`
+
+```ts
+{ item: LibraryItem }
+```
+
+### `PATCH /api/library/:id`
+
+Updatable: `title`, `description`, and/or replacement `filename` / `mediaType` / `dataBase64`.
+
+### `DELETE /api/library/:id`
+
+```json
+{ "ok": true, "id": "…" }
 ```
 
 ## Configure

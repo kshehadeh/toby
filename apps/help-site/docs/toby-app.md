@@ -30,7 +30,7 @@ For endpoint-level documentation, see [Local APIs](./api/overview): the daemon [
 | **New Project** | Opens Projects and a **New Project** sheet. Save creates it; Cancel discards the draft. |
 | **New Memory** | Opens Memories and starts the new-memory editor |
 | **Permissions…** | Opens the Permissions window for macOS privacy grants (microphone, screen, location, and more) |
-| **Backup Toby Data…** | Prompts for a password, then a save location for a `.tbybak` archive of settings, credentials, chats, schedules, flows, projects, and memories |
+| **Backup Toby Data…** | Prompts for a password, then a save location for a `.tbybak` archive of settings, credentials, chats, schedules, flows, projects, recordings, memories, and library files |
 | **Restore Toby Data…** | Opens a `.tbybak` file, asks for the password if needed, replaces the included local data, and restarts Toby to apply databases |
 
 The CLI equivalents for backup/restore are `toby config backup` and `toby config restore`. See
@@ -43,7 +43,7 @@ settings across Macs without copying a file, use **Settings → Sync**
 | Menu item | What it does |
 | --------- | ------------ |
 | **Show Command View** | Opens the command palette to jump to sessions, routes, and actions (⌘K) |
-| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘2, ⌘4–⌘5, ⌘7–⌘9) |
+| Route items (Home, Chat, …) | Switch the main window to that surface (⌘1–⌘2, ⌘4–⌘5, ⌘7–⌘9, Library ⌘0) |
 | **Integrations** | Opens Settings on the Integrations catalog (⌘3) |
 | **Memories** | Opens the Memories window to browse, add, edit, or delete memories (⌘6) |
 
@@ -56,7 +56,7 @@ two words or sentence punctuation.
 ## Surfaces
 
 Use the sidebar destination list to switch between Toby.app's primary workspaces:
-Home, Chats, Projects, and Recordings, then **Automation** (Schedules, Flows) and
+Home, Chats, Projects, Library, and Recordings, then **Automation** (Schedules, Flows) and
 **Tools** (Skills). Connect services in **Settings → Integrations**. Memories opens as a separate window from the
 View menu, command palette, or menu bar — not as a main-window route.
 
@@ -65,7 +65,7 @@ on the right. Click the dot for background-service details, inbound chat status,
 and **Restart server**. When the service is not healthy, a labelled recovery
 control also appears above the footer.
 
-Workspaces that list items (Chats, Projects, Recordings, Skills, Schedules,
+Workspaces that list items (Chats, Projects, Library, Recordings, Skills, Schedules,
 Flows, plus the Memories and Logs windows) share the same
 second-column behavior: nothing is selected until you choose a row, the main
 page asks you to pick one (and offers a create link when that type can be
@@ -82,7 +82,8 @@ persona). Edit name and other fields from the toolbar **Edit** sheet. A selected
 the flow id as the subtitle. Selecting multiple recordings
 shows their count.
 On the right, **Record**, **Settings**, and **Search** stay together across
-workspaces; an update button also appears when an update is available.
+workspaces; a download **Update** button also appears when an update is available,
+and a tip points at that button.
 **Search** opens the command palette, also available with ⌘K.
 A separate group at the far right contains actions for the current view,
 such as **Refresh** on Home or **Delete** for a selected skill. This group

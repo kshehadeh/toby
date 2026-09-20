@@ -9,6 +9,7 @@ Human- and flow-oriented docs for this repository.
 | [icloud-sync.md](icloud-sync.md) | Encrypted settings snapshots (iCloud Drive or a shared folder): payload, clocks, Keychain, surfaces. |
 | [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore` / `config sync`. |
 | [projects.md](projects.md) | Projects: SQLite metadata, `AGENTS.md` guidance, skills, outputs. |
+| [library.md](library.md) | Indexed file library: disk copies, `chat.sqlite` catalog, ingest, chat tools. |
 | [integrations.md](integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
 | [mcp.md](mcp.md) | MCP servers as first-class connections: identity, transports, auth, tools. |
 | [plugin-protocol.md](plugin-protocol.md) | Installable plugin CLI contract (v1): argv, stdin/stdout, discovery. |

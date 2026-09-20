@@ -157,8 +157,8 @@ from a Mac that still has local secrets, or restore a `.tbybak`.
 ## Backup and restore
 
 Password-protected archives (`.tbybak`) export settings, credentials,
-safe SQLite snapshots, project folders, and saved recordings so a machine move
-does not depend on Keychain — and does not lose project work or audio.
+safe SQLite snapshots, project folders, saved recordings, and library files so a machine move
+does not depend on Keychain — and does not lose project work, audio, or indexed files.
 
 ### What is included
 
@@ -170,6 +170,7 @@ does not depend on Keychain — and does not lose project work or audio.
 | `memory.sqlite` (memories, sources, proposals, audit data) | App appearance and other Mac-only preferences |
 | Complete project folders (attachments, outputs, `AGENTS.md`, project-local skills), including projects whose folder lives elsewhere | Symbolic links and unreadable files (recorded as skipped in the manifest and reported by the CLI) |
 | Saved recordings under `listen/recordings/` (audio, transcripts, summaries, metadata) | Unfinished in-progress recordings (`listen/recordings/.tmp/`) |
+| Indexed library files under `library/<id>/` (copied originals and `extracted.txt`) | Live two-way merge of library files across Macs |
 
 Backups can be large because they include audio. Backup creation and restore
 both stream file sections so recording libraries do not need to fit in memory.
@@ -182,7 +183,7 @@ New backups are **v3 file-backed archives**:
   sections and a plaintext JSON header at the tail (section offsets, IVs, auth
   tags, scrypt params). Sections: `meta` (version 3 settings + credentials),
   `databases` (v1 gzip-base64 chat/memory bundle), `projects-files`,
-  `recordings-files`, and `files-manifest` (relative paths, sizes, SHA-256,
+  `recordings-files`, `library-files`, and `files-manifest` (relative paths, sizes, SHA-256,
   modes).
 - Password KDF is scrypt; each section is independently GCM-authenticated.
 - Code: [`backup-archive.ts`](../packages/core/src/config/backup-archive.ts)
@@ -238,12 +239,12 @@ reimplements Keychain decrypt; it asks the daemon, which calls
    re-encrypted at rest on macOS with **this machine’s** Keychain DEK), then
    the pending manifest is written as the commit point and the daemon restarts.
 5. Daemon startup applies the staged restore with rollback: chat/memory
-   databases plus the `projects/` and `listen/recordings/` trees are replaced
+   databases plus the `projects/`, `listen/recordings/`, and `library/` trees are replaced
    from staging; on any failure the pre-restore copies are put back. Project
    rows are repointed to `~/.toby/projects/<id>` so restored projects work on
    any Mac; original custom folders are never overwritten.
 6. Legacy JSON restores write settings immediately and stage only their
-   databases; they never clear existing project files or recordings.
+   databases; they never clear existing project files, recordings, or library items.
 7. Invalidate configure / model-list caches on the API path.
 
 ### Operational guidance

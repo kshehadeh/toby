@@ -81,6 +81,13 @@ import {
 } from "./handlers/integrations";
 import { handleCreateIssue } from "./handlers/issues";
 import {
+	handleLibraryCreate,
+	handleLibraryDelete,
+	handleLibraryDetail,
+	handleLibraryList,
+	handleLibraryPatch,
+} from "./handlers/library";
+import {
 	handleListenRecordingAudioDelete,
 	handleListenRecordingDelete,
 	handleListenRecordingDetail,
@@ -501,6 +508,22 @@ export async function handleWebRequest(
 		}
 		if (memoryMatch && req.method === "DELETE") {
 			return handleMemoryDelete(decodeURIComponent(memoryMatch[1]));
+		}
+		if (pathname === "/api/library" && req.method === "GET") {
+			return handleLibraryList(url);
+		}
+		if (pathname === "/api/library" && req.method === "POST") {
+			return handleLibraryCreate(req);
+		}
+		const libraryMatch = /^\/api\/library\/([^/]+)$/.exec(pathname);
+		if (libraryMatch && req.method === "GET") {
+			return handleLibraryDetail(decodeURIComponent(libraryMatch[1]));
+		}
+		if (libraryMatch && req.method === "PATCH") {
+			return handleLibraryPatch(decodeURIComponent(libraryMatch[1]), req);
+		}
+		if (libraryMatch && req.method === "DELETE") {
+			return handleLibraryDelete(decodeURIComponent(libraryMatch[1]));
 		}
 		if (pathname === "/api/config/backup" && req.method === "POST") {
 			return handleConfigBackup(req);

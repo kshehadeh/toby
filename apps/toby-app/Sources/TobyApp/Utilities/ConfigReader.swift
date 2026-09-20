@@ -45,6 +45,13 @@ enum ConfigReader {
 			.path
 	}
 
+	/// Indexed file library: `<tobyDir>/library`.
+	static func libraryDir() -> String {
+		URL(fileURLWithPath: resolveTobyDir(), isDirectory: true)
+			.appendingPathComponent("library", isDirectory: true)
+			.path
+	}
+
 	/// Absolute, symlink-resolved path for equality checks.
 	static func standardizePath(_ path: String) -> String {
 		URL(fileURLWithPath: path)

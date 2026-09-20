@@ -156,9 +156,10 @@ final class UpdateStore {
 	var isUpgrading = false
 	var upgradeError: String?
 	var upgradeComplete = false
-	/// Sidebar TipKit card only. Toolbar / About / menu stay available during cooldown.
+	/// Toolbar TipKit popover only. The download button / About / menu stay
+	/// available during cooldown.
 	var shouldShowUpdateTip = false
-	/// Bumped whenever the sidebar tip transitions to shown so TipKit treats it
+	/// Bumped whenever the toolbar tip transitions to shown so TipKit treats it
 	/// as a new tip (it otherwise keeps `id: "update-available"` invalidated).
 	private(set) var updateTipPresentationNonce = 0
 

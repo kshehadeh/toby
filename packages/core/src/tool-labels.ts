@@ -23,6 +23,10 @@ const CORE_TOOL_LABELS: Record<string, string> = {
 	memoryForget: "Forget memory",
 	memoryExplain: "Explain memory",
 	memoryRetrieveForTask: "Retrieve memories for task",
+	add_to_library: "Add to library",
+	find_in_library: "Find in library",
+	update_in_library: "Update library item",
+	remove_from_library: "Remove from library",
 	listListenRecordings: "List listen recordings",
 	readTranscript: "Read listen transcript",
 };

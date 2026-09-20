@@ -11,6 +11,8 @@ struct ToolDisplayLabelsTests {
 	func returnsOverrideForKnownTools() {
 		#expect(ToolDisplayLabels.displayLabel("askUser") == "Ask you to choose")
 		#expect(ToolDisplayLabels.displayLabel("memorySearch") == "Search memory")
+		#expect(ToolDisplayLabels.displayLabel("find_in_library") == "Find in library")
+		#expect(ToolDisplayLabels.displayLabel("add_to_library") == "Add to library")
 		#expect(ToolDisplayLabels.displayLabel("createLocalSkill") == "Create local Toby skill")
 	}
 

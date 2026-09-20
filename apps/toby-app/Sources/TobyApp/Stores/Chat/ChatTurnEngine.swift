@@ -140,6 +140,9 @@ enum ChatTurnEngine {
 				if errorString == nil, MemoriesStore.mutatingMemoryTools.contains(toolName) {
 					NotificationCenter.default.post(name: .memoriesDidChange, object: nil)
 				}
+				if errorString == nil, LibraryStore.mutatingLibraryTools.contains(toolName) {
+					NotificationCenter.default.post(name: .libraryDidChange, object: nil)
+				}
 				// Notify skills UI when chat creates or updates a local skill.
 				if errorString == nil, SkillsStore.mutatingSkillTools.contains(toolName) {
 					NotificationCenter.default.post(name: .skillsDidChange, object: nil)

@@ -15,7 +15,6 @@ struct AppSidebar: View {
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
 	let onRestartServer: () -> Void
-	var updateStore: UpdateStore? = nil
 
 	@SceneStorage("sidebar.automationExpanded") private var automationExpanded = true
 	@SceneStorage("sidebar.toolsExpanded") private var toolsExpanded = true
@@ -42,10 +41,6 @@ struct AppSidebar: View {
 			.listStyle(.sidebar)
 			.scrollContentBackground(.hidden)
 			.accessibilityIdentifier("sidebar-destination-list")
-
-			if let updateStore, updateStore.shouldShowUpdateTip {
-				UpdateAvailableTipCard(updateStore: updateStore)
-			}
 
 			SidebarConnectionStatus(
 				status: status,

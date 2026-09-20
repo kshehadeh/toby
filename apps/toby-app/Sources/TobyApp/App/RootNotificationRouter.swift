@@ -12,6 +12,7 @@ struct RootNotificationRouter: ViewModifier {
 	var onStartNewProject: () -> Void
 	var onStartNewMemory: () -> Void
 	var onMemoriesDidChange: () -> Void
+	var onLibraryDidChange: () -> Void
 	var onPersonasDidChange: () -> Void
 	var onSkillsDidChange: () -> Void
 	var onTobyHomeDidChange: () -> Void
@@ -68,6 +69,9 @@ struct RootNotificationRouter: ViewModifier {
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .memoriesDidChange)) { _ in
 				onMemoriesDidChange()
+			}
+			.onReceive(NotificationCenter.default.publisher(for: .libraryDidChange)) { _ in
+				onLibraryDidChange()
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .personasDidChange)) { _ in
 				onPersonasDidChange()

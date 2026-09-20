@@ -72,6 +72,7 @@ export interface StageArchiveRestoreResult {
 	readonly databasesStaged: boolean;
 	readonly projectsStaged: boolean;
 	readonly recordingsStaged: boolean;
+	readonly libraryStaged: boolean;
 }
 
 /**
@@ -89,6 +90,7 @@ export async function stageArchiveRestore(
 	let databasesStaged = false;
 	let projectsStaged = false;
 	let recordingsStaged = false;
+	let libraryStaged = false;
 	try {
 		if (reader.hasSection("databases")) {
 			const raw = await reader.readSection("databases");
@@ -113,6 +115,7 @@ export async function stageArchiveRestore(
 			const stagedRoots = await stageBackupFiles(reader, manifest, pendingDir);
 			projectsStaged = stagedRoots.projects;
 			recordingsStaged = stagedRoots.recordings;
+			libraryStaged = stagedRoots.library;
 		}
 
 		if (options.applySettings) {
@@ -127,6 +130,7 @@ export async function stageArchiveRestore(
 			databases: databasesStaged,
 			projects: projectsStaged,
 			recordings: recordingsStaged,
+			library: libraryStaged,
 		};
 		writeAtomic(
 			path.join(root, PENDING_MANIFEST),
@@ -136,17 +140,18 @@ export async function stageArchiveRestore(
 		fs.rmSync(pendingDir, { recursive: true, force: true });
 		throw error;
 	}
-	return { databasesStaged, projectsStaged, recordingsStaged };
+	return { databasesStaged, projectsStaged, recordingsStaged, libraryStaged };
 }
 
 async function stageBackupFiles(
 	reader: BackupArchiveReader,
 	manifest: FilesBackupManifest,
 	pendingDir: string,
-): Promise<{ projects: boolean; recordings: boolean }> {
+): Promise<{ projects: boolean; recordings: boolean; library: boolean }> {
 	const staged: Record<BackupFileRoot, boolean> = {
 		projects: false,
 		recordings: false,
+		library: false,
 	};
 	for (const root of manifest.roots) {
 		const sectionName = `${root}-files`;
@@ -174,7 +179,11 @@ async function stageBackupFiles(
 		}
 		await byteReader.expectEnd();
 	}
-	return { projects: staged.projects, recordings: staged.recordings };
+	return {
+		projects: staged.projects,
+		recordings: staged.recordings,
+		library: staged.library,
+	};
 }
 
 async function writeStagedFile(
