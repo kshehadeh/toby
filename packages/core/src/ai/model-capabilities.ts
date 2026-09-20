@@ -30,6 +30,33 @@ export const CHAT_ATTACHMENT_ACCEPTED_MEDIA_TYPES = [
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ] as const;
 
+/** Types providers accept as native AI SDK `FilePart`s (images + PDF). */
+export const CHAT_NATIVE_FILE_PART_MEDIA_TYPES = [
+	"image/png",
+	"image/jpeg",
+	"image/webp",
+	"image/gif",
+	"application/pdf",
+] as const;
+
+/** Text-like types inlined into the user message instead of FileParts. */
+export const CHAT_INLINE_TEXT_ATTACHMENT_MEDIA_TYPES = [
+	"text/plain",
+	"text/markdown",
+	"text/csv",
+	"text/html",
+	"text/css",
+	"text/javascript",
+	"text/xml",
+	"application/json",
+	"application/javascript",
+	"application/typescript",
+	"application/xml",
+	"application/rtf",
+] as const;
+
+export const CHAT_INLINE_TEXT_MAX_CHARS = 80_000;
+
 export type ChatAttachmentCapability = {
 	readonly supported: boolean;
 	readonly reason?: string;
@@ -41,6 +68,12 @@ export type ChatAttachmentCapability = {
 
 const ACCEPTED_MEDIA_TYPE_SET = new Set<string>(
 	CHAT_ATTACHMENT_ACCEPTED_MEDIA_TYPES,
+);
+const NATIVE_FILE_PART_MEDIA_TYPE_SET = new Set<string>(
+	CHAT_NATIVE_FILE_PART_MEDIA_TYPES,
+);
+const INLINE_TEXT_ATTACHMENT_MEDIA_TYPE_SET = new Set<string>(
+	CHAT_INLINE_TEXT_ATTACHMENT_MEDIA_TYPES,
 );
 
 function baseCapability(
@@ -107,8 +140,35 @@ export function resolveChatAttachmentCapability(
 	}
 }
 
+export function normalizeChatAttachmentMediaType(mediaType: string): string {
+	const base = mediaType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+	if (base === "text/x-markdown" || base === "text/x-web-markdown") {
+		return "text/markdown";
+	}
+	if (base === "image/jpg") {
+		return "image/jpeg";
+	}
+	return base;
+}
+
 export function isAcceptedChatAttachmentMediaType(mediaType: string): boolean {
-	return ACCEPTED_MEDIA_TYPE_SET.has(mediaType.trim().toLowerCase());
+	return ACCEPTED_MEDIA_TYPE_SET.has(
+		normalizeChatAttachmentMediaType(mediaType),
+	);
+}
+
+export function isNativeChatFilePartMediaType(mediaType: string): boolean {
+	return NATIVE_FILE_PART_MEDIA_TYPE_SET.has(
+		normalizeChatAttachmentMediaType(mediaType),
+	);
+}
+
+export function isInlineTextChatAttachmentMediaType(
+	mediaType: string,
+): boolean {
+	return INLINE_TEXT_ATTACHMENT_MEDIA_TYPE_SET.has(
+		normalizeChatAttachmentMediaType(mediaType),
+	);
 }
 
 /** Types Toby can extract into chat context without native FilePart support. */
@@ -119,5 +179,9 @@ export const CHAT_EXTRACTABLE_ATTACHMENT_MEDIA_TYPES = [
 export function isExtractableChatAttachmentMediaType(
 	mediaType: string,
 ): boolean {
-	return mediaType.trim().toLowerCase() === "application/pdf";
+	const normalized = normalizeChatAttachmentMediaType(mediaType);
+	return (
+		normalized === "application/pdf" ||
+		isInlineTextChatAttachmentMediaType(normalized)
+	);
 }

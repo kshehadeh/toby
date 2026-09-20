@@ -121,6 +121,10 @@ enum ChatAttachmentDrafting {
 			switch mimeType {
 			case "application/x-javascript":
 				return "text/javascript"
+			case "text/x-markdown", "text/x-web-markdown":
+				return "text/markdown"
+			case "image/jpg":
+				return "image/jpeg"
 			default:
 				return mimeType
 			}
