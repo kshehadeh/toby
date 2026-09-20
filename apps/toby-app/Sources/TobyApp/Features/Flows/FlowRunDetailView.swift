@@ -84,16 +84,16 @@ struct FlowRunDetailView: View {
 			}
 
 			section(title: "Metadata") {
-				VStack(alignment: .leading, spacing: 8) {
-					metaRow("Flow", run.flowName)
-					metaRow("Trigger", run.trigger ?? "—")
-					metaRow("Persona", run.personaName ?? "—")
-					metaRow("Provider", run.provider ?? "—")
-					metaRow("Model", run.model ?? "—")
+				DetailMetadataStack {
+					DetailMetadataRow(label: "Flow", value: run.flowName)
+					DetailMetadataRow(label: "Trigger", value: run.trigger ?? "—")
+					DetailMetadataRow(label: "Persona", value: run.personaName ?? "—")
+					DetailMetadataRow(label: "Provider", value: run.provider ?? "—")
+					DetailMetadataRow(label: "Model", value: run.model ?? "—")
 					if let failedNodeId = run.failedNodeId {
-						metaRow("Failed node", failedNodeId)
+						DetailMetadataRow(label: "Failed node", value: failedNodeId)
 					}
-					metaRow("Run ID", run.id)
+					DetailMetadataRow(label: "Run ID", value: run.id, monospaced: true)
 				}
 			}
 
@@ -142,20 +142,6 @@ struct FlowRunDetailView: View {
 					RoundedRectangle(cornerRadius: SettingsDesign.cardCornerRadius)
 						.stroke(SettingsDesign.cardBorder, lineWidth: 1)
 				)
-		}
-	}
-
-	private func metaRow(_ label: String, _ value: String) -> some View {
-		HStack(alignment: .top) {
-			Text(label)
-				.font(.system(size: 12))
-				.foregroundStyle(SettingsDesign.rowDescription)
-				.frame(width: 100, alignment: .leading)
-			Text(value)
-				.font(.system(size: 12, design: .monospaced))
-				.foregroundStyle(SettingsDesign.rowTitle)
-				.textSelection(.enabled)
-				.frame(maxWidth: .infinity, alignment: .leading)
 		}
 	}
 

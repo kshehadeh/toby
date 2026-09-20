@@ -50,7 +50,7 @@ struct FlowDetailsPane: View {
 					FlowNodePipeline(nodes: flow.nodes)
 				}
 
-				VStack(alignment: .leading, spacing: 12) {
+				DetailMetadataStack {
 					DetailMetadataRow(label: "ID", value: flow.id, monospaced: true)
 					DetailMetadataRow(label: "Persona", value: flow.personaLabel)
 					DetailMetadataRow(label: "Steps", value: "\(flow.nodes.count)")

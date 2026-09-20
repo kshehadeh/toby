@@ -42,7 +42,7 @@ struct ProjectDetailsPane: View {
 					accessibilityIdentifier: "project-detail-name"
 				)
 
-				VStack(alignment: .leading, spacing: 12) {
+				DetailMetadataStack {
 					DetailMetadataRow(
 						label: "Persona",
 						value: projectPersonaLabel(

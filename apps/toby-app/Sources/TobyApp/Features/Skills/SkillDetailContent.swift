@@ -53,7 +53,7 @@ struct SkillAboutPane: View {
 					}
 				}
 
-				VStack(alignment: .leading, spacing: 12) {
+				DetailMetadataStack {
 					DetailMetadataRow(
 						label: "Enabled",
 						value: skill.enabled ? "Offered to the model" : "Hidden from the model"

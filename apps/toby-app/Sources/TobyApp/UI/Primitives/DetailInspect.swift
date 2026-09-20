@@ -31,26 +31,37 @@ struct DetailSection<Content: View>: View {
 	}
 }
 
-/// Label-left / value-right metadata row for inspect-only details.
-struct DetailMetadataRow: View {
-	let label: String
-	let value: String
-	var monospaced: Bool = false
+/// Shared column layout for inspect-only label/value rows.
+/// Labels size to the longest label in the stack; values sit immediately beside them.
+struct DetailMetadataStack<Content: View>: View {
+	@ViewBuilder var content: () -> Content
 
 	var body: some View {
-		HStack(alignment: .firstTextBaseline) {
-			Text(label)
-				.font(.system(size: 12))
-				.foregroundStyle(SettingsDesign.rowDescription)
-			Spacer(minLength: 12)
-			Text(value)
-				.font(monospaced ? .system(size: 12, design: .monospaced) : .system(size: 12))
-				.foregroundStyle(SettingsDesign.rowTitle)
-				.multilineTextAlignment(.trailing)
-				.lineLimit(3)
-				.textSelection(.enabled)
+		Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 6) {
+			content()
 		}
 		.frame(maxWidth: .infinity, alignment: .leading)
+	}
+}
+
+/// One label/value pair for inspect-only details. This is a `GridRow`-returning
+/// function (not a `View` wrapper) so sibling rows in `DetailMetadataStack` share
+/// a label column.
+@ViewBuilder
+func DetailMetadataRow(label: String, value: String, monospaced: Bool = false) -> some View {
+	GridRow {
+		Text(label)
+			.font(.system(size: 12))
+			.foregroundStyle(SettingsDesign.rowDescription)
+			.gridColumnAlignment(.leading)
+
+		Text(value)
+			.font(monospaced ? .system(size: 12, design: .monospaced) : .system(size: 12))
+			.foregroundStyle(SettingsDesign.rowTitle)
+			.multilineTextAlignment(.leading)
+			.lineLimit(3)
+			.textSelection(.enabled)
+			.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }
 

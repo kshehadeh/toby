@@ -46,7 +46,7 @@ struct ScheduleDetailsPane: View {
 					accessibilityIdentifier: "schedule-detail-name"
 				)
 
-				VStack(alignment: .leading, spacing: 12) {
+				DetailMetadataStack {
 					DetailMetadataRow(
 						label: "Enabled",
 						value: schedule.enabled ? "On" : "Off"

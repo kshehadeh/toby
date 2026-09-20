@@ -149,13 +149,30 @@ struct DetailInspectTests {
 
 	@Test("metadata row shows label and value")
 	func metadataRowRenders() throws {
-		let view = DetailMetadataRow(label: "Persona", value: "Toby")
+		let view = DetailMetadataStack {
+			DetailMetadataRow(label: "Persona", value: "Toby")
+		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Persona")
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Toby")
 		}
+	}
+
+	@Test("metadata stack keeps sibling rows in one grid")
+	func metadataStackUsesGrid() throws {
+		let view = DetailMetadataStack {
+			DetailMetadataRow(label: "Enabled", value: "Offered to the model")
+			DetailMetadataRow(label: "Created", value: "Aug 20, 2026 at 4:56 PM")
+		}
+		let grid = try view.inspect().find(ViewType.Grid.self)
+		#expect(try grid.horizontalSpacing() == 16)
+		#expect(try grid.verticalSpacing() == 6)
+		#expect(try grid.gridRow(0).text(0).string() == "Enabled")
+		#expect(try grid.gridRow(0).text(1).string() == "Offered to the model")
+		#expect(try grid.gridRow(1).text(0).string() == "Created")
+		#expect(try grid.gridRow(1).text(1).string() == "Aug 20, 2026 at 4:56 PM")
 	}
 
 	@Test("section shows title and content")

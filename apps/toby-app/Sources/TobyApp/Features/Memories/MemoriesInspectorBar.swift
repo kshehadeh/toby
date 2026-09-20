@@ -74,26 +74,26 @@ struct MemoriesInspectorBar: View {
 							.textSelection(.enabled)
 							.accessibilityIdentifier("memories-inspector-value")
 
-						Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 6) {
-							inspectorFact("Type", memory.type)
+						DetailMetadataStack {
+							DetailMetadataRow(label: "Type", value: memory.type)
 							if let subject = memory.subject, !subject.isEmpty {
-								inspectorFact("Subject", subject)
+								DetailMetadataRow(label: "Subject", value: subject)
 							}
-							inspectorFact("Sensitivity", memory.sensitivity)
-							inspectorFact("Visibility", memory.visibility)
-							inspectorFact(
-								"Confidence",
-								String(format: "%.0f%%", memory.confidence * 100)
+							DetailMetadataRow(label: "Sensitivity", value: memory.sensitivity)
+							DetailMetadataRow(label: "Visibility", value: memory.visibility)
+							DetailMetadataRow(
+								label: "Confidence",
+								value: String(format: "%.0f%%", memory.confidence * 100)
 							)
 							if let sources = memory.sourceIds, !sources.isEmpty {
-								inspectorFact("Sources", "\(sources.count)")
+								DetailMetadataRow(label: "Sources", value: "\(sources.count)")
 							}
-							inspectorFact(
-								"Embedding",
-								memory.embeddingModel ?? "None"
+							DetailMetadataRow(
+								label: "Embedding",
+								value: memory.embeddingModel ?? "None"
 							)
-							inspectorFact("Created", MemoryDateFormat.display(memory.createdAt))
-							inspectorFact("Updated", MemoryDateFormat.display(memory.updatedAt))
+							DetailMetadataRow(label: "Created", value: MemoryDateFormat.display(memory.createdAt))
+							DetailMetadataRow(label: "Updated", value: MemoryDateFormat.display(memory.updatedAt))
 						}
 					}
 					.padding(.horizontal, 16)
@@ -101,19 +101,6 @@ struct MemoriesInspectorBar: View {
 				}
 				.frame(maxHeight: 220)
 			}
-		}
-	}
-
-	@ViewBuilder
-	private func inspectorFact(_ label: String, _ value: String) -> some View {
-		GridRow {
-			Text(label)
-				.font(.system(size: 12))
-				.foregroundStyle(SettingsDesign.rowDescription)
-			Text(value)
-				.font(.system(size: 12))
-				.foregroundStyle(SettingsDesign.rowTitle)
-				.textSelection(.enabled)
 		}
 	}
 

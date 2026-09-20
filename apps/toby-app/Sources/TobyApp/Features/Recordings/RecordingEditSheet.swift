@@ -89,7 +89,7 @@ struct RecordingEditSheet: View {
 	}
 
 	private var metadataSection: some View {
-		VStack(alignment: .leading, spacing: 10) {
+		DetailMetadataStack {
 			DetailMetadataRow(
 				label: "Started",
 				value: friendlyRecordingDate(detail.metadata.startedAt, fallback: detail.metadata.createdAt)
