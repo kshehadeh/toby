@@ -174,7 +174,7 @@ struct UpdateStoreTests {
 		store.stopCheckLoop()
 	}
 
-	@Test("checkForUpdates records current version and shows the sidebar tip")
+	@Test("checkForUpdates records current version and shows the update tip")
 	func checkRecordsCurrentVersionAndShowsTip() async {
 		let (store, _) = makeStore(latestVersion: "0.66.0")
 		await store.checkForUpdates(currentVersion: "v0.65.2")
@@ -182,21 +182,21 @@ struct UpdateStoreTests {
 		#expect(store.shouldShowUpdateTip == true)
 	}
 
-	@Test("sidebar tip stays hidden when already on the latest version")
+	@Test("update tip stays hidden when already on the latest version")
 	func tipHiddenWhenOnLatest() async {
 		let (store, _) = makeStore(latestVersion: "0.65.2")
 		await store.checkForUpdates(currentVersion: "0.65.2")
 		#expect(store.shouldShowUpdateTip == false)
 	}
 
-	@Test("sidebar tip shows when never dismissed")
+	@Test("update tip shows when never dismissed")
 	func tipShowsWhenNeverDismissed() {
 		let (store, _) = makeStore()
 		markUpdateAvailable(store)
 		#expect(store.shouldShowUpdateTip == true)
 	}
 
-	@Test("dismissing the sidebar tip hides it for the same version")
+	@Test("dismissing the update tip hides it for the same version")
 	func dismissHidesTipForSameVersion() {
 		let (store, _) = makeStore()
 		markUpdateAvailable(store)
@@ -204,7 +204,7 @@ struct UpdateStoreTests {
 		#expect(store.shouldShowUpdateTip == false)
 	}
 
-	@Test("sidebar tip returns more than two days after dismiss")
+	@Test("update tip returns more than two days after dismiss")
 	func tipReturnsAfterTwoDays() {
 		let start = Date(timeIntervalSince1970: 1_700_000_000)
 		var now = start
@@ -222,7 +222,7 @@ struct UpdateStoreTests {
 		#expect(store.shouldShowUpdateTip == true)
 	}
 
-	@Test("sidebar tip returns immediately when a newer version is available")
+	@Test("update tip returns immediately when a newer version is available")
 	func tipReturnsForNewerVersion() {
 		let (store, _) = makeStore()
 		markUpdateAvailable(store, latest: "0.66.0")
@@ -234,7 +234,7 @@ struct UpdateStoreTests {
 		#expect(store.shouldShowUpdateTip == true)
 	}
 
-	@Test("sidebar tip nonce changes when the card is shown again")
+	@Test("update tip nonce changes when the tip is shown again")
 	func tipNonceChangesOnReshow() {
 		let start = Date(timeIntervalSince1970: 1_700_000_000)
 		var now = start
@@ -250,6 +250,23 @@ struct UpdateStoreTests {
 		store.refreshUpdateTipVisibility()
 		#expect(store.shouldShowUpdateTip == true)
 		#expect(store.updateTipPresentationNonce == firstNonce + 1)
+	}
+
+	@Test("debug override pins a pending update and ignores appcast checks")
+	func debugOverrideIgnoresAppcast() async {
+		let (store, fetcher) = makeStore(latestVersion: "0.65.2")
+		store.applyDebugOverride(latestVersion: "99.0.0", currentVersion: "0.1.0")
+		#expect(store.isDebugOverrideActive == true)
+		#expect(store.isUpdateAvailable == true)
+		#expect(store.latestVersion == "99.0.0")
+		#expect(store.currentVersion == "0.1.0")
+		#expect(store.shouldShowUpdateTip == true)
+
+		await store.checkForUpdates(currentVersion: "0.165.0")
+		#expect(fetcher.fetchCount == 0)
+		#expect(store.latestVersion == "99.0.0")
+		#expect(store.currentVersion == "0.1.0")
+		#expect(store.isUpdateAvailable == true)
 	}
 }
 

@@ -17,6 +17,7 @@ struct RootCommonToolbarModel {
 	var onBack: () -> Void
 	var onForward: () -> Void
 	var onCheckForUpdates: () -> Void = {}
+	var updateStore: UpdateStore? = nil
 }
 
 /// Route title used for `navigationTitle` / tests. Optional `leading` is the only
@@ -149,9 +150,17 @@ enum RootToolbars {
 			)
 			SettingsToolbarButton(onOpenSettings: model.onOpenSettings)
 			SearchToolbarButton(onSearch: model.onSearch)
-			if model.isUpdateAvailable || model.isUpgrading {
+		}
+		if let updateStore = model.updateStore {
+			if updateStore.isUpdateAvailable || updateStore.isUpgrading {
+				ToolbarItem(placement: .primaryAction) {
+					UpdateToolbarButton(updateStore: updateStore)
+				}
+			}
+		} else if model.isUpdateAvailable || model.isUpgrading {
+			ToolbarItem(placement: .primaryAction) {
 				Button(action: model.onCheckForUpdates) {
-					Image(systemName: model.isUpgrading ? "arrow.down.circle" : "arrow.down.circle.badge.clock")
+					Image(systemName: UpdateToolbarButton.iconName(isUpgrading: model.isUpgrading))
 				}
 				.disabled(model.isUpgrading)
 				.help(updateHelp(model: model))
@@ -273,8 +282,12 @@ enum RootToolbars {
 	}
 
 	static func updateHelp(model: RootCommonToolbarModel) -> String {
-		if model.isUpgrading { return "Updating Toby" }
-		if let latest = model.latestVersion {
+		updateHelp(isUpgrading: model.isUpgrading, latestVersion: model.latestVersion)
+	}
+
+	static func updateHelp(isUpgrading: Bool, latestVersion: String?) -> String {
+		if isUpgrading { return "Updating Toby" }
+		if let latest = latestVersion {
 			return "Update to v\(latest) is available"
 		}
 		return "Update available"

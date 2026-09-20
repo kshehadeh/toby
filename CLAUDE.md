@@ -31,6 +31,7 @@ Toby.app's native API server rather than compiling its own native binary. See
 ```sh
 bun run app          # build dev macOS app and open it
 bun run dev          # run CLI in dev/watch mode
+bun run dev:upgrade-available  # Dev app with a fake pending update (toolbar + tip)
 ```
 
 ## Tests

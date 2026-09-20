@@ -397,8 +397,7 @@ struct RootView: View {
                 },
                 onRestartServer: {
                     Task { await store.restartServer() }
-                },
-                updateStore: updateStore
+                }
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
         } detail: {
@@ -786,7 +785,8 @@ struct RootView: View {
             onForward: { _ = history.goForward() },
             onCheckForUpdates: {
                 Task { await updateStore.checkNativeAppForUpdates() }
-            }
+            },
+            updateStore: updateStore
         )
     }
 
@@ -1266,22 +1266,16 @@ struct RootView: View {
         }
     }
 
-#if DEBUG
     private func applyDebugUpdateOverride() {
         let environment = ProcessInfo.processInfo.environment
         let latestVersion = environment["TOBY_DEBUG_LATEST_VERSION"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let latestVersion, !latestVersion.isEmpty else { return }
 
         let currentVersion = environment["TOBY_DEBUG_CURRENT_VERSION"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        updateStore.latestVersion = UpdateStore.normalizedVersion(latestVersion)
-        updateStore.isUpdateAvailable = true
-
-        if let currentVersion, !currentVersion.isEmpty {
-            updateStore.currentVersion = UpdateStore.normalizedVersion(currentVersion)
-        } else if let bundleVersion = UpdateStore.appBundleVersion() {
-            updateStore.currentVersion = UpdateStore.normalizedVersion(bundleVersion)
-        }
-        updateStore.refreshUpdateTipVisibility()
+        updateStore.applyDebugOverride(
+            latestVersion: latestVersion,
+            currentVersion: currentVersion?.isEmpty == false ? currentVersion : nil
+        )
 
         if let currentVersion, !currentVersion.isEmpty {
             let currentStatus = store.status
@@ -1301,9 +1295,6 @@ struct RootView: View {
             )
         }
     }
-#else
-    private func applyDebugUpdateOverride() {}
-#endif
 
 }
 

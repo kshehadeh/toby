@@ -82,7 +82,8 @@ persona). Edit name and other fields from the toolbar **Edit** sheet. A selected
 the flow id as the subtitle. Selecting multiple recordings
 shows their count.
 On the right, **Record**, **Settings**, and **Search** stay together across
-workspaces; an update button also appears when an update is available.
+workspaces; a download **Update** button also appears when an update is available,
+and a tip points at that button.
 **Search** opens the command palette, also available with ⌘K.
 A separate group at the far right contains actions for the current view,
 such as **Refresh** on Home or **Delete** for a selected skill. This group

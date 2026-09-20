@@ -156,9 +156,14 @@ final class UpdateStore {
 	var isUpgrading = false
 	var upgradeError: String?
 	var upgradeComplete = false
-	/// Sidebar TipKit card only. Toolbar / About / menu stay available during cooldown.
+	/// When true, `TOBY_DEBUG_LATEST_VERSION` pinned a fake pending update and
+	/// the appcast loop must not overwrite it. Dev app is a release binary, so
+	/// this is env-gated rather than `#if DEBUG`.
+	private(set) var isDebugOverrideActive = false
+	/// Toolbar TipKit popover only. The download button / About / menu stay
+	/// available during cooldown.
 	var shouldShowUpdateTip = false
-	/// Bumped whenever the sidebar tip transitions to shown so TipKit treats it
+	/// Bumped whenever the toolbar tip transitions to shown so TipKit treats it
 	/// as a new tip (it otherwise keeps `id: "update-available"` invalidated).
 	private(set) var updateTipPresentationNonce = 0
 
@@ -179,7 +184,33 @@ final class UpdateStore {
 		self.nativeUpdater = nativeUpdater
 		self.defaults = defaults
 		self.now = now
+		applyLaunchDebugOverrideIfNeeded()
 		refreshUpdateTipVisibility()
+	}
+
+	/// Pins a fake pending update for `bun run dev:upgrade-available`.
+	func applyDebugOverride(latestVersion: String, currentVersion: String?) {
+		isDebugOverrideActive = true
+		self.latestVersion = Self.normalizedVersion(latestVersion)
+		if let currentVersion, !currentVersion.isEmpty {
+			self.currentVersion = Self.normalizedVersion(currentVersion)
+		} else {
+			self.currentVersion = Self.appBundleVersion().map(Self.normalizedVersion)
+		}
+		isUpdateAvailable = true
+		refreshUpdateTipVisibility()
+	}
+
+	private func applyLaunchDebugOverrideIfNeeded() {
+		let latest = ProcessInfo.processInfo.environment["TOBY_DEBUG_LATEST_VERSION"]?
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard let latest, !latest.isEmpty else { return }
+		let current = ProcessInfo.processInfo.environment["TOBY_DEBUG_CURRENT_VERSION"]?
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+		applyDebugOverride(
+			latestVersion: latest,
+			currentVersion: current?.isEmpty == false ? current : nil
+		)
 	}
 
 	func startCheckLoop(currentVersionProvider: @escaping () -> String? = UpdateStore.appBundleVersion) {
@@ -187,6 +218,9 @@ final class UpdateStore {
 		checkTask = Task { [weak self] in
 			while !Task.isCancelled {
 				guard let self else { return }
+				if self.isDebugOverrideActive {
+					return
+				}
 				let version = currentVersionProvider()
 				await self.checkForUpdates(currentVersion: version)
 				try? await Task.sleep(nanoseconds: 300_000_000_000)
@@ -204,6 +238,10 @@ final class UpdateStore {
 	}
 
 	func checkForUpdates(currentVersion: String?) async {
+		guard !isDebugOverrideActive else {
+			refreshUpdateTipVisibility()
+			return
+		}
 		guard let currentVersion, !currentVersion.isEmpty else { return }
 		self.currentVersion = UpdateStore.normalizedVersion(currentVersion)
 		if let lastCheckAt, Date().timeIntervalSince(lastCheckAt) < 60 {
