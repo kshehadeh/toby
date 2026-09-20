@@ -369,7 +369,7 @@ describe("listen chat tools", () => {
 		);
 
 		if (previous === undefined) {
-			process.env.TOBY_DIR = undefined;
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
 			process.env.TOBY_DIR = previous;
 		}
@@ -415,7 +415,7 @@ describe("listen chat tools", () => {
 		);
 
 		if (previous === undefined) {
-			process.env.TOBY_DIR = undefined;
+			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
 			process.env.TOBY_DIR = previous;
 		}

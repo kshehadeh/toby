@@ -53,7 +53,7 @@ describe("toby-spawn", () => {
 			expect(fs.existsSync(path.join(tmpDir, "logs", "toby.log"))).toBe(true);
 		} finally {
 			if (prev === undefined) {
-				process.env.TOBY_DIR = undefined;
+				Reflect.deleteProperty(process.env, "TOBY_DIR");
 			} else {
 				process.env.TOBY_DIR = prev;
 			}

@@ -17,7 +17,7 @@ describe.skipIf(!isBun)("routing_embeddings store", () => {
 		if (dir && fs.existsSync(dir)) {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
-		process.env.TOBY_DIR = undefined;
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
 	});
 
 	it("persists and loads vectors by catalog signature", () => {

@@ -20,7 +20,7 @@ afterEach(() => {
 	if (dir && fs.existsSync(dir)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
-	process.env.TOBY_DIR = undefined;
+	Reflect.deleteProperty(process.env, "TOBY_DIR");
 });
 
 describe("daemon log", () => {

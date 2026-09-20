@@ -52,7 +52,7 @@ afterEach(() => {
 	} catch {
 		// ignore
 	}
-	process.env.TOBY_DIR = undefined;
+	Reflect.deleteProperty(process.env, "TOBY_DIR");
 });
 
 describe.skipIf(!isBun)("memory embeddings", () => {

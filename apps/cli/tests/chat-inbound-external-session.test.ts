@@ -27,7 +27,7 @@ describe.skipIf(!isBun)("chat external sessions", () => {
 		if (dir && fs.existsSync(dir)) {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
-		process.env.TOBY_DIR = undefined;
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
 	});
 
 	it("creates and loads external session mapping", () => {

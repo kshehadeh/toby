@@ -242,7 +242,7 @@ try {
   expect(isFeatureEnabled()).toBe(true);
 } finally {
   if (prev === undefined) {
-    process.env.TOBY_SOME_FLAG = undefined;
+    Reflect.deleteProperty(process.env, "TOBY_SOME_FLAG");
   } else {
     process.env.TOBY_SOME_FLAG = prev;
   }
@@ -260,3 +260,4 @@ Tests that depend on `bun:sqlite` should conditionally skip when unavailable, or
 - **Don't** assume mocks auto-clear between tests - always add cleanup
 - **Don't** use `await jest.runAllTimersAsync()` - use `jest.runAllTimers()` + `await Promise.resolve()` instead
 - **Don't** create `mock.module()` factories that return Promises - they must be synchronous
+- **Don't** assign `process.env.FOO = undefined` to clear a variable. Node/Bun stringify that to `"undefined"`. For `TOBY_DIR` that creates `./undefined/chat.sqlite`. Use `Reflect.deleteProperty(process.env, "FOO")`.

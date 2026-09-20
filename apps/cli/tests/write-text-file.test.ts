@@ -19,7 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	if (previousTobyDir === undefined) {
-		process.env.TOBY_DIR = undefined;
+		Reflect.deleteProperty(process.env, "TOBY_DIR");
 	} else {
 		process.env.TOBY_DIR = previousTobyDir;
 	}

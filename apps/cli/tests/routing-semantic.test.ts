@@ -21,7 +21,7 @@ afterEach(() => {
 	if (dir?.startsWith(os.tmpdir()) && fs.existsSync(dir)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
-	process.env.TOBY_DIR = undefined;
+	Reflect.deleteProperty(process.env, "TOBY_DIR");
 });
 
 const { wrapUserPromptWithPretreatment } = await import(
