@@ -115,9 +115,10 @@ struct EditorSheet<Content: View>: View {
 /// Binding to an optional editor draft that never resurrects a cleared editor.
 /// Field controls can still read a fallback while the sheet tears down; `set`
 /// is ignored once the source is `nil` so dismiss/Escape cannot reopen a blank sheet.
-func editorDraftBinding<Draft>(
+@MainActor
+func editorDraftBinding<Draft: Sendable>(
 	_ editor: Binding<Draft?>,
-	fallback: @escaping @autoclosure () -> Draft
+	fallback: @escaping @autoclosure @Sendable () -> Draft
 ) -> Binding<Draft> {
 	Binding(
 		get: { editor.wrappedValue ?? fallback() },
@@ -128,12 +129,16 @@ func editorDraftBinding<Draft>(
 	)
 }
 
-func editorDraftFieldBinding<Draft, Value>(
+@MainActor
+func editorDraftFieldBinding<Draft: Sendable, Value>(
 	_ editor: Binding<Draft?>,
 	_ keyPath: WritableKeyPath<Draft, Value>,
-	fallback: @escaping @autoclosure () -> Draft
+	fallback: @escaping @autoclosure @Sendable () -> Draft
 ) -> Binding<Value> {
-	Binding(
+	// `WritableKeyPath` is a class and is not Sendable; these bindings only
+	// run on the main actor from editor sheets.
+	nonisolated(unsafe) let keyPath = keyPath
+	return Binding(
 		get: { (editor.wrappedValue ?? fallback())[keyPath: keyPath] },
 		set: { newValue in
 			guard editor.wrappedValue != nil else { return }
@@ -144,11 +149,13 @@ func editorDraftFieldBinding<Draft, Value>(
 
 /// Presents an editor sheet from an optional draft. Dismiss (including Escape)
 /// clears through `onDismiss` instead of writing a fallback draft back.
-func editorSheetItem<Draft: Identifiable>(
+@MainActor
+func editorSheetItem<Draft: Identifiable & Sendable>(
 	_ editor: Binding<Draft?>,
 	onDismiss: @escaping () -> Void
 ) -> Binding<Draft?> {
-	Binding(
+	nonisolated(unsafe) let onDismiss = onDismiss
+	return Binding(
 		get: { editor.wrappedValue },
 		set: { newValue in
 			if newValue == nil {
