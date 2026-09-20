@@ -50,6 +50,27 @@ struct FeatureBrowserTests {
 		}
 	}
 
+	@Test("placeholder without prompt shows only the create link")
+	func placeholderWithoutPromptShowsOnlyCreateLink() throws {
+		var created = false
+		let view = FeatureBrowserPlaceholder(
+			systemImage: "books.vertical",
+			title: "No library items",
+			onCreate: { created = true },
+			createPhrase: "Add a file now",
+			createAccessibilityIdentifier: "library-empty-add-button"
+		)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: " or ")
+		}
+		let button = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "library-empty-add-button"
+		).button()
+		#expect(try button.labelView().text().string() == "Add a file now")
+		try button.tap()
+		#expect(created)
+	}
+
 	@Test("list insets content so selection does not touch the edges")
 	func listInsetsContent() throws {
 		#expect(FeatureBrowserMetrics.horizontalInset == 10)

@@ -16,9 +16,10 @@ struct LibraryViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "No library item selected")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "library-empty-add-button")
-		}
+		let addButton = try view.inspect().find(
+			viewWithAccessibilityIdentifier: "library-empty-add-button"
+		).button()
+		#expect(try addButton.labelView().text().string() == "Add a file now")
 	}
 
 	@Test("unselected items show the empty inspector")

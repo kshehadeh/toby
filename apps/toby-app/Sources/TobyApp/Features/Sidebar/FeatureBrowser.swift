@@ -210,8 +210,8 @@ struct FeatureBrowserPlaceholder: View {
 	let systemImage: String
 	/// Short state title, for example “No skill selected”.
 	let title: String
-	/// Leading clause, for example “Select a skill”.
-	let prompt: String
+	/// Leading clause, for example “Select a skill”. Omit for a link-only empty state.
+	var prompt: String? = nil
 	var onCreate: (() -> Void)? = nil
 	var createPhrase: String = "create a new one"
 	var createAccessibilityIdentifier: String = "feature-browser-placeholder-create"
@@ -230,17 +230,25 @@ struct FeatureBrowserPlaceholder: View {
 	@ViewBuilder
 	private var message: some View {
 		if let onCreate {
-			HStack(spacing: 0) {
-				Text("\(prompt) or ")
-				Button(createPhrase, action: onCreate)
-					.buttonStyle(.plain)
-					.foregroundStyle(AppTheme.accent)
-					.accessibilityIdentifier(createAccessibilityIdentifier)
-				Text(".")
+			if let prompt {
+				HStack(spacing: 0) {
+					Text("\(prompt) or ")
+					createLink(action: onCreate)
+					Text(".")
+				}
+				.fixedSize(horizontal: false, vertical: true)
+			} else {
+				createLink(action: onCreate)
 			}
-			.fixedSize(horizontal: false, vertical: true)
-		} else {
+		} else if let prompt {
 			Text("\(prompt) from the list.")
 		}
+	}
+
+	private func createLink(action: @escaping () -> Void) -> some View {
+		Button(createPhrase, action: action)
+			.buttonStyle(.plain)
+			.foregroundStyle(AppTheme.accent)
+			.accessibilityIdentifier(createAccessibilityIdentifier)
 	}
 }

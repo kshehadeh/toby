@@ -120,9 +120,8 @@ struct LibraryListView: View {
 			FeatureBrowserPlaceholder(
 				systemImage: DetailRoute.library.systemImage,
 				title: "No library items",
-				prompt: "Add a file",
 				onCreate: { store.isImporterPresented = true },
-				createPhrase: "add one",
+				createPhrase: "Add a file now",
 				createAccessibilityIdentifier: "library-empty-add-button"
 			)
 		} else {
