@@ -310,7 +310,6 @@ struct TobyApp: App {
 		// on demand when an Accessibility operation is needed.
 	}
 
-#if DEBUG
 	private func activateDebugPreviewWindow() {
 		let latestVersion = ProcessInfo.processInfo.environment["TOBY_DEBUG_LATEST_VERSION"]?
 			.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -322,9 +321,6 @@ struct TobyApp: App {
 			NSApp.windows.first?.makeKeyAndOrderFront(nil)
 		}
 	}
-#else
-	private func activateDebugPreviewWindow() {}
-#endif
 }
 
 struct OpenPermissionsMenuItem: View {

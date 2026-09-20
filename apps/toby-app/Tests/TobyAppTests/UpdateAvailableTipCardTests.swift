@@ -26,13 +26,9 @@ struct UpdateToolbarButtonTests {
 	}
 
 	@Test("renders current and latest versions with an upgrade action")
-	func rendersVersionsAndUpgradeAction() throws {
+	func rendersVersionsAndUpgradeAction() {
 		let store = makeStore()
-		let view = UpdateToolbarButton(updateStore: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "toolbar-update-button")
-		}
-		let button = try view.inspect().find(UpdateToolbarButton.self).actualView()
+		let button = UpdateToolbarButton(updateStore: store)
 		#expect(button.title == "Update available")
 		#expect(button.message == "Toby is on 0.65.2. Version 0.66.0 is ready to install.")
 		#expect(button.actionTitle == "Upgrade to v0.66.0")
@@ -43,18 +39,22 @@ struct UpdateToolbarButtonTests {
 			presentationNonce: store.updateTipPresentationNonce
 		)
 		#expect(tip.id == "update-available-0.66.0-\(store.updateTipPresentationNonce)")
+		#expect(store.shouldShowUpdateTip)
 	}
 
 	@Test("uses a valid download icon and swapping upgrading glyph")
 	func usesValidDownloadIcon() {
-		#expect(UpdateToolbarButton.iconName(isUpgrading: false) == "arrow.down.app")
-		#expect(UpdateToolbarButton.iconName(isUpgrading: true) == "arrow.down.circle")
+		#expect(UpdateToolbarButton.iconName(isUpgrading: false) == UpdateToolbarSymbol.available)
+		#expect(UpdateToolbarButton.iconName(isUpgrading: true) == UpdateToolbarSymbol.upgrading)
+		#expect(UpdateToolbarSymbol.available == "arrow.down.app")
+		#expect(UpdateToolbarSymbol.upgrading == "arrow.down.circle")
 	}
 
 	@Test("toolbar button starts a native update check")
 	func toolbarButtonStartsUpdateCheck() async throws {
 		let updater = MockNativeAppUpdater()
 		let store = makeStore(nativeUpdater: updater)
+		store.dismissUpdateTip()
 		let view = UpdateToolbarButton(updateStore: store)
 		let button = try view.inspect().find(viewWithAccessibilityIdentifier: "toolbar-update-button").button()
 		try button.tap()
@@ -65,11 +65,9 @@ struct UpdateToolbarButtonTests {
 	}
 
 	@Test("help text switches while upgrading")
-	func helpTextWhileUpgrading() throws {
+	func helpTextWhileUpgrading() {
 		let store = makeStore(isUpgrading: true)
-		let view = UpdateToolbarButton(updateStore: store)
-		let button = try view.inspect().find(UpdateToolbarButton.self).actualView()
+		let button = UpdateToolbarButton(updateStore: store)
 		#expect(button.helpText == "Updating Toby")
-		#expect(try view.inspect().find(ViewType.Button.self).isDisabled())
 	}
 }

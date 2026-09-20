@@ -1,6 +1,6 @@
 {
   "name": "toby",
-  "version": "0.165.0",
+  "version": "0.165.1",
   "private": true,
   "description": "Toby monorepo — personal productivity CLI",
   "type": "module",
@@ -36,6 +36,7 @@
     "build:release": "./scripts/build-release-artifacts.sh",
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
     "dev": "bun run build:app && open \"./dist/Toby (Dev).app\"",
+    "dev:upgrade-available": "bash ./scripts/run-app-upgrade-available.sh",
     "dev:sandbox": "bash ./scripts/run-sandbox.sh",
     "restart:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon restart",
     "stop:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon stop",

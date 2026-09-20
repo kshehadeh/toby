@@ -1,6 +1,15 @@
 import SwiftUI
 import TipKit
 
+enum UpdateToolbarSymbol {
+	static let available = "arrow.down.app"
+	static let upgrading = "arrow.down.circle"
+
+	static func name(isUpgrading: Bool) -> String {
+		isUpgrading ? upgrading : available
+	}
+}
+
 /// Toolbar download control shown when Sparkle finds a newer Toby.app. A TipKit
 /// popover points at this button (not the sidebar) so dismiss can reshow after a
 /// newer version or a two-day cooldown without using TipKit’s datastore as
@@ -9,7 +18,7 @@ struct UpdateToolbarButton: View {
 	@Bindable var updateStore: UpdateStore
 
 	static func iconName(isUpgrading: Bool) -> String {
-		isUpgrading ? "arrow.down.circle" : "arrow.down.app"
+		UpdateToolbarSymbol.name(isUpgrading: isUpgrading)
 	}
 
 	var title: String { "Update available" }
@@ -92,7 +101,7 @@ struct UpdateAvailableTip: Tip {
 	}
 
 	var image: Image? {
-		Image(systemName: UpdateToolbarButton.iconName(isUpgrading: false))
+		Image(systemName: UpdateToolbarSymbol.available)
 	}
 
 	var actions: [Action] {

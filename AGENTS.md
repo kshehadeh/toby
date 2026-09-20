@@ -184,7 +184,7 @@ See [`docs/architecture.md`](docs/architecture.md), [`docs/security.md`](docs/se
   SwiftUI source as authoritative over Figma/reference specimens. For windows,
   title-bar chrome, sidebars, Settings, or modal windows, also invoke
   [`toby-native-window`](.agents/skills/toby-native-window/).
-- **Dev loops:** `bun run dev` / `bun run app` build and open the native app (`scripts/build-app.sh` → `dist/Toby (Dev).app`); `bun run dev:turbo` watches the CLI via Turbo; daemon dev helpers are `bun run start:server`/`stop:server`/`restart:server` (`TOBY_PLUGINS_DIR=$PWD/dist`). Do not expect an Ink chat TUI — interactive UI is Toby.app only.
+- **Dev loops:** `bun run dev` / `bun run app` build and open the native app (`scripts/build-app.sh` → `dist/Toby (Dev).app`); `bun run dev:upgrade-available` relaunches the Dev app with a fake pending update (`TOBY_DEBUG_LATEST_VERSION`) so the toolbar download button and TipKit popover can be checked without Sparkle; `bun run dev:turbo` watches the CLI via Turbo; daemon dev helpers are `bun run start:server`/`stop:server`/`restart:server` (`TOBY_PLUGINS_DIR=$PWD/dist`). Do not expect an Ink chat TUI — interactive UI is Toby.app only.
 - **Gotchas:** Never hardcode `~/.toby` paths; never read `credentials.json` without `readCredentials`; never add `BUILTIN_MODULES` entries for new integrations; never `npm install`; never create `apps/toby-app` code that imports `@toby/core`.
 
 ## Skills
