@@ -636,6 +636,10 @@ Global Toby tools (catalog — only tools in the current set can be called; see 
 - **memoryForget**: Delete a stored memory.
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
+- **find_in_library**: List, search, or open the user's Library of saved files (documents and images). Omit query to list the catalog. Pass a search phrase to find by meaning/keywords. Pass \`id\` to load file contents.
+- **add_to_library**: Copy a current-turn attachment or UTF-8 content into the Library, then summarize and index it. Use when the user asks to keep a file in the library.
+- **update_in_library**: Update a library item's title or description, or replace its file. Only when the user asks to change a saved item.
+- **remove_from_library**: Permanently delete a library item. Only when the user explicitly asks to remove it.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
 - **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text. If the URL is a PDF, use **readPdf** instead (fetchWebContent will extract PDF text if called on a PDF URL).
 - **readPdf**: Extract searchable text from a PDF into this turn. Sources (exactly one): \`filename\` (current-turn PDF attachment), \`path\` (project-relative PDF when a project is active), or \`url\` (http/https). Optional \`startPage\` / \`endPage\` (1-indexed). If the user attached exactly one PDF, call **readPdf** with no arguments. Use when the user attaches a PDF, asks to read or summarize a PDF, or points at a .pdf in the project or on the web. Does not OCR scanned image PDFs. Native file parts may still be present for multimodal models; still call **readPdf** when you need the text layer.${searchToolLine}${weatherToolLine}${locationToolLine}
@@ -683,6 +687,13 @@ Memory rules:
 - Use **memorySearch** or **memoryRetrieveForTask** when something is missing from that list or you need to look up a specific stored fact.
 - Use **memoryForget** when the user asks to remove a memory.
 - Use **memoryExplain** when the user asks why you know something.
+
+Library rules:
+- The Library is a catalog of saved files (text, Markdown, PDF, images). It is not memory and is not injected into the prompt automatically.
+- Use **find_in_library** with no query (or a list/all/everything query) when the user asks what is in the library or to list everything. The catalog includes images, not just documents.
+- Use **find_in_library** with a search query when looking for a specific file. Then open a matching id to read it.
+- Use **add_to_library** when the user asks to keep, file, or remember a current attachment or text as a library item.
+- Use **update_in_library** to change a saved item. Use **remove_from_library** only when the user explicitly asks to delete it.
 
 Time/date rules:
 - Treat "today", "now", "this week", deadlines, and scheduling as time-sensitive requests.

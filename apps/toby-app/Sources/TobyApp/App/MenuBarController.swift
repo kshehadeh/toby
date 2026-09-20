@@ -114,6 +114,7 @@ final class MenuBarController: NSObject {
 			chatsItem(),
 			integrationsItem(),
 			projectsItem(),
+			libraryItem(),
 			skillsItem(),
 			memoriesItem(),
 			schedulesItem(),
@@ -210,6 +211,10 @@ final class MenuBarController: NSObject {
 
 	private func projectsItem() -> NSMenuItem {
 		viewMenuItem(title: DetailRoute.projects.menuTitle, route: .projects, keyEquivalent: "4")
+	}
+
+	private func libraryItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.library.menuTitle, route: .library, keyEquivalent: "0")
 	}
 
 	private func skillsItem() -> NSMenuItem {

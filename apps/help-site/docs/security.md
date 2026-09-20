@@ -30,7 +30,7 @@ part of your security boundary.
 | -------- | ------------- |
 | `~/.toby/config.json` | Preferences that are **not** secrets (personas, which integrations are connected, defaults, web search, …) |
 | `~/.toby/credentials.json` | **Secrets**: AI keys, Email/Notion/Slack tokens, MCP tokens/env, and other connection credentials |
-| Other `~/.toby/…` paths | Chat history, memories, recordings, skills — see [Configuration overview](./configuration/overview) |
+| Other `~/.toby/…` paths | Chat history, memories, recordings, library files, skills — see [Configuration overview](./configuration/overview) |
 
 Integration **passwords and API keys** live in credentials. “Connected”
 status alone lives in config — so a backup only helps for secrets that were
@@ -100,6 +100,7 @@ The app menus use the **same** `.tbybak` format as these CLI commands.
 | Memories database | Symbolic links inside project folders |
 | Project folders, including projects stored outside Toby's data folder | |
 | Recordings — audio, transcripts, and summaries | |
+| Library files — copied documents, PDFs, images, and extracted text | Live two-way merge of library files across Macs |
 
 Backups can be large because they include audio. The archive is encrypted with
 **your backup password** (separate from the
@@ -109,11 +110,11 @@ secrets — choose a strong password and store the file carefully.
 ### Restore notes
 
 - Restore **replaces** current settings, credentials, chat data, memories,
-  project files, and recordings on this Mac.
+  project files, recordings, and library items on this Mac.
 - Projects are restored inside Toby's data folder. A project that used a custom
   folder keeps a copy of its files there; the original folder is left untouched.
 - After restore, Toby re-encrypts credentials for **this** Mac’s Keychain.
-- Toby restarts its daemon before applying database, project, and recording
+- Toby restarts its daemon before applying database, project, recording, and library
   data. You cannot restore while a recording is in progress.
 - Prefer restore over manually copying `credentials.json`.
 

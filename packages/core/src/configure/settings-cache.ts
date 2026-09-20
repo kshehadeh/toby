@@ -40,6 +40,7 @@ const SETTINGS_SECTION_KEYS = [
 	"webSearch",
 	"weather",
 	"dashboard",
+	"library",
 ];
 
 function stripToSectionNodes(node: SettingsItem): SettingsItem {

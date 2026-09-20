@@ -3,11 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { closeToolResultCacheDb } from "../chat-pipeline/tool-result-cache";
+import { closeLibraryDb } from "../library/library-store";
 import { resolveListenRecordingsDir } from "../listen/recordings";
 import { closeMemoryDb, getDb as getMemoryDb } from "../memory/memory-store";
 import { closeChatDb, getDb as getChatDb } from "../session-store";
 import {
 	getChatDbPath,
+	getLibraryDir,
 	getMemoryDbPath,
 	getProjectsDir,
 	resolveTobyDir,
@@ -26,6 +28,7 @@ export interface PendingRestoreManifest {
 	readonly databases: boolean;
 	readonly projects: boolean;
 	readonly recordings: boolean;
+	readonly library?: boolean;
 }
 
 export function isPendingRestoreManifest(
@@ -38,7 +41,8 @@ export function isPendingRestoreManifest(
 		typeof record.pendingDir === "string" &&
 		typeof record.databases === "boolean" &&
 		typeof record.projects === "boolean" &&
-		typeof record.recordings === "boolean"
+		typeof record.recordings === "boolean" &&
+		(record.library === undefined || typeof record.library === "boolean")
 	);
 }
 
@@ -289,11 +293,20 @@ function applyPendingRestoreManifest(
 			isDir: true,
 		});
 	}
+	if (manifest.library) {
+		swaps.push({
+			live: getLibraryDir(),
+			staged: path.join(pending, "library"),
+			backup: `${getLibraryDir()}.pre-restore`,
+			isDir: true,
+		});
+	}
 
 	// Close every known handle before atomically replacing live files.
 	closeToolResultCacheDb();
 	closeChatDb();
 	closeMemoryDb();
+	closeLibraryDb();
 
 	applySwapList(swaps);
 
@@ -355,6 +368,7 @@ function applyLegacyPendingRestore(manifestPath: string): boolean {
 	closeToolResultCacheDb();
 	closeChatDb();
 	closeMemoryDb();
+	closeLibraryDb();
 	const backups = [
 		{
 			live: getChatDbPath(),

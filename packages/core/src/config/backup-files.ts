@@ -3,14 +3,16 @@ import path from "node:path";
 import { resolveListenRecordingsDir } from "../listen/recordings";
 import { type Project, listProjects } from "../projects";
 import type { BackupArchiveWriter } from "./backup-archive";
+import { getLibraryDir } from "./index";
 
 /**
- * Captures Toby-managed file trees (project folders and saved recordings) into
- * encrypted archive sections. The manifest is written by the caller after the
- * file sections so entry order always matches byte order in the streams.
+ * Captures Toby-managed file trees (project folders, saved recordings, and
+ * library items) into encrypted archive sections. The manifest is written by
+ * the caller after the file sections so entry order always matches byte order
+ * in the streams.
  */
 
-export type BackupFileRoot = "projects" | "recordings";
+export type BackupFileRoot = "projects" | "recordings" | "library";
 
 export interface BackupFileEntry {
 	readonly type: "file" | "dir";
@@ -37,7 +39,11 @@ export interface FilesBackupManifest {
 	readonly skipped: readonly string[];
 }
 
-const FILE_ROOTS: readonly BackupFileRoot[] = ["projects", "recordings"];
+const FILE_ROOTS: readonly BackupFileRoot[] = [
+	"projects",
+	"recordings",
+	"library",
+];
 
 /** Structural + safety validation for a file manifest parsed from an archive. */
 export function isFilesBackupManifest(
@@ -56,7 +62,7 @@ export function isFilesBackupManifest(
 	const roots = record.roots as unknown[];
 	if (
 		roots.length === 0 ||
-		roots.length > 2 ||
+		roots.length > FILE_ROOTS.length ||
 		new Set(roots).size !== roots.length ||
 		!roots.every((root) => FILE_ROOTS.includes(root as BackupFileRoot))
 	) {
@@ -200,7 +206,7 @@ export async function appendFileSectionsToArchive(
 		skipped: string[];
 	} = {
 		version: 1,
-		roots: ["projects", "recordings"],
+		roots: ["projects", "recordings", "library"],
 		entries: [],
 		skipped: [],
 	};
@@ -235,6 +241,25 @@ export async function appendFileSectionsToArchive(
 				"recordings",
 				dirent.name,
 				path.join(recordingsRoot, dirent.name),
+				manifest,
+			);
+		}
+	}
+	await writer.endSection();
+
+	writer.beginSection("library-files");
+	const libraryRoot = getLibraryDir();
+	if (fs.existsSync(libraryRoot)) {
+		const dirents = fs
+			.readdirSync(libraryRoot, { withFileTypes: true })
+			.filter((entry) => entry.isDirectory())
+			.sort(compareNames);
+		for (const dirent of dirents) {
+			await appendTree(
+				writer,
+				"library",
+				dirent.name,
+				path.join(libraryRoot, dirent.name),
 				manifest,
 			);
 		}

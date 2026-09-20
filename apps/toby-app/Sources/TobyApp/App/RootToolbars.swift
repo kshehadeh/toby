@@ -752,4 +752,32 @@ enum RootToolbars {
 		}
 		return "Delete \(selectedCount) Recordings"
 	}
+
+	@ToolbarContentBuilder
+	static func library(
+		common model: RootCommonToolbarModel,
+		title: String = "Library",
+		isListLoading: Bool,
+		isSaving: Bool,
+		onAdd: @escaping () -> Void,
+		onRefresh: @escaping () -> Void,
+	) -> some ToolbarContent {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions {
+			Button(action: onAdd) {
+				Image(systemName: "plus")
+			}
+			.help("Add to Library")
+			.disabled(isSaving)
+			.accessibilityIdentifier("toolbar-add-library-button")
+			.accessibilityLabel("Add to Library")
+			Button(action: onRefresh) {
+				Image(systemName: "arrow.clockwise")
+			}
+			.help("Refresh library")
+			.disabled(isListLoading || isSaving)
+			.accessibilityIdentifier("refresh-library-button")
+			.accessibilityLabel("Refresh library")
+		}
+	}
 }

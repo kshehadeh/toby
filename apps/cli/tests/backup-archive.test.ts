@@ -21,6 +21,7 @@ import {
 import {
 	clearCredentialsCache,
 	clearMemoryCredentialsKeyStore,
+	getLibraryDir,
 	getProjectsDir,
 	readConfig,
 	readConfigRaw,
@@ -29,6 +30,7 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "@toby/core/config/index";
+import { closeLibraryDb } from "@toby/core/library/library-store";
 import { resolveListenRecordingsDir } from "@toby/core/listen/recordings";
 import { closeMemoryDb } from "@toby/core/memory/memory-store";
 import { createProject, listProjects } from "@toby/core/projects";
@@ -65,12 +67,14 @@ function resetDbSingletons(): void {
 	closeToolResultCacheDb();
 	closeChatDb();
 	closeMemoryDb();
+	closeLibraryDb();
 }
 
 function wipeLiveFiles(): void {
 	const tobyDir = process.env.TOBY_DIR as string;
 	fs.rmSync(getProjectsDir(), { recursive: true, force: true });
 	fs.rmSync(resolveListenRecordingsDir(), { recursive: true, force: true });
+	fs.rmSync(getLibraryDir(), { recursive: true, force: true });
 	fs.rmSync(path.join(tobyDir, "chat.sqlite"), { force: true });
 	fs.rmSync(path.join(tobyDir, "memory.sqlite"), { force: true });
 	fs.rmSync(path.join(tobyDir, "config.json"), { force: true });
@@ -118,6 +122,16 @@ function seedRecording(): { audio: Buffer; dir: string } {
 	return { audio, dir };
 }
 
+function seedLibraryItem(): { dir: string; body: string } {
+	const id = "lib-1";
+	const dir = path.join(getLibraryDir(), id);
+	fs.mkdirSync(dir, { recursive: true });
+	const body = "Indexed library note";
+	fs.writeFileSync(path.join(dir, "note.md"), body, "utf-8");
+	fs.writeFileSync(path.join(dir, "extracted.txt"), body, "utf-8");
+	return { dir, body };
+}
+
 beforeEach(() => {
 	resetDbSingletons();
 	clearCredentialsCache();
@@ -133,7 +147,7 @@ afterEach(() => {
 });
 
 describe("backup archive round trip", () => {
-	it("backs up and restores settings, databases, project files, and recordings", async () => {
+	it("backs up and restores settings, databases, project files, recordings, and library", async () => {
 		await withTempTobyDir(async () => {
 			writeConfig({
 				integrations: {},
@@ -171,6 +185,7 @@ describe("backup archive round trip", () => {
 
 			const { outputPath } = seedManagedProject();
 			const { audio, dir: recordingDir } = seedRecording();
+			const { dir: libraryDir, body: libraryBody } = seedLibraryItem();
 
 			const backupPath = path.join(
 				os.tmpdir(),
@@ -196,6 +211,7 @@ describe("backup archive round trip", () => {
 				expect(staged.databasesStaged).toBe(true);
 				expect(staged.projectsStaged).toBe(true);
 				expect(staged.recordingsStaged).toBe(true);
+				expect(staged.libraryStaged).toBe(true);
 
 				// Settings apply immediately; files wait for the daemon restart.
 				expect(readCredentials().ai?.openai?.token).toBe("sk-archive-test");
@@ -261,6 +277,13 @@ describe("backup archive round trip", () => {
 				expect(
 					fs.existsSync(path.join(resolveListenRecordingsDir(), ".tmp")),
 				).toBe(false);
+
+				expect(fs.readFileSync(path.join(libraryDir, "note.md"), "utf-8")).toBe(
+					libraryBody,
+				);
+				expect(
+					fs.readFileSync(path.join(libraryDir, "extracted.txt"), "utf-8"),
+				).toBe(libraryBody);
 
 				// The pending restore is fully consumed.
 				expect(fs.existsSync(path.join(tobyDir, PENDING_MANIFEST))).toBe(false);

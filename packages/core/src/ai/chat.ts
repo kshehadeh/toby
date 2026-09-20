@@ -10,6 +10,7 @@ import {
 	streamText,
 } from "ai";
 import { awaitWithAbort, throwIfAborted } from "../abort";
+import { sanitizeModelMessagesForProvider } from "../chat-pipeline/attachments";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import {
 	getCachedToolResult,
@@ -425,12 +426,14 @@ export async function chatWithTools(
 			canonicalByLower,
 		);
 
+	const modelMessages = sanitizeModelMessagesForProvider(messages);
+
 	/** Need streamText when either the legacy delta callback or chat pipeline events are used. */
 	if (onAssistantTextDelta || onChatEvent) {
 		let capturedStreamError: unknown;
 		const result = streamText({
 			model,
-			messages,
+			messages: modelMessages,
 			tools: toolsForModel,
 			stopWhen: isStepCount(12),
 			...(initialActive === undefined
@@ -697,7 +700,7 @@ export async function chatWithTools(
 	const result = await awaitWithAbort(
 		generateText({
 			model,
-			messages,
+			messages: modelMessages,
 			tools: toolsForModel,
 			stopWhen: isStepCount(12),
 			...(initialActive === undefined

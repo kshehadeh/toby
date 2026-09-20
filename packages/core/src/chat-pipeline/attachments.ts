@@ -1,10 +1,14 @@
-import type { FilePart } from "ai";
+import type { FilePart, ModelMessage } from "ai";
 import {
 	CHAT_ATTACHMENT_MAX_BYTES_PER_FILE,
 	CHAT_ATTACHMENT_MAX_FILES,
 	CHAT_ATTACHMENT_MAX_TOTAL_BYTES,
+	CHAT_INLINE_TEXT_MAX_CHARS,
 	isAcceptedChatAttachmentMediaType,
 	isExtractableChatAttachmentMediaType,
+	isInlineTextChatAttachmentMediaType,
+	isNativeChatFilePartMediaType,
+	normalizeChatAttachmentMediaType,
 	resolveChatAttachmentCapability,
 } from "../ai/model-capabilities";
 import type { Persona } from "../config/index";
@@ -83,7 +87,9 @@ export function validateChatAttachments(
 			);
 		}
 
-		const mediaType = attachment.mediaType?.trim().toLowerCase();
+		const mediaType = normalizeChatAttachmentMediaType(
+			attachment.mediaType ?? "",
+		);
 		if (
 			!options.allowAnyMediaType &&
 			!isAcceptedChatAttachmentMediaType(mediaType)
@@ -133,12 +139,45 @@ export function validateChatAttachments(
 export function chatAttachmentsToFileParts(
 	attachments: readonly ValidatedChatAttachment[] | undefined,
 ): FilePart[] {
-	return (attachments ?? []).map((attachment) => ({
-		type: "file",
-		filename: attachment.filename,
-		mediaType: attachment.mediaType,
-		data: attachment.dataBase64,
-	}));
+	return (attachments ?? [])
+		.filter((attachment) => isNativeChatFilePartMediaType(attachment.mediaType))
+		.map((attachment) => ({
+			type: "file",
+			filename: attachment.filename,
+			mediaType: attachment.mediaType,
+			data: attachment.dataBase64,
+		}));
+}
+
+export function formatInlineTextAttachments(
+	attachments: readonly ValidatedChatAttachment[] | undefined,
+): string {
+	if (!attachments || attachments.length === 0) {
+		return "";
+	}
+	const blocks: string[] = [];
+	for (const attachment of attachments) {
+		if (!isInlineTextChatAttachmentMediaType(attachment.mediaType)) {
+			continue;
+		}
+		let decoded = Buffer.from(attachment.dataBase64, "base64").toString("utf8");
+		let truncated = false;
+		if (decoded.length > CHAT_INLINE_TEXT_MAX_CHARS) {
+			decoded = decoded.slice(0, CHAT_INLINE_TEXT_MAX_CHARS);
+			truncated = true;
+		}
+		const header = `Attached file: ${attachment.filename} (${attachment.mediaType})`;
+		const notice = truncated
+			? `\n[Truncated to ${CHAT_INLINE_TEXT_MAX_CHARS} characters.]`
+			: "";
+		blocks.push(
+			`${header}\n----- begin ${attachment.filename} -----\n${decoded}\n----- end ${attachment.filename} -----${notice}`,
+		);
+	}
+	if (blocks.length === 0) {
+		return "";
+	}
+	return `\n\n${blocks.join("\n\n")}`;
 }
 
 export function formatAttachmentTranscriptSummary(
@@ -164,4 +203,104 @@ export function chatAttachmentsToTranscriptAttachments(
 			dataBase64: attachment.dataBase64,
 			byteSize: attachment.byteSize,
 		}));
+}
+
+function decodeFilePartUtf8(part: FilePart): string | null {
+	const data = part.data;
+	if (typeof data === "string") {
+		try {
+			return Buffer.from(data, "base64").toString("utf8");
+		} catch {
+			return data;
+		}
+	}
+	if (data instanceof Uint8Array) {
+		return Buffer.from(data).toString("utf8");
+	}
+	return null;
+}
+
+function inlineFilePartAsText(
+	part: FilePart,
+	mediaType: string,
+): {
+	type: "text";
+	text: string;
+} | null {
+	const decoded = decodeFilePartUtf8(part);
+	if (decoded === null) {
+		return null;
+	}
+	let text = decoded;
+	let truncated = false;
+	if (text.length > CHAT_INLINE_TEXT_MAX_CHARS) {
+		text = text.slice(0, CHAT_INLINE_TEXT_MAX_CHARS);
+		truncated = true;
+	}
+	const filename =
+		typeof part.filename === "string" && part.filename.trim().length > 0
+			? part.filename.trim()
+			: "attachment";
+	const notice = truncated
+		? `\n[Truncated to ${CHAT_INLINE_TEXT_MAX_CHARS} characters.]`
+		: "";
+	return {
+		type: "text",
+		text: `Attached file: ${filename} (${mediaType})\n----- begin ${filename} -----\n${text}\n----- end ${filename} -----${notice}`,
+	};
+}
+
+/**
+ * Providers only accept images and PDFs as native file parts. Convert
+ * text-like leftovers to message text and drop Office/binary file parts so
+ * `streamText` cannot fail with "file part media type … not supported".
+ */
+export function sanitizeModelMessagesForProvider(
+	messages: readonly ModelMessage[],
+): ModelMessage[] {
+	return messages.map((message) => {
+		if (!Array.isArray(message.content)) {
+			return message;
+		}
+		const nextContent: typeof message.content = [];
+		for (const part of message.content) {
+			if (
+				!part ||
+				typeof part !== "object" ||
+				!("type" in part) ||
+				part.type !== "file"
+			) {
+				nextContent.push(part);
+				continue;
+			}
+			const mediaType = normalizeChatAttachmentMediaType(
+				typeof part.mediaType === "string" ? part.mediaType : "",
+			);
+			if (isNativeChatFilePartMediaType(mediaType)) {
+				nextContent.push({ ...part, mediaType });
+				continue;
+			}
+			if (isInlineTextChatAttachmentMediaType(mediaType)) {
+				const textPart = inlineFilePartAsText(part, mediaType);
+				if (textPart) {
+					nextContent.push(textPart);
+				}
+			}
+		}
+		if (nextContent.length === 0) {
+			return { ...message, content: "" } as ModelMessage;
+		}
+		if (
+			nextContent.length === 1 &&
+			nextContent[0] &&
+			typeof nextContent[0] === "object" &&
+			"type" in nextContent[0] &&
+			nextContent[0].type === "text" &&
+			"text" in nextContent[0] &&
+			typeof nextContent[0].text === "string"
+		) {
+			return { ...message, content: nextContent[0].text } as ModelMessage;
+		}
+		return { ...message, content: nextContent } as ModelMessage;
+	});
 }

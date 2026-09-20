@@ -81,6 +81,13 @@ struct ConfigReaderTests {
 		#expect(dir.hasPrefix(ConfigReader.resolveTobyDir()))
 	}
 
+	@Test("libraryDir is under the resolved Toby dir")
+	func libraryDir() {
+		let dir = ConfigReader.libraryDir()
+		#expect(dir.hasSuffix("/library"))
+		#expect(dir.hasPrefix(ConfigReader.resolveTobyDir()))
+	}
+
 	@Test("ensureWritableDirectory creates missing folders")
 	func ensureWritableCreates() throws {
 		let dir = FileManager.default.temporaryDirectory

@@ -1109,6 +1109,60 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
+	// MARK: - Library
+
+	func listLibraryItems(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> LibraryListResponse {
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent("api/library"),
+			resolvingAgainstBaseURL: false,
+		)!
+		var items = [
+			URLQueryItem(name: "limit", value: String(limit)),
+			URLQueryItem(name: "offset", value: String(offset)),
+		]
+		if let query, !query.isEmpty {
+			items.append(URLQueryItem(name: "q", value: query))
+		}
+		components.queryItems = items
+		let (data, response) = try await URLSession.shared.data(from: components.url!)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(LibraryListResponse.self, from: data)
+	}
+
+	func fetchLibraryItem(id: String) async throws -> LibraryAsset {
+		let url = baseURL.appendingPathComponent("api/library/\(id)")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(LibraryDetailResponse.self, from: data).item
+	}
+
+	func createLibraryItem(_ request: LibraryCreateRequest) async throws -> LibraryCreateResponse {
+		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/library"))
+		urlRequest.httpMethod = "POST"
+		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		urlRequest.httpBody = try JSONEncoder().encode(request)
+		let (data, response) = try await URLSession.shared.data(for: urlRequest)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(LibraryCreateResponse.self, from: data)
+	}
+
+	func patchLibraryItem(id: String, patch: LibraryPatchRequest) async throws -> LibraryAsset {
+		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/library/\(id)"))
+		urlRequest.httpMethod = "PATCH"
+		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		urlRequest.httpBody = try JSONEncoder().encode(patch)
+		let (data, response) = try await URLSession.shared.data(for: urlRequest)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(LibraryDetailResponse.self, from: data).item
+	}
+
+	func deleteLibraryItem(id: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/library/\(id)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
 	/// Create a password-encrypted complete backup (binary archive stream).
 	func createConfigBackup(password: String) async throws -> ConfigBackupCreateResponse {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/backup"))
@@ -1323,6 +1377,7 @@ struct DatabaseSyncBackup: Decodable, Equatable, Identifiable {
 	var path: String? = nil
 	var includesProjects: Bool? = nil
 	var includesRecordings: Bool? = nil
+	var includesLibrary: Bool? = nil
 }
 
 struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {

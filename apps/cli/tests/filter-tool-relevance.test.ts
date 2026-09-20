@@ -12,6 +12,8 @@ describe("filterToolNamesByRelevance", () => {
 		"enableTools",
 		"fetchOpenTasks",
 		"memorySearch",
+		"find_in_library",
+		"remove_from_library",
 		"webSearch",
 		"writeTextFile",
 		"listProjectFiles",
@@ -32,6 +34,7 @@ describe("filterToolNamesByRelevance", () => {
 			"askUser",
 			"enableTools",
 			"memorySearch",
+			"find_in_library",
 		]);
 	});
 
@@ -41,6 +44,7 @@ describe("filterToolNamesByRelevance", () => {
 			"createLocalSkill",
 			"enableTools",
 			"memorySearch",
+			"find_in_library",
 		]);
 	});
 
@@ -50,13 +54,20 @@ describe("filterToolNamesByRelevance", () => {
 			"enableTools",
 			"fetchOpenTasks",
 			"memorySearch",
+			"find_in_library",
 		]);
 	});
 
 	it("includes routed tools when pretreatment selected them", () => {
 		expect(
 			filterToolNamesByRelevance(all, ["fetchOpenTasks", "memorySearch"]),
-		).toEqual(["askUser", "enableTools", "fetchOpenTasks", "memorySearch"]);
+		).toEqual([
+			"askUser",
+			"enableTools",
+			"fetchOpenTasks",
+			"memorySearch",
+			"find_in_library",
+		]);
 	});
 
 	it("does not always include write, pdf, or project file tools outside project chats", () => {
@@ -72,6 +83,8 @@ describe("filterToolNamesByRelevance", () => {
 		expect(ALWAYS_INCLUDED_TOOLS.has("tobyListTools")).toBe(true);
 		expect(ALWAYS_INCLUDED_TOOLS.has("delegateToSubAgent")).toBe(true);
 		expect(ALWAYS_INCLUDED_TOOLS.has("memorySearch")).toBe(true);
+		expect(ALWAYS_INCLUDED_TOOLS.has("find_in_library")).toBe(true);
+		expect(ALWAYS_INCLUDED_TOOLS.has("remove_from_library")).toBe(false);
 	});
 
 	it("keeps createLocalSkill explicit-only when no project is active", () => {
@@ -79,7 +92,27 @@ describe("filterToolNamesByRelevance", () => {
 			filterToolNamesByRelevance(all, ["fetchOpenTasks"], {
 				projectActive: false,
 			}),
-		).toEqual(["askUser", "enableTools", "fetchOpenTasks", "memorySearch"]);
+		).toEqual([
+			"askUser",
+			"enableTools",
+			"fetchOpenTasks",
+			"memorySearch",
+			"find_in_library",
+		]);
+	});
+
+	it("keeps remove_from_library explicit-only until selected", () => {
+		expect(
+			filterToolNamesByRelevance(all, ["remove_from_library"], {
+				projectActive: false,
+			}),
+		).toEqual([
+			"askUser",
+			"enableTools",
+			"memorySearch",
+			"find_in_library",
+			"remove_from_library",
+		]);
 	});
 
 	it("includes project file tools in the built-in set for project chats", () => {
@@ -103,6 +136,7 @@ describe("filterToolNamesByRelevance", () => {
 			"enableTools",
 			"fetchOpenTasks",
 			"memorySearch",
+			"find_in_library",
 			"writeTextFile",
 			"listProjectFiles",
 			"searchProjectFiles",
@@ -122,6 +156,7 @@ describe("filterToolNamesByRelevance", () => {
 			"createLocalSkill",
 			"enableTools",
 			"memorySearch",
+			"find_in_library",
 			"writeTextFile",
 			"listProjectFiles",
 			"searchProjectFiles",

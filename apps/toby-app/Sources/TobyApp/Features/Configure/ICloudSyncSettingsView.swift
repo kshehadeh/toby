@@ -162,7 +162,7 @@ struct ICloudSyncSettingsView: View {
 				}
 			}
 		} message: {
-			Text("This replaces settings and credentials on this Mac and uploads them as the current copy. Chats, projects, and recordings are not changed.")
+			Text("This replaces settings and credentials on this Mac and uploads them as the current copy. Chats, projects, recordings, and library items are not changed.")
 		}
 		.alert(
 			"Restore this data backup?",
@@ -215,7 +215,7 @@ struct ICloudSyncSettingsView: View {
 		case .settings:
 			return "Settings and credentials sync automatically when they change. Use saved copies to recover an earlier version without changing your chats, projects, or recordings."
 		case .dataBackups:
-			return "Save encrypted snapshots of chats, projects, and recordings — including audio and transcripts. These do not sync automatically. Toby keeps the latest 3 per Mac."
+			return "Save encrypted snapshots of chats, projects, recordings, and library files — including audio and transcripts. These do not sync automatically. Toby keeps the latest 3 per Mac."
 		}
 	}
 
@@ -408,7 +408,7 @@ struct ICloudSyncSettingsView: View {
 	private var dataPane: some View {
 		if resolvedStatus?.enabled == true {
 			Section {
-				LabeledContent("Back up this Mac’s chats, projects, and recordings daily") {
+				LabeledContent("Back up this Mac’s chats, projects, recordings, and library daily") {
 					if resolvedStatus?.databaseBackupsEnabled == true {
 						Button("Disable") { pendingDisableDataBackups = true }
 							.disabled(isWorking)
@@ -613,7 +613,7 @@ struct ICloudSyncSettingsView: View {
 
 	private var dataHistoryCard: some View {
 		Section("History") {
-			Text("Previous copies of chats, projects, and recordings. Toby keeps the latest 3 per Mac. Restore replaces that data on this Mac and restarts Toby.")
+			Text("Previous copies of chats, projects, recordings, and library files. Toby keeps the latest 3 per Mac. Restore replaces that data on this Mac and restarts Toby.")
 				.font(.caption)
 				.foregroundStyle(.secondary)
 				.fixedSize(horizontal: false, vertical: true)
@@ -641,6 +641,10 @@ struct ICloudSyncSettingsView: View {
 	private func backupContentsLabel(_ backup: DatabaseSyncBackup) -> String {
 		let projects = backup.includesProjects == true
 		let recordings = backup.includesRecordings == true
+		let library = backup.includesLibrary == true
+		if projects && recordings && library {
+			return "Chats, projects, recordings, and library"
+		}
 		if projects && recordings {
 			return "Chats, projects, and recordings"
 		}
@@ -649,6 +653,9 @@ struct ICloudSyncSettingsView: View {
 		}
 		if recordings {
 			return "Chats and recordings"
+		}
+		if library {
+			return "Chats and library"
 		}
 		return "Chats and memories"
 	}

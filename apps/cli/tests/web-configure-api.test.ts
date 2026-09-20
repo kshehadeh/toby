@@ -417,7 +417,7 @@ describe("web API routes", () => {
 		expect(iconFixture?.iconUrl).toBe("/api/plugins/iconfixture/icon");
 	});
 
-	it("GET /api/configure/sections returns 8 lightweight section structures", async () => {
+	it("GET /api/configure/sections returns 9 lightweight section structures", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/configure/sections"),
 			null,
@@ -431,7 +431,7 @@ describe("web API routes", () => {
 				children?: Array<{ kind: string }>;
 			}>;
 		};
-		expect(body.sections).toHaveLength(8);
+		expect(body.sections).toHaveLength(9);
 		expect(body.sections.map((s) => s.key)).toEqual([
 			"integrations",
 			"chatInbound",
@@ -441,6 +441,7 @@ describe("web API routes", () => {
 			"webSearch",
 			"weather",
 			"dashboard",
+			"library",
 		]);
 		expect(body.sections.find((s) => s.key === "dashboard")?.label).toBe(
 			"Home",

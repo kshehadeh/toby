@@ -91,10 +91,11 @@ in `packages/core/src/config/index.ts`.
 | ---- | ---- |
 | `~/.toby/config.json` | Non-secret prefs: personas, connection flags (`connectedAt`), defaults (`config.json`, mode `0o600`) |
 | `~/.toby/credentials.json` | Secrets (AI keys, `integrations.<plugin>` tokens); **AES-256-GCM encrypted at rest on macOS**, data key in Keychain `dev.toby.credentials` (`credentials-crypto.ts`, `credentials-keychain.ts`). Always use `readCredentials`/`writeCredentials` — never read the file directly |
-| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, tool cache |
+| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, tool cache, library catalog |
 | `~/.toby/memory.sqlite` | Memories, sources, proposals, embeddings, audit |
 | `~/.toby/logs/toby.log` | Unified JSON-lines log (`source` discriminator, `TOBY_LOG_LEVEL=debug` for verbose) |
 | `~/.toby/listen/recordings/<id>/` | Audio, metadata, transcripts |
+| `~/.toby/library/<id>/` | Indexed library files (copied originals + `extracted.txt`) |
 | `~/.toby/native-port` | Ephemeral port file for Toby.app native API server |
 | `~/.toby/sync-state.json` | Sync bookkeeping (device id, hash, backend, folder) |
 | `~/.toby/plugins/` | Installed plugins (`toby-plugin-*` dirs) |
@@ -251,6 +252,7 @@ Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
 | [`docs/personas.md`](docs/personas.md) | Built-in personas (Toby, Mailman), locked fields, resolve/list hydration. |
 | [`docs/flows.md`](docs/flows.md) | Named flow pipelines: SQLite definitions, seed-on-miss built-ins, nodes, runtime API, dashboard flows. |
 | [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
+| [`docs/library.md`](docs/library.md) | Indexed file library (`~/.toby/library/`, `chat.sqlite` catalog, chat tools). |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |
 | [`docs/dashboard.md`](docs/dashboard.md) | Home dashboard cards: block shell, soft vs force refresh, standard tools + flow AI blurbs, cache. |

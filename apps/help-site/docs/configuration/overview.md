@@ -22,12 +22,13 @@ Toby’s preferences live in **Toby.app → Settings**. This section documents *
 | **Web Search** | Built-in `webSearch` tool (not an integration) | [Web Search](./web-search) |
 | **Weather** | Built-in `getWeather` tool (Open-Meteo; not an integration) | [Weather](./weather) |
 | **Transcription** | Provider, key, and summary persona for Listen / recordings | [Transcription](./transcription) |
+| **Library** | Small model used to summarize and caption files added to the Library | [Library](../library) |
 | **Schedules** | Recurring prompts | [Schedules](../schedules) |
 | **Skills** | Skill list and bodies | [Skills](../skills) |
 
-Projects, recordings, and memories are managed outside Settings (sidebar **Projects**
-and **Recordings** workspaces, plus the **Memories** window from **View → Memories**).
-See [Projects](../projects), [Listen mode](../listen), and [Memories](../memories).
+Projects, recordings, library, and memories are managed outside Settings (sidebar **Projects**,
+**Library**, and **Recordings** workspaces, plus the **Memories** window from **View → Memories**).
+See [Projects](../projects), [Library](../library), [Listen mode](../listen), and [Memories](../memories).
 
 ## Open Settings
 
@@ -48,11 +49,12 @@ environment.
 | ---- | -------- |
 | `~/.toby/config.json` | Non-secret preferences: connection flags, personas, defaults, web search, inbound chat, schedules metadata, and similar |
 | `~/.toby/credentials.json` | Secrets (API keys, tokens). On Mac this file is **encrypted**; Toby keeps the encryption key in your Keychain. Never commit or share this file |
-| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, and run history |
+| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, and library catalog |
 | `~/.toby/memory.sqlite` | Saved memories, sources, and memory audit data |
 | `~/.toby/plugins/` | Installed integration plugins |
 | `~/.toby/skills/` | User skills |
 | `~/.toby/listen/recordings/` | Saved audio recordings and transcripts |
+| `~/.toby/library/` | Indexed library files (copied documents, PDFs, and images) |
 | `~/.toby/native-port` | Ephemeral port for Toby.app’s [Native API](../api/native-api) |
 | Local service port | Daemon [Server API](../api/server-api) default `http://127.0.0.1:7847` (`web.port` in config when set) |
 

@@ -87,6 +87,16 @@ struct CommandPaletteView: View {
 			))
 		}
 
+		if trimmed.isEmpty || "library".localizedCaseInsensitiveContains(trimmed) {
+			items.append(CommandPaletteResult(
+				id: "action-library",
+				title: "Open Library",
+				subtitle: "Browse saved documents and images",
+				systemImage: DetailRoute.library.systemImage,
+				kind: .route(.library),
+			))
+		}
+
 		if trimmed.isEmpty || "skills".localizedCaseInsensitiveContains(trimmed) {
 			items.append(CommandPaletteResult(
 				id: "action-skills",

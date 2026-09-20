@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { TextPart, UserContent } from "ai";
 import type { CoreMessage } from "../../ai/chat";
-import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
+import {
+	isNativeChatFilePartMediaType,
+	resolveChatAttachmentCapability,
+} from "../../ai/model-capabilities";
 import {
 	injectMemoriesIntoFirstSystemMessage,
 	injectProjectContextIntoFirstSystemMessage,
@@ -12,6 +15,7 @@ import { unionProjectOrganizationSkill } from "../../projects/index";
 import {
 	chatAttachmentsToFileParts,
 	formatAttachmentTranscriptSummary,
+	formatInlineTextAttachments,
 } from "../attachments";
 import type { AssembledTurn, ExpandedTurn, PipelineNode } from "../pipeline";
 
@@ -82,9 +86,7 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 		const attachmentCapability = resolveChatAttachmentCapability(ctx.persona);
 		const modelAttachments = attachmentCapability.supported
 			? (input.attachments ?? []).filter((attachment) =>
-					attachmentCapability.acceptedMediaTypes.includes(
-						attachment.mediaType,
-					),
+					isNativeChatFilePartMediaType(attachment.mediaType),
 				)
 			: [];
 		// File-part metadata is not exposed consistently by model providers. Include
@@ -92,7 +94,8 @@ export const assembleMessagesNode: PipelineNode<ExpandedTurn, AssembledTurn> = {
 		// even when a model can inspect the file content but not its filename.
 		const messageText =
 			input.effectiveText +
-			formatAttachmentTranscriptSummary(input.attachments);
+			formatAttachmentTranscriptSummary(input.attachments) +
+			formatInlineTextAttachments(input.attachments);
 
 		if (input.isFirstTurn) {
 			if (ctx.onStatusLine) {

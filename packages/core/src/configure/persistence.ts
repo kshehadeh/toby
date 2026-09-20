@@ -1,8 +1,10 @@
+import { resolveAuxiliaryModelId } from "../ai/model-factory";
 import { getAIProvider } from "../ai/providers";
 import type {
 	AISettings,
 	ChatInboundConfig,
 	DashboardConfig,
+	LibraryConfig,
 	ListenConfig,
 } from "../config/index";
 import {
@@ -209,6 +211,14 @@ export function seedConfigureValues(): Record<string, string> {
 		config.listen?.recordSystem === false ? "false" : "true";
 	values["listen.deleteAudioAfterTranscription"] =
 		config.listen?.deleteAudioAfterTranscription === false ? "false" : "true";
+	const defaultPersona =
+		config.personas.find((p) => p.name === config.defaultPersona) ??
+		config.personas[0];
+	const libraryProvider =
+		config.library?.provider?.trim() || defaultPersona?.ai.provider || "openai";
+	values["library.provider"] = libraryProvider;
+	values["library.model"] =
+		config.library?.model?.trim() || resolveAuxiliaryModelId(libraryProvider);
 
 	for (const mod of getIntegrationModules()) {
 		if (!mod.chatInbound) continue;
@@ -303,6 +313,30 @@ export function normalizeTranscriptionConfigureValues(
 	}
 }
 
+export function normalizeLibraryConfigureValues(
+	values: Record<string, string>,
+	options?: { readonly providerJustChanged?: boolean },
+): void {
+	const providerKey = "library.provider";
+	const modelKey = "library.model";
+	let provider = values[providerKey]?.trim();
+	const model = values[modelKey]?.trim();
+	if (!provider && !model) return;
+	if (!provider) {
+		provider = "openai";
+		values[providerKey] = provider;
+	}
+	const info = getAIProvider(provider);
+	if (!model) {
+		values[modelKey] = resolveAuxiliaryModelId(provider);
+		return;
+	}
+	if (!options?.providerJustChanged) return;
+	const knownModels = info?.models ?? [];
+	if (knownModels.includes(model)) return;
+	values[modelKey] = resolveAuxiliaryModelId(provider);
+}
+
 export function rebuildTranscriptionConfig(
 	values: Record<string, string>,
 ): TranscriptionConfig | undefined {
@@ -391,6 +425,18 @@ export function rebuildListenConfig(
 		...(deleteAudioAfterTranscription
 			? {}
 			: { deleteAudioAfterTranscription: false }),
+	};
+}
+
+export function rebuildLibraryConfig(
+	values: Record<string, string>,
+): LibraryConfig | undefined {
+	const provider = values["library.provider"]?.trim();
+	const model = values["library.model"]?.trim();
+	if (!provider && !model) return undefined;
+	return {
+		...(provider ? { provider } : {}),
+		...(model ? { model } : {}),
 	};
 }
 
@@ -621,6 +667,7 @@ function applyConfigFromValues(values: Record<string, string>): void {
 	cfg.ai = rebuildAISettings(values);
 	cfg.dashboard = rebuildDashboardConfig(values);
 	cfg.listen = rebuildListenConfig(values);
+	cfg.library = rebuildLibraryConfig(values);
 	applyIntegrationInboundFlags(cfg, values);
 	applyMcpConnectionConfigFromValues(cfg, values);
 	writeConfig(cfg);
@@ -807,6 +854,9 @@ export function applyConfigureValuesPatch(
 		const merged = { ...(baseValues ?? seedConfigureValues()), ...config };
 		normalizeTranscriptionConfigureValues(merged, {
 			providerJustChanged: Object.hasOwn(config, "transcription.provider"),
+		});
+		normalizeLibraryConfigureValues(merged, {
+			providerJustChanged: Object.hasOwn(config, "library.provider"),
 		});
 		// When a persona model is set to a value not in the provider's built-in
 		// list, automatically append it to the custom model list so it appears in

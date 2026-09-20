@@ -82,5 +82,6 @@ Memories marked as usable by AI are also included in the chat instructions (up t
 
 ## Related
 
+- [Library](./library) — indexed files, not memories
 - [Examples](./examples)
 - [Schedules](./schedules) — scheduled runs can also propose and use memories
