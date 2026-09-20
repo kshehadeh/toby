@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -56,6 +57,7 @@ struct InputDock: View {
 				)
 				.padding(.horizontal, 12)
 				.padding(.top, 10)
+				.transition(.opacity)
 			}
 			TextField("Ask Toby to handle something", text: $text, axis: .vertical)
 				.focused(focus)
@@ -165,20 +167,34 @@ struct InputDock: View {
 	}
 }
 
+private let inputDockImageThumbnailSize: CGFloat = 48
+
 private struct AttachmentChipRow: View {
 	let attachments: [ChatAttachmentDraft]
 	let onRemove: (UUID) -> Void
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+	private static let dismissalAnimation: Animation = .easeInOut(duration: 0.5)
 
 	var body: some View {
 		ScrollView(.horizontal, showsIndicators: false) {
 			HStack(spacing: 6) {
 				ForEach(attachments) { attachment in
 					AttachmentChip(attachment: attachment) {
-						onRemove(attachment.id)
+						dismiss(attachment.id)
 					}
+					.transition(
+						.opacity.combined(with: .scale(scale: 0.4, anchor: .center))
+					)
 				}
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
+		}
+	}
+
+	private func dismiss(_ id: UUID) {
+		withAnimation(reduceMotion ? nil : Self.dismissalAnimation) {
+			onRemove(id)
 		}
 	}
 }
@@ -188,6 +204,14 @@ private struct AttachmentChip: View {
 	let onRemove: () -> Void
 
 	var body: some View {
+		if attachment.isImagePreviewable, let image = attachment.previewThumbnail {
+			AttachmentImageThumbnail(attachment: attachment, image: image, onRemove: onRemove)
+		} else {
+			fileChip
+		}
+	}
+
+	private var fileChip: some View {
 		HStack(spacing: 6) {
 			Image(systemName: "paperclip")
 				.font(.caption.weight(.semibold))
@@ -211,8 +235,57 @@ private struct AttachmentChip: View {
 			Capsule(style: .continuous)
 				.fill(AppTheme.selection)
 		)
+		.accessibilityIdentifier("chat-input-file-attachment")
 	}
+}
 
+private struct AttachmentImageThumbnail: View {
+	let attachment: ChatAttachmentDraft
+	let image: NSImage
+	let onRemove: () -> Void
+
+	static let size: CGFloat = inputDockImageThumbnailSize
+
+	var body: some View {
+		ZStack(alignment: .topTrailing) {
+			Image(nsImage: image)
+				.resizable()
+				.interpolation(.high)
+				.scaledToFill()
+				.frame(width: Self.size, height: Self.size)
+				.clipShape(AppTheme.concentricRect(minimum: 8))
+				.overlay(
+					AppTheme.concentricRect(minimum: 8)
+						.stroke(AppTheme.separator)
+				)
+				.accessibilityLabel("Image attachment \(attachment.filename)")
+
+			Button(action: onRemove) {
+				Image(systemName: "xmark.circle.fill")
+					.font(.system(size: 14, weight: .semibold))
+					.symbolRenderingMode(.palette)
+					.foregroundStyle(AppTheme.secondaryText, AppTheme.elevatedBackground)
+					.frame(width: 22, height: 22)
+					.contentShape(Rectangle())
+					.accessibilityHidden(true)
+			}
+			.buttonStyle(.plain)
+			.padding(2)
+			.accessibilityLabel("Remove \(attachment.filename)")
+			.accessibilityIdentifier("chat-input-remove-attachment")
+		}
+		.help("\(attachment.filename) · \(formatAttachmentByteSize(attachment.byteSize))")
+		.accessibilityIdentifier("chat-input-image-attachment")
+	}
+}
+
+private extension ChatAttachmentDraft {
+	var previewThumbnail: NSImage? {
+		guard let data = Data(base64Encoded: dataBase64) else { return nil }
+		let maxPixelSize = inputDockImageThumbnailSize * (NSScreen.main?.backingScaleFactor ?? 2)
+		return ImageDownsampling.downsample(data: data, maxPixelSize: maxPixelSize)
+			?? NSImage(data: data)
+	}
 }
 
 private struct ContextFillGauge: View {

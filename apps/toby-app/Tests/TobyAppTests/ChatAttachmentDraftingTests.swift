@@ -21,6 +21,24 @@ struct ChatAttachmentDraftingTests {
 		)
 	}
 
+	@Test("image drafts are previewable")
+	func imageDraftsArePreviewable() {
+		let image = ChatAttachmentDraft(
+			filename: "pixel.png",
+			mediaType: "image/png",
+			dataBase64: "aGVsbG8=",
+			byteSize: 5,
+		)
+		let file = ChatAttachmentDraft(
+			filename: "notes.txt",
+			mediaType: "text/plain",
+			dataBase64: "aGVsbG8=",
+			byteSize: 5,
+		)
+		#expect(image.isImagePreviewable)
+		#expect(!file.isImagePreviewable)
+	}
+
 	@Test("mediaType maps markdown and typescript extensions")
 	func mediaTypeMapsCommonExtensions() {
 		#expect(ChatAttachmentDrafting.mediaType(for: URL(fileURLWithPath: "/tmp/note.md")) == "text/markdown")

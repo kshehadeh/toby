@@ -194,6 +194,10 @@ struct ChatAttachmentDraft: Codable, Equatable, Identifiable {
 		self.dataBase64 = dataBase64
 		self.byteSize = byteSize
 	}
+
+	var isImagePreviewable: Bool {
+		mediaType.hasPrefix("image/")
+	}
 }
 
 struct ChatTranscriptAttachment: Decodable, Equatable, Identifiable {

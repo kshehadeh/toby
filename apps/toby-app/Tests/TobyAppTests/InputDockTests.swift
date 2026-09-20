@@ -183,6 +183,87 @@ struct InputDockTests {
         #expect(try attachButton(in: disabled).isDisabled())
     }
 
+    @Test("image attachments render as thumbnails")
+    func imageAttachmentsRenderAsThumbnails() throws {
+        @FocusState var focused: Bool
+        let attachment = ChatAttachmentDraft(
+            filename: "pixel.png",
+            mediaType: "image/png",
+            dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+            byteSize: 68
+        )
+        let view = InputDock(
+            text: .constant(""),
+            focus: $focused,
+            isLoading: false,
+            contextFillPercentage: nil,
+            contextWindowUnavailable: false,
+            attachments: [attachment],
+            onSubmit: {},
+            onCancel: {}
+        )
+        #expect(throws: Never.self) {
+            try view.inspect().find(viewWithAccessibilityIdentifier: "chat-input-image-attachment")
+        }
+        #expect(throws: (any Error).self) {
+            try view.inspect().find(viewWithAccessibilityIdentifier: "chat-input-file-attachment")
+        }
+    }
+
+    @Test("non-image attachments render as file chips")
+    func nonImageAttachmentsRenderAsFileChips() throws {
+        @FocusState var focused: Bool
+        let attachment = ChatAttachmentDraft(
+            filename: "notes.txt",
+            mediaType: "text/plain",
+            dataBase64: "aGVsbG8=",
+            byteSize: 5
+        )
+        let view = InputDock(
+            text: .constant(""),
+            focus: $focused,
+            isLoading: false,
+            contextFillPercentage: nil,
+            contextWindowUnavailable: false,
+            attachments: [attachment],
+            onSubmit: {},
+            onCancel: {}
+        )
+        #expect(throws: Never.self) {
+            try view.inspect().find(viewWithAccessibilityIdentifier: "chat-input-file-attachment")
+        }
+        #expect(throws: (any Error).self) {
+            try view.inspect().find(viewWithAccessibilityIdentifier: "chat-input-image-attachment")
+        }
+    }
+
+    @Test("image thumbnail remove button calls onRemove")
+    func imageThumbnailRemoveCallsOnRemove() throws {
+        let attachmentId = UUID()
+        var removed: UUID?
+        @FocusState var focused: Bool
+        let attachment = ChatAttachmentDraft(
+            id: attachmentId,
+            filename: "pixel.png",
+            mediaType: "image/png",
+            dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+            byteSize: 68
+        )
+        let view = InputDock(
+            text: .constant(""),
+            focus: $focused,
+            isLoading: false,
+            contextFillPercentage: nil,
+            contextWindowUnavailable: false,
+            attachments: [attachment],
+            onRemoveAttachment: { removed = $0 },
+            onSubmit: {},
+            onCancel: {}
+        )
+        try view.inspect().find(viewWithAccessibilityIdentifier: "chat-input-remove-attachment").button().tap()
+        #expect(removed == attachmentId)
+    }
+
     @Test("onCancel called when cancel button tapped")
     func onCancelCalledOnTap() throws {
         var cancelled = false
