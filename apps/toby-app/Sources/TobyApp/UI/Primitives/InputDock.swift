@@ -59,7 +59,7 @@ struct InputDock: View {
 				.padding(.top, 10)
 				.transition(.opacity)
 			}
-			TextField("Ask Toby to handle something", text: $text, axis: .vertical)
+			TextField(inputDockPlaceholder, text: $text, axis: .vertical)
 				.focused(focus)
 				.textFieldStyle(.plain)
 				.font(.body)
@@ -79,21 +79,21 @@ struct InputDock: View {
 				.padding(.top, 12)
 				.padding(.bottom, 8)
 			HStack(spacing: 8) {
-				Text("Return to send")
-				Text("Shift+Return for newline")
-					.foregroundStyle(AppTheme.tertiaryText)
-				Spacer()
 				Button {
 					isFileImporterPresented = true
 				} label: {
 					Image(systemName: "plus")
+						.font(.body.weight(.semibold))
 						.accessibilityLabel(pdfOnlyAttachments ? "Add a PDF" : "Add files")
 				}
-				.buttonStyle(.borderless)
+				.buttonStyle(.bordered)
+				.buttonBorderShape(.circle)
 				.controlSize(.regular)
 				.disabled(!canUseAttachmentButton)
+				.inputDockButtonHover(isEnabled: canUseAttachmentButton)
 				.help(canUseAttachmentButton ? attachHelpText : attachmentDisabledReason)
 				.accessibilityIdentifier("chat-attach-button")
+				Spacer(minLength: 0)
 				if let pct = contextFillPercentage {
 					ContextFillGauge(percentage: pct)
 				} else if contextWindowUnavailable {
@@ -116,7 +116,8 @@ struct InputDock: View {
 					}
 					.buttonStyle(.bordered)
 					.buttonBorderShape(.circle)
-					.controlSize(.small)
+					.controlSize(.regular)
+					.inputDockButtonHover(isEnabled: true)
 					.accessibilityIdentifier("chat-cancel-button")
 				}
 				Button(action: onSubmit) {
@@ -126,13 +127,12 @@ struct InputDock: View {
 				}
 				.buttonStyle(.borderedProminent)
 				.buttonBorderShape(.circle)
-				.controlSize(.small)
-				.tint(canSubmit ? Color.primary : Color.secondary)
+				.controlSize(.regular)
+				.tint(canSubmit ? AppTheme.accent : Color.secondary)
 				.disabled(!canSubmit)
+				.inputDockButtonHover(isEnabled: canSubmit, isProminent: true)
 				.accessibilityIdentifier("chat-send-button")
 			}
-			.font(.caption)
-			.foregroundStyle(AppTheme.secondaryText)
 			.padding(.horizontal, 12)
 			.padding(.bottom, 10)
 		}
@@ -167,7 +167,38 @@ struct InputDock: View {
 	}
 }
 
+private let inputDockPlaceholder = "Return to send · Shift+Return for newline"
 private let inputDockImageThumbnailSize: CGFloat = 48
+
+private struct InputDockButtonHover: ViewModifier {
+	var isEnabled: Bool
+	var isProminent: Bool = false
+	@State private var isHovered = false
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+	func body(content: Content) -> some View {
+		content
+			.pointerStyle(isEnabled ? .link : .default)
+			.overlay {
+				Circle()
+					.fill(hoverFill)
+					.allowsHitTesting(false)
+			}
+			.onHover { isHovered = $0 }
+			.animation(reduceMotion ? nil : .easeInOut(duration: 0.14), value: isHovered)
+	}
+
+	private var hoverFill: Color {
+		guard isEnabled, isHovered else { return .clear }
+		return AppTheme.primaryText.opacity(isProminent ? 0.16 : 0.10)
+	}
+}
+
+private extension View {
+	func inputDockButtonHover(isEnabled: Bool, isProminent: Bool = false) -> some View {
+		modifier(InputDockButtonHover(isEnabled: isEnabled, isProminent: isProminent))
+	}
+}
 
 private struct AttachmentChipRow: View {
 	let attachments: [ChatAttachmentDraft]

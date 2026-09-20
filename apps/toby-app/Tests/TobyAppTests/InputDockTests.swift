@@ -18,6 +18,17 @@ struct InputDockTests {
         try view.inspect().find(viewWithAccessibilityIdentifier: "chat-attach-button").button()
     }
 
+    @Test("empty field uses keyboard shortcut placeholder")
+    func emptyFieldUsesKeyboardPlaceholder() throws {
+        @FocusState var focused: Bool
+        let view = InputDock(text: .constant(""), focus: $focused, isLoading: false, contextFillPercentage: nil, contextWindowUnavailable: false, onSubmit: {}, onCancel: {})
+        let field = try view.inspect().find(ViewType.TextField.self)
+        #expect(try field.labelView().text().string() == "Return to send · Shift+Return for newline")
+        #expect(throws: (any Error).self) {
+            try view.inspect().find(text: "Ask Toby to handle something")
+        }
+    }
+
     @Test("send button disabled when text is empty")
     func sendButtonDisabledWhenTextEmpty() throws {
         @FocusState var focused: Bool

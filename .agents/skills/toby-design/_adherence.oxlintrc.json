@@ -96,8 +96,8 @@
         "message": "<InlineStatusMessage> tone must be one of 'success' | 'error'."
       },
       {
-        "selector": "JSXOpeningElement[name.name='InputDock'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|placeholder|hint|contextPercent|attachments|loading|onChange|onSubmit|key|ref|className|style|children)$/]",
-        "message": "<InputDock> doesn't accept that prop. Declared props: value, placeholder, hint, contextPercent, attachments, loading, onChange, onSubmit."
+        "selector": "JSXOpeningElement[name.name='InputDock'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|placeholder|contextPercent|attachments|loading|onChange|onSubmit|key|ref|className|style|children)$/]",
+        "message": "<InputDock> doesn't accept that prop. Declared props: value, placeholder, contextPercent, attachments, loading, onChange, onSubmit."
       },
       {
         "selector": "JSXOpeningElement[name.name='OnboardingTile'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|subtitle|glyph|actionLabel|upNext|complete|onAction|key|ref|className|style|children)$/]",

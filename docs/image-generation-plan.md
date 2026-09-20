@@ -62,7 +62,7 @@ Markdown already accepts `http://` image URLs ([`MarkdownParser.httpOrHttpsURL`]
 
 ## Prompt-box indicator
 
-When `imageGenerationCapability.supported` is true, show a non-interactive photo glyph in [`InputDock`](../apps/toby-app/Sources/TobyApp/UI/Primitives/InputDock.swift) on the right-hand control row, **left of the attach (+) button**:
+When `imageGenerationCapability.supported` is true, show a non-interactive photo glyph in [`InputDock`](../apps/toby-app/Sources/TobyApp/UI/Primitives/InputDock.swift) on the control row, **right of the attach (+) button**:
 
 - SF Symbol `photo`
 - Caption size, `AppTheme.secondaryText`

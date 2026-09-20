@@ -1,13 +1,11 @@
 /**
- * The chat composer — floating rounded dock with keyboard hints, attach,
- * context-fill gauge and send.
+ * The chat composer — floating rounded dock with attach on the left, send on
+ * the right, and keyboard-shortcut placeholder copy.
  */
 export interface InputDockProps {
   value?: string;
-  /** Default: "Ask Toby to handle something". */
+  /** Default: "Return to send · Shift+Return for newline". */
   placeholder?: string;
-  /** Show the "Return to send / Shift+Return for newline" hints. */
-  hint?: boolean;
   /** 0–100; renders the ring gauge. Omit when the provider doesn't report it. */
   contextPercent?: number;
   /** Attachment chips row rendered above the field. */

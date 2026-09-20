@@ -287,8 +287,7 @@ owns global bootstrap, windows, sheets, alerts, routes, and global toast routing
 ### Input, keyboard, focus, and scrolling
 
 - Use `@FocusState` and request focus only when the workflow requires it.
-- The composer supports Return to submit and Shift-Return for a newline. It
-  accepts two to six text lines and is disabled while a turn is loading.
+- The composer supports Return to submit and Shift-Return for a newline. Empty-field placeholder restates those shortcuts. Attach sits on the left of the control row; Send (and Cancel while loading) sit on the right. Enabled Send uses the user accent. Enabled attach/cancel/send use a pointing-hand cursor and a quiet hover wash. It accepts two to six text lines and is disabled while a turn is loading.
 - Preserve native keyboard navigation in lists, menus, `NavigationSplitView`,
   alerts, and controls.
 - A transcript reserves measured space for its floating composer. Autoscroll
