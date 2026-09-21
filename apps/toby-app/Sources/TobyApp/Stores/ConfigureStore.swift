@@ -21,6 +21,10 @@ final class ConfigureStore {
 	var setupGuideLoading: String?
 	var setupGuidePresented: Bool = false
 
+	/// Provider id → whether credentials are present (`GET /api/ai/providers`).
+	var aiProviderConfigured: [String: Bool] = [:]
+	var aiProvidersStatusLoading = false
+
 	var settingsSections: [SettingsItem] = []
 	var selectedSectionDetail: SettingsItem?
 	var sectionDetailLoading = false
@@ -208,6 +212,8 @@ final class ConfigureStore {
 		setupGuide = nil
 		setupGuideLoading = nil
 		setupGuidePresented = false
+		aiProviderConfigured = [:]
+		aiProvidersStatusLoading = false
 		settingsSections = []
 		selectedSectionDetail = nil
 		sectionDetailLoading = false
@@ -450,6 +456,9 @@ final class ConfigureStore {
 			if hasPendingChanges {
 				scheduleAutosave()
 			}
+			if changes.keys.contains(where: { $0.hasPrefix("ai.") }) {
+				await loadAIProviderStatuses()
+			}
 			onChangesSaved?()
 		} catch {
 			errorMessage = error.localizedDescription
@@ -568,6 +577,31 @@ final class ConfigureStore {
 		} catch {
 			// Status is informational — the UI handles nil gracefully.
 		}
+	}
+
+	/// Provider id from a configure section key (`ai.vercel` → `vercel`).
+	static func aiProviderId(fromSectionKey key: String) -> String? {
+		guard key.hasPrefix("ai."), key != SettingsItem.aiSectionKey else { return nil }
+		let id = String(key.dropFirst("ai.".count))
+		return id.isEmpty ? nil : id
+	}
+
+	func loadAIProviderStatuses() async {
+		aiProvidersStatusLoading = true
+		defer { aiProvidersStatusLoading = false }
+		do {
+			let providers = try await client.fetchAIProviders()
+			aiProviderConfigured = Dictionary(
+				uniqueKeysWithValues: providers.map { ($0.providerId, $0.configured) }
+			)
+		} catch {
+			// Status is informational — the UI handles missing entries as Unknown.
+		}
+	}
+
+	func isAIProviderConfigured(sectionKey: String) -> Bool? {
+		guard let id = Self.aiProviderId(fromSectionKey: sectionKey) else { return nil }
+		return aiProviderConfigured[id]
 	}
 
 	func runIntegrationAction(name: String, action: IntegrationAction) async {

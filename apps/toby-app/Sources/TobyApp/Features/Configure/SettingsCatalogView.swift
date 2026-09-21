@@ -39,10 +39,13 @@ struct SettingsCatalogView: View {
 	var emptyTitle: String = "Nothing here"
 	var emptyDescription: String = "No items are available yet."
 	var statusText: ((SettingsItem) -> String?)? = nil
+	var showsConnectedCheckmark: ((SettingsItem) -> Bool)? = nil
 	var onAdd: (() -> Void)? = nil
 	var addTitle: String? = nil
 	var groups: [SettingsCatalogGroup]? = nil
 	var catalogTip: SettingsCatalogTip? = nil
+	/// Called after guided AI provider setup succeeds (catalog → detail).
+	var onGuidedSetupCompleted: (() -> Void)? = nil
 
 	var body: some View {
 		NavigationStack(path: $path) {
@@ -146,7 +149,8 @@ struct SettingsCatalogView: View {
 				SettingsCatalogRow(
 					section: section,
 					statusText: statusText?(section),
-					fallbackIcon: fallbackIcon
+					fallbackIcon: fallbackIcon,
+					showsConnectedCheckmark: showsConnectedCheckmark?(section) ?? false
 				)
 			}
 			.buttonStyle(.plain)
@@ -178,11 +182,19 @@ struct SettingsCatalogView: View {
 		} else if let section = store.settingsSelectedSection,
 			ConfigureTreeHelpers.sectionIdentityKey(section) == key
 		{
-			ConfigureSectionDetailView(store: store, section: section)
+			ConfigureSectionDetailView(
+				store: store,
+				section: section,
+				onGuidedSetupCompleted: onGuidedSetupCompleted
+			)
 		} else if let section = children.first(where: {
 			ConfigureTreeHelpers.sectionIdentityKey($0) == key
 		}) {
-			ConfigureSectionDetailView(store: store, section: section)
+			ConfigureSectionDetailView(
+				store: store,
+				section: section,
+				onGuidedSetupCompleted: onGuidedSetupCompleted
+			)
 		} else {
 			ProgressView("Loading…")
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -272,6 +284,7 @@ struct SettingsCatalogRow: View {
 	let section: SettingsItem
 	let statusText: String?
 	let fallbackIcon: String
+	var showsConnectedCheckmark: Bool = false
 
 	private var iconUrl: URL? {
 		guard let iconUrl = section.iconUrl else { return nil }
@@ -285,6 +298,12 @@ struct SettingsCatalogRow: View {
 			Text(section.displayLabel)
 				.foregroundStyle(.primary)
 			Spacer(minLength: 8)
+			if showsConnectedCheckmark {
+				Image(systemName: "checkmark.circle.fill")
+					.font(.system(size: 12, weight: .semibold))
+					.foregroundStyle(AppTheme.statusSuccessForeground)
+					.accessibilityHidden(true)
+			}
 			if let statusText, !statusText.isEmpty {
 				Text(statusText)
 					.font(.caption)

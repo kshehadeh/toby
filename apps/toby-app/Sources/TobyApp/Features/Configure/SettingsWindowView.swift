@@ -88,6 +88,10 @@ struct SettingsWindowView: View {
 		selectedTabKey == SettingsItem.integrationsSectionKey
 	}
 
+	private var isAITab: Bool {
+		selectedTabKey == SettingsItem.aiSectionKey
+	}
+
 	private var isCatalogTab: Bool {
 		isIntegrationsTab || isPersonasTab || store.isCatalogSectionKey(selectedTabKey)
 	}
@@ -259,6 +263,8 @@ struct SettingsWindowView: View {
 				ICloudSyncSettingsView()
 			} else if isIntegrationsTab {
 				IntegrationsSettingsView(store: store, path: $catalogPath)
+			} else if isAITab {
+				AISettingsView(store: store, path: $catalogPath)
 			} else if store.isCatalogSectionKey(selectedTabKey) {
 				catalogDetail
 			} else if let errorMessage = store.errorMessage,
@@ -281,7 +287,6 @@ struct SettingsWindowView: View {
 		let catalog = store.catalogSection(for: selectedTabKey)
 		let title = catalog?.displayLabel ?? "Settings"
 		let icon = catalog.map { SettingsSidebarIcon.systemName(for: $0) } ?? "sparkles"
-		let isAI = selectedTabKey == SettingsItem.aiSectionKey
 		SettingsCatalogView(
 			store: store,
 			path: $catalogPath,
@@ -294,10 +299,8 @@ struct SettingsWindowView: View {
 			fallbackIcon: icon,
 			loadingTitle: "Loading…",
 			unavailableTitle: "\(title) unavailable",
-			emptyTitle: isAI ? "No providers" : "No \(title.lowercased())",
-			emptyDescription: isAI
-				? "No AI providers are available."
-				: "Nothing is available in this section yet."
+			emptyTitle: "No \(title.lowercased())",
+			emptyDescription: "Nothing is available in this section yet."
 		)
 	}
 

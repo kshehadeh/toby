@@ -97,6 +97,12 @@ struct ConfigureSectionDetailView: View {
 				IntegrationSettingsMetaSections(status: store.integrationStatus[section.key])
 			}
 
+			if isAIProviderSection {
+				Section {
+					aiProviderStatusBanner
+				}
+			}
+
 			if store.sectionFieldsReloading == section.key {
 				Section {
 					CredentialsSkeletonView()
@@ -233,6 +239,9 @@ struct ConfigureSectionDetailView: View {
 				await store.loadIntegrationStatus(for: section.key)
 				await store.loadSetupGuide(for: section.key)
 			}
+			if isAIProviderSection {
+				await store.loadAIProviderStatuses()
+			}
 		}
 		.sheet(item: Binding(
 			get: { guidedSetupProviderId.map { GuidedSetupSheetItem(id: $0) } },
@@ -242,10 +251,43 @@ struct ConfigureSectionDetailView: View {
 				providerId: item.id,
 				onCompleted: {
 					onGuidedSetupCompleted?()
-					Task { await store.loadSectionDetail(section.key) }
+					Task {
+						await store.loadAIProviderStatuses()
+						await store.loadSectionDetail(section.key)
+					}
 				},
 				onDismiss: { guidedSetupProviderId = nil }
 			)
+		}
+	}
+
+	@ViewBuilder
+	private var aiProviderStatusBanner: some View {
+		if store.aiProvidersStatusLoading, store.aiProviderConfigured.isEmpty {
+			HStack(spacing: 6) {
+				ProgressView()
+					.scaleEffect(0.7)
+				Text("Checking status…")
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+			}
+			.accessibilityIdentifier("ai-provider-status-checking")
+		} else if store.isAIProviderConfigured(sectionKey: section.key) == true {
+			InlineStatusMessage(
+				message: "Connected and ready",
+				tone: .success
+			)
+			.accessibilityIdentifier("ai-provider-status-connected")
+		} else {
+			HStack(spacing: 6) {
+				Circle()
+					.fill(AppTheme.tertiaryText)
+					.frame(width: 6, height: 6)
+				Text("Not connected")
+					.font(.subheadline)
+					.foregroundStyle(AppTheme.secondaryText)
+			}
+			.accessibilityIdentifier("ai-provider-status-not-connected")
 		}
 	}
 

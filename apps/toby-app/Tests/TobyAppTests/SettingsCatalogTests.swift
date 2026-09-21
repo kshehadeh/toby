@@ -235,4 +235,75 @@ struct SettingsCatalogTests {
 		let images = try view.inspect().findAll(ViewType.Image.self)
 		#expect(!images.contains { (try? $0.actualImage().name()) == "chevron.right" })
 	}
+
+	@Test("catalog row shows connected checkmark when requested")
+	func catalogRowShowsConnectedCheckmark() throws {
+		let section = SettingsItem(
+			label: "Vercel AI Gateway",
+			kind: .section,
+			key: "ai.vercel",
+			navKey: "ai.vercel",
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let view = SettingsCatalogRow(
+			section: section,
+			statusText: "Connected",
+			fallbackIcon: "sparkles",
+			showsConnectedCheckmark: true
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Connected") }
+		let images = try view.inspect().findAll(ViewType.Image.self)
+		#expect(images.contains { (try? $0.actualImage().name()) == "checkmark.circle.fill" })
+	}
+
+	@Test("catalog row omits checkmark when not connected")
+	func catalogRowOmitsCheckmarkWhenNotConnected() throws {
+		let section = SettingsItem(
+			label: "OpenAI",
+			kind: .section,
+			key: "ai.openai",
+			navKey: "ai.openai",
+			children: [],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
+		)
+		let view = SettingsCatalogRow(
+			section: section,
+			statusText: "Not connected",
+			fallbackIcon: "sparkles",
+			showsConnectedCheckmark: false
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Not connected") }
+		let images = try view.inspect().findAll(ViewType.Image.self)
+		#expect(!images.contains { (try? $0.actualImage().name()) == "checkmark.circle.fill" })
+	}
+
+	@Test("AI settings view shows Connected status for configured providers")
+	func aiSettingsShowsConnectedStatus() throws {
+		let store = ConfigureStore()
+		store.settingsSections = [makeAISection()]
+		store.aiProviderConfigured = ["openai": true, "vercel": false]
+		var path: [String] = []
+		let view = AISettingsView(
+			store: store,
+			path: Binding(get: { path }, set: { path = $0 })
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-ai-catalog")
+		}
+		#expect(throws: Never.self) { try view.inspect().find(text: "Connected") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Not connected") }
+	}
 }
