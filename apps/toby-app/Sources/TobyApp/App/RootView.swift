@@ -36,9 +36,7 @@ struct RootView: View {
     @State private var isPersonaAttentionHighlighted = false
     @State private var emphasizeCreatePersona = false
     @State private var personaAttentionTask: Task<Void, Never>?
-    @State private var isAIProviderChooserPresented = false
-    /// When non-nil, present guided setup for this provider id.
-    @State private var aiProviderSetupProviderId: String?
+    @State private var isAIProviderSetupPresented = false
     /// When true on a narrow Chats workspace, show the session list instead of the transcript.
     @State private var preferChatSessionList = false
     @State private var isConnectionStatusPresented = false
@@ -250,43 +248,18 @@ struct RootView: View {
                     .interactiveDismissDisabled(true)
                 }
             }
-            .sheet(isPresented: $isAIProviderChooserPresented) {
-                AIProviderSetupChooserView(
-                    onSelect: { providerId in
-                        isAIProviderChooserPresented = false
-                        // Present the wizard after the chooser sheet dismisses.
-                        Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(200))
-                            aiProviderSetupProviderId = providerId
-                        }
-                    },
-                    onDismiss: { isAIProviderChooserPresented = false },
-                    onBrowseAllProviders: {
-                        isAIProviderChooserPresented = false
-                        openSettings(navKey: "ai")
-                    }
-                )
-            }
-            .sheet(item: Binding(
-                get: { aiProviderSetupProviderId.map { AIProviderSetupSheetItem(id: $0) } },
-                set: { aiProviderSetupProviderId = $0?.id }
-            )) { item in
+            .sheet(isPresented: $isAIProviderSetupPresented) {
                 VercelAIGatewaySetupWizardView(
-                    providerId: item.id,
                     onCompleted: {
                         Task {
                             await store.refreshStatus()
                             await configureStore.loadSettingsSections()
                         }
                     },
-                    onDismiss: { aiProviderSetupProviderId = nil }
+                    onStartChat: { startNewChat() },
+                    onDismiss: { isAIProviderSetupPresented = false }
                 )
             }
-    }
-
-    /// Identifiable wrapper so `.sheet(item:)` can present setup by provider id.
-    private struct AIProviderSetupSheetItem: Identifiable {
-        let id: String
     }
 
     private var contentWithTasks: some View {
@@ -436,7 +409,7 @@ struct RootView: View {
                 isRecentWorkLoading: store.isSessionsLoading || projectsStore.isLoading,
                 onSelectRecentWork: openRecentWork,
                 onOpenSettings: { openSettings(navKey: $0) },
-                onOpenAIProviderSetup: { isAIProviderChooserPresented = true },
+                onOpenAIProviderSetup: { isAIProviderSetupPresented = true },
                 onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                 onOpenPermissions: { openWindow(id: "permissions") },
                 actionContext: DashboardBlockActionContext(

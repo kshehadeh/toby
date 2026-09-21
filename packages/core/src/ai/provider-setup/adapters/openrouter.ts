@@ -1,3 +1,4 @@
+import { testProviderConnection } from "../test-connection";
 /**
  * OpenRouter guided setup adapter.
  */
@@ -208,7 +209,7 @@ function buildGuide(): ProviderSetupGuide {
 		meta: {
 			signupUrl: OPENROUTER_SIGNUP_URL,
 			apiKeysUrl: OPENROUTER_KEYS_URL,
-			recommended: false,
+			recommended: true,
 		},
 	};
 }
@@ -238,9 +239,24 @@ export const openRouterProviderSetupAdapter: ProviderSetupAdapter = {
 		const model = (
 			request.model?.trim() || OPENROUTER_DEFAULT_SETUP_MODEL
 		).trim();
+		let testResponse: string | undefined;
+		if (request.testConnection) {
+			const probe = await testProviderConnection(
+				"openrouter",
+				apiKey,
+				model,
+				undefined,
+				request.signal,
+			);
+			if (!probe.ok) return probe;
+			testResponse = probe.text;
+		}
+		if (request.signal?.aborted)
+			return { ok: false, error: "Sign-in cancelled.", status: 410 };
 		const applied = applyOpenRouterCredentialsAndPersona({ apiKey, model });
 
 		const details: Record<string, unknown> = {};
+		if (testResponse) details.testResponse = testResponse;
 		if (validation.remaining !== undefined) {
 			details.remaining = validation.remaining;
 		}

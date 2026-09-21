@@ -11,7 +11,25 @@ Personas that use the **openrouter** provider send requests to `https://openrout
 
 ## Get an API key
 
-**Easiest path:** use Toby’s guided setup (Home onboarding **Connect → OpenRouter**, or **Settings → AI → OpenRouter → Guided setup**). The wizard opens OpenRouter and the [Keys](https://openrouter.ai/keys) page, then validates and saves your key.
+**Easiest path:** use **Home → Configure AI provider → Connect**, or **Settings → AI → OpenRouter → Guided setup**.
+
+1. Select **Connect OpenRouter**.
+2. Sign in or create an account in your browser, then approve the connection.
+3. Return to Toby. It tests a short model response, securely saves the connection, and selects a model for you. The test may use a small amount of provider credit.
+
+The approval page may identify Toby as a `localhost` address and port. This is the
+temporary callback listener on your Mac. You do not need to copy an API key.
+
+While waiting, use **Open browser again** to reopen sign-in or **Cancel sign-in**
+to stop. Sign-in expires after ten minutes. If the test reports insufficient
+credits, open **Review pricing and account credits**, add credits, then choose
+**Retry connection test**. You can retry within the same sign-in session.
+If it has expired, choose **Start sign-in again**, then reconnect.
+
+**Paste an existing key instead** is always available before the model test.
+To revoke an issued key, use your [OpenRouter keys page](https://openrouter.ai/keys).
+Cancelling setup discards Toby’s temporary copy; it does not revoke a key that
+OpenRouter has already created.
 
 Manual steps:
 
@@ -23,7 +41,7 @@ Store the key in Toby, not in shell profiles or committed files.
 
 ## Configure in Toby
 
-1. **Guided setup:** Home checklist → **Configure AI provider → Connect → OpenRouter**, or **Settings → AI → OpenRouter → Guided setup**. Toby validates the key and sets the built-in **Toby** persona to `openrouter` / `openai/gpt-5.6-luna`.
+1. **Guided setup:** Home checklist → **Configure AI provider → Connect → Connect OpenRouter**, or **Settings → AI → OpenRouter → Guided setup**. Toby validates the key and sets the built-in **Toby** persona to `openrouter` / `openai/gpt-5.6-luna`.
 2. **Manual:** **Settings → AI → OpenRouter → API Key**, paste your key, then set a persona’s **AI Provider** to `openrouter`.
 
 Toby writes the key to `~/.toby/credentials.json`.

@@ -179,7 +179,11 @@ export async function handleAIProviderSetup(
 	const model = typeof body?.model === "string" ? body.model : undefined;
 
 	try {
-		const result = await adapter.setup({ fields, model });
+		const result = await adapter.setup({
+			fields,
+			model,
+			testConnection: body?.testConnection === true,
+		});
 		if (!result.ok) {
 			return errorResponse(result.error, result.status ?? 400);
 		}

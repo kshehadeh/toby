@@ -48,6 +48,34 @@ describe("provider-setup (vercel adapter)", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
+	it("does not replace existing configuration when the model test fails", async () => {
+		writeCredentials({ ai: { vercel: { apiKey: "existing-key" } } });
+		const beforeConfig = readConfig();
+		const beforeCredentials = readCredentials();
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async (input: string | URL | Request) => {
+			const url = input instanceof Request ? input.url : String(input);
+			if (url.endsWith("/credits") || url.endsWith("/key")) {
+				return Response.json({ balance: "0", data: { limit_remaining: 0 } });
+			}
+			return Response.json(
+				{ error: { message: "Insufficient credits" } },
+				{ status: 402 },
+			);
+		}) as typeof fetch;
+		try {
+			const result = await vercelProviderSetupAdapter.setup({
+				fields: { apiKey: "candidate" },
+				testConnection: true,
+			});
+			expect(result.ok).toBe(false);
+			expect(readCredentials()).toEqual(beforeCredentials);
+			expect(readConfig()).toEqual(beforeConfig);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	it("registers vercel under the generic setup registry", () => {
 		expect(hasProviderSetupAdapter("vercel")).toBe(true);
 		expect(hasProviderSetupAdapter("openai")).toBe(false);

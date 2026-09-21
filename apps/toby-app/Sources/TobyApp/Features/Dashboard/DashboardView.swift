@@ -41,7 +41,7 @@ struct DashboardView: View {
 	/// Opens Settings, optionally deep-linking to a top-level section key
 	/// (e.g. `"ai"`, `"transcription"`).
 	var onOpenSettings: (String?) -> Void = { _ in }
-	/// Opens the guided Vercel AI Gateway setup wizard (recommended first-run path).
+	/// Opens guided AI setup, defaulting to OpenRouter browser sign-in.
 	var onOpenAIProviderSetup: () -> Void = {}
 	/// Opens the sidebar persona picker with attention highlighting.
 	var onOpenPersonaPicker: () -> Void = {}

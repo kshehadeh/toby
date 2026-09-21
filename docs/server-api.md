@@ -106,7 +106,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/ai/providers/usage` | Plan usage / balance for all AI providers (cached). |
 | `GET` | `/api/ai/providers/:id/usage` | Plan usage / balance for a single AI provider (bypasses cache). |
 | `GET` | `/api/ai/providers/:id/setup` | Guided setup guide when the provider registered a setup adapter (`404` otherwise). Returns steps, field schema, optional `meta`. |
-| `POST` | `/api/ai/providers/:id/setup` | Complete guided setup. Body: `{ fields: Record<string,string>, model? }` (flat string keys also accepted). Adapter-specific validation + credential persistence. |
+| `POST` | `/api/ai/providers/:id/setup` | Complete guided setup. Body: `{ fields: Record<string,string>, model?, testConnection? }` (flat string keys also accepted). Adapter-specific validation + credential persistence. |
 | `GET` | `/api/modules` | List connected chat modules/integrations. |
 | `GET` | `/api/skills` | List local skills. |
 | `GET` | `/api/skills/:name` | Skill detail body. |
@@ -876,13 +876,50 @@ type ProviderSetupGuide = {
 **POST** completes setup. Preferred body:
 
 ```json
-{ "fields": { "apiKey": "…" }, "model": "optional-slug" }
+{ "fields": { "apiKey": "…" }, "model": "optional-slug", "testConnection": true }
 ```
 
 Flat string keys (except `model`) are also accepted and folded into `fields`.
 On success the adapter persists credentials and may update the default persona.
 Response includes `ok`, `providerId`, `model`, `personaName`, `configured`, and
 open-ended `details` (e.g. credit balance).
+
+The native four-step wizard sends `testConnection: true`. Vercel and OpenRouter
+then send a short, context-free model request with the submitted key before
+persisting credentials or changing the Toby persona. The request has a 20-second
+timeout and no retries; it may incur provider usage charges. A failed or empty
+answer leaves the existing configuration untouched. Success includes
+`details.testResponse`. Omitting the flag preserves key-validation-only behavior
+for older clients. The wizard stores only its step and provider in UserDefaults;
+keys remain in memory until securely saved after a successful test.
+
+### OpenRouter browser authorization
+
+The native wizard defaults to OpenRouter browser sign-in, with manual keys and
+Vercel setup still available. These daemon endpoints accept native requests only;
+requests with browser Origin/fetch metadata or a non-loopback hostname are rejected.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/api/ai/providers/openrouter/oauth` | Start a ten-minute PKCE session. Returns `id`, `authorizationUrl`, `expiresAt` (epoch milliseconds), and `state`. |
+| GET | `/api/ai/providers/openrouter/oauth/:id` | Poll `waiting`, `exchanging`, `authorized`, `testing`, `completed`, or `error`; errors include safe recovery text. |
+| POST | `/api/ai/providers/openrouter/oauth/:id/finish` | Test and save an authorized key using the existing setup adapter; returns the setup response. A failed model test retains authorization for retry until expiry. Completed calls are idempotent while retained. |
+| DELETE | `/api/ai/providers/openrouter/oauth/:id` | Cancel and discard the ephemeral session. Returns 409 while a test/save is finishing. |
+
+The core session manager binds a temporary listener to `127.0.0.1` on an OS-assigned
+port and uses a localhost callback URL with an unguessable per-attempt path.
+A random verifier and S256 challenge bind the code exchange to the initiating
+session. Callback requests accept one code once; the key exchange uses a fixed
+OpenRouter HTTPS endpoint with redirects disabled. Credentials, codes, and
+verifiers are never returned to the native app or persisted as pending state.
+
+The app opens the system browser and polls once per second. Browser approval
+triggers a short billed model test (disclosed before sign-in), then secure storage
+and the existing Toby persona setup. Closing the wizard cancels pending sign-in;
+expiry, cancellation, completion, and daemon shutdown release the callback listener
+and sensitive memory. Terminal status is retained for up to one minute. At most
+eight sessions are held. Cancelling after key issuance does not revoke the remote
+key; the user can remove it from OpenRouter’s Keys page.
 
 ### `GET /api/ai/providers/usage`
 

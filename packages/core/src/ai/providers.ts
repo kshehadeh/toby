@@ -58,7 +58,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		supportsPlanUsage: true,
 		iconUrl: "/icons/ai/vercel.png",
 		description:
-			"Recommended first provider. Sign in to Vercel, open AI Gateway, create an API key, then paste it here (or use Guided setup). One key routes to OpenAI, Anthropic, Google, and more.",
+			"Sign in to Vercel, open AI Gateway, create an API key, then paste it here (or use Guided setup). One key routes to OpenAI, Anthropic, Google, and more.",
 		docUrl: `${AI_PROVIDER_DOCS_BASE}/vercel-ai-gateway`,
 		models: [
 			"openai/gpt-5.4",

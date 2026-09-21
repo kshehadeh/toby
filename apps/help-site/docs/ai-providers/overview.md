@@ -17,13 +17,20 @@ Toby supports five AI providers:
 | <img class="ai-provider-icon-inline" src="/img/ai-providers/openrouter.png" alt="" width="20" height="20" /> [OpenRouter](./openrouter) | Hundreds of models from many vendors through a single OpenRouter API key |
 | <img class="ai-provider-icon-inline" src="/img/ai-providers/ollama.png" alt="" width="20" height="20" /> [Ollama](./ollama) | Run open-source models locally on your machine (no API key needed) |
 
-You only need **one** provider configured to start chatting. **New installs should start with Vercel AI Gateway** (guided setup on the Home checklist). Use OpenAI direct for a single-vendor key, Chutes or OpenRouter for open-source catalogs, or Ollama for fully local inference.
+You only need **one** provider configured to start chatting. **New installs can connect OpenRouter in their browser without copying a key** (guided setup on the Home checklist). Use OpenAI direct for a single-vendor key, Chutes or OpenRouter for open-source catalogs, or Ollama for fully local inference.
 
 ## Quick setup
 
-**Recommended:** Home onboarding → **Configure AI provider → Connect** opens a chooser for guided setup:
-- **[Vercel AI Gateway](./vercel-ai-gateway)** (recommended) — multi-model chat, free credits, web search & transcription catalogs
-- **[OpenRouter](./openrouter)** — hundreds of models through one key
+**Recommended:** Home onboarding → **Configure AI provider → Connect** opens **Set up Toby**:
+
+1. **Welcome:** learn why Toby needs an AI connection. If you already have a key, skip straight to connecting.
+2. **Account:** use the recommended **[OpenRouter](./openrouter)** browser sign-in, or choose **[Vercel AI Gateway](./vercel-ai-gateway)** for key-based setup. Review pricing before connecting.
+3. **Connect:** choose **Connect OpenRouter**, sign in or create an account, and approve access in your browser. Toby automatically tests the connection. For manual setup, choose **Paste an existing key instead**, then **Connect and test**. The short test may use a small amount of credit; no personal context is sent.
+4. **Ready:** see the test response. Toby saves your key securely and selects a model for the built-in Toby persona.
+
+**Set up later** keeps your step and provider for next time. Pending browser sign-in is cancelled when you close the wizard. Unsaved keys are not
+kept after closing the wizard. If the model cannot answer, Toby shows a recovery
+message and leaves your existing connection unchanged.
 
 Or open **Toby.app → Settings**:
 
@@ -36,7 +43,8 @@ Credentials are stored in `~/.toby/credentials.json` on your Mac (encrypted at r
 
 | If you want… | Consider |
 | ------------ | -------- |
-| Fastest full Toby setup (chat + web search + multi-vendor models) | **Vercel AI Gateway** (recommended) |
+| Easiest account connection, without copying keys | **OpenRouter** browser sign-in |
+| Vercel-backed web search and multi-vendor models | **Vercel AI Gateway** |
 | The simplest path with OpenAI models only | **OpenAI (direct)** |
 | Open-source TEE-backed models with privacy guarantees | **Chutes** |
 | The widest selection of models from many vendors | **OpenRouter** |

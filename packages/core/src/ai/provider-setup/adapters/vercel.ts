@@ -1,3 +1,4 @@
+import { testProviderConnection } from "../test-connection";
 /**
  * Vercel AI Gateway guided setup adapter.
  */
@@ -194,7 +195,7 @@ function buildGuide(): ProviderSetupGuide {
 		meta: {
 			signupUrl: VERCEL_SIGNUP_URL,
 			apiKeysUrl: VERCEL_AI_GATEWAY_API_KEYS_URL,
-			recommended: true,
+			recommended: false,
 		},
 	};
 }
@@ -224,9 +225,16 @@ export const vercelProviderSetupAdapter: ProviderSetupAdapter = {
 		const model = (
 			request.model?.trim() || VERCEL_AI_GATEWAY_DEFAULT_MODEL
 		).trim();
+		let testResponse: string | undefined;
+		if (request.testConnection) {
+			const probe = await testProviderConnection("vercel", apiKey, model);
+			if (!probe.ok) return probe;
+			testResponse = probe.text;
+		}
 		const applied = applyVercelCredentialsAndPersona({ apiKey, model });
 
 		const details: Record<string, unknown> = {};
+		if (testResponse) details.testResponse = testResponse;
 		if (validation.remaining !== undefined) {
 			details.remaining = validation.remaining;
 		}

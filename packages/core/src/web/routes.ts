@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { getDaemonIdentity } from "../daemon/status";
 import { resolvePersonaImageFile } from "../personas/index";
+import { handleOpenRouterOAuth } from "./handlers/ai-provider-oauth";
 import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
@@ -331,6 +332,17 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/ai/providers/usage" && req.method === "GET") {
 			return handleAIProviderUsageAll();
+		}
+		const openRouterOAuthMatch =
+			/^\/api\/ai\/providers\/openrouter\/oauth(?:\/([A-Za-z0-9_-]{43})(\/finish)?)?$/.exec(
+				pathname,
+			);
+		if (openRouterOAuthMatch) {
+			return handleOpenRouterOAuth(
+				req,
+				openRouterOAuthMatch[1],
+				Boolean(openRouterOAuthMatch[2]),
+			);
 		}
 		const aiProviderSetupMatch = /^\/api\/ai\/providers\/([^/]+)\/setup$/.exec(
 			pathname,

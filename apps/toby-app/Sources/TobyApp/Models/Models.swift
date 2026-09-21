@@ -582,6 +582,7 @@ struct AIProviderSetupResponse: Decodable {
 }
 
 struct AIProviderSetupDetails: Decodable {
+	let testResponse: String?
 	let remaining: Double?
 	let totalSpent: Double?
 }

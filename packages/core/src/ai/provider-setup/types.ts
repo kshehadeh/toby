@@ -52,6 +52,10 @@ export type ProviderSetupRequest = {
 	readonly fields: Readonly<Record<string, string>>;
 	/** Optional model override; defaults to the guide's defaultModel. */
 	readonly model?: string;
+	/** Run a small billed model probe before saving. */
+	readonly testConnection?: boolean;
+	/** Internal cancellation, never decoded from client JSON. */
+	readonly signal?: AbortSignal;
 };
 
 export type ProviderSetupSuccess = {

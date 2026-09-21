@@ -137,7 +137,7 @@ struct TobyClient {
 		)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = ["fields": fields]
+		var body: [String: Any] = ["fields": fields, "testConnection": true]
 		if let model, !model.isEmpty {
 			body["model"] = model
 		}
@@ -146,6 +146,33 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		return try JSONDecoder().decode(AIProviderSetupResponse.self, from: data)
 	}
+
+    func startOpenRouterOAuth() async throws -> AIProviderOAuthStatus {
+        try await openRouterOAuthRequest(method: "POST", path: "", as: AIProviderOAuthStatus.self)
+    }
+
+    func fetchOpenRouterOAuth(id: String) async throws -> AIProviderOAuthStatus {
+        try await openRouterOAuthRequest(method: "GET", path: "/\(id)", as: AIProviderOAuthStatus.self)
+    }
+
+    func finishOpenRouterOAuth(id: String) async throws -> AIProviderSetupResponse {
+        try await openRouterOAuthRequest(method: "POST", path: "/\(id)/finish", as: AIProviderSetupResponse.self)
+    }
+
+    func cancelOpenRouterOAuth(id: String) async throws {
+        struct Acknowledgement: Decodable { let ok: Bool }
+        _ = try await openRouterOAuthRequest(method: "DELETE", path: "/\(id)", as: Acknowledgement.self)
+    }
+
+    private func openRouterOAuthRequest<T: Decodable>(method: String, path: String, as type: T.Type) async throws -> T {
+        var request = URLRequest(url: baseURL.appendingPathComponent("api/ai/providers/openrouter/oauth\(path)"))
+        request.httpMethod = method
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 50
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response, data: data)
+        return try JSONDecoder().decode(type, from: data)
+    }
 
 	func createPersona(
 		name: String,
@@ -1388,3 +1415,5 @@ struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {
 	let clock: ConfigSyncClock
 	var path: String? = nil
 }
+
+extension TobyClient: AISetupOAuthClient {}

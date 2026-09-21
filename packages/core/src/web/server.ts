@@ -1,3 +1,4 @@
+import { openRouterOAuthSessions } from "../ai/provider-setup/openrouter-oauth";
 import { daemonLog } from "../logging/daemon-log";
 import { handleWebRequest } from "./routes";
 import { getWebUiUrl } from "./static-path";
@@ -15,6 +16,7 @@ export function startWebServer(options: WebServerOptions): Promise<void> {
 
 		const onAbort = () => {
 			daemonLog("info", "daemon", "web_server_stopping", { port });
+			openRouterOAuthSessions.close();
 			server?.stop(true);
 			resolve();
 		};
