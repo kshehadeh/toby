@@ -963,41 +963,6 @@ export function buildSettingsTree(
 		key: "root",
 		children: [
 			{
-				label: "Integrations",
-				kind: "section",
-				key: "integrations",
-				children: integrationSections,
-			},
-			chatInboundSection,
-			{
-				label: "Default Providers",
-				kind: "section",
-				key: "defaults",
-				children: defaultProviderItems,
-			},
-			{
-				label: "AI",
-				kind: "section",
-				key: "ai",
-				children: buildAIProviderSections(values),
-			},
-			{
-				label: "Personas",
-				kind: "section",
-				key: "personas",
-				children: [
-					{
-						label: "Add Persona",
-						kind: "action",
-						key: "personas._new",
-					},
-					...personaItems,
-				],
-			},
-			transcriptionSection,
-			webSearchSection,
-			weatherSection,
-			{
 				label: "Home",
 				kind: "section" as const,
 				key: "dashboard",
@@ -1020,7 +985,42 @@ export function buildSettingsTree(
 					},
 				],
 			},
+			{
+				label: "AI",
+				kind: "section",
+				key: "ai",
+				children: buildAIProviderSections(values),
+			},
 			librarySection,
+			{
+				label: "Personas",
+				kind: "section",
+				key: "personas",
+				children: [
+					{
+						label: "Add Persona",
+						kind: "action",
+						key: "personas._new",
+					},
+					...personaItems,
+				],
+			},
+			chatInboundSection,
+			{
+				label: "Integrations",
+				kind: "section",
+				key: "integrations",
+				children: integrationSections,
+			},
+			{
+				label: "Default Providers",
+				kind: "section",
+				key: "defaults",
+				children: defaultProviderItems,
+			},
+			transcriptionSection,
+			webSearchSection,
+			weatherSection,
 			schedulesSection,
 		],
 	};

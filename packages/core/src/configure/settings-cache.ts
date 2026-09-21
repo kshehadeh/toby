@@ -31,16 +31,18 @@ function buildIntegrationLabels(): Record<string, string> {
 	return labels;
 }
 
+/** Top-level Settings sidebar order (daemon-backed). Client-only panes
+ * (General, Personas, Sync, Integrations row) are interleaved in the app. */
 const SETTINGS_SECTION_KEYS = [
-	"integrations",
-	"chatInbound",
-	"defaults",
+	"dashboard",
 	"ai",
+	"library",
+	"chatInbound",
+	"integrations",
+	"defaults",
 	"transcription",
 	"webSearch",
 	"weather",
-	"dashboard",
-	"library",
 ];
 
 function stripToSectionNodes(node: SettingsItem): SettingsItem {

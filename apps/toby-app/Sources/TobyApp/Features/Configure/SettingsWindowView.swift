@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 /// Tahoe-style Settings window: sidebar `NavigationSplitView` plus grouped
-/// Form detail. Client-only panes (General, Sync, Personas, Integrations) sit
-/// alongside daemon-backed configure sections. Nested sections (Personas,
+/// Form detail. Client-only panes (General, Personas, Sync, Integrations) are
+/// interleaved with daemon-backed configure sections. Nested sections (Personas,
 /// Integrations, AI) are catalog tabs that push child detail in a `NavigationStack`.
 struct SettingsWindowView: View {
 	@Bindable var store: ConfigureStore
@@ -28,18 +28,47 @@ struct SettingsWindowView: View {
 		SettingsItem.integrationsSectionKey,
 	]
 
+	/// Sidebar row order (client-only + daemon-backed).
+	private static let sidebarOrder: [String] = [
+		SettingsItem.appearanceSectionKey, // General
+		"dashboard", // Home
+		SettingsItem.aiSectionKey, // AI
+		"library", // Library
+		SettingsItem.personasSectionKey, // Personas
+		"chatInbound", // Chat
+		SettingsItem.iCloudSectionKey, // Sync
+		SettingsItem.integrationsSectionKey, // Integrations
+		"defaults", // Providers
+		"transcription",
+		"webSearch",
+		"weather",
+	]
+
 	private var clientSections: [SettingsItem] {
 		[
 			SettingsItem.appearanceSection,
-			SettingsItem.iCloudSection,
 			SettingsItem.personasSection,
+			SettingsItem.iCloudSection,
 			SettingsItem.integrationsSection,
 		]
 	}
 
-	private var daemonSidebarSections: [SettingsItem] {
-		store.settingsSections.filter {
-			ConfigureTreeHelpers.sectionIdentityKey($0) != SettingsItem.integrationsSectionKey
+	private var orderedSidebarSections: [SettingsItem] {
+		let clientByKey = Dictionary(
+			uniqueKeysWithValues: clientSections.map {
+				(ConfigureTreeHelpers.sectionIdentityKey($0), $0)
+			}
+		)
+		let daemonByKey = Dictionary(
+			uniqueKeysWithValues: store.settingsSections.map {
+				(ConfigureTreeHelpers.sectionIdentityKey($0), $0)
+			}
+		)
+		return Self.sidebarOrder.compactMap { key in
+			if let client = clientByKey[key] {
+				return client
+			}
+			return daemonByKey[key]
 		}
 	}
 
@@ -193,15 +222,8 @@ struct SettingsWindowView: View {
 	private var settingsSidebar: some View {
 		List(selection: sidebarSelection) {
 			Section {
-				ForEach(clientSections) { section in
+				ForEach(orderedSidebarSections) { section in
 					settingsSidebarRow(section)
-				}
-			}
-			if !daemonSidebarSections.isEmpty {
-				Section {
-					ForEach(daemonSidebarSections) { section in
-						settingsSidebarRow(section)
-					}
 				}
 			}
 		}
