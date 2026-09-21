@@ -64,6 +64,7 @@ struct SidebarIconView: View {
 					.foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.tertiaryText)
 			}
 		}
+		.accessibilityHidden(true)
 		.task(id: "\(url.absoluteString)|\(rendering == .template)") {
 			await loadImage()
 		}

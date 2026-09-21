@@ -64,11 +64,30 @@ struct AISettingsStatusTests {
 	func detailShowsConnectedAndReady() throws {
 		let store = ConfigureStore()
 		store.aiProviderConfigured = ["vercel": true]
-		let view = ConfigureSectionDetailView(store: store, section: aiProviderSection())
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "ai-provider-status-connected")
-		}
+		var section = aiProviderSection()
+		section.iconUrl = "/icons/ai/vercel.png"
+		let view = ConfigureSectionDetailView(store: store, section: section)
+		let header = try view.inspect().find(AIProviderDetailHeader.self).actualView()
+		#expect(header.isConnected == true)
+		#expect(header.section.label == "Vercel AI Gateway")
+		#expect(header.section.iconUrl == "/icons/ai/vercel.png")
 		#expect(throws: Never.self) { try view.inspect().find(text: "Connected and ready") }
+	}
+
+	@Test("AI provider detail header shows provider icon beside title")
+	func detailHeaderShowsProviderIcon() throws {
+		var section = aiProviderSection()
+		section.iconUrl = "/icons/ai/vercel.png"
+		let view = AIProviderDetailHeader(
+			section: section,
+			isConnected: true,
+			isLoading: false
+		)
+		#expect(view.section.iconUrl == "/icons/ai/vercel.png")
+		let hStack = try view.inspect().hStack()
+		#expect(throws: Never.self) { try hStack.find(SidebarIconView.self) }
+		#expect(throws: Never.self) { try hStack.find(text: "Vercel AI Gateway") }
+		#expect(throws: Never.self) { try hStack.find(text: "Connected and ready") }
 	}
 
 	@Test("AI provider detail shows Not connected when unconfigured")
@@ -76,11 +95,34 @@ struct AISettingsStatusTests {
 		let store = ConfigureStore()
 		store.aiProviderConfigured = ["vercel": false]
 		let view = ConfigureSectionDetailView(store: store, section: aiProviderSection())
-		#expect(throws: Never.self) {
-			try view.inspect().find(
-				viewWithAccessibilityIdentifier: "ai-provider-status-not-connected"
-			)
-		}
+		let header = try view.inspect().find(AIProviderDetailHeader.self).actualView()
+		#expect(header.isConnected == false)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Not connected") }
+	}
+
+	@Test("connected AI provider hides guided setup and tip")
+	func connectedHidesGuidedSetupAndTip() throws {
+		let store = ConfigureStore()
+		store.aiProviderConfigured = ["vercel": true]
+		let view = ConfigureSectionDetailView(store: store, section: aiProviderSection())
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(button: "Start setup")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(AIProviderSetupHelpView.self)
+		}
+	}
+
+	@Test("unconnected AI provider shows guided setup and tip")
+	func unconnectedShowsGuidedSetupAndTip() throws {
+		let store = ConfigureStore()
+		store.aiProviderConfigured = ["vercel": false]
+		let view = ConfigureSectionDetailView(store: store, section: aiProviderSection())
+		#expect(throws: Never.self) {
+			try view.inspect().find(button: "Start setup")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(AIProviderSetupHelpView.self)
+		}
 	}
 }

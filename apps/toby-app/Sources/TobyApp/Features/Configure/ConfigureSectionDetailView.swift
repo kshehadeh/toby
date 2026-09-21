@@ -66,6 +66,10 @@ struct ConfigureSectionDetailView: View {
 		return ["vercel", "openrouter"].contains(aiProviderId)
 	}
 
+	private var isAIProviderConnected: Bool {
+		store.isAIProviderConfigured(sectionKey: section.key) == true
+	}
+
 	var body: some View {
 		Form {
 			if isIntegrationSection {
@@ -99,7 +103,12 @@ struct ConfigureSectionDetailView: View {
 
 			if isAIProviderSection {
 				Section {
-					aiProviderStatusBanner
+					AIProviderDetailHeader(
+						section: section,
+						isConnected: store.isAIProviderConfigured(sectionKey: section.key),
+						isLoading: store.aiProvidersStatusLoading
+							&& store.aiProviderConfigured.isEmpty
+					)
 				}
 			}
 
@@ -184,7 +193,7 @@ struct ConfigureSectionDetailView: View {
 				}
 
 				if isAIProviderSection {
-					if supportsGuidedSetup, let providerId = aiProviderId {
+					if !isAIProviderConnected, supportsGuidedSetup, let providerId = aiProviderId {
 						Section("Guided setup") {
 							LabeledContent("Setup") {
 								Button("Start setup") {
@@ -202,8 +211,10 @@ struct ConfigureSectionDetailView: View {
 							AIProviderUsageView(providerId: providerId)
 						}
 					}
-					Section {
-						AIProviderSetupHelpView(section: section)
+					if !isAIProviderConnected {
+						Section {
+							AIProviderSetupHelpView(section: section)
+						}
 					}
 				}
 
@@ -258,36 +269,6 @@ struct ConfigureSectionDetailView: View {
 				},
 				onDismiss: { guidedSetupProviderId = nil }
 			)
-		}
-	}
-
-	@ViewBuilder
-	private var aiProviderStatusBanner: some View {
-		if store.aiProvidersStatusLoading, store.aiProviderConfigured.isEmpty {
-			HStack(spacing: 6) {
-				ProgressView()
-					.scaleEffect(0.7)
-				Text("Checking status…")
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-			}
-			.accessibilityIdentifier("ai-provider-status-checking")
-		} else if store.isAIProviderConfigured(sectionKey: section.key) == true {
-			InlineStatusMessage(
-				message: "Connected and ready",
-				tone: .success
-			)
-			.accessibilityIdentifier("ai-provider-status-connected")
-		} else {
-			HStack(spacing: 6) {
-				Circle()
-					.fill(AppTheme.tertiaryText)
-					.frame(width: 6, height: 6)
-				Text("Not connected")
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
-			}
-			.accessibilityIdentifier("ai-provider-status-not-connected")
 		}
 	}
 
