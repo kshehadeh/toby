@@ -105,6 +105,24 @@ describe("validateUserFlowDocument", () => {
 		).toThrow(/not a supported flow icon/);
 	});
 
+	it("accepts curated flow colors and rejects unsupported values", () => {
+		const normalized = validateUserFlowDocument(
+			wifiThenMinimize({ color: "blue" }),
+			{
+				tools: catalog,
+				connectedModules: connected,
+			},
+		);
+		expect(normalized.color).toBe("blue");
+
+		expect(() =>
+			validateUserFlowDocument(wifiThenMinimize({ color: "hotpink" }), {
+				tools: catalog,
+				connectedModules: connected,
+			}),
+		).toThrow(/not a supported flow color/);
+	});
+
 	it("rejects bag wiring on a tool input", () => {
 		const doc = wifiThenMinimize({
 			nodes: [

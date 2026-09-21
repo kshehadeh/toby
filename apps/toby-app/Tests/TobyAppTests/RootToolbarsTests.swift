@@ -184,6 +184,7 @@ struct RootToolbarsTests {
 			name: "dashboard.email.summary",
 			description: "Fetch unread",
 			icon: nil,
+			color: nil,
 			builtin: true,
 			persona: nil,
 			nodes: [],

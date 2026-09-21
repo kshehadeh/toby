@@ -185,6 +185,9 @@ export function parseUserFlowDocumentBody(
 		...(typeof body.icon === "string" && body.icon.trim()
 			? { icon: body.icon.trim() }
 			: {}),
+		...(typeof body.color === "string" && body.color.trim()
+			? { color: body.color.trim() }
+			: {}),
 		...(persona ? { persona } : {}),
 		nodes,
 		...(result ? { result } : {}),

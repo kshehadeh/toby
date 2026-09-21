@@ -57,6 +57,7 @@ struct FlowEditorView: View {
 					.controlSize(.regular)
 			}
 			iconPicker
+			colorPicker
 			if draft.nodes.contains(where: \.isLLM) {
 				personaPicker
 			}
@@ -67,7 +68,7 @@ struct FlowEditorView: View {
 		HStack(spacing: 10) {
 			Image(systemName: FlowIconOption.resolvedSymbol(draft.icon))
 				.font(.system(size: 16, weight: .semibold))
-				.foregroundStyle(AppTheme.accent)
+				.foregroundStyle(FlowColorOption.resolved(draft.color).color)
 				.frame(width: 24, height: 24)
 				.accessibilityHidden(true)
 			Picker("Icon", selection: $draft.icon) {
@@ -79,6 +80,30 @@ struct FlowEditorView: View {
 			.pickerStyle(.menu)
 			.controlSize(.regular)
 			.accessibilityIdentifier("flow-editor-icon")
+		}
+		.frame(maxWidth: 280, alignment: .leading)
+	}
+
+	private var colorPicker: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Color")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(SettingsDesign.rowTitle)
+			LazyVGrid(
+				columns: [GridItem(.adaptive(minimum: 28, maximum: 36), spacing: 8)],
+				alignment: .leading,
+				spacing: 8
+			) {
+				ForEach(FlowColorOption.all) { option in
+					FlowColorSwatchButton(
+						option: option,
+						isSelected: draft.color == option.id
+					) {
+						draft.color = option.id
+					}
+				}
+			}
+			.accessibilityIdentifier("flow-editor-color")
 		}
 		.frame(maxWidth: 280, alignment: .leading)
 	}
@@ -383,12 +408,47 @@ private struct FlowDestinationRow: View {
 
 	private var dashboardDestinationHelp: String {
 		if destination.dashboardVariant == "runner" {
-			return "An Actions icon on the home dashboard. Hover for a second to see the title and description; the flow only runs when you click it."
+			return "A colored Actions tile on the home dashboard. Hover for a second to see the title and description; the flow only runs when you click it."
 		}
 		if destination.dashboardRefresh == "manual" {
 			return "Only updates when you tap refresh on this card or the dashboard toolbar."
 		}
 		return "Updates when you open Home (if older than a few minutes) or when you tap refresh, like mail, tasks, and calendar."
+	}
+}
+
+private struct FlowColorSwatchButton: View {
+	let option: FlowColorOption
+	let isSelected: Bool
+	let action: () -> Void
+
+	@State private var isHovered = false
+
+	var body: some View {
+		Button(action: action) {
+			ZStack {
+				Circle()
+					.fill(option.color)
+					.frame(width: 22, height: 22)
+				if isSelected {
+					Circle()
+						.strokeBorder(AppTheme.primaryText, lineWidth: 2)
+						.frame(width: 28, height: 28)
+				} else if isHovered {
+					Circle()
+						.strokeBorder(AppTheme.secondaryText.opacity(0.5), lineWidth: 1.5)
+						.frame(width: 28, height: 28)
+				}
+			}
+			.frame(width: 32, height: 32)
+			.contentShape(Circle())
+		}
+		.buttonStyle(.plain)
+		.onHover { isHovered = $0 }
+		.help(option.label)
+		.accessibilityLabel(option.label)
+		.accessibilityAddTraits(isSelected ? .isSelected : [])
+		.accessibilityIdentifier("flow-editor-color-\(option.id)")
 	}
 }
 

@@ -8,6 +8,7 @@ struct FlowListItem: Decodable, Identifiable, Equatable {
 	let name: String
 	let description: String?
 	let icon: String?
+	let color: String?
 	let builtin: Bool
 	let persona: FlowPersonaSpec?
 	let nodes: [FlowNodeSnapshot]
@@ -595,6 +596,7 @@ struct FlowDocumentPayload: Decodable, Equatable {
 	let name: String
 	let description: String?
 	let icon: String?
+	let color: String?
 	let persona: FlowPersonaSpec?
 	let nodes: [FlowStoredNode]
 	let result: FlowResultPointer?

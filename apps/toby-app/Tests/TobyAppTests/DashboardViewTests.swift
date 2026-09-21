@@ -862,6 +862,7 @@ struct DashboardFlowBlocksTests {
 		description: String?,
 		variant: String,
 		icon: String? = nil,
+		color: String? = nil,
 		showsResultSheet: Bool = false
 	) -> FlowDashboardBlockInfo {
 		FlowDashboardBlockInfo(
@@ -870,6 +871,7 @@ struct DashboardFlowBlocksTests {
 			title: title,
 			description: description,
 			icon: icon,
+			color: color,
 			variant: variant,
 			refresh: nil,
 			lastRanAt: nil,
@@ -886,6 +888,7 @@ struct DashboardFlowBlocksTests {
 			"title": "Focus mode",
 			"description": "Turn off Wi-Fi",
 			"icon": "flame",
+			"color": "blue",
 			"variant": "runner",
 			"refresh": "manual",
 			"lastRanAt": "2026-08-15T12:00:00Z",
@@ -898,6 +901,7 @@ struct DashboardFlowBlocksTests {
 		#expect(info.refresh == "manual")
 		#expect(info.description == "Turn off Wi-Fi")
 		#expect(info.icon == "flame")
+		#expect(info.color == "blue")
 		#expect(info.showsResultSheet == false)
 
 		let withoutRefresh = """
@@ -921,7 +925,8 @@ struct DashboardFlowBlocksTests {
 				title: "Focus mode",
 				description: "Turn off Wi-Fi",
 				variant: "runner",
-				icon: "flame"
+				icon: "flame",
+				color: "teal"
 			),
 			sortIndex: 100
 		)
@@ -931,6 +936,7 @@ struct DashboardFlowBlocksTests {
 		#expect(runner.flowDescription == "Turn off Wi-Fi")
 		#expect(runner.accessibilityIdentifier == "dashboard-flow-flow.run")
 		#expect(runner.systemImage == "flame")
+		#expect(runner.flowColor == "teal")
 
 		let info = DashboardBlockDescriptor.flow(
 			flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
@@ -1028,7 +1034,7 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 
-	@Test("runner row is an icon-only action with the flow symbol")
+	@Test("runner row is a colored tile with the flow symbol and title")
 	func runnerRowShowsIconAsAction() throws {
 		let block = CategoryDashboardBlock(
 			descriptor: .flow(
@@ -1037,7 +1043,8 @@ struct DashboardFlowBlocksTests {
 					title: "Focus mode",
 					description: "Turn off Wi-Fi",
 					variant: "runner",
-					icon: "flame"
+					icon: "flame",
+					color: "teal"
 				),
 				sortIndex: 100
 			)
@@ -1046,49 +1053,20 @@ struct DashboardFlowBlocksTests {
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		let row = DashboardActionRunnerRow(block: block, appearancePreferences: prefs)
 		#expect(DashboardActionRunnerRow.helpHoverDelay == 1.0)
-		#expect(DashboardBlockLayout.actionIconSize == 64)
+		#expect(DashboardBlockLayout.actionTileWidth == 100)
+		#expect(DashboardBlockLayout.actionTileHeight == 68)
 		#expect(throws: Never.self) {
 			try row.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
 		}
-		let image = try row.inspect().find(ViewType.Image.self)
-		#expect(try image.actualImage().name() == "flame")
-		#expect(throws: (any Error).self) {
+		let names = try row.inspect().findAll(ViewType.Image.self).compactMap { try? $0.actualImage().name() }
+		#expect(names.contains("flame"))
+		#expect(names.contains("play.circle"))
+		#expect(throws: Never.self) {
 			try row.inspect().find(text: "Focus mode")
 		}
 		#expect(throws: (any Error).self) {
 			try row.inspect().find(text: "Run Now")
 		}
-		#expect(throws: (any Error).self) {
-			try row.inspect().find(text: "Turn off Wi-Fi")
-		}
-	}
-
-	@Test("runner row shows the flow title when the Home setting is on")
-	func runnerRowShowsTitleWhenSettingEnabled() throws {
-		let block = CategoryDashboardBlock(
-			descriptor: .flow(
-				flowInfo(
-					id: "flow.run",
-					title: "Focus mode",
-					description: "Turn off Wi-Fi",
-					variant: "runner",
-					icon: "flame"
-				),
-				sortIndex: 100
-			)
-		)
-		let suite = UserDefaults(suiteName: "toby.tests.dashboard.runner.titles.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(
-			showDashboardActionTitles: true,
-			defaults: suite,
-			applyLaunchAtLoginOnChange: false
-		)
-		let row = DashboardActionRunnerRow(block: block, appearancePreferences: prefs)
-		#expect(throws: Never.self) {
-			try row.inspect().find(text: "Focus mode")
-		}
-		let image = try row.inspect().find(ViewType.Image.self)
-		#expect(try image.actualImage().name() == "flame")
 		#expect(throws: (any Error).self) {
 			try row.inspect().find(text: "Turn off Wi-Fi")
 		}
@@ -1153,7 +1131,7 @@ struct DashboardFlowBlocksTests {
 		#expect(throws: Never.self) {
 			try rail.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
 		}
-		#expect(throws: (any Error).self) {
+		#expect(throws: Never.self) {
 			try rail.inspect().find(text: "Focus mode")
 		}
 	}

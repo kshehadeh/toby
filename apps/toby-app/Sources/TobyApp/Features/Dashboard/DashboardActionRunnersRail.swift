@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Icon grid of runner-variant flows, hosted in the dashboard inspector.
+/// Shortcuts-style tiles for runner-variant flows, hosted in the inspector.
 ///
 /// Keep min/max sizes stable: no GeometryReader or preference writes. Updating
 /// constraints while the system split divider is tracked crashes AppKit.
@@ -16,7 +16,7 @@ struct DashboardActionRunnersRail<Row: View>: View {
 				.padding(.horizontal, 8)
 				.padding(.top, 2)
 			DashboardActionIconGrid(
-				minItemWidth: DashboardBlockLayout.actionIconMinCellWidth,
+				minItemWidth: DashboardBlockLayout.actionTileWidth,
 				spacing: DashboardBlockLayout.actionIconGridSpacing
 			) {
 				ForEach(blocks, id: \.id) { block in
@@ -61,23 +61,32 @@ struct DashboardActionIconGrid: Layout {
 	}
 
 	private func frames(for subviews: Subviews, containerWidth: CGFloat) -> [CGRect] {
+		let columns = max(
+			1,
+			Int(floor((containerWidth + spacing) / (minItemWidth + spacing)))
+		)
+		let itemWidth = max(
+			minItemWidth,
+			(containerWidth - CGFloat(columns - 1) * spacing) / CGFloat(columns)
+		)
+		var column = 0
 		var x: CGFloat = 0
 		var y: CGFloat = 0
 		var rowHeight: CGFloat = 0
 		var result: [CGRect] = []
 		result.reserveCapacity(subviews.count)
 		for subview in subviews {
-			let size = subview.sizeThatFits(.init(width: minItemWidth, height: nil))
-			let itemWidth = max(minItemWidth, size.width)
-			let itemHeight = size.height
-			if x > 0, x + itemWidth > containerWidth + 0.5 {
+			if column == columns {
 				x = 0
 				y += rowHeight + spacing
 				rowHeight = 0
+				column = 0
 			}
-			result.append(CGRect(x: x, y: y, width: itemWidth, height: itemHeight))
+			let size = subview.sizeThatFits(.init(width: itemWidth, height: nil))
+			result.append(CGRect(x: x, y: y, width: itemWidth, height: size.height))
 			x += itemWidth + spacing
-			rowHeight = max(rowHeight, itemHeight)
+			column += 1
+			rowHeight = max(rowHeight, size.height)
 		}
 		return result
 	}
@@ -88,7 +97,7 @@ struct DashboardActionIconGrid: Layout {
 	}
 }
 
-/// One runner flow as a 64×64 icon. Hover shows a system popover (can overflow the window).
+/// One runner flow as a colored Shortcuts-style tile. Hover shows a system popover.
 struct DashboardActionRunnerRow: View {
 	@Bindable var block: CategoryDashboardBlock
 	var actionContext: DashboardBlockActionContext = .init()
@@ -106,8 +115,6 @@ struct DashboardActionRunnerRow: View {
 
 	static let helpHoverDelay: TimeInterval = 1.0
 
-	private var showsTitle: Bool { appearancePreferences.showDashboardActionTitles }
-
 	private var descriptionText: String {
 		let trimmed = block.descriptor.flowDescription?
 			.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -116,16 +123,24 @@ struct DashboardActionRunnerRow: View {
 
 	private var fillOpacity: Double {
 		if isRunning {
-			if reduceMotion { return 0.10 }
-			return pulse ? 0.18 : 0.08
+			if reduceMotion { return 1 }
+			return pulse ? 1 : 0.88
 		}
-		return isHovered ? 0.08 : 0
+		return 1
+	}
+
+	private var tileColor: Color {
+		FlowColorOption.resolved(block.descriptor.flowColor).color
+	}
+
+	private var foreground: Color {
+		Color.white.opacity(0.94)
 	}
 
 	var body: some View {
 		VStack(spacing: 4) {
 			Button(action: run) {
-				iconWell
+				tile
 			}
 			.buttonStyle(.plain)
 			.disabled(isRunning || isEditing)
@@ -145,27 +160,17 @@ struct DashboardActionRunnerRow: View {
 			.accessibilityHint(descriptionText)
 			.accessibilityIdentifier("dashboard-flow-run-\(block.id.rawValue)")
 
-			if showsTitle {
-				Text(block.title)
-					.font(.caption)
-					.foregroundStyle(AppTheme.primaryText)
-					.multilineTextAlignment(.center)
-					.lineLimit(2)
-					.frame(maxWidth: DashboardBlockLayout.actionIconMinCellWidth)
-					.accessibilityHidden(true)
-			}
-
 			if let runError {
 				Text(runError)
 					.font(.system(size: 10))
 					.foregroundStyle(Color.red.opacity(0.9))
 					.multilineTextAlignment(.center)
 					.fixedSize(horizontal: false, vertical: true)
-					.frame(maxWidth: DashboardBlockLayout.actionIconMinCellWidth)
+					.frame(maxWidth: .infinity)
 					.accessibilityIdentifier("dashboard-flow-run-error-\(block.id.rawValue)")
 			}
 		}
-		.frame(width: DashboardBlockLayout.actionIconMinCellWidth)
+		.frame(minWidth: DashboardBlockLayout.actionTileWidth, maxWidth: .infinity)
 		.accessibilityIdentifier(block.accessibilityIdentifier)
 		.onChange(of: isRunning) { _, running in
 			updatePulse(running: running)
@@ -177,27 +182,48 @@ struct DashboardActionRunnerRow: View {
 		}
 	}
 
-	private var iconWell: some View {
-		ZStack {
-			if isRunning {
-				ProgressView()
-					.controlSize(.regular)
-			} else {
-				Image(systemName: block.systemImage)
-					.resizable()
-					.scaledToFit()
-					.foregroundStyle(AppTheme.accent)
+	private var tile: some View {
+		let shape = RoundedRectangle(
+			cornerRadius: DashboardBlockLayout.actionTileCornerRadius,
+			style: .continuous
+		)
+		return ZStack(alignment: .topLeading) {
+			shape.fill(tileColor.opacity(fillOpacity))
+			if isHovered, !isRunning {
+				shape.fill(Color.white.opacity(0.12))
 			}
+			VStack(alignment: .leading, spacing: 0) {
+				HStack(alignment: .top, spacing: 6) {
+					if isRunning {
+						ProgressView()
+							.controlSize(.mini)
+							.tint(foreground)
+					} else {
+						Image(systemName: block.systemImage)
+							.font(.system(size: 15, weight: .semibold))
+							.foregroundStyle(foreground)
+					}
+					Spacer(minLength: 0)
+					Image(systemName: "play.circle")
+						.font(.system(size: 16, weight: .medium))
+						.foregroundStyle(foreground.opacity(isRunning ? 0.55 : 0.92))
+						.accessibilityHidden(true)
+				}
+				Spacer(minLength: 4)
+				Text(block.title)
+					.font(.system(size: 11, weight: .semibold))
+					.foregroundStyle(foreground)
+					.lineLimit(2)
+					.multilineTextAlignment(.leading)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.accessibilityHidden(true)
+			}
+			.padding(10)
 		}
-		.frame(
-			width: DashboardBlockLayout.actionIconSize,
-			height: DashboardBlockLayout.actionIconSize
-		)
-		.contentShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius))
-		.background(
-			RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-				.fill(AppTheme.accent.opacity(fillOpacity))
-		)
+		.frame(maxWidth: .infinity)
+		.frame(height: DashboardBlockLayout.actionTileHeight)
+		.contentShape(shape)
+		.clipShape(shape)
 	}
 
 	private func run() {

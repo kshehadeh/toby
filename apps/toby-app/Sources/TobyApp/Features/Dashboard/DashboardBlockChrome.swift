@@ -18,10 +18,11 @@ enum DashboardBlockLayout {
 	static let actionsRailDefaultWidth: CGFloat = 156
 	static let actionsRailMinWidth: CGFloat = 120
 	static let actionsRailMaxWidth: CGFloat = 280
-	/// Glyph well for Actions runner tiles.
-	static let actionIconSize: CGFloat = 64
-	/// Cell width so default 156pt inspector stays one column; two from ~176pt.
-	static let actionIconMinCellWidth: CGFloat = 80
+	/// Home Actions tile (Shortcuts-style colored card). Width is the minimum;
+	/// tiles stretch to fill equal columns in the inspector.
+	static let actionTileWidth: CGFloat = 100
+	static let actionTileHeight: CGFloat = 68
+	static let actionTileCornerRadius: CGFloat = 16
 	static let actionIconGridSpacing: CGFloat = 12
 
 	static let cardPadding: CGFloat = 16

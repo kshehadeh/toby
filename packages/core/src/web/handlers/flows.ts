@@ -36,6 +36,7 @@ function serializeFlowRecord(record: StoredFlowRecord) {
 		name: record.name,
 		description: record.description,
 		icon: record.document.icon ?? null,
+		color: record.document.color ?? null,
 		builtin: record.builtin,
 		persona: record.document.persona ?? { source: "default" as const },
 		nodes: snapshot.nodes,

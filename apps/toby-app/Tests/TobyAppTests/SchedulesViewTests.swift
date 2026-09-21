@@ -271,6 +271,7 @@ struct SchedulesViewTests {
 				name: "Email summary",
 				description: "Unread mail blurb",
 				icon: "sparkles",
+				color: nil,
 				builtin: true,
 				persona: nil,
 				nodes: [],

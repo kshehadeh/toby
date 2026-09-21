@@ -28,6 +28,12 @@ export type {
 export { FlowNodeError } from "./types";
 
 export {
+	DEFAULT_FLOW_TILE_COLOR,
+	FLOW_TILE_COLORS,
+	isFlowTileColor,
+} from "./flow-colors";
+export type { FlowTileColor } from "./flow-colors";
+export {
 	DEFAULT_CUSTOM_FLOW_ICON,
 	FLOW_ICON_SYMBOLS,
 	isFlowIconSymbol,

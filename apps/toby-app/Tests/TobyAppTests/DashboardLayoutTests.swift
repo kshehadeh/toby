@@ -19,6 +19,7 @@ struct DashboardLayoutTests {
 				title: title,
 				description: title,
 				icon: nil,
+				color: nil,
 				variant: variant,
 				refresh: nil,
 				lastRanAt: nil,

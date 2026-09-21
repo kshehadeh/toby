@@ -85,6 +85,7 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 	/// `runner` / `informational` for custom flow cards; nil for built-ins.
 	var flowVariant: String? = nil
 	var flowDescription: String? = nil
+	var flowColor: String? = nil
 	var showsResultSheet: Bool = false
 
 	var rawId: String { id.rawValue }
@@ -160,6 +161,7 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 			listsSourceOpenActions: false,
 			flowVariant: info.variant,
 			flowDescription: info.description,
+			flowColor: info.color,
 			showsResultSheet: info.showsResultSheet ?? false
 		)
 	}

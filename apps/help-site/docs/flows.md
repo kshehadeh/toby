@@ -51,9 +51,10 @@ Built-in flows are labeled and are **read-only** in the UI.
 Choose **New flow** from the toolbar. A **New Flow** sheet opens with
 **Cancel** and **Save**. Nothing is created until you Save.
 
-1. Give the flow a name and choose an icon from Toby's SF Symbol picker. The
-   icon identifies the flow throughout Flows, schedules, and Home dashboard
-   cards or action buttons.
+1. Give the flow a name, choose an icon from Toby's SF Symbol picker, and pick
+   a color. The icon identifies the flow throughout Flows, schedules, and Home
+   dashboard cards. The color fills Home **Actions** tiles (teal if you skip
+   it).
 2. Add **steps**. Each step is either a **tool** (one action from a connected integration) or a final **LLM** step that writes markdown.
 3. For tools that need arguments (for example “Wi-Fi on/off”), fill those values when you build the flow. Steps do not pass data into later **tools** — that kind of mapping is not available yet.
 4. Choose **what happens when it finishes**:
@@ -69,12 +70,10 @@ Choose **New flow** from the toolbar. A **New Flow** sheet opens with
          toolbar always runs it again.
        - **Manual** — the card keeps the last run until you tap refresh on that
          card or the dashboard toolbar.
-     - **Runner only** — an icon in the home dashboard **Actions** strip
-       (beside the cards). The icon is the one you chose for the flow; hover
-       for a second to see the name and description. It only runs when you
-       click it. The strip is hidden if you have no runner flows. Turn
-       **Show action titles** on under **Settings → Home** to show names
-       under the icons.
+     - **Runner only** — a colored tile in the home dashboard **Actions**
+       strip (beside the cards). The icon, color, and name are on the tile;
+       hover for a second to see the name and description. It only runs when
+       you click it. The strip is hidden if you have no runner flows.
 5. **Save**, then **Run now**.
 
 You can combine a dashboard card with a result window (or email / Slack). A

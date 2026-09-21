@@ -60,9 +60,9 @@ Home cards share one visual shell (`DashboardBlockChrome`):
   actionable rows, falling back to the original Markdown for plain output.
 
 Onboarding uses the same shell without a glyph. Runner-variant flows are **not**
-cards: they appear in a compact **Actions** rail beside the grid (64×64 flow-icon
-grid; hover 1s for title and description; optional captions via Settings → Home;
-in-flight spinner). The rail is omitted when no runners are visible.
+cards: they appear in a compact **Actions** rail beside the grid (colored
+Shortcuts-style tiles with the flow icon, play glyph, and name; hover 1s for title
+and description; in-flight spinner). The rail is omitted when no runners are visible.
 
 ## Block content (refreshable)
 
@@ -247,7 +247,7 @@ schedules.
 | --- | --- | --- |
 | `informational` + `asNeeded` | Built-in-sized card. Body is last successful run output. Menu includes **Open flow**. | Soft: last success if younger than 5 min; older last success is returned immediately and a background rerun starts; never-run awaits a run. Force (`?fresh=1`): await rerun. |
 | `informational` + `manual` | Same card chrome. | Soft: last success only (no rerun). Force: await rerun. |
-| `runner` | Compact **Actions** inspector icon (64×64 flow SF Symbol). Hover for 1s shows the title and description in a system popover (same as the server-status button, so it can draw outside the window). Captions under icons are off by default (`toby.appearance.showDashboardActionTitles`). Never auto-runs. The button disables with a spinner (and a subtle pulse unless Reduce Motion) while the run is in flight. Context menu includes **Open flow**. The inspector is hidden when no runners are visible. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
+| `runner` | Compact **Actions** inspector tile (colored rounded card, flow SF Symbol, play glyph, and name). Color comes from the flow document (`color`, curated set, default teal). Hover for 1s shows the title and description in a system popover (same as the server-status button, so it can draw outside the window). Never auto-runs. The button disables with a spinner (and a subtle pulse unless Reduce Motion) while the run is in flight. Context menu includes **Open flow**. The inspector is hidden when no runners are visible. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
 
 Built-in email / tasks / calendar cards are unchanged.
 

@@ -101,6 +101,8 @@ export type FlowDocument = {
 	readonly description?: string;
 	/** SF Symbol shown for this flow. Custom flows use the curated icon set. */
 	readonly icon?: string;
+	/** Named Home Actions tile fill. Custom flows use the curated color set. */
+	readonly color?: string;
 	readonly persona?: FlowPersonaSpec;
 	readonly nodes: readonly StoredFlowNode[];
 	/** Optional bag pointer; inferred from the last node when omitted. */

@@ -66,7 +66,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (not used by home cards). Optional `?fresh=1` bypasses the 60s category cache. |
 | `GET` | `/api/dashboard/:category/content` | Home card **block content** (flow output). `:category` is a built-in id (`email`, `tasks`, `calendar`) or a custom flow id. Preferred. Optional `?fresh=1`. See [dashboard.md](dashboard.md). |
 | `GET` | `/api/dashboard/:category/summary` | Alias of `/content`. |
-| `GET` | `/api/flows` | Stored flow list items for the app UI: `id`, `name`, `description`, `builtin`, `persona`, `nodes`, `result`, `destinations`, timestamps. Seeds built-ins on list. |
+| `GET` | `/api/flows` | Stored flow list items for the app UI: `id`, `name`, `description`, `icon`, `color`, `builtin`, `persona`, `nodes`, `result`, `destinations`, timestamps. Seeds built-ins on list. |
 | `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`). Body is a user `FlowDocument` minus `id`. Tool inputs must be `{ const }`. |
 | `GET` | `/api/flows/catalog` | Connected integrations and their tools, including `inputSchema`. |
 | `GET` | `/api/flows/:id` | One flow plus the stored `document` (prompts, destinations) for the editor. |

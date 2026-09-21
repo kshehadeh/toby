@@ -5,6 +5,7 @@ struct FlowEditorDraft: Equatable, Identifiable {
 	var name: String
 	var description: String
 	var icon: String
+	var color: String
 	var personaName: String
 	var nodes: [FlowEditorNode]
 	var destinations: [FlowEditorDestination]
@@ -19,6 +20,7 @@ struct FlowEditorDraft: Equatable, Identifiable {
 			name: "Untitled flow",
 			description: "",
 			icon: FlowIconOption.defaultSymbol,
+			color: FlowColorOption.defaultId,
 			personaName: "",
 			nodes: [],
 			destinations: [FlowEditorDestination.modal()]
@@ -38,6 +40,7 @@ struct FlowEditorDraft: Equatable, Identifiable {
 			name: document.name,
 			description: document.description ?? "",
 			icon: FlowIconOption.resolvedSymbol(document.icon),
+			color: FlowColorOption.resolvedId(document.color),
 			personaName: personaName,
 			nodes: document.nodes.map(FlowEditorNode.init(stored:)),
 			destinations: destinations.isEmpty ? [FlowEditorDestination.modal()] : destinations
@@ -48,6 +51,7 @@ struct FlowEditorDraft: Equatable, Identifiable {
 		var body: [String: Any] = [
 			"name": name.trimmingCharacters(in: .whitespacesAndNewlines),
 			"icon": FlowIconOption.resolvedSymbol(icon),
+			"color": FlowColorOption.resolvedId(color),
 			"nodes": nodes.map { $0.jsonBody() },
 			"destinations": destinations.map { $0.jsonBody() },
 		]

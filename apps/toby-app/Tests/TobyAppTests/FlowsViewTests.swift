@@ -44,6 +44,7 @@ struct FlowsViewTests {
 			name: name ?? id,
 			description: description,
 			icon: builtin ? nil : "flame",
+			color: builtin ? nil : "teal",
 			builtin: builtin,
 			persona: FlowPersonaSpec(source: "dashboard", name: nil),
 			nodes: nodes ?? [sampleToolNode(), sampleLLMNode()],
@@ -341,6 +342,7 @@ struct FlowsViewTests {
 		#expect(item.id == "dashboard.email.summary")
 		#expect(item.builtin == true)
 		#expect(item.icon == "sparkles")
+		#expect(item.color == nil)
 		#expect(item.systemImage == "sparkles")
 		#expect(item.nodes.count == 1)
 		#expect(item.nodes[0].type == "tool_executor")
@@ -451,7 +453,14 @@ struct FlowsViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-icon")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-color")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-color-teal")
+		}
 		#expect(FlowIconOption.all.contains { $0.symbol == "sparkles" })
+		#expect(Set(FlowColorOption.all.map(\.id)) == Set(AccentPreset.allCases.map(\.rawValue)))
 	}
 
 	@Test("dashboard destination summary and editor payload")
@@ -596,6 +605,7 @@ struct FlowsViewTests {
 		let body = draft.jsonBody()
 		#expect(body["name"] as? String == "Focus mode")
 		#expect(body["icon"] as? String == FlowIconOption.defaultSymbol)
+		#expect(body["color"] as? String == FlowColorOption.defaultId)
 		let nodes = body["nodes"] as? [[String: Any]]
 		#expect(nodes?.count == 1)
 		let inputs = nodes?.first?["inputs"] as? [String: Any]
@@ -610,6 +620,7 @@ struct FlowsViewTests {
 			name: "Focus mode",
 			description: "Prepare for deep work",
 			icon: "flame",
+			color: "teal",
 			persona: nil,
 			nodes: [],
 			result: nil,
@@ -617,8 +628,11 @@ struct FlowsViewTests {
 		)
 		let draft = FlowEditorDraft.from(document: document)
 		#expect(draft.icon == "flame")
+		#expect(draft.color == "teal")
 		#expect(draft.jsonBody()["icon"] as? String == "flame")
+		#expect(draft.jsonBody()["color"] as? String == "teal")
 		#expect(FlowIconOption.resolvedSymbol("not.a.symbol") == FlowIconOption.defaultSymbol)
+		#expect(FlowColorOption.resolvedId("not.a.color") == FlowColorOption.defaultId)
 	}
 
 	@Test("flow run summary decodes from JSON")

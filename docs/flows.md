@@ -6,10 +6,11 @@ sequence of steps: home dashboard card **bodies**, custom macros, and
 **scheduled runs**.
 
 **Definitions** are stored in SQLite (`flows` table in `~/.toby/chat.sqlite`) as
-JSON documents. A custom definition may include an `icon` containing one of
-Toby's curated SF Symbol names. Built-in dashboard flows are seeded from code
-on first lookup if missing. **Executions** are stored separately (`flow_runs` /
-`flow_run_nodes`).
+JSON documents. A custom definition may include an `icon` (one of Toby's
+curated SF Symbol names) and a `color` (one of `FLOW_TILE_COLORS`: teal,
+blue, green, orange, purple, pink, red, gray; default teal) used by Home
+Actions tiles. Built-in dashboard flows are seeded from code on first lookup
+if missing. **Executions** are stored separately (`flow_runs` / `flow_run_nodes`).
 
 Flows are **not** the chat turn pipeline. They have no pretreatment, message
 compaction, multi-step tool loops, or session transcript.
@@ -229,7 +230,7 @@ list of **destinations**:
 | `modal` | Toby.app | Interactive **Run now** opens a result sheet |
 | `email` | Daemon via `email.sendEmail` | `to` + `subject` are author-time constants; body is the result text |
 | `slack` | Daemon via `slack.postToChannel` | `channel` is an author-time constant |
-| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail icon. `variant` is `informational` (last-run body + refresh) or `runner` (64×64 icon in the Actions rail). Informational cards take `refresh`: `asNeeded` (default; soft-refresh like built-ins) or `manual` (card/toolbar refresh only). At most one dashboard destination per flow. |
+| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail tile. `variant` is `informational` (last-run body + refresh) or `runner` (colored icon tile in the Actions rail). Informational cards take `refresh`: `asNeeded` (default; soft-refresh like built-ins) or `manual` (card/toolbar refresh only). At most one dashboard destination per flow. |
 
 If `result` is omitted, the last LLM node’s markdown (or the last tool’s
 `appliedActions` / payload) is used. New user flows default to
@@ -249,7 +250,7 @@ dashboard. Discovery: `listFlowDashboardBlocks()` /
 | --- | --- | --- | --- |
 | `informational` + `asNeeded` (default) | Same size as built-ins; body is last successful run output | Last success if younger than 5 min; stale last success returned immediately plus a background rerun; never-run awaits a run | `runUserFlowById` with `deliverDestinations: false` |
 | `informational` + `manual` | Same card chrome | Last success only (no rerun) | Same force path as as-needed |
-| `runner` | Compact **Actions** rail icon (flow SF Symbol; hover 1s shows title and description; optional caption via Settings → Home). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
+| `runner` | Compact **Actions** rail tile (colored card, flow SF Symbol, play glyph, and name; hover 1s shows title and description). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
 
 `showsResultSheet` is true when the flow also has a `modal` destination. **Run
 Now** then opens the result sheet. Combining dashboard + email/slack is
@@ -374,7 +375,7 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `icon`, `builtin`, `persona`, node graph snapshot, `result`, `destinations`, timestamps); seeds built-ins |
+| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `icon`, `color`, `builtin`, `persona`, node graph snapshot, `result`, `destinations`, timestamps); seeds built-ins |
 | `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`) |
 | `GET` | `/api/flows/catalog` | Connected plugin tools including `inputSchema` |
 | `GET` | `/api/flows/:id` | List item + stored `document` (prompts, destinations) |
@@ -405,10 +406,11 @@ The main window **Flows** surface (`DetailRoute.flows`) lists flows in a second
 column and opens inspect-only detail with node steps and
 recent runs. **New flow** or **Edit** opens a step-list editor in a sheet.
 Cancel and Save sit in the sheet toolbar. The editor covers name, curated SF
-Symbol icon, tool picker, const inputs, optional last LLM, destinations. The selected
-icon follows the custom flow into Flows, schedules, and custom home dashboard
-cards or action runners. Documents without an icon retain the existing
-category-derived or generic fallback. Custom flows can be edited, deleted, and
+Symbol icon, tile color, tool picker, const inputs, optional last LLM,
+destinations. The selected icon and color follow the custom flow into Flows,
+schedules, and custom home dashboard cards or action tiles. Documents without
+an icon or color retain the existing category-derived / generic icon fallback
+and the default teal tile. Custom flows can be edited, deleted, and
 **Run now**. Built-in flows stay read-only. A successful interactive run with a
 modal destination opens a result sheet.
 
