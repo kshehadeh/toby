@@ -574,6 +574,10 @@ final class AppearancePreferences {
 	/// Apply the stored home-directory preference to the process environment.
 	/// Call once at app launch before daemon bootstrap / native server start.
 	static func applyStoredTobyDirEnvironment() {
+		// Explicit launch overrides take precedence over the saved preference.
+		if normalizedOverride(ProcessInfo.processInfo.environment["TOBY_DIR"]) != nil {
+			return
+		}
 		ConfigReader.syncTobyDirEnvironment()
 	}
 

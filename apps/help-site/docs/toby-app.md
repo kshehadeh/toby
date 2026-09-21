@@ -240,6 +240,8 @@ different (or empty) data root, restarts the local server, and reloads the app
 UI. Finish or cancel any chat turn and stop recording before switching. The
 preference is stored only for Toby.app on this Mac; the `toby` CLI still uses
 `~/.toby` unless you set the `TOBY_DIR` environment variable.
+If the app is launched with an explicit `TOBY_DIR`, that home takes precedence
+over the saved preference for that launch. You can still switch homes in Settings.
 
 **Start at login** — Open Toby automatically when you log in to this Mac. Uses
 macOS Login Items (`SMAppService`). If macOS asks for approval, allow Toby under

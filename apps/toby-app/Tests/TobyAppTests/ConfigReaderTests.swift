@@ -21,6 +21,7 @@ struct ConfigReaderTests {
 	}
 
 	@Test("resolveTobyDir prefers UserDefaults when TOBY_DIR is unset")
+	@MainActor
 	func resolvePrefersUserDefaults() {
 		let previousEnv = ProcessInfo.processInfo.environment["TOBY_DIR"]
 		let previousDefaults = UserDefaults.standard.string(forKey: ConfigReader.tobyDirDefaultsKey)
@@ -42,11 +43,14 @@ struct ConfigReaderTests {
 			.appendingPathComponent("toby-home-\(UUID().uuidString)", isDirectory: true)
 			.path
 		UserDefaults.standard.set(custom, forKey: ConfigReader.tobyDirDefaultsKey)
+		AppearancePreferences.applyStoredTobyDirEnvironment()
+		#expect(ProcessInfo.processInfo.environment["TOBY_DIR"] == ConfigReader.standardizePath(custom))
 		#expect(ConfigReader.resolveTobyDir() == ConfigReader.standardizePath(custom))
 		#expect(ConfigReader.isCustomTobyDir())
 	}
 
 	@Test("resolveTobyDir prefers environment over UserDefaults")
+	@MainActor
 	func resolvePrefersEnvironment() {
 		let previousEnv = ProcessInfo.processInfo.environment["TOBY_DIR"]
 		let previousDefaults = UserDefaults.standard.string(forKey: ConfigReader.tobyDirDefaultsKey)
@@ -71,6 +75,10 @@ struct ConfigReaderTests {
 			.path
 		setenv("TOBY_DIR", envPath, 1)
 		UserDefaults.standard.set(defaultsPath, forKey: ConfigReader.tobyDirDefaultsKey)
+		AppearancePreferences.applyStoredTobyDirEnvironment()
+		#expect(ConfigReader.resolveTobyDir() == ConfigReader.standardizePath(envPath))
+		UserDefaults.standard.removeObject(forKey: ConfigReader.tobyDirDefaultsKey)
+		AppearancePreferences.applyStoredTobyDirEnvironment()
 		#expect(ConfigReader.resolveTobyDir() == ConfigReader.standardizePath(envPath))
 	}
 

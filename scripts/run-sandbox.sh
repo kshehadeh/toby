@@ -47,8 +47,8 @@ case "$choice" in
 		echo "Using TOBY_DIR=$TOBY_DIR"
 		;;
 	2)
-		# Use default — unset TOBY_DIR if it was set in the environment
-		unset TOBY_DIR
+		# Override any saved app preference as well as the inherited environment.
+		TOBY_DIR="$HOME/.toby"
 		echo "Using default home directory (~/.toby)"
 		;;
 	*)
@@ -59,5 +59,21 @@ esac
 
 echo ""
 
-# Pass through to the underlying command (default: bun run dev)
-exec env ${TOBY_DIR:+TOBY_DIR="$TOBY_DIR"} "$@" bun run dev
+export TOBY_DIR
+cd "$ROOT"
+
+# An optional command inherits the selected home without shell word splitting.
+if [[ $# -gt 0 ]]; then
+	exec "$@"
+fi
+
+bun run build:app
+
+# A running app cannot acquire a new environment by being activated again.
+if pgrep -f 'Toby \(Dev\)' >/dev/null 2>&1; then
+	pkill -f 'Toby \(Dev\)' 2>/dev/null || true
+	sleep 1
+fi
+
+# Launch Services does not reliably inherit the launching shell's environment.
+exec open -n --env "TOBY_DIR=$TOBY_DIR" "$ROOT/dist/Toby (Dev).app"

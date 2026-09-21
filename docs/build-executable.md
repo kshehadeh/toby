@@ -15,6 +15,16 @@ and upgrades copy first-party plugins into `~/.toby/plugins/` automatically; whe
 building from source, install with `toby plugins install ./dist/...` (see
 [`docs/plugin-protocol.md`](plugin-protocol.md)).
 
+## Sandbox development app
+
+Run `bun run dev:sandbox` to build and relaunch Toby (Dev) with a selected
+data home. Choose a directory under `/tmp` (the last name is remembered), or
+choose the default `~/.toby` home. The launcher explicitly passes `TOBY_DIR`
+to the new app process, overriding its saved Settings home for that launch.
+An existing Toby (Dev) process is stopped so the new environment takes effect.
+To run another command with the selected home, use
+`bash scripts/run-sandbox.sh <command> [arguments...]`.
+
 ## Requirements
 
 - **[Bun](https://bun.sh)** installed locally (used only at build time; end users do not need Bun to *run* the binary).
