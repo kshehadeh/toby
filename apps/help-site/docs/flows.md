@@ -69,10 +69,12 @@ Choose **New flow** from the toolbar. A **New Flow** sheet opens with
          toolbar always runs it again.
        - **Manual** — the card keeps the last run until you tap refresh on that
          card or the dashboard toolbar.
-     - **Runner only** — a button in the home dashboard **Actions** strip
-       (beside the cards). The button is the flow’s name; hover to see the
-       description. It only runs when you click it. The strip is hidden if
-       you have no runner flows.
+     - **Runner only** — an icon in the home dashboard **Actions** strip
+       (beside the cards). The icon is the one you chose for the flow; hover
+       for a second to see the name and description. It only runs when you
+       click it. The strip is hidden if you have no runner flows. Turn
+       **Show action titles** on under **Settings → Home** to show names
+       under the icons.
 5. **Save**, then **Run now**.
 
 You can combine a dashboard card with a result window (or email / Slack). A

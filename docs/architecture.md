@@ -113,6 +113,7 @@ alongside the daemon-backed summary persona:
 | `toby.appearance.showDashboardTasks` | **true** | Show tasks | Show/hide the tasks card on the home dashboard |
 | `toby.appearance.showDashboardCalendar` | **true** | Show upcoming events | Show/hide the upcoming calendar events card on the home dashboard |
 | `toby.appearance.hideOnboarding` | **false** | Hide onboarding checklist | Hide the setup checklist even if steps are incomplete |
+| `toby.appearance.showDashboardActionTitles` | **false** | Show action titles | Show flow names under Home Actions icons; hover still shows title and description |
 
 **Start at login** uses `ServiceManagement.SMAppService`; macOS may require the
 user to approve Toby under **System Settings → General → Login Items**. **Menu

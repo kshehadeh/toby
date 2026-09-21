@@ -383,7 +383,7 @@ private struct FlowDestinationRow: View {
 
 	private var dashboardDestinationHelp: String {
 		if destination.dashboardVariant == "runner" {
-			return "An Actions button on the home dashboard. Hover for the description; the flow only runs when you click it."
+			return "An Actions icon on the home dashboard. Hover for a second to see the title and description; the flow only runs when you click it."
 		}
 		if destination.dashboardRefresh == "manual" {
 			return "Only updates when you tap refresh on this card or the dashboard toolbar."

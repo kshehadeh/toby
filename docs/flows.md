@@ -229,7 +229,7 @@ list of **destinations**:
 | `modal` | Toby.app | Interactive **Run now** opens a result sheet |
 | `email` | Daemon via `email.sendEmail` | `to` + `subject` are author-time constants; body is the result text |
 | `slack` | Daemon via `slack.postToChannel` | `channel` is an author-time constant |
-| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail button. `variant` is `informational` (last-run body + refresh) or `runner` (compact title button in the Actions rail). Informational cards take `refresh`: `asNeeded` (default; soft-refresh like built-ins) or `manual` (card/toolbar refresh only). At most one dashboard destination per flow. |
+| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail icon. `variant` is `informational` (last-run body + refresh) or `runner` (64×64 icon in the Actions rail). Informational cards take `refresh`: `asNeeded` (default; soft-refresh like built-ins) or `manual` (card/toolbar refresh only). At most one dashboard destination per flow. |
 
 If `result` is omitted, the last LLM node’s markdown (or the last tool’s
 `appliedActions` / payload) is used. New user flows default to
@@ -249,7 +249,7 @@ dashboard. Discovery: `listFlowDashboardBlocks()` /
 | --- | --- | --- | --- |
 | `informational` + `asNeeded` (default) | Same size as built-ins; body is last successful run output | Last success if younger than 5 min; stale last success returned immediately plus a background rerun; never-run awaits a run | `runUserFlowById` with `deliverDestinations: false` |
 | `informational` + `manual` | Same card chrome | Last success only (no rerun) | Same force path as as-needed |
-| `runner` | Compact **Actions** rail button (title; hover shows description). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
+| `runner` | Compact **Actions** rail icon (flow SF Symbol; hover 1s shows title and description; optional caption via Settings → Home). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
 
 `showsResultSheet` is true when the flow also has a `modal` destination. **Run
 Now** then opens the result sheet. Combining dashboard + email/slack is

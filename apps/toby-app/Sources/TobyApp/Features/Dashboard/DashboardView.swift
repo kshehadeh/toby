@@ -283,7 +283,8 @@ struct DashboardView: View {
 		ZStack(alignment: .topLeading) {
 			DashboardActionRunnerRow(
 				block: block,
-				actionContext: actionContext
+				actionContext: actionContext,
+				appearancePreferences: appearancePreferences
 			)
 			.allowsHitTesting(!isEditing)
 			if isEditing {

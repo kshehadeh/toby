@@ -1,6 +1,6 @@
 /**
- * Compact Actions-rail row for a runner-only flow: title button, hover
- * description, spinner while running. Not a full dashboard card.
+ * Compact Actions-rail tile for a runner-only flow: 64×64 flow icon, hover
+ * popover (title + description), spinner while running. Not a full dashboard card.
  */
 export interface FlowRunnerCardProps {
   title: string;

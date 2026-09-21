@@ -1028,8 +1028,8 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 
-	@Test("runner row shows title as the action, not a full card")
-	func runnerRowShowsTitleAsAction() throws {
+	@Test("runner row is an icon-only action with the flow symbol")
+	func runnerRowShowsIconAsAction() throws {
 		let block = CategoryDashboardBlock(
 			descriptor: .flow(
 				flowInfo(
@@ -1042,19 +1042,53 @@ struct DashboardFlowBlocksTests {
 				sortIndex: 100
 			)
 		)
-		let row = DashboardActionRunnerRow(block: block)
-			.environment(AppearancePreferences.shared)
-		#expect(throws: Never.self) {
-			try row.inspect().find(text: "Focus mode")
-		}
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.runner.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let row = DashboardActionRunnerRow(block: block, appearancePreferences: prefs)
+		#expect(DashboardActionRunnerRow.helpHoverDelay == 1.0)
+		#expect(DashboardBlockLayout.actionIconSize == 64)
 		#expect(throws: Never.self) {
 			try row.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
 		}
 		let image = try row.inspect().find(ViewType.Image.self)
 		#expect(try image.actualImage().name() == "flame")
 		#expect(throws: (any Error).self) {
+			try row.inspect().find(text: "Focus mode")
+		}
+		#expect(throws: (any Error).self) {
 			try row.inspect().find(text: "Run Now")
 		}
+		#expect(throws: (any Error).self) {
+			try row.inspect().find(text: "Turn off Wi-Fi")
+		}
+	}
+
+	@Test("runner row shows the flow title when the Home setting is on")
+	func runnerRowShowsTitleWhenSettingEnabled() throws {
+		let block = CategoryDashboardBlock(
+			descriptor: .flow(
+				flowInfo(
+					id: "flow.run",
+					title: "Focus mode",
+					description: "Turn off Wi-Fi",
+					variant: "runner",
+					icon: "flame"
+				),
+				sortIndex: 100
+			)
+		)
+		let suite = UserDefaults(suiteName: "toby.tests.dashboard.runner.titles.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(
+			showDashboardActionTitles: true,
+			defaults: suite,
+			applyLaunchAtLoginOnChange: false
+		)
+		let row = DashboardActionRunnerRow(block: block, appearancePreferences: prefs)
+		#expect(throws: Never.self) {
+			try row.inspect().find(text: "Focus mode")
+		}
+		let image = try row.inspect().find(ViewType.Image.self)
+		#expect(try image.actualImage().name() == "flame")
 		#expect(throws: (any Error).self) {
 			try row.inspect().find(text: "Turn off Wi-Fi")
 		}
@@ -1108,9 +1142,8 @@ struct DashboardFlowBlocksTests {
 
 		let runnerBlock = store.registry.block(rawId: "flow.run")!
 		let rail = DashboardActionRunnersRail(blocks: [runnerBlock]) { block in
-			DashboardActionRunnerRow(block: block)
+			DashboardActionRunnerRow(block: block, appearancePreferences: prefs)
 		}
-		.environment(AppearancePreferences.shared)
 		#expect(throws: Never.self) {
 			try rail.inspect().find(viewWithAccessibilityIdentifier: "dashboard-actions-rail")
 		}
@@ -1118,6 +1151,9 @@ struct DashboardFlowBlocksTests {
 			try rail.inspect().find(text: "Actions")
 		}
 		#expect(throws: Never.self) {
+			try rail.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-run-flow.run")
+		}
+		#expect(throws: (any Error).self) {
 			try rail.inspect().find(text: "Focus mode")
 		}
 	}

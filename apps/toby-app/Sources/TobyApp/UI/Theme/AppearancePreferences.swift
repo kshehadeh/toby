@@ -151,6 +151,8 @@ enum AppearanceDefaultsKey {
 	static let showDashboardCalendar = "toby.appearance.showDashboardCalendar"
 	/// JSON `DashboardLayout` (order + hidden ids). Source of truth for home-card layout.
 	static let dashboardLayout = "toby.appearance.dashboardLayout"
+	/// Show flow titles under Home Actions icons. Default off (icon-only).
+	static let showDashboardActionTitles = "toby.appearance.showDashboardActionTitles"
 	/// Open Toby automatically when this Mac logs in (Settings → General).
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
@@ -182,6 +184,7 @@ final class AppearancePreferences {
 	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
 	static let showDashboardCalendarDefaultsKey = AppearanceDefaultsKey.showDashboardCalendar
 	static let dashboardLayoutDefaultsKey = AppearanceDefaultsKey.dashboardLayout
+	static let showDashboardActionTitlesDefaultsKey = AppearanceDefaultsKey.showDashboardActionTitles
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
@@ -233,6 +236,14 @@ final class AppearancePreferences {
 		}
 	}
 
+	/// When true, Home Actions tiles show the flow title under the 64×64 icon.
+	var showDashboardActionTitles: Bool {
+		didSet {
+			guard showDashboardActionTitles != oldValue else { return }
+			defaults.set(showDashboardActionTitles, forKey: Self.showDashboardActionTitlesDefaultsKey)
+		}
+	}
+
 	/// Binding for the hide-onboarding Settings toggle, animated like card visibility.
 	var hideOnboardingBinding: Binding<Bool> {
 		Binding(
@@ -240,6 +251,18 @@ final class AppearancePreferences {
 			set: { newValue in
 				withAnimation(DashboardSectionMotion.animation) {
 					self.hideOnboarding = newValue
+				}
+			}
+		)
+	}
+
+	/// Binding for the Actions caption Settings toggle.
+	var showDashboardActionTitlesBinding: Binding<Bool> {
+		Binding(
+			get: { self.showDashboardActionTitles },
+			set: { newValue in
+				withAnimation(DashboardSectionMotion.animation) {
+					self.showDashboardActionTitles = newValue
 				}
 			}
 		)
@@ -404,6 +427,7 @@ final class AppearancePreferences {
 		mode: AppearanceMode? = nil,
 		accent: AccentPreset? = nil,
 		hideOnboarding: Bool? = nil,
+		showDashboardActionTitles: Bool? = nil,
 		showDashboardEmail: Bool? = nil,
 		showDashboardTasks: Bool? = nil,
 		showDashboardCalendar: Bool? = nil,
@@ -449,6 +473,17 @@ final class AppearancePreferences {
 			resolvedHideOnboarding = defaults.bool(forKey: Self.hideOnboardingDefaultsKey)
 		} else {
 			resolvedHideOnboarding = false
+		}
+
+		let resolvedShowDashboardActionTitles: Bool
+		if let showDashboardActionTitles {
+			resolvedShowDashboardActionTitles = showDashboardActionTitles
+		} else if defaults.object(forKey: Self.showDashboardActionTitlesDefaultsKey) != nil {
+			resolvedShowDashboardActionTitles = defaults.bool(
+				forKey: Self.showDashboardActionTitlesDefaultsKey
+			)
+		} else {
+			resolvedShowDashboardActionTitles = false
 		}
 
 		var resolvedLayout = DashboardLayout.load(from: defaults)
@@ -524,6 +559,7 @@ final class AppearancePreferences {
 		self.mode = resolvedMode
 		self.accent = resolvedAccent
 		self.hideOnboarding = resolvedHideOnboarding
+		self.showDashboardActionTitles = resolvedShowDashboardActionTitles
 		self.dashboardLayout = resolvedLayout
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
@@ -541,6 +577,12 @@ final class AppearancePreferences {
 		}
 		if hideOnboarding != nil {
 			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
+		}
+		if showDashboardActionTitles != nil {
+			defaults.set(
+				resolvedShowDashboardActionTitles,
+				forKey: Self.showDashboardActionTitlesDefaultsKey
+			)
 		}
 		if showDashboardEmail != nil || showDashboardTasks != nil || showDashboardCalendar != nil {
 			persistDashboardLayout()

@@ -180,6 +180,18 @@ struct ConfigureSectionDetailView: View {
 						}
 						.toggleStyle(.switch)
 						.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
+						Toggle(isOn: appearancePreferences.showDashboardActionTitlesBinding) {
+							VStack(alignment: .leading, spacing: 2) {
+								Text("Show action titles")
+								Text(
+									"Show the flow name under each Actions icon on Home. Hover still shows the title and description. Stored only on this Mac."
+								)
+								.font(.caption)
+								.foregroundStyle(.secondary)
+							}
+						}
+						.toggleStyle(.switch)
+						.accessibilityIdentifier("dashboard-show-action-titles-toggle")
 						LabeledContent("Reset Home layout") {
 							Button("Reset") {
 								appearancePreferences.resetDashboardLayout()

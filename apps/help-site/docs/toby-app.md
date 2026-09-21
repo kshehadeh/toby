@@ -284,8 +284,10 @@ Cards keep their natural height until long content reaches the collapsed limit,
 and the responsive layout fills the shortest column first. **Runner only**
 flows appear in an **Actions**
 strip beside the cards (not as full-size cards). Each action is the flow’s
-title; hover to see its description. They never run until you click one —
-while a run is in progress that button is disabled and shows a spinner.
+64×64 icon. Hover for a second to see the title and description. Click the
+icon to run it immediately — while a run is in progress that button is
+disabled and shows a spinner. Titles under the icons are off by default;
+turn **Show action titles** on under **Settings → Home**.
 The Actions strip is hidden when you have no runner flows (or all of them
 are hidden). It appears as a trailing sidebar on the right of Home;
 drag the system divider to make it narrower or wider. When at least one
@@ -320,8 +322,11 @@ bodies are produced by built-in [flows](./flows).
 - **Hide onboarding checklist** — Off by default. Turning that on removes the
   setup checklist from Home even if steps remain incomplete; turn
   it off to bring the checklist back.
+- **Show action titles** — Off by default. Turning that on shows the flow
+  name under each Actions icon on Home. Hovering an icon still shows the
+  title and description either way. Stored only on this Mac.
 - **Reset Home layout** — Restores the default card order and shows all
-  cards. Does not change the onboarding checklist setting.
+  cards. Does not change the onboarding checklist or action-title settings.
 
 ### Permissions
 

@@ -14,6 +14,7 @@ struct AppearancePreferencesTests {
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
 		#expect(prefs.hideOnboarding == false)
+		#expect(prefs.showDashboardActionTitles == false)
 		#expect(prefs.showDashboardEmail == true)
 		#expect(prefs.showDashboardTasks == true)
 		#expect(prefs.showDashboardCalendar == true)
@@ -61,6 +62,7 @@ struct AppearancePreferencesTests {
 		prefs.mode = .light
 		prefs.accent = .teal
 		prefs.hideOnboarding = true
+		prefs.showDashboardActionTitles = true
 		prefs.showDashboardEmail = false
 		prefs.showDashboardTasks = false
 		prefs.showDashboardCalendar = false
@@ -70,6 +72,7 @@ struct AppearancePreferencesTests {
 		#expect(suite.string(forKey: AppearancePreferences.modeDefaultsKey) == "light")
 		#expect(suite.string(forKey: AppearancePreferences.accentDefaultsKey) == "teal")
 		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
+		#expect(suite.bool(forKey: AppearancePreferences.showDashboardActionTitlesDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showDashboardEmailDefaultsKey) == false)
 		#expect(suite.bool(forKey: AppearancePreferences.showDashboardTasksDefaultsKey) == false)
 		#expect(suite.bool(forKey: AppearancePreferences.showDashboardCalendarDefaultsKey) == false)
@@ -83,6 +86,7 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.mode == .light)
 		#expect(reloaded.accent == .teal)
 		#expect(reloaded.hideOnboarding == true)
+		#expect(reloaded.showDashboardActionTitles == true)
 		#expect(reloaded.showDashboardEmail == false)
 		#expect(reloaded.showDashboardTasks == false)
 		#expect(reloaded.showDashboardCalendar == false)
@@ -197,6 +201,9 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
 		}
 		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-action-titles-toggle")
+		}
+		#expect(throws: (any Error).self) {
 			try view.inspect().find(text: "Hide onboarding checklist")
 		}
 	}
@@ -254,6 +261,12 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
 		}
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show action titles")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-action-titles-toggle")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Reset Home layout")
 		}
 		#expect(throws: Never.self) {
@@ -269,6 +282,7 @@ struct AppearancePreferencesTests {
 			order: ["calendar", "email", "tasks"],
 			hidden: ["email", "flow.x"]
 		)
+		prefs.showDashboardActionTitles = true
 		prefs.resetDashboardLayout()
 		#expect(prefs.dashboardLayout == .empty)
 		#expect(prefs.dashboardLayout.actionsVisible)
@@ -279,6 +293,7 @@ struct AppearancePreferencesTests {
 		#expect(prefs.showDashboardTasks)
 		#expect(prefs.showDashboardCalendar)
 		#expect(prefs.isDashboardBlockVisible(id: DashboardBlockID("flow.x")))
+		#expect(prefs.showDashboardActionTitles)
 	}
 
 	@Test("actions pane visibility and width persist on the layout document")
