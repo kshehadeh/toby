@@ -583,6 +583,32 @@ describe("web API routes", () => {
 		);
 		expect(res.status).toBe(404);
 	});
+
+	it("returns 404 when discovering settings for an unknown integration", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/unknown/discover", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: "ada@example.com" }),
+			}),
+			null,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("rejects discovery for an integration that does not implement it", async () => {
+		const res = await handleWebRequest(
+			new Request("http://127.0.0.1/api/integrations/slack/discover", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: "ada@example.com" }),
+			}),
+			null,
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("cannot discover settings");
+	}, 30000);
 });
 
 describe("persona API", () => {

@@ -823,6 +823,17 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
+	func discoverIntegrationSettings(name: String, email: String) async throws -> EmailDiscoverResponse {
+		let url = baseURL.appendingPathComponent("api/integrations/\(name)/discover")
+		var request = URLRequest(url: url)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONEncoder().encode(["email": email])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(EmailDiscoverResponse.self, from: data)
+	}
+
 	func fetchIntegrationSetupGuide(name: String) async throws -> IntegrationSetupGuide {
 		let url = baseURL.appendingPathComponent("api/integrations/\(name)/setup-guide")
 		let (data, response) = try await URLSession.shared.data(from: url)

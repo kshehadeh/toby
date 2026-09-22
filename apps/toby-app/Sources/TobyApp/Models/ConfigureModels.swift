@@ -242,6 +242,29 @@ struct IntegrationToolHealth: Decodable {
 	let details: String?
 }
 
+struct EmailDiscoverSettings: Decodable {
+	var imapHost: String
+	var imapPort: String
+	var imapSecure: String
+	var imapUsername: String
+	var smtpHost: String
+	var smtpPort: String
+	var smtpSecure: String
+	var smtpUsername: String
+	var fromAddress: String
+}
+
+struct EmailDiscoverResponse: Decodable {
+	let ok: Bool
+	let email: String
+	let domain: String
+	let source: String
+	let providerName: String?
+	let appPasswordRequired: Bool?
+	let documentationUrl: String?
+	let settings: EmailDiscoverSettings
+}
+
 struct IntegrationActionResponse: Decodable {
 	let ok: Bool
 	let error: String?

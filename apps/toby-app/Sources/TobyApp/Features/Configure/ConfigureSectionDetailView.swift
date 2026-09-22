@@ -9,6 +9,7 @@ struct ConfigureSectionDetailView: View {
 	var onGuidedSetupCompleted: (() -> Void)? = nil
 
 	@State private var guidedSetupProviderId: String?
+	@State private var emailSetupPresented = false
 
 	private var fields: [SettingsItem] {
 		store.detailFields(for: section)
@@ -234,6 +235,22 @@ struct ConfigureSectionDetailView: View {
 				}
 
 				if isIntegrationSection {
+					if section.key == "email",
+						let status = store.integrationStatus[section.key],
+						!status.connected
+					{
+						Section("Guided setup") {
+							LabeledContent("Setup") {
+								Button("Start setup") {
+									emailSetupPresented = true
+								}
+								.accessibilityIdentifier("email-guided-setup-button")
+							}
+							Text("Enter your email address and Toby will look up the IMAP and SMTP servers.")
+								.font(.caption)
+								.foregroundStyle(.secondary)
+						}
+					}
 					IntegrationSettingsToolsAndGuideSections(store: store, section: section)
 				}
 			}
@@ -253,6 +270,18 @@ struct ConfigureSectionDetailView: View {
 			if isAIProviderSection {
 				await store.loadAIProviderStatuses()
 			}
+		}
+		.sheet(isPresented: $emailSetupPresented) {
+			EmailSetupWizardView(
+				initialEmail: store.draft["email.imapUsername"],
+				onCompleted: {
+					Task {
+						await store.loadIntegrationStatus(for: section.key)
+						await store.loadSectionDetail(section.key)
+					}
+				},
+				onDismiss: { emailSetupPresented = false }
+			)
 		}
 		.sheet(item: Binding(
 			get: { guidedSetupProviderId.map { GuidedSetupSheetItem(id: $0) } },

@@ -149,6 +149,7 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/schedules/runs/:id` | Schedule run detail / transcript. |
 | `GET` | `/api/integrations/:name/status` | Integration health / connection status (also aliases MCP connection ids). |
 | `GET` | `/api/integrations/:name/setup-guide` | Onboarding wizard steps for an integration. |
+| `POST` | `/api/integrations/:name/discover` | Look up integration settings from `{ "email": "name@example.com" }`. Email implements this; other integrations return 400. |
 | `GET` | `/api/connections` | List first-class connections (plugins + MCP servers). |
 | `POST` | `/api/connections` | Create an MCP connection (and connect unless `connect: false`). |
 | `GET` | `/api/connections/:id` | Connection detail. |
