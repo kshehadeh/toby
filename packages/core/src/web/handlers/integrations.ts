@@ -10,9 +10,10 @@ import { getPluginMetadata } from "../../integrations/plugins/registry";
 import {
 	buildIntegrationSetupGuide,
 	resolveInstalledPluginTarget,
+	runPluginDiscover,
 	runPluginSetup,
 } from "../../integrations/plugins/setup";
-import { errorResponse, jsonResponse } from "../http-utils";
+import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 export async function handleIntegrationStatus(name: string): Promise<Response> {
 	const module = getIntegrationModule(name);
@@ -113,6 +114,29 @@ export async function handleIntegrationSetup(name: string): Promise<Response> {
 		}
 		invalidateSettingsCache();
 		return jsonResponse({ ok: true, response: result.response });
+	} catch (e) {
+		return errorResponse(e instanceof Error ? e.message : String(e), 500);
+	}
+}
+
+export async function handleIntegrationDiscover(
+	name: string,
+	req: Request,
+): Promise<Response> {
+	const module = getIntegrationModule(name);
+	if (!module) {
+		return errorResponse("Integration not found", 404);
+	}
+	const body = await readJsonBody<{ email?: unknown }>(req);
+	if (!body || typeof body.email !== "string") {
+		return errorResponse("Request body must include an email address.");
+	}
+	try {
+		const result = await runPluginDiscover(name, body.email);
+		if (!result.ok) {
+			return errorResponse(result.error, result.status);
+		}
+		return jsonResponse(result.response);
 	} catch (e) {
 		return errorResponse(e instanceof Error ? e.message : String(e), 500);
 	}

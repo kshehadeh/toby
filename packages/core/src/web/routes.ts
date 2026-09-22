@@ -75,6 +75,7 @@ import {
 import {
 	handleIntegrationConnect,
 	handleIntegrationDisconnect,
+	handleIntegrationDiscover,
 	handleIntegrationReauthorize,
 	handleIntegrationSetup,
 	handleIntegrationSetupGuide,
@@ -653,6 +654,14 @@ export async function handleWebRequest(
 		if (integrationStatusMatch && req.method === "GET") {
 			return handleIntegrationStatus(
 				decodeURIComponent(integrationStatusMatch[1]),
+			);
+		}
+		const integrationDiscoverMatch =
+			/^\/api\/integrations\/([^/]+)\/discover$/.exec(pathname);
+		if (integrationDiscoverMatch && req.method === "POST") {
+			return handleIntegrationDiscover(
+				decodeURIComponent(integrationDiscoverMatch[1]),
+				req,
 			);
 		}
 		const integrationSetupGuideMatch =

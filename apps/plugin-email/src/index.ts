@@ -13,6 +13,7 @@ import {
 	testConnection,
 } from "./client";
 import { openDb } from "./db";
+import { discoverEmailSettings } from "./discover";
 import { log } from "./log";
 import {
 	EMAIL_MULTI_USER_CONTENT_TEMPLATE,
@@ -433,6 +434,23 @@ async function main(): Promise<void> {
 	if (command === "events" && subcommand === "poll") {
 		const { config, state, dataDir } = parseEnvelope(stdin);
 		await handleEventsPoll(config, state, dataDir);
+	}
+
+	if (command === "discover") {
+		if (!stdin.trim()) {
+			emitError("discover requires JSON on stdin", "invalid_input", 2);
+		}
+		let body: JsonRecord;
+		try {
+			body = JSON.parse(stdin) as JsonRecord;
+		} catch {
+			emitError("Invalid JSON on stdin", "invalid_input", 2);
+		}
+		const result = await discoverEmailSettings(String(body.email ?? ""));
+		if (!result.ok) {
+			emitError(result.error, result.code, 2);
+		}
+		emitJson(result as unknown as JsonRecord);
 	}
 
 	if (command === "setup" && subcommand === "guide") {

@@ -4,6 +4,7 @@ import type {
 	PluginConfigEnvelope,
 	PluginConfigGetResponse,
 	PluginConfigShapeResponse,
+	PluginDiscoverResponse,
 	PluginEventsPollResponse,
 	PluginInvocationTarget,
 	PluginSetupGuideResponse,
@@ -406,6 +407,19 @@ export function pluginSetup(
 		target,
 		["setup"],
 		serializeEnvelope(envelope),
+		options,
+	);
+}
+
+export function pluginDiscoverAsync(
+	target: PluginTargetParam,
+	request: { email: string },
+	options?: PluginClientOptions,
+): Promise<PluginInvokeResult<PluginDiscoverResponse>> {
+	return invokePluginAsync<PluginDiscoverResponse>(
+		target,
+		["discover"],
+		JSON.stringify(request),
 		options,
 	);
 }

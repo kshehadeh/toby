@@ -198,6 +198,7 @@ Examples:
 | `tools execute` | [tool request](#tools-execute) | `{ ok, result?, appliedActions?, config?, error? }` | Chat tool runs |
 | `setup` | optional [config envelope](#config-envelope-stdin) | [setup response](#setup) | One-time plugin setup (`toby plugins setup`) |
 | `setup guide` | optional [config envelope](#config-envelope-stdin) | [setup guide response](#setup-guide) | Onboarding wizard content for the native app |
+| `discover` | `{ "email": "name@example.com" }` | [discover response](#discover) | Optional. Look up integration settings from an email address |
 
 Unknown commands or invalid usage must exit **`2`** with JSON `{ ok: false, error, code? }`.
 
@@ -673,6 +674,53 @@ Step fields:
 | `artifacts` | no | Array of `{ id, label, value, hint? }` copyable values |
 
 **Fallback:** If a plugin does not implement `setup guide`, Toby builds a generic guide from the plugin's `status`, `config shape`, and `authMethods`. Custom guides are recommended for OAuth integrations so users know exactly which redirect URI, scopes, and console steps to use.
+
+### Discover
+
+Plugins can optionally look up settings from an email address. Toby.app uses this for the Email guided setup wizard. Other integrations may implement the same command later.
+
+**`discover` subcommand** — stdin:
+
+```json
+{ "email": "name@example.com" }
+```
+
+stdout:
+
+```json
+{
+  "ok": true,
+  "email": "name@example.com",
+  "domain": "example.com",
+  "source": "preset",
+  "providerName": "Example",
+  "appPasswordRequired": true,
+  "documentationUrl": "https://example.com/imap",
+  "settings": {
+    "imapHost": "imap.example.com",
+    "imapPort": "993",
+    "imapSecure": "true",
+    "imapUsername": "name@example.com",
+    "smtpHost": "smtp.example.com",
+    "smtpPort": "587",
+    "smtpSecure": "false",
+    "smtpUsername": "name@example.com",
+    "fromAddress": "name@example.com"
+  }
+}
+```
+
+| Field | Required | Meaning |
+| ----- | -------- | ------- |
+| `source` | yes | `preset` (built-in provider), `ispdb` (Mozilla autoconfig), or `none` (no servers found) |
+| `settings` | yes | Local config keys the app can write. Hosts may be empty when `source` is `none` |
+| `providerName` | no | Label shown in the wizard |
+| `appPasswordRequired` | no | Hint that the provider expects an app password |
+| `documentationUrl` | no | Provider help link |
+
+Invalid addresses exit `2` with `code: "invalid_input"`. A domain with no published settings still exits `0` with `source: "none"` so the wizard can continue with manual hosts. Plugins that do not implement `discover` should keep the usual unknown-command exit `2`; Toby reports that the integration cannot discover settings.
+
+The Email plugin checks a small provider catalog, then `https://autoconfig.thunderbird.net/v1.1/{domain}`. It does not request URLs on the user's domain.
 
 ## Inbound chat (daemon transport)
 

@@ -1,10 +1,16 @@
 import fs from "node:fs";
 import type { IntegrationModule } from "../types";
-import { pluginConfigShape, pluginSetup, pluginSetupGuide } from "./client";
+import {
+	pluginConfigShape,
+	pluginDiscoverAsync,
+	pluginSetup,
+	pluginSetupGuide,
+} from "./client";
 import { discoverPluginBinaries } from "./discovery";
 import { resolvePluginInstallTarget } from "./install";
 import type {
 	PluginConfigField,
+	PluginDiscoverResponse,
 	PluginInvocationTarget,
 	PluginSetupActionResult,
 	PluginSetupGuideResponse,
@@ -236,4 +242,55 @@ export function buildIntegrationSetupGuide(
 			: [];
 
 	return buildGenericSetupGuide(module, fields, name, displayName);
+}
+
+export type PluginDiscoverRunResult =
+	| {
+			readonly ok: true;
+			readonly response: PluginDiscoverResponse;
+	  }
+	| {
+			readonly ok: false;
+			readonly error: string;
+			readonly code: string;
+			readonly status: number;
+	  };
+
+export async function runPluginDiscover(
+	name: string,
+	email: string,
+): Promise<PluginDiscoverRunResult> {
+	const normalized = name.trim();
+	const target = resolveInstalledPluginTarget(normalized);
+	if (!target) {
+		return {
+			ok: false,
+			error: `Plugin "${normalized}" is not installed`,
+			code: "not_installed",
+			status: 404,
+		};
+	}
+
+	const result = await pluginDiscoverAsync(target, { email });
+	if (!result.ok) {
+		const unsupported =
+			result.code === "contract_error" || /unknown command/i.test(result.error);
+		return {
+			ok: false,
+			error: unsupported
+				? "This integration cannot discover settings from an email address."
+				: result.error,
+			code: unsupported ? "discover_unsupported" : result.code,
+			status: unsupported || result.code === "invalid_input" ? 400 : 500,
+		};
+	}
+	if (!result.data.ok) {
+		return {
+			ok: false,
+			error: result.data.error ?? "Could not discover email settings.",
+			code: result.data.code ?? "discover_failed",
+			status: result.data.code === "invalid_input" ? 400 : 500,
+		};
+	}
+	return { ok: true, response: result.data };
 }

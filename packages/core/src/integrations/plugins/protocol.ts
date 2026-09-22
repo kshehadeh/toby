@@ -237,6 +237,31 @@ export interface PluginSetupGuideStep {
 	readonly artifacts?: readonly PluginSetupGuideArtifact[];
 }
 
+export interface PluginDiscoverSettings {
+	readonly imapHost?: string;
+	readonly imapPort?: string;
+	readonly imapSecure?: string;
+	readonly imapUsername?: string;
+	readonly smtpHost?: string;
+	readonly smtpPort?: string;
+	readonly smtpSecure?: string;
+	readonly smtpUsername?: string;
+	readonly fromAddress?: string;
+}
+
+export interface PluginDiscoverResponse {
+	readonly ok: boolean;
+	readonly email?: string;
+	readonly domain?: string;
+	readonly source?: "preset" | "ispdb" | "none";
+	readonly providerName?: string;
+	readonly appPasswordRequired?: boolean;
+	readonly documentationUrl?: string;
+	readonly settings?: PluginDiscoverSettings;
+	readonly error?: string;
+	readonly code?: string;
+}
+
 export interface PluginSetupGuideResponse {
 	readonly ok: boolean;
 	readonly name?: string;

@@ -15,8 +15,10 @@ Email ships as a plugin bundled with Toby.app installs and updates under `~/.tob
 - Your IMAP **host**, **port**, **username**, and **password**
 - Your SMTP **host**, **port**, **username**, and **password**
 
-:::tip[Use the Setup Guide in Toby.app]
-Open **Toby.app → Settings → Integrations → Email** and click **Setup Guide**. The wizard shows the fields you need and walks you through entering credentials and connecting.
+:::tip[Use guided setup in Toby.app]
+Open **Toby.app → Settings → Integrations → Email** and click **Start setup**. Enter your email address and Toby looks up the IMAP and SMTP servers for that domain. Confirm the servers, add your password (often an app password), and connect.
+
+**Setup Guide** on the same page remains available when you already know the server settings and want to enter them yourself.
 :::
 
 ## How IMAP/SMTP credentials work
