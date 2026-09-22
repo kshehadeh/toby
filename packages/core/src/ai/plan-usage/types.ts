@@ -3,15 +3,24 @@ export type AIProviderPlanUsage = {
 	readonly providerId: string;
 	readonly supported: boolean;
 	readonly currency?: "USD";
-	/** Lifetime or provider-reported total spend (e.g. Vercel `total_used`). */
+	/** Lifetime spend (Vercel `total_used`, OpenRouter `usage`). */
 	readonly totalSpent?: number;
-	/** Remaining balance (e.g. Vercel `balance`). */
+	/** Remaining balance (Vercel `balance`, OpenRouter `limit_remaining`). */
 	readonly remaining?: number;
 	readonly unavailableReason?: string;
 	/** Display-formatted total spent (e.g. "$4.50" or "N/A"). */
 	readonly totalSpentLabel?: string;
 	/** Display-formatted remaining balance (e.g. "$95.50" or "N/A"). */
 	readonly remainingLabel?: string;
+	/** Spend in the current UTC day, when the provider reports it. */
+	readonly spentDaily?: number;
+	/** Spend in the current UTC week (Monday–Sunday), when reported. */
+	readonly spentWeekly?: number;
+	/** Spend in the current UTC month, when reported. */
+	readonly spentMonthly?: number;
+	readonly spentDailyLabel?: string;
+	readonly spentWeeklyLabel?: string;
+	readonly spentMonthlyLabel?: string;
 	readonly fetchedAt: string;
 };
 

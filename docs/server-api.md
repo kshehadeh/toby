@@ -943,6 +943,10 @@ key; the user can remove it from OpenRouter’s Keys page.
 
 Returns plan usage / balance information for all registered AI providers. Each entry includes display-formatted labels (`totalSpentLabel`, `remainingLabel`) that are ready for UI rendering. Providers that do not expose balance APIs return `supported: false` with `totalSpentLabel: "N/A"` and `remainingLabel: "N/A"`.
 
+Vercel AI Gateway reads `balance` and `total_used` from `GET https://ai-gateway.vercel.sh/v1/credits`. It also requests one day-grouped spend report (`GET /v1/report`) covering the current UTC month and any earlier days of the current UTC week, then sums `total_cost` into today, this week (Monday–Sunday), and this month. Hobby and Pro-trial plans cannot query that report, and Vercel bills successful report queries. When a period was not reported, that field is omitted and the settings card shows an em dash. A reported zero stays `$0.00`. A day with no report row is treated as unreported, not as zero.
+
+OpenRouter reads the current API key from `GET https://openrouter.ai/api/v1/key`. `usage` is lifetime spend on the key. `usage_daily`, `usage_weekly`, and `usage_monthly` are the current UTC day, week (Monday start), and month. `limit_remaining` is credits left on that key when it has a spending cap. A `null` cap means the key is unlimited, so remaining is omitted.
+
 Results are cached for 60 seconds to avoid repeated billing API calls.
 
 ```ts
@@ -955,6 +959,12 @@ type AIProvidersUsageResponse = {
     remaining?: number;
     totalSpentLabel?: string;
     remainingLabel?: string;
+    spentDaily?: number;
+    spentWeekly?: number;
+    spentMonthly?: number;
+    spentDailyLabel?: string;
+    spentWeeklyLabel?: string;
+    spentMonthlyLabel?: string;
     unavailableReason?: string;
     fetchedAt: string;
   }[];
@@ -975,6 +985,12 @@ type AIProviderUsageResponse = {
     remaining?: number;
     totalSpentLabel?: string;
     remainingLabel?: string;
+    spentDaily?: number;
+    spentWeekly?: number;
+    spentMonthly?: number;
+    spentDailyLabel?: string;
+    spentWeeklyLabel?: string;
+    spentMonthlyLabel?: string;
     unavailableReason?: string;
     fetchedAt: string;
   };

@@ -664,6 +664,8 @@ type AIProvidersResponse = {
 
 Plan usage and balance for all registered AI providers. Providers that do not expose balance APIs return `supported: false` with `"N/A"` display labels. Results are cached for 60 seconds.
 
+Vercel AI Gateway reports gateway balance and lifetime spend. When the account can query AI Gateway spend reports, the response also includes today, this UTC week (Monday–Sunday), and this UTC month. OpenRouter reports lifetime spend, those same UTC periods, and remaining credit for the saved API key. When the key has no spending cap, remaining credit is omitted. Period fields are omitted when the provider does not return them. The settings card shows an em dash for each omitted amount. A reported zero stays `$0.00`.
+
 ```ts
 type AIProvidersUsageResponse = {
   usage: readonly {
@@ -674,6 +676,12 @@ type AIProvidersUsageResponse = {
     remaining?: number;
     totalSpentLabel?: string;
     remainingLabel?: string;
+    spentDaily?: number;
+    spentWeekly?: number;
+    spentMonthly?: number;
+    spentDailyLabel?: string;
+    spentWeeklyLabel?: string;
+    spentMonthlyLabel?: string;
     unavailableReason?: string;
     fetchedAt: string;
   }[];
@@ -694,6 +702,12 @@ type AIProviderUsageResponse = {
     remaining?: number;
     totalSpentLabel?: string;
     remainingLabel?: string;
+    spentDaily?: number;
+    spentWeekly?: number;
+    spentMonthly?: number;
+    spentDailyLabel?: string;
+    spentWeeklyLabel?: string;
+    spentMonthlyLabel?: string;
     unavailableReason?: string;
     fetchedAt: string;
   };

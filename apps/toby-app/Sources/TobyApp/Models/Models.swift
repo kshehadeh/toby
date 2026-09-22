@@ -507,6 +507,12 @@ struct AIProviderUsage: Decodable, Identifiable {
 	let remaining: Double?
 	let totalSpentLabel: String?
 	let remainingLabel: String?
+	let spentDaily: Double?
+	let spentWeekly: Double?
+	let spentMonthly: Double?
+	let spentDailyLabel: String?
+	let spentWeeklyLabel: String?
+	let spentMonthlyLabel: String?
 	let unavailableReason: String?
 	let fetchedAt: String
 
@@ -516,14 +522,25 @@ struct AIProviderUsage: Decodable, Identifiable {
 		if !supported || unavailableReason != nil {
 			return "N/A"
 		}
-		var pieces: [String] = []
-		if let totalSpentLabel, totalSpentLabel != "N/A" {
-			pieces.append("\(totalSpentLabel) used")
+		return "\(Self.amountOrDash(totalSpentLabel)) used · \(Self.amountOrDash(remainingLabel)) left"
+	}
+
+	/// Today, this UTC week, and this UTC month. Missing figures are an em dash.
+	var periodSummary: String? {
+		if !supported || unavailableReason != nil {
+			return nil
 		}
-		if let remainingLabel, remainingLabel != "N/A" {
-			pieces.append("\(remainingLabel) left")
-		}
-		return pieces.isEmpty ? "N/A" : pieces.joined(separator: " · ")
+		return [
+			"\(Self.amountOrDash(spentDailyLabel)) today",
+			"\(Self.amountOrDash(spentWeeklyLabel)) this week",
+			"\(Self.amountOrDash(spentMonthlyLabel)) this month",
+		].joined(separator: " · ")
+	}
+
+	/// A reported amount, or an em dash when the provider did not send one.
+	private static func amountOrDash(_ label: String?) -> String {
+		guard let label, !label.isEmpty, label != "N/A" else { return "—" }
+		return label
 	}
 }
 

@@ -1,10 +1,12 @@
 import { openAiPlanUsageAdapter } from "./adapters/openai";
+import { openRouterPlanUsageAdapter } from "./adapters/openrouter";
 import { vercelGatewayPlanUsageAdapter } from "./adapters/vercel-gateway";
 import type { PlanUsageAdapter } from "./types";
 
 const ADAPTERS: readonly PlanUsageAdapter[] = [
 	openAiPlanUsageAdapter,
 	vercelGatewayPlanUsageAdapter,
+	openRouterPlanUsageAdapter,
 ];
 
 const byId = new Map(ADAPTERS.map((a) => [a.providerId, a]));

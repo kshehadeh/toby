@@ -40,6 +40,14 @@ struct AIProviderUsageView: View {
 				}
 			}
 
+			if let usage, let periodSummary = usage.periodSummary {
+				Text(periodSummary)
+					.font(.caption)
+					.foregroundStyle(AppTheme.tertiaryText)
+					.fixedSize(horizontal: false, vertical: true)
+					.accessibilityIdentifier("ai-provider-usage-periods")
+			}
+
 			if let usage, !usage.supported, let reason = usage.unavailableReason {
 				Text(reason)
 					.font(.caption)

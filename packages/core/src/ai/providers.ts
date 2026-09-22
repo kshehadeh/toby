@@ -135,7 +135,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
 		displayName: "OpenRouter",
 		modelFormat: "openrouter-id",
 		allowCustomModel: true,
-		supportsPlanUsage: false,
+		supportsPlanUsage: true,
 		publicCatalog: true,
 		iconUrl: "/icons/ai/openrouter.png",
 		description:
