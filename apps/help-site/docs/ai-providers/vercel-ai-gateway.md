@@ -38,6 +38,10 @@ The same gateway key also powers **Listen transcription** — see [Transcription
 
 Toby validates slugs as `provider/model` (for example `google/gemini-3-flash`).
 
+## Out of funds
+
+If the gateway account runs out of credits, Toby keeps a notice on screen until you close it. The notice names **Vercel AI Gateway**, says what Toby was trying to do (a chat reply, a dashboard update, transcription, and similar), and includes **Open Settings**, which opens **Settings → AI → Vercel AI Gateway**. Add credits there, or switch the persona to another provider, then try again.
+
 ## Recommended models
 
 These slugs work well for Toby's chat, tool use, summarization, and schedules.

@@ -89,6 +89,12 @@ enum ChatTurnEngine {
 				state.activityLine = "Running \(ToolDisplayLabels.displayLabel(toolName))…"
 			}
 		case "tool_call_complete":
+			if let result = event.result?.value as? [String: Any] {
+				GatewayFundsNotice.post(from: result)
+			}
+			if let error = event.error?.value as? [String: Any] {
+				GatewayFundsNotice.post(from: error)
+			}
 			if event.toolName == "askUser" {
 				appendAskUserQA(from: event, state: &state)
 				state.activityLine = "Thinking…"
@@ -457,6 +463,12 @@ enum ChatTurnEngine {
 		}
 		if let str = value as? String {
 			return str
+		}
+		if let dict = value as? [String: Any],
+			let message = dict["error"] as? String,
+			!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+		{
+			return message
 		}
 		return String(describing: value)
 	}

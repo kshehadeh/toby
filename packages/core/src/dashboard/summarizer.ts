@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { generateText } from "ai";
+import { GatewayFundsError, gatewayFundsErrorBody } from "../ai/gateway-funds";
 import { createModelForPersona } from "../ai/model-factory";
 import { type Persona, getDashboardSummariesPath } from "../config/index";
 import { runFlow } from "../flows/runner";
@@ -477,6 +478,15 @@ async function generateFreshSummary(
 			nullCacheEntry,
 		);
 	} catch (error) {
+		if (error instanceof GatewayFundsError) throw error;
+		const funds = gatewayFundsErrorBody(
+			error,
+			"update the dashboard",
+			persona.ai.provider,
+		);
+		if (funds) {
+			throw new GatewayFundsError(funds.providerId, funds.activity);
+		}
 		daemonLog("warn", "general", "dashboard_summary_error", {
 			category,
 			error: error instanceof Error ? error.message : String(error),
@@ -622,6 +632,12 @@ async function generateCategorySummaryViaFlow(
 	});
 
 	if (!flowResult.ok) {
+		if (flowResult.gatewayFunds) {
+			throw new GatewayFundsError(
+				flowResult.gatewayFunds.providerId,
+				"update the dashboard",
+			);
+		}
 		daemonLog("warn", "general", "dashboard_category_flow_error", {
 			category,
 			flow: flowName,

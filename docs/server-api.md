@@ -650,8 +650,20 @@ type TurnDonePayload = {
 type TurnErrorPayload = {
   turnId?: string;
   error: string;
+  /** Present when a gateway account cannot pay for the request. */
+  code?: "gateway_funds_exhausted";
+  providerId?: "vercel" | "openrouter";
+  /** What Toby was doing, for example "send your message". */
+  activity?: string;
 };
 ```
+
+When `code` is `gateway_funds_exhausted`, `error` is a short sentence such as
+`Vercel AI Gateway is out of funds.` Toby.app shows that as a persistent
+banner (gateway name, the activity, and a link to that provider in Settings)
+until the user closes it. The same fields are attached to other AI error
+responses (transcription, recording summary, dashboard block content, flow
+runs, and library indexing) when the failure is an out-of-funds gateway error.
 
 `ask_user_prompt` payload:
 

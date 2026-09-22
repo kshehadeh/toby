@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { gatewayFundsErrorBody } from "../../ai/gateway-funds";
 import { listenManager } from "../../listen/manager";
 import {
 	clearListenSummary,
@@ -20,10 +21,16 @@ import {
 	writeListenSummary,
 } from "../../listen/recordings";
 import { updateListenRecordingMetadata } from "../../listen/session-controller";
-import { summarizeRecordingTranscript } from "../../listen/summarizer";
+import {
+	resolveListenSummaryPersona,
+	summarizeRecordingTranscript,
+} from "../../listen/summarizer";
 import { ListenTranscriptionError } from "../../listen/transcription-errors";
-import { transcribeWithModel } from "../../listen/transcription-model";
-import { TRANSCRIPTION_NOT_CONFIGURED_CODE } from "../../listen/transcription-model";
+import {
+	TRANSCRIPTION_NOT_CONFIGURED_CODE,
+	transcribeWithModel,
+} from "../../listen/transcription-model";
+import { resolveTranscriptionSelection } from "../../listen/transcription-providers";
 import type {
 	ListenRecordingFiles,
 	ListenRecordingMetadata,
@@ -305,7 +312,14 @@ async function handleListenRecordingTranscribeStream(
 				const detail = finalizeTranscription(recording, transcriptFiles);
 				controller.enqueue(encode("done", detail));
 			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
+				const funds = gatewayFundsErrorBody(
+					error,
+					"transcribe the recording",
+					resolveTranscriptionSelection()?.provider,
+				);
+				const message =
+					funds?.error ??
+					(error instanceof Error ? error.message : String(error));
 				writeRecordingError(recording.metadata, recording.dir, message);
 				if (
 					error instanceof ListenTranscriptionError &&
@@ -315,7 +329,7 @@ async function handleListenRecordingTranscribeStream(
 						encode("error", { error: message, notConfigured: true }),
 					);
 				} else {
-					controller.enqueue(encode("error", { error: message }));
+					controller.enqueue(encode("error", funds ?? { error: message }));
 				}
 			} finally {
 				clearInterval(heartbeat);
@@ -355,8 +369,15 @@ export async function handleListenRecordingSummarize(
 		});
 		return jsonResponse(recordingDetailPayload(updated));
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
+		const funds = gatewayFundsErrorBody(
+			error,
+			"summarize the recording",
+			resolveListenSummaryPersona().ai.provider,
+		);
+		const message =
+			funds?.error ?? (error instanceof Error ? error.message : String(error));
 		writeRecordingError(recording.metadata, recording.dir, message);
+		if (funds) return jsonResponse(funds, 402);
 		return errorResponse(message, 500);
 	}
 }

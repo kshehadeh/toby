@@ -190,7 +190,11 @@ export async function runFlowDefinition(
 				});
 			}
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
+			const gatewayFunds =
+				error instanceof FlowNodeError ? error.gatewayFunds : undefined;
+			const message =
+				gatewayFunds?.error ??
+				(error instanceof Error ? error.message : String(error));
 			const failedNodeId =
 				error instanceof FlowNodeError ? error.nodeId : node.id;
 			const durationMs = Date.now() - nodeStartedMs;
@@ -261,6 +265,7 @@ export async function runFlowDefinition(
 				outputs: bag,
 				nodeTrace,
 				error: message,
+				...(gatewayFunds ? { gatewayFunds } : {}),
 				failedNodeId,
 				...(runId ? { runId } : {}),
 				startedAt,

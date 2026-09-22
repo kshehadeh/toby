@@ -50,6 +50,10 @@ You can also set **`OPENROUTER_API_KEY`** in your environment instead of storing
 
 For any persona, set **AI Provider** to `openrouter`, then pick a model from the list or enter a custom model id.
 
+## Out of funds
+
+If the OpenRouter account runs out of credits, Toby keeps a notice on screen until you close it. The notice names **OpenRouter**, says what Toby was trying to do, and includes **Open Settings**, which opens **Settings → AI → OpenRouter**. Add credits, or switch the persona to another provider, then try again.
+
 ## Transcription (speech-to-text)
 
 OpenRouter also supports [speech-to-text](https://openrouter.ai/docs/guides/overview/multimodal/stt). In Toby, open **Settings → Transcription**, choose **OpenRouter** as the provider, and pick an STT model. The model list is loaded from OpenRouter’s catalog (`output_modalities=transcription`) and reuses your OpenRouter chat API key when no dedicated transcription key is set.

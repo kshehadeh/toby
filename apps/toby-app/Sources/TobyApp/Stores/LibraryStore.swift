@@ -44,6 +44,8 @@ final class LibraryStore {
 	private let client = TobyClient()
 	private let pageSize: Int = 50
 	private var pollTask: Task<Void, Never>?
+	/// Item ids whose out-of-funds failure has already raised the banner.
+	private var announcedFundsItemIds: Set<String> = []
 	private var isQuietRefreshing = false
 	private(set) var isDirty = false
 
@@ -268,6 +270,18 @@ final class LibraryStore {
 		total = response.total
 		hasMore = response.hasMore
 		hasLoadedOnce = true
+		announceGatewayFunds(in: response.items)
+	}
+
+	/// Indexing runs after the upload response, so a funds failure shows up on a later refresh.
+	private func announceGatewayFunds(in items: [LibraryAsset]) {
+		for item in items {
+			guard let error = item.error, let notice = GatewayFundsNotice(libraryError: error) else {
+				continue
+			}
+			guard announcedFundsItemIds.insert(item.id).inserted else { continue }
+			GatewayFundsNotice.post(notice)
+		}
 	}
 
 	static func mediaType(for url: URL) -> String {

@@ -1,3 +1,4 @@
+import { GatewayFundsError } from "../../ai/gateway-funds";
 import { getDashboardCategory, getDashboardData } from "../../dashboard";
 import {
 	getFlowDashboardContent,
@@ -56,8 +57,15 @@ export async function handleDashboardBlockContent(
 	if (
 		Object.prototype.hasOwnProperty.call(STANDARD_TOOL_FOR_CATEGORY, category)
 	) {
-		const content = await getDashboardBlockContent(category, { force });
-		return jsonResponse(content);
+		try {
+			const content = await getDashboardBlockContent(category, { force });
+			return jsonResponse(content);
+		} catch (error) {
+			if (error instanceof GatewayFundsError) {
+				return jsonResponse(error.toBody(), 402);
+			}
+			throw error;
+		}
 	}
 	const flowContent = await getFlowDashboardContent(category, { force });
 	if (!flowContent) {

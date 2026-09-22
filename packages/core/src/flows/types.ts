@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { GatewayFundsErrorBody } from "../ai/gateway-funds";
 import type { Persona } from "../config/index";
 
 /** How a node input is sourced from literals or prior context. */
@@ -178,6 +179,8 @@ export type FlowResult =
 			readonly outputs: Readonly<FlowContextBag>;
 			readonly nodeTrace: readonly FlowNodeRecord[];
 			readonly error: string;
+			/** Set when the failure is a gateway out-of-funds error. */
+			readonly gatewayFunds?: GatewayFundsErrorBody;
 			readonly failedNodeId?: string;
 			readonly runId?: string;
 			readonly startedAt: string;
@@ -188,12 +191,19 @@ export type FlowResult =
 export class FlowNodeError extends Error {
 	readonly nodeId: string;
 	readonly code: string;
+	readonly gatewayFunds?: GatewayFundsErrorBody;
 
-	constructor(nodeId: string, message: string, code = "node_error") {
+	constructor(
+		nodeId: string,
+		message: string,
+		code = "node_error",
+		gatewayFunds?: GatewayFundsErrorBody,
+	) {
 		super(message);
 		this.name = "FlowNodeError";
 		this.nodeId = nodeId;
 		this.code = code;
+		this.gatewayFunds = gatewayFunds;
 	}
 }
 

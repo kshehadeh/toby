@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { generateText } from "ai";
+import { GatewayFundsError, gatewayFundsErrorBody } from "../ai/gateway-funds";
 import { resolveChatAttachmentCapability } from "../ai/model-capabilities";
 import {
 	createModelForPersona,
@@ -107,6 +108,14 @@ async function summarizeDocument(params: SummarizeParams): Promise<string> {
 			? text
 			: `Document file ${params.filename} (${params.mimeType}).`;
 	} catch (error) {
+		const funds = gatewayFundsErrorBody(
+			error,
+			"summarize a library file",
+			persona.ai.provider,
+		);
+		if (funds) {
+			throw new GatewayFundsError(funds.providerId, funds.activity);
+		}
 		log("warn", "general", "library_summarize_failed", {
 			filename: params.filename,
 			reason: error instanceof Error ? error.message : String(error),
@@ -147,6 +156,14 @@ async function summarizeImage(params: SummarizeParams): Promise<string> {
 		const text = result.text.trim();
 		return text.length > 0 ? text : fallback;
 	} catch (error) {
+		const funds = gatewayFundsErrorBody(
+			error,
+			"summarize a library file",
+			persona.ai.provider,
+		);
+		if (funds) {
+			throw new GatewayFundsError(funds.providerId, funds.activity);
+		}
 		log("warn", "general", "library_caption_failed", {
 			filename: params.filename,
 			reason: error instanceof Error ? error.message : String(error),

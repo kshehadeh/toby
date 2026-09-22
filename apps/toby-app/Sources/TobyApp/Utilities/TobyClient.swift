@@ -4,14 +4,14 @@ enum TobyClientError: LocalizedError {
 	case invalidResponse
 	case serverError(String)
 	case streamError(String)
+	/// Gateway account cannot pay for the request. The persistent banner is posted separately.
+	case gatewayFunds(String)
 
 	var errorDescription: String? {
 		switch self {
 		case .invalidResponse:
 			return "Invalid response from Toby daemon."
-		case .serverError(let message):
-			return message
-		case .streamError(let message):
+		case .serverError(let message), .streamError(let message), .gatewayFunds(let message):
 			return message
 		}
 	}
@@ -445,13 +445,8 @@ struct TobyClient {
 			for try await byte in bytes {
 				data.append(byte)
 			}
-			if
-				let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-				let error = json["error"] as? String
-			{
-				throw TobyClientError.serverError(error)
-			}
-			throw TobyClientError.serverError("HTTP \(http.statusCode)")
+			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
 		}
 
 		var pendingEvent: String?
@@ -488,14 +483,10 @@ struct TobyClient {
 
 			if pendingEvent == "error" {
 				pendingEvent = nil
-				if
-					let data = payload.data(using: .utf8),
-					let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-					let error = json["error"] as? String
-				{
-					throw TobyClientError.streamError(error)
+				let json = (payload.data(using: .utf8)).flatMap {
+					try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
 				}
-				throw TobyClientError.streamError("Transcription failed.")
+				throw errorFromJSON(json, fallback: "Transcription failed.", asStream: true)
 			}
 
 			pendingEvent = nil
@@ -567,13 +558,8 @@ struct TobyClient {
 				data.append(byte)
 			}
 			ServerEventLog.append("response.errorBody=\(String(data: data, encoding: .utf8) ?? "<non-utf8>")")
-			if
-				let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-				let error = json["error"] as? String
-			{
-				throw TobyClientError.serverError(error)
-			}
-			throw TobyClientError.serverError("HTTP \(http.statusCode)")
+			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
 		}
 
 		var pendingEvent: String?
@@ -626,14 +612,10 @@ struct TobyClient {
 
 			if pendingEvent == "error" {
 				pendingEvent = nil
-				if
-					let data = payload.data(using: .utf8),
-					let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-					let error = json["error"] as? String
-				{
-					throw TobyClientError.streamError(error)
+				let json = (payload.data(using: .utf8)).flatMap {
+					try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
 				}
-				throw TobyClientError.streamError("Turn failed.")
+				throw errorFromJSON(json, fallback: "Turn failed.", asStream: true)
 			}
 
 			pendingEvent = nil
@@ -697,18 +679,32 @@ struct TobyClient {
 		}.value
 	}
 
+	/// Posts the persistent funds banner when `json` carries that code, then
+	/// returns the error the caller should throw.
+	private func errorFromJSON(
+		_ json: [String: Any]?,
+		fallback: String,
+		asStream: Bool
+	) -> TobyClientError {
+		if let json {
+			GatewayFundsNotice.post(from: json)
+			if GatewayFundsNotice(json: json) != nil, let message = json["error"] as? String {
+				return .gatewayFunds(message)
+			}
+			if let error = json["error"] as? String {
+				return asStream ? .streamError(error) : .serverError(error)
+			}
+		}
+		return asStream ? .streamError(fallback) : .serverError(fallback)
+	}
+
 	private func validate(response: URLResponse, data: Data) throws {
 		guard let http = response as? HTTPURLResponse else {
 			throw TobyClientError.invalidResponse
 		}
 		guard (200 ... 299).contains(http.statusCode) else {
-			if
-				let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-				let error = json["error"] as? String
-			{
-				throw TobyClientError.serverError(error)
-			}
-			throw TobyClientError.serverError("HTTP \(http.statusCode)")
+			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
 		}
 	}
 
@@ -947,6 +943,9 @@ struct TobyClient {
 		request.httpBody = Data("{}".utf8)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
+		if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+			GatewayFundsNotice.post(from: json)
+		}
 		return try JSONDecoder().decode(FlowRunNowResponse.self, from: data)
 	}
 

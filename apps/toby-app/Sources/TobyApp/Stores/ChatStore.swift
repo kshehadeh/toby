@@ -37,6 +37,8 @@ final class ChatStore {
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
 	var toast: AppToastState?
+	/// Stays until the user closes it. A later funds failure replaces the activity in place.
+	var gatewayFundsNotice: GatewayFundsNotice?
 	var recordingProcessing: RecordingProcessingState?
 	var turnWorkDurations: [Int: TimeInterval] = [:]
 	var activeAskUserPrompt: ActiveAskUserPrompt?
@@ -555,6 +557,12 @@ final class ChatStore {
 		activityLine = state.activityLine
 	}
 
+	/// Generic failures use the ephemeral toast. Gateway funds failures use the persistent banner only.
+	func presentFailure(_ error: Error, title: String = "Something went wrong") {
+		if error.isGatewayFundsExhausted { return }
+		showErrorToast(error.localizedDescription, title: title)
+	}
+
 	private func showErrorToast(_ message: String, title: String = "Something went wrong") {
 		let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !trimmed.isEmpty else { return }
@@ -773,6 +781,7 @@ final class ChatStore {
 				ChatRecordingController.applyTranscriptionFailed(
 					recordingId: id,
 					errorDescription: error.localizedDescription,
+					suppressToast: error.isGatewayFundsExhausted,
 					into: &ui,
 				)
 				applyRecordingUIState(ui)
@@ -882,7 +891,7 @@ final class ChatStore {
 				activityLine = "Ready"
 				clearAttachments()
 			} else {
-				showErrorToast(error.localizedDescription)
+				presentFailure(error)
 				transcript.append(.error(text: error.localizedDescription))
 				activityLine = "Error"
 			}

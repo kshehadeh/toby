@@ -1,3 +1,4 @@
+import { GatewayFundsError } from "../../ai/gateway-funds";
 import {
 	LibraryError,
 	addLibraryBytes,
@@ -25,8 +26,17 @@ function decodeBase64(value: string): Buffer | null {
 }
 
 function statusForError(error: unknown): number {
+	if (error instanceof GatewayFundsError) return 402;
 	if (error instanceof LibraryError) return error.status;
 	return 500;
+}
+
+function libraryErrorResponse(error: unknown): Response {
+	if (error instanceof GatewayFundsError) {
+		return jsonResponse(error.toBody(), 402);
+	}
+	const message = error instanceof Error ? error.message : String(error);
+	return errorResponse(message, statusForError(error));
 }
 
 export async function handleLibraryList(url: URL): Promise<Response> {
@@ -103,8 +113,7 @@ export async function handleLibraryCreate(req: Request): Promise<Response> {
 			result.duplicate ? 200 : 201,
 		);
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		return errorResponse(message, statusForError(error));
+		return libraryErrorResponse(error);
 	}
 }
 
@@ -146,8 +155,7 @@ export async function handleLibraryPatch(
 		});
 		return jsonResponse({ item });
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		return errorResponse(message, statusForError(error));
+		return libraryErrorResponse(error);
 	}
 }
 

@@ -176,6 +176,7 @@ enum ChatRecordingController {
 	static func applyTranscriptionFailed(
 		recordingId: String,
 		errorDescription: String,
+		suppressToast: Bool = false,
 		into state: inout ChatRecordingUIState,
 	) {
 		state.recordingProcessing = RecordingProcessingState(
@@ -183,7 +184,11 @@ enum ChatRecordingController {
 			stage: .failed,
 			message: "Recording saved, but transcription failed: \(errorDescription)",
 		)
-		state.toast = state.recordingProcessing?.toastState()
+		if suppressToast {
+			state.toast = nil
+		} else {
+			state.toast = state.recordingProcessing?.toastState()
+		}
 		state.activityLine = "Recording saved"
 	}
 

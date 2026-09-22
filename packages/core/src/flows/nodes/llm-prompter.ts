@@ -1,5 +1,6 @@
 import { Output, generateText, zodSchema } from "ai";
 import type { z } from "zod";
+import { gatewayFundsErrorBody } from "../../ai/gateway-funds";
 import { createModelForPersona } from "../../ai/model-factory";
 import { daemonLog } from "../../logging/daemon-log";
 import type {
@@ -283,6 +284,14 @@ OUTPUT FORMAT:
 		};
 	} catch (error) {
 		if (error instanceof FlowNodeError) throw error;
+		const funds = gatewayFundsErrorBody(
+			error,
+			"run a flow",
+			runtime.persona.ai.provider,
+		);
+		if (funds) {
+			throw new FlowNodeError(node.id, funds.error, funds.code, funds);
+		}
 		const message = error instanceof Error ? error.message : String(error);
 		const aborted =
 			runtime.abortSignal?.aborted ||

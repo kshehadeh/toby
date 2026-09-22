@@ -25,6 +25,11 @@ import {
 	lookupFromToolNames,
 	unionToolNames,
 } from "./enable-tools-tool";
+import {
+	gatewayFundsErrorBody,
+	resolveToolFundsError,
+	toolFundsActivity,
+} from "./gateway-funds";
 export { formatChatModelError } from "./chat-errors";
 export { createModelForPersona } from "./model-factory";
 
@@ -133,6 +138,11 @@ export type ChatWithToolsOptions = {
 	 * are already in `activeTools`.
 	 */
 	readonly blockedActiveTools?: readonly string[];
+	/**
+	 * Active persona provider. Used to recognize gateway out-of-funds tool
+	 * failures when the provider error no longer carries a request URL.
+	 */
+	readonly gatewayProviderId?: string;
 };
 
 type StreamToolContext = {
@@ -273,6 +283,11 @@ function injectToolLifecycleHooks(
 						abortSignal,
 					);
 					throwIfAborted(abortSignal);
+					const funds = resolveToolFundsError(
+						result,
+						name,
+						options?.gatewayProviderId,
+					);
 					if (emitToolEvents) {
 						streamCtx?.emit?.({
 							type: "tool_call_complete",
@@ -281,6 +296,7 @@ function injectToolLifecycleHooks(
 							toolName: name,
 							args,
 							result,
+							...(funds ? { error: funds } : {}),
 							cacheHit: false,
 							durationMs: Date.now() - toolStartMs,
 						});
@@ -289,12 +305,41 @@ function injectToolLifecycleHooks(
 							blockKey,
 							args,
 							result,
+							...(funds ? { error: funds } : {}),
 							cacheHit: false,
 							durationMs: Date.now() - toolStartMs,
 						});
 					}
 					return result;
 				} catch (error) {
+					const funds = gatewayFundsErrorBody(
+						error,
+						toolFundsActivity(name),
+						options?.gatewayProviderId,
+					);
+					if (funds) {
+						if (emitToolEvents) {
+							streamCtx?.emit?.({
+								type: "tool_call_complete",
+								blockKey,
+								seq: streamCtx.nextSeq(),
+								toolName: name,
+								args,
+								result: funds,
+								error: funds,
+								durationMs: Date.now() - toolStartMs,
+							});
+							onToolCallComplete?.({
+								toolName: name,
+								blockKey,
+								args,
+								result: funds,
+								error: funds,
+								durationMs: Date.now() - toolStartMs,
+							});
+						}
+						return funds;
+					}
 					if (emitToolEvents) {
 						streamCtx?.emit?.({
 							type: "tool_call_complete",
@@ -616,6 +661,13 @@ export async function chatWithTools(
 						? (part.input as Record<string, unknown>)
 						: {};
 				const toolStartMs = emittedToolCallStarts.get(part.toolCallId);
+				const funds = resolveToolFundsError(
+					part.output,
+					part.toolName ?? "",
+					options?.gatewayProviderId,
+				);
+				const toolError =
+					funds ?? (part.isError === true ? part.output : undefined);
 				if (onChatEvent) {
 					onChatEvent({
 						type: "tool_call_complete",
@@ -624,7 +676,7 @@ export async function chatWithTools(
 						toolName: part.toolName ?? "",
 						args,
 						result: part.output,
-						...(part.isError === true ? { error: part.output } : {}),
+						...(toolError !== undefined ? { error: toolError } : {}),
 						...(toolStartMs !== undefined
 							? { durationMs: Date.now() - toolStartMs }
 							: {}),
@@ -635,7 +687,7 @@ export async function chatWithTools(
 					blockKey: part.toolCallId,
 					args,
 					result: part.output,
-					...(part.isError === true ? { error: part.output } : {}),
+					...(toolError !== undefined ? { error: toolError } : {}),
 					...(toolStartMs !== undefined
 						? { durationMs: Date.now() - toolStartMs }
 						: {}),

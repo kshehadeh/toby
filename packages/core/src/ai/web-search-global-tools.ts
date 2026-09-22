@@ -2,6 +2,7 @@ import { type Tool, gateway, generateText, tool } from "ai";
 import { z } from "zod";
 import type { Persona } from "../config/index";
 import { readConfig, readCredentials } from "../config/index";
+import { gatewayFundsErrorBody } from "./gateway-funds";
 import { createVercelGatewayModel } from "./model-factory";
 
 /** Gateway model used for the internal search call (cheap and fast). */
@@ -108,6 +109,8 @@ export function createWebSearchGlobalTools(
 						}
 					);
 				} catch (e) {
+					const funds = gatewayFundsErrorBody(e, "search the web", "vercel");
+					if (funds) return funds;
 					return {
 						error: e instanceof Error ? e.message : "Web search failed",
 					};

@@ -1,5 +1,6 @@
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
 import { resolveContextWindowInfo } from "../../ai/context-window";
+import { gatewayFundsErrorBody } from "../../ai/gateway-funds";
 import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
 import {
 	formatPersonaAiLabel,
@@ -333,7 +334,16 @@ export async function handleSessionTurn(
 				);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				controller.enqueue(encodeSseEvent("error", { error: message }));
+				const providerId = resolvePersonaForHttpTurn(body, loaded.settings).ai
+					.provider;
+				const funds = gatewayFundsErrorBody(
+					error,
+					"send your message",
+					providerId,
+				);
+				controller.enqueue(
+					encodeSseEvent("error", funds ?? { error: message }),
+				);
 			} finally {
 				clearInterval(heartbeat);
 				controller.close();

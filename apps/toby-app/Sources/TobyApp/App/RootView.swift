@@ -17,6 +17,7 @@ struct RootView: View {
     @Bindable var changelogStore: ChangelogStore
     @Bindable var pluginsStore: PluginsStore
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var appearancePreferences: AppearancePreferences = .shared
     @State private var permissionsStore = PermissionsStore()
     @State private var history = NavigationHistory()
@@ -333,9 +334,40 @@ struct RootView: View {
 
     private var contentWithOverlay: some View {
         routeContent
+            .overlay(alignment: .top) {
+                gatewayFundsBanner
+            }
             .overlay(alignment: .bottomTrailing) {
                 AppToastHost(store: store, onAction: handleToastAction)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .gatewayFundsExhausted)) { notification in
+                guard let notice = notification.object as? GatewayFundsNotice else { return }
+                store.gatewayFundsNotice = notice
+            }
+            .animation(
+                accessibilityReduceMotion
+                    ? .easeOut(duration: 0.2)
+                    : .spring(response: 0.28, dampingFraction: 0.86),
+                value: store.gatewayFundsNotice
+            )
+    }
+
+    @ViewBuilder
+    private var gatewayFundsBanner: some View {
+        if let notice = store.gatewayFundsNotice {
+            GatewayFundsBanner(
+                notice: notice,
+                onOpenSettings: { openSettings(navKey: $0) },
+                onClose: { store.gatewayFundsNotice = nil }
+            )
+            .padding(.top, 8)
+            .padding(.horizontal, 16)
+            .transition(gatewayFundsTransition)
+        }
+    }
+
+    private var gatewayFundsTransition: AnyTransition {
+        accessibilityReduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity)
     }
 
     @ViewBuilder

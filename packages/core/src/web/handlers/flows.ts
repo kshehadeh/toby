@@ -166,6 +166,7 @@ export async function handleFlowRun(id: string): Promise<Response> {
 		return errorResponse("Flow not found", 404);
 	}
 	const result = await runUserFlowById(id, { trigger: "ui" });
+	const funds = result.ok ? undefined : result.gatewayFunds;
 	return jsonResponse({
 		ok: result.ok,
 		runId: result.runId ?? null,
@@ -173,6 +174,13 @@ export async function handleFlowRun(id: string): Promise<Response> {
 		failedNodeId: result.ok ? null : (result.failedNodeId ?? null),
 		result: result.extracted,
 		destinations: result.destinations,
+		...(funds
+			? {
+					code: funds.code,
+					providerId: funds.providerId,
+					activity: funds.activity,
+				}
+			: {}),
 	});
 }
 

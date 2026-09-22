@@ -21,6 +21,9 @@ extension Notification.Name {
 	static let menuBarToggleRecording = Notification.Name("menuBarToggleRecording")
 	static let navigateToRoute = Notification.Name("navigateToRoute")
 	static let openSettingsWindow = Notification.Name("openSettingsWindow")
+	/// Posted when a Vercel or OpenRouter request fails because the account is out of funds.
+	/// `object` is a `GatewayFundsNotice`.
+	static let gatewayFundsExhausted = Notification.Name("gatewayFundsExhausted")
 	static let openMemoriesWindow = Notification.Name("openMemoriesWindow")
 	static let openConnectionStatus = Notification.Name("openConnectionStatus")
 	static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")

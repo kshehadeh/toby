@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { GatewayFundsError } from "../ai/gateway-funds";
 import { log } from "../logging/chat-log";
 import { extractKeywords } from "../memory/keywords";
 import {
@@ -293,6 +294,7 @@ export async function indexLibraryItem(id: string): Promise<LibraryItem> {
 		const message = error instanceof Error ? error.message : String(error);
 		log("warn", "general", "library_index_failed", { id, reason: message });
 		const failed = store.updateItem(id, { status: "failed", error: message });
+		if (error instanceof GatewayFundsError) throw error;
 		return failed ?? item;
 	}
 }

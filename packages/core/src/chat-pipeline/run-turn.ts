@@ -606,6 +606,7 @@ export async function runSharedChatTurn(
 
 	const result = await chatWithTools(model, messagesForModel, tools, {
 		...enrichedChatWithToolsOptions,
+		gatewayProviderId: options.persona.ai.provider,
 		...(activeTools === undefined ? {} : { activeTools }),
 		blockedActiveTools,
 	});
