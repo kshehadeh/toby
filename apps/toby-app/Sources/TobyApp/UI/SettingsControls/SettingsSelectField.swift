@@ -17,7 +17,7 @@ struct SettingsSelectChoiceField: View {
 		.labelsHidden()
 		.pickerStyle(.menu)
 		.controlSize(.regular)
-		.frame(minWidth: minWidth, maxWidth: maxWidth)
+		.frame(minWidth: minWidth, maxWidth: maxWidth, alignment: .leading)
 	}
 }
 

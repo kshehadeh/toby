@@ -89,6 +89,7 @@ private struct DefaultProviderCard: View {
 					choices: choices,
 					selection: selectionBinding,
 				)
+				.fixedSize()
 			}
 		}
 		.padding(18)

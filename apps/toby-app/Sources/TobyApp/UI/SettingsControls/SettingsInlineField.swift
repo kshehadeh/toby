@@ -25,7 +25,7 @@ struct SettingsInlineField: View {
 		.labelsHidden()
 		.textFieldStyle(.roundedBorder)
 		.multilineTextAlignment(.leading)
-		.frame(minWidth: minWidth, maxWidth: maxWidth)
+		.frame(minWidth: minWidth, maxWidth: maxWidth, alignment: .leading)
 		.controlSize(.regular)
 	}
 
