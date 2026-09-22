@@ -134,7 +134,7 @@ struct EmailSetupWizardView: View {
 
 	private var serverFields: some View {
 		@Bindable var store = store
-		VStack(alignment: .leading, spacing: 14) {
+		return VStack(alignment: .leading, spacing: 14) {
 			labeledField("IMAP host", identifier: "email-setup-imap-host") {
 				TextField("imap.example.com", text: $store.settings.imapHost)
 					.textFieldStyle(.roundedBorder)
