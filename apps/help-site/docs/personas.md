@@ -53,7 +53,9 @@ lists every persona; click a row to edit it:
 
 ![Toby.app Personas catalog](/img/toby-app-settings-personas.png)
 
-- **Add Persona** — add a name, instructions, prompt mode, provider, and model
+The editor has two sections. **Persona** holds the icon, name, and instructions. **Model** holds the provider, model, and prompt mode (add or replace).
+
+- **Add Persona** — create a persona from those sections
 - **Set as default** — the persona used when chat starts
 - **Delete** — remove personas you no longer need
 

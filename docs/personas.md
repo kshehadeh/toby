@@ -2,7 +2,7 @@
 
 A **persona** is a named profile: instructions, prompt mode (`add` | `replace`), and an AI provider/model. Chat, dashboard summaries, listen summaries, schedules, and flows resolve a persona and compose it into the system prompt via [`composeSystemPromptWithPersona`](../packages/core/src/personas/prompt.ts).
 
-User-facing setup lives in the [help site Personas page](../apps/help-site/docs/personas.md).
+User-facing setup lives in the [help site Personas page](../apps/help-site/docs/personas.md). The settings editor splits the form into **Persona** (icon, name, instructions) and **Model** (provider, model, prompt mode) with a segmented picker; both panes stay mounted.
 
 ## Built-in personas
 

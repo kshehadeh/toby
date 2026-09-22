@@ -2,6 +2,11 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum PersonaEditorTab: String, Hashable, CaseIterable {
+	case persona
+	case model
+}
+
 /// Reusable persona editor form (header + content + footer). Used both by the
 /// standalone `PersonaEditorView` window and the Personas settings catalog
 /// destination.
@@ -20,6 +25,7 @@ struct PersonaEditorFormView: View {
 	/// no Reset button is shown.
 	var onReset: (() -> Void)? = nil
 
+	@State private var selectedTab: PersonaEditorTab = .persona
 	@State private var isImagePickerPresented = false
 	@State private var showResetImageConfirm = false
 
@@ -74,20 +80,60 @@ struct PersonaEditorFormView: View {
 			ProgressView("Loading…")
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 		} else {
-			ScrollView {
-				VStack(alignment: .leading, spacing: 20) {
-					if store.canEditImage {
-						imageSection
-					}
-					nameField
-					instructionsEditor
-					providerModelRow
-					promptModeRow
+			VStack(spacing: 16) {
+				Picker("Section", selection: $selectedTab) {
+					Text("Persona").tag(PersonaEditorTab.persona)
+					Text("Model").tag(PersonaEditorTab.model)
 				}
-				.padding(.horizontal, 20)
-				.padding(.bottom, 20)
+				.pickerStyle(.segmented)
+				.labelsHidden()
+				.frame(maxWidth: 280)
+				.accessibilityIdentifier("persona-editor-tabs")
+
+				ZStack {
+					personaPane
+						.opacity(selectedTab == .persona ? 1 : 0)
+						.allowsHitTesting(selectedTab == .persona)
+						.accessibilityHidden(selectedTab != .persona)
+					modelPane
+						.opacity(selectedTab == .model ? 1 : 0)
+						.allowsHitTesting(selectedTab == .model)
+						.accessibilityHidden(selectedTab != .model)
+				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+				.animation(nil, value: selectedTab)
 			}
+			.padding(.horizontal, 20)
+			.padding(.top, showsChromeHeader ? 0 : 16)
+			.padding(.bottom, 20)
 		}
+	}
+
+	private var personaPane: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 20) {
+				if store.canEditImage {
+					imageSection
+				}
+				nameField
+				instructionsEditor
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+		}
+		.scrollBounceBehavior(.basedOnSize)
+		.accessibilityIdentifier("persona-editor-persona")
+	}
+
+	private var modelPane: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 20) {
+				providerModelRow
+				promptModeRow
+			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+		}
+		.scrollBounceBehavior(.basedOnSize)
+		.accessibilityIdentifier("persona-editor-model")
 	}
 
 	private var imageSection: some View {
@@ -256,7 +302,7 @@ struct PersonaEditorFormView: View {
 			}
 			.pickerStyle(.segmented)
 			.labelsHidden()
-			.frame(width: 200)
+			.frame(width: 200, alignment: .leading)
 			.disabled(!store.canEditPersonaDefinition)
 		}
 	}

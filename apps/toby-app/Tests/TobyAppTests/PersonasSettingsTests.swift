@@ -72,6 +72,29 @@ struct PersonasSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Edit Persona") }
 	}
 
+	@Test("form view shows persona and model sections")
+	func formViewShowsSectionTabs() throws {
+		let store = PersonaEditorStore(mode: .create)
+		store.providers = [
+			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
+		]
+		store.name = "Test"
+		store.instructions = "Be helpful"
+		let view = PersonaEditorFormView(store: store, onSaved: {}, onCancel: {})
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "persona-editor-tabs")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "persona-editor-persona")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "persona-editor-model")
+		}
+		#expect(throws: Never.self) { try view.inspect().find(text: "Name") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Instructions") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Prompt Mode") }
+	}
+
 	@Test("form view renders provider and model labels")
 	func formViewRendersProviderModel() throws {
 		let store = PersonaEditorStore(mode: .create)
