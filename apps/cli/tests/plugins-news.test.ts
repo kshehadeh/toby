@@ -98,6 +98,7 @@ describe("News plugin", () => {
 		expect(body.displayName).toBe("News");
 		expect(body.connected).toBe(false);
 		expect(body.capabilities).toEqual(["chat"]);
+		expect(body.providerCategories).toEqual(["news"]);
 		expect(body.resources).toEqual(["news", "headlines", "hacker-news"]);
 		expect(body.chatModelPrep).toBeDefined();
 		expect(body.chatReadiness).toEqual({
@@ -111,13 +112,17 @@ describe("News plugin", () => {
 		expect(result.exitCode).toBe(0);
 		const body = parseJson(result.stdout) as {
 			ok: boolean;
-			tools: Array<{ name: string; readOnly?: boolean }>;
+			tools: Array<{ name: string; readOnly?: boolean; standardTool?: string }>;
 		};
 		expect(body.ok).toBe(true);
 		expect(body.tools.map((tool) => tool.name)).toEqual([
 			"getLatestNews",
 			"searchNews",
+			"getLatestSummary",
 		]);
+		expect(
+			body.tools.find((tool) => tool.name === "getLatestSummary")?.standardTool,
+		).toBe("news.latestSummary");
 		expect(body.tools.every((tool) => tool.readOnly)).toBe(true);
 	});
 
@@ -301,6 +306,35 @@ describe("News plugin against mock news APIs", () => {
 		expect(body.result.count).toBe(1);
 		expect(body.result.articles[0]?.title).toBe("Show HN: Example");
 		expect(body.result.articles[0]?.source).toBe("Hacker News");
+	});
+
+	it("executes getLatestSummary as a dashboard payload", async () => {
+		const hnBase = startHn();
+		const result = await runPlugin(["tools", "execute"], {
+			stdin: {
+				tool: "getLatestSummary",
+				input: { source: "hacker-news", limit: 3 },
+				config: {},
+			},
+			env: { TOBY_HN_API_BASE: hnBase },
+		});
+		expect(result.exitCode).toBe(0);
+		const body = parseJson(result.stdout) as {
+			ok: boolean;
+			result: {
+				count: number;
+				items: Array<{ title: string; url?: string; subtitle?: string }>;
+				launchUrl?: string;
+				generatedAt?: string;
+			};
+		};
+		expect(body.ok).toBe(true);
+		expect(body.result.count).toBe(1);
+		expect(body.result.items[0]?.title).toBe("Show HN: Example");
+		expect(body.result.items[0]?.url).toBe("https://example.com/hn");
+		expect(body.result.items[0]?.subtitle).toContain("Hacker News");
+		expect(body.result.launchUrl).toBe("https://news.ycombinator.com");
+		expect(body.result.generatedAt).toBeTruthy();
 	});
 
 	it("executes getLatestNews against The Guardian", async () => {

@@ -153,6 +153,7 @@ export {
 	BUILTIN_FLOWS,
 	calendarDashboardSummaryDocument,
 	emailDashboardSummaryDocument,
+	newsDashboardSummaryDocument,
 	getBuiltinFlowDocument,
 	isBuiltinFlowId,
 	listBuiltinFlowIds,

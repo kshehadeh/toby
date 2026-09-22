@@ -19,7 +19,7 @@ import { TOOL_DEFINITIONS, ToolFailure, executeTool } from "./tools";
 
 type JsonRecord = Record<string, unknown>;
 
-const PLUGIN_VERSION = "1.1.0";
+const PLUGIN_VERSION = "1.2.0";
 const PROTOCOL_VERSION = "1";
 const DISPLAY_NAME = "News";
 const DESCRIPTION =
@@ -80,6 +80,7 @@ async function handleStatus(
 		launchUrl: "https://news.ycombinator.com",
 		connected,
 		capabilities: ["chat"],
+		providerCategories: ["news"],
 		resources: RESOURCES,
 		chatModelPrep: buildChatModelPrep(),
 		chatReadiness: buildChatReadiness(config, state),

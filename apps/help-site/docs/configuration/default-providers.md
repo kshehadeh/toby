@@ -20,6 +20,7 @@ Open **Toby.app → Settings → Default Providers**.
 | Chat | Chat Provider | Slack |
 | Documents | Documents Provider | Notion |
 | Work tracker | Work Tracker | Jira |
+| News | News Provider | News |
 
 Each row is a dropdown of connected integrations in that category, plus **(none)**.
 

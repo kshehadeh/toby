@@ -239,6 +239,9 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(text: "Show upcoming events")
 		}
 		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Show news")
+		}
+		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-email-toggle")
 		}
 		#expect(throws: Never.self) {

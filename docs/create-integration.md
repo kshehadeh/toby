@@ -58,7 +58,7 @@ Rules:
 4. Honor `dryRun` for mutating tools; return `appliedActions` for side effects.
 
 Provider categories (when relevant): `email`, `calendar`, `tasks`, `contacts`,
-`chat`, `documents`, `work_tracker`.
+`chat`, `documents`, `work_tracker`, `news`.
 
 Capabilities today: `"chat"` (tools in chat) and/or `"inbound"` (daemon listener).
 

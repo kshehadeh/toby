@@ -239,6 +239,11 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		{
 			hidden.append(DashboardBlockID.calendar.rawValue)
 		}
+		if defaults.object(forKey: AppearanceDefaultsKey.showDashboardNews) != nil,
+			defaults.bool(forKey: AppearanceDefaultsKey.showDashboardNews) == false
+		{
+			hidden.append(DashboardBlockID.news.rawValue)
+		}
 		return DashboardLayout(order: [], hidden: hidden)
 	}
 

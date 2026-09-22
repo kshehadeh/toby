@@ -14,7 +14,8 @@
 export type StandardToolId =
 	| "email.unreadSummary"
 	| "tasks.openSummary"
-	| "calendar.upcomingSummary";
+	| "calendar.upcomingSummary"
+	| "news.latestSummary";
 // future: "work_tracker.openSummary"
 
 /**
@@ -25,6 +26,7 @@ export const STANDARD_TOOL_FOR_CATEGORY: Record<string, StandardToolId> = {
 	email: "email.unreadSummary",
 	tasks: "tasks.openSummary",
 	calendar: "calendar.upcomingSummary",
+	news: "news.latestSummary",
 };
 
 /**
@@ -135,6 +137,7 @@ export interface DashboardData {
 	readonly email: DashboardCategorySummary | null;
 	readonly tasks: DashboardCategorySummary | null;
 	readonly calendar: DashboardCategorySummary | null;
+	readonly news: DashboardCategorySummary | null;
 }
 
 /**

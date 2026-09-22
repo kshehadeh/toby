@@ -67,13 +67,14 @@ export async function getDashboardData(params?: {
 }): Promise<DashboardData> {
 	const limit = params?.limit ?? DEFAULT_LIMIT;
 
-	const [email, tasks, calendar] = await Promise.all([
+	const [email, tasks, calendar, news] = await Promise.all([
 		getDashboardCategory("email", { limit }),
 		getDashboardCategory("tasks", { limit }),
 		getDashboardCategory("calendar", { limit }),
+		getDashboardCategory("news", { limit }),
 	]);
 
-	return { email, tasks, calendar };
+	return { email, tasks, calendar, news };
 }
 
 /**

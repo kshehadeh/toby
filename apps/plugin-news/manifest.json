@@ -2,7 +2,7 @@
 	"name": "news",
 	"displayName": "News",
 	"description": "Get the latest headlines and search recent news from Hacker News and The Guardian",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"protocolVersion": "1",
 	"icon": "📰",
 	"runtime": {
@@ -10,5 +10,6 @@
 		"entry": "src/index.ts"
 	},
 	"capabilities": ["chat"],
+	"providerCategories": ["news"],
 	"resources": ["news", "headlines"]
 }

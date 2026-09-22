@@ -361,6 +361,8 @@ struct SummarySkeletonView: View {
 struct DashboardBlockCard: View {
 	@Bindable var block: CategoryDashboardBlock
 	var actionContext: DashboardBlockActionContext = .init()
+	/// Opens guided news setup when the News card has no connected account.
+	var onSetupNews: () -> Void = {}
 
 	private var actions: [DashboardBlockAction] { block.actions(context: actionContext) }
 	private var content: DashboardBlockContent? { block.content }
@@ -415,7 +417,16 @@ struct DashboardBlockCard: View {
 		} else if let error = block.error {
 			DashboardEmptyState(message: "Content unavailable. \(error)")
 		} else if content == nil {
-			DashboardEmptyState(message: block.descriptor.emptyWhenNil)
+			if block.id == .news {
+				DashboardSetupPrompt(
+					message: block.descriptor.emptyWhenNil,
+					buttonTitle: "Set up News",
+					accessibilityIdentifier: "dashboard-news-setup-button",
+					action: onSetupNews
+				)
+			} else {
+				DashboardEmptyState(message: block.descriptor.emptyWhenNil)
+			}
 		} else {
 			// Connected / loaded but zero items or empty markdown.
 			DashboardEmptyState(message: block.descriptor.emptyWhenZero)
@@ -526,6 +537,23 @@ private struct DashboardStructuredItemRow: View {
 }
 
 // MARK: - Shared helpers
+
+struct DashboardSetupPrompt: View {
+	let message: String
+	let buttonTitle: String
+	let accessibilityIdentifier: String
+	let action: () -> Void
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 12) {
+			DashboardEmptyState(message: message)
+			Button(buttonTitle, action: action)
+				.buttonStyle(.borderedProminent)
+				.controlSize(.small)
+				.accessibilityIdentifier(accessibilityIdentifier)
+		}
+	}
+}
 
 struct DashboardEmptyState: View {
 	let message: String

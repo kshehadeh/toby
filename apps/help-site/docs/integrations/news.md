@@ -16,7 +16,16 @@ The News plugin ships with Toby.app under `~/.toby/plugins/`.
 
 ## Configure
 
-Open **Toby.app → Settings → Integrations → News** and enter:
+Open **Toby.app → Settings → Integrations → News** and click **Setup Guide**.
+The wizard asks you to:
+
+1. Choose a default source: Hacker News and The Guardian, Hacker News only, or The Guardian only.
+2. Optionally paste a free [Guardian Open Platform](https://open-platform.theguardian.com/access/) key. Leave it blank to use Hacker News only. The Guardian only requires a key.
+3. Connect. Toby checks Hacker News immediately, and The Guardian when a key is set.
+
+The same wizard opens from the **News** card on Home when News is not connected (**Set up News**).
+
+You can still edit the fields directly on the News detail page:
 
 | Field | Description |
 | ----- | ----------- |
@@ -24,13 +33,9 @@ Open **Toby.app → Settings → Integrations → News** and enter:
 | Guardian API key | Optional Open Platform key for The Guardian |
 | Default Guardian section | Optional desk for Guardian requests that do not specify a section |
 
-Save the configuration.
-
-You can also use the **Setup Guide** button on the News detail page.
-
 ## Connect
 
-Click **Connect** on the News detail page. Toby checks Hacker News immediately. If you added a Guardian key, it validates that too.
+**Setup Guide** connects for you. You can also click **Connect** on the News detail page. Toby checks Hacker News immediately. If you added a Guardian key, it validates that too.
 
 ## Verify
 

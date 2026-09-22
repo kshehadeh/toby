@@ -98,6 +98,7 @@ In the same Settings window, click **Default Providers** to pick which connected
 | Contacts | Apple Contacts |
 | Documents | Notion |
 | Work Tracker | Jira |
+| News | News |
 
 These defaults help schedules and multi-integration chat pick the right tools. Full detail: [Default providers](../configuration/default-providers).
 

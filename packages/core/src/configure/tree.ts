@@ -981,7 +981,7 @@ export function buildSettingsTree(
 						],
 						currentValue: values["dashboard.persona"] ?? "(default)",
 						description:
-							"Persona used to summarize Home cards (email, tasks, calendar). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
+							"Persona used to summarize Home cards (email, tasks, calendar, news). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
 					},
 				],
 			},

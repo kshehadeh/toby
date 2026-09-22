@@ -129,11 +129,26 @@ export const calendarDashboardSummaryDocument: FlowDocument =
 		itemLabel: "calendar",
 	});
 
+export const newsDashboardSummaryDocument: FlowDocument = dashboardSummaryFlow({
+	id: "dashboard.news.summary",
+	description:
+		"Fetch latest headlines via the news.latestSummary standard tool, then produce a short markdown summary with the dashboard persona.",
+	fetchNodeId: "fetch-headlines",
+	standardTool: "news.latestSummary",
+	bagKey: "headlines",
+	schemaName: "NewsDashboardSummary",
+	schemaDescription:
+		"Markdown summary of latest headlines for the home dashboard",
+	categoryKey: "news",
+	itemLabel: "news",
+});
+
 /** Built-in flow seed documents keyed by stable id. */
 export const BUILTIN_FLOWS: Readonly<Record<string, FlowDocument>> = {
 	[emailDashboardSummaryDocument.id]: emailDashboardSummaryDocument,
 	[tasksDashboardSummaryDocument.id]: tasksDashboardSummaryDocument,
 	[calendarDashboardSummaryDocument.id]: calendarDashboardSummaryDocument,
+	[newsDashboardSummaryDocument.id]: newsDashboardSummaryDocument,
 };
 
 export function isBuiltinFlowId(id: string): boolean {

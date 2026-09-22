@@ -33,7 +33,7 @@ these from the plugin protocol (`status`, `config shape`, `tools list`, etc.).
 | Field / method | Purpose |
 | ---------------- | ------- |
 | `capabilities` | Subset of `IntegrationCapability`: `"chat"` and/or `"inbound"`. |
-| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"documents"` \| `"work_tracker"`. |
+| `providerCategories?` | Provider buckets for default-provider selection and schedule routing: `"email"` \| `"calendar"` \| `"tasks"` \| `"contacts"` \| `"chat"` \| `"documents"` \| `"work_tracker"` \| `"news"`. |
 | `authMethods?` | Optional auth options for configure UI (e.g. OAuth vs API key) with a default method. |
 | `configureHint?` | Shown when the integration has no editable credential fields. |
 | `resources?` | Optional strings describing entities (inbox, tasks, …) for discovery UI. |

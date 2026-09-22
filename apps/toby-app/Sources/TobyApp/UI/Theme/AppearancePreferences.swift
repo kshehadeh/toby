@@ -149,6 +149,8 @@ enum AppearanceDefaultsKey {
 	static let showDashboardTasks = "toby.appearance.showDashboardTasks"
 	/// Whether the upcoming-events dashboard card is visible. Default on.
 	static let showDashboardCalendar = "toby.appearance.showDashboardCalendar"
+	/// Whether the news dashboard card is visible. Default on.
+	static let showDashboardNews = "toby.appearance.showDashboardNews"
 	/// JSON `DashboardLayout` (order + hidden ids). Source of truth for home-card layout.
 	static let dashboardLayout = "toby.appearance.dashboardLayout"
 	/// Open Toby automatically when this Mac logs in (Settings → General).
@@ -181,6 +183,7 @@ final class AppearancePreferences {
 	static let showDashboardEmailDefaultsKey = AppearanceDefaultsKey.showDashboardEmail
 	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
 	static let showDashboardCalendarDefaultsKey = AppearanceDefaultsKey.showDashboardCalendar
+	static let showDashboardNewsDefaultsKey = AppearanceDefaultsKey.showDashboardNews
 	static let dashboardLayoutDefaultsKey = AppearanceDefaultsKey.dashboardLayout
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
@@ -257,6 +260,7 @@ final class AppearancePreferences {
 			dashboardLayout.isVisible(id: .calendar),
 			forKey: Self.showDashboardCalendarDefaultsKey
 		)
+		defaults.set(dashboardLayout.isVisible(id: .news), forKey: Self.showDashboardNewsDefaultsKey)
 	}
 
 	/// When true, Toby registers as a login item via `SMAppService.mainApp`.
@@ -407,6 +411,7 @@ final class AppearancePreferences {
 		showDashboardEmail: Bool? = nil,
 		showDashboardTasks: Bool? = nil,
 		showDashboardCalendar: Bool? = nil,
+		showDashboardNews: Bool? = nil,
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
 		chatTranscriptMode: ChatTranscriptMode? = nil,
@@ -463,6 +468,9 @@ final class AppearancePreferences {
 				id: .calendar,
 				visible: showDashboardCalendar
 			)
+		}
+		if let showDashboardNews {
+			resolvedLayout = resolvedLayout.settingVisibility(id: .news, visible: showDashboardNews)
 		}
 
 		// Default off when unset.
@@ -542,7 +550,9 @@ final class AppearancePreferences {
 		if hideOnboarding != nil {
 			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
 		}
-		if showDashboardEmail != nil || showDashboardTasks != nil || showDashboardCalendar != nil {
+		if showDashboardEmail != nil || showDashboardTasks != nil || showDashboardCalendar != nil
+			|| showDashboardNews != nil
+		{
 			persistDashboardLayout()
 		}
 		if launchAtLogin != nil {

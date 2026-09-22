@@ -109,6 +109,7 @@ Each integration declares one or more **provider categories**. A category descri
 | `chat` | Chat Provider | Channels, DMs, and workspace messages |
 | `documents` | Documents Provider | Pages, notes, wiki entries, and knowledge-base content |
 | `work_tracker` | Work Tracker | Issues, tickets, bugs, backlogs, and project work |
+| `news` | News Provider | Headlines and recent articles |
 
 ### Which integration belongs where
 
@@ -123,7 +124,7 @@ Each integration declares one or more **provider categories**. A category descri
 | Notion | Documents |
 | Jira | Work Tracker |
 | macOS | System tools (not a provider category) |
-| [News](./news) | Headlines (not a provider category) |
+| [News](./news) | News |
 | [MCP servers](./mcp) | Chat tools only (not a provider category) |
 
 Defaults become important when you connect multiple integrations in the same category (for example Todoist and Apple Reminders for tasks) or when you want schedules to target a specific provider.

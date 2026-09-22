@@ -64,6 +64,7 @@ struct DashboardView: View {
 	/// Frozen inspector ideal width for this presentation so persisting the
 	/// user’s drag does not fight the system divider.
 	@State private var actionsInspectorIdealWidth: CGFloat?
+	@State private var newsSetupPresented = false
 
 	/// Ready, incomplete, and not hidden from the checklist or Settings → Home.
 	private var shouldShowOnboarding: Bool {
@@ -152,6 +153,16 @@ struct DashboardView: View {
 				guard isServerReady else { return }
 				// Soft load: one content path per block (server caches OK).
 				await store.updateAll(force: false)
+			}
+			.onReceive(NotificationCenter.default.publisher(for: .dashboardBlockShouldRefresh)) { note in
+				guard let raw = note.object as? String else { return }
+				Task { await store.refreshBlock(DashboardBlockID(raw)) }
+			}
+			.sheet(isPresented: $newsSetupPresented) {
+				NewsSetupWizardView(
+					onCompleted: {},
+					onDismiss: { newsSetupPresented = false }
+				)
 			}
 	}
 
@@ -309,7 +320,11 @@ struct DashboardView: View {
 
 	@ViewBuilder
 	private func blockCard(_ block: CategoryDashboardBlock) -> some View {
-		DashboardBlockCard(block: block, actionContext: actionContext)
+		DashboardBlockCard(
+			block: block,
+			actionContext: actionContext,
+			onSetupNews: { newsSetupPresented = true }
+		)
 	}
 
 	private func handleDragSession(_ session: DragSession) {

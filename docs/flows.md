@@ -466,8 +466,9 @@ appear when the daemon is ready. Custom informational cards with
 | Email | `dashboard.email.summary` | `email.unreadSummary` | `unread` |
 | Tasks | `dashboard.tasks.summary` | `tasks.openSummary` | `openTasks` |
 | Calendar | `dashboard.calendar.summary` | `calendar.upcomingSummary` | `upcoming` |
+| News | `dashboard.news.summary` | `news.latestSummary` | `headlines` |
 
-Shared pipeline shape for all three:
+Shared pipeline shape for each category:
 
 ```
 Tool Executor (standard tool, limit 50)

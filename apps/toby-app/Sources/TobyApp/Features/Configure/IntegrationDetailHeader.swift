@@ -8,6 +8,8 @@ struct IntegrationDetailHeader: View {
 	let isActionLoading: Bool
 	let onAction: (IntegrationAction) -> Void
 	var onRemove: (() -> Void)? = nil
+	/// When set, Setup Guide opens this flow instead of the generic guide sheet.
+	var onOpenSetupGuide: (() -> Void)? = nil
 
 	private var isRemoving: Bool {
 		store.integrationActionLoading == "\(section.key).remove"
@@ -55,11 +57,20 @@ struct IntegrationDetailHeader: View {
 				HStack(spacing: 10) {
 					if let status {
 						SettingsActionButton(title: "Setup Guide") {
-							Task {
-								await store.presentSetupGuide(for: section.key)
+							if let onOpenSetupGuide {
+								onOpenSetupGuide()
+							} else {
+								Task {
+									await store.presentSetupGuide(for: section.key)
+								}
 							}
 						}
 						.disabled(isActionLoading)
+						.accessibilityIdentifier(
+							section.key == "news" && onOpenSetupGuide != nil
+								? "news-setup-guide-button"
+								: "integration-setup-guide-button"
+						)
 						if !status.connected {
 							SettingsActionButton(title: "Connect") {
 								onAction(.connect)

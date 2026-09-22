@@ -1,7 +1,7 @@
 # Home dashboard
 
-How Toby.app’s home-screen cards (unread mail, tasks, upcoming calendar, and
-optional custom-flow cards) get their content.
+How Toby.app’s home-screen cards (unread mail, tasks, upcoming calendar, news,
+and optional custom-flow cards) get their content.
 
 ## Architecture
 
@@ -70,7 +70,7 @@ Single DTO from the daemon:
 
 ```ts
 interface DashboardBlockContent {
-  category: string;       // block id: "email" | "tasks" | "calendar"
+  category: string;       // block id: "email" | "tasks" | "calendar" | "news"
   text: string;           // markdown body; empty when nothing to show
   generatedAt: string;    // ISO 8601 — shown in header as short date + HH:mm
   personaName: string;
@@ -93,7 +93,7 @@ interface DashboardBlockContent {
 
 | API response | Meaning |
 | --- | --- |
-| JSON `null` | Unknown category, or no connected providers |
+| JSON `null` | Unknown category, or no connected providers. The News card also shows **Set up News**, which opens the same guided setup sheet as Settings → Integrations → News → Setup Guide. |
 | `count === 0` / empty `text` | Connected but nothing to show → definition empty copy |
 | Non-empty `text` | Flow markdown for the body |
 
@@ -160,7 +160,7 @@ Older documents without the Actions keys load as visible at the default width.
 
 **Default order** when `order` is empty (and after **Reset dashboard layout**):
 
-1. Built-ins by `sortIndex` (email, tasks, calendar)
+1. Built-ins by `sortIndex` (email, tasks, calendar, news)
 2. Informational flow cards
 3. Runner flows (Actions rail; not grid cells)
 

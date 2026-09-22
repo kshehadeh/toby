@@ -91,8 +91,8 @@ disappears when the current view has no actions.
 
 ### Home
 
-**Home** is the landing surface. It shows unread mail, open tasks, and upcoming
-events when the matching integrations are connected, plus any custom flows you
+**Home** is the landing surface. It shows unread mail, open tasks, upcoming
+events, and news when the matching integrations are connected, plus any custom flows you
 pin to the dashboard. Cards use their natural height and stack into responsive
 columns, so short status cards can sit beside a longer briefing. Structured
 flow output can show a category, lead item, supporting rows, and links while
@@ -273,8 +273,8 @@ status cues) across Toby.app windows. Same preset in light and dark.
 
 #### Home (related)
 
-The **Home** surface shows unread mail, open tasks, and upcoming
-events (when the matching integrations are connected), plus any **custom
+The **Home** surface shows unread mail, open tasks, upcoming
+events, and news (when the matching integrations are connected), plus any **custom
 flows** you associated with a Dashboard destination. Built-in cards have a
 fixed title and actions, plus a short summary body generated from your
 connected integrations. **Informational** flow cards work the same way and
@@ -308,17 +308,19 @@ summaries and control which home cards are visible (app-local). Card
 bodies are produced by built-in [flows](./flows).
 
 - **Home persona** — Model and instructions used for the short summary
-  bodies on the unread mail, tasks, and upcoming events cards. Prefer a
+  bodies on the unread mail, tasks, upcoming events, and news cards. Prefer a
   **non-reasoning** model for this persona (entries without a **· reasoning**
   label in the model picker) so summaries stay reliable. Reasoning models
   (for example Grok 4.5) can leak planning or internal metadata into the card
   body; Toby strips common leaks, but a non-reasoning model is still the best
   fix.
-- **Show unread mail** / **Show tasks** / **Show upcoming events** — On by
+- **Show unread mail** / **Show tasks** / **Show upcoming events** / **Show news** — On by
   default. Turn any off to hide that card on Home; turn it back on
   to show it again. Upcoming events come from your default calendar provider
-  (Settings → Default Providers). Hide custom flow cards from the Home
-  editor (these toggles only cover the three built-in cards).
+  (Settings → Default Providers). When News is not connected, the News card
+  offers **Set up News**, which opens the same wizard as **Settings →
+  Integrations → News → Setup Guide**. Hide custom flow cards from the Home
+  editor (these toggles only cover the built-in cards).
 - **Hide onboarding checklist** — Off by default. Turning that on removes the
   setup checklist from Home even if steps remain incomplete; turn
   it off to bring the checklist back. On Home, **Hide** next to the

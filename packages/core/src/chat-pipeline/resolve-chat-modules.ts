@@ -78,6 +78,7 @@ const CATEGORY_KEYWORDS: Record<ProviderCategory, string[]> = {
 		"work tracker",
 		"project management",
 	],
+	news: ["news", "headline", "headlines", "hacker news", "the guardian"],
 };
 
 export function inferProviderCategoriesFromPrompt(

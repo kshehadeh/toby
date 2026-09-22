@@ -39,7 +39,7 @@ struct DashboardLayoutTests {
 	@Test("default order is built-ins then informational flows then runners")
 	func defaultOrderGroupsVariants() {
 		let order = DashboardLayout.defaultOrder(registered)
-		#expect(order.map(\.rawValue) == ["email", "tasks", "calendar", "flow.info", "flow.run"])
+		#expect(order.map(\.rawValue) == ["email", "tasks", "calendar", "news", "flow.info", "flow.run"])
 	}
 
 	@Test("empty layout shows all registered cards in default order")
@@ -47,7 +47,7 @@ struct DashboardLayoutTests {
 		let layout = DashboardLayout.empty
 		#expect(
 			layout.resolvedVisible(from: registered).map(\.rawValue)
-				== ["email", "tasks", "calendar", "flow.info", "flow.run"]
+				== ["email", "tasks", "calendar", "news", "flow.info", "flow.run"]
 		)
 		#expect(layout.resolvedHidden(from: registered).isEmpty)
 	}
@@ -61,6 +61,7 @@ struct DashboardLayoutTests {
 		#expect(layout.resolvedVisible(from: registered).map(\.rawValue) == [
 			"email",
 			"tasks",
+			"news",
 			"flow.info",
 			"flow.run",
 		])
@@ -76,6 +77,7 @@ struct DashboardLayoutTests {
 			"flow.run",
 			"tasks",
 			"flow.info",
+			"news",
 		])
 	}
 
@@ -87,6 +89,7 @@ struct DashboardLayoutTests {
 		#expect(layout.resolvedVisible(from: registered).map(\.rawValue) == [
 			"tasks",
 			"calendar",
+			"news",
 			"flow.info",
 			"flow.run",
 		])
@@ -105,6 +108,7 @@ struct DashboardLayoutTests {
 			"email",
 			"calendar",
 			"tasks",
+			"news",
 			"flow.info",
 			"flow.run",
 		])
@@ -118,6 +122,7 @@ struct DashboardLayoutTests {
 			"calendar",
 			"email",
 			"tasks",
+			"news",
 			"flow.info",
 			"flow.run",
 		])
@@ -200,7 +205,7 @@ struct DashboardLayoutTests {
 		let layout = DashboardLayout.empty
 		#expect(
 			layout.resolvedVisibleCards(from: registered).map(\.rawValue)
-				== ["email", "tasks", "calendar", "flow.info"]
+				== ["email", "tasks", "calendar", "news", "flow.info"]
 		)
 		#expect(
 			layout.resolvedVisibleRunners(from: registered).map(\.rawValue)
@@ -213,6 +218,7 @@ struct DashboardLayoutTests {
 			"email",
 			"tasks",
 			"flow.info",
+			"news",
 		])
 		#expect(mixed.resolvedVisibleRunners(from: registered).map(\.rawValue) == ["flow.run"])
 
@@ -233,6 +239,7 @@ struct DashboardLayoutTests {
 			"tasks",
 			"email",
 			"calendar",
+			"news",
 			"flow.info",
 		])
 		#expect(moved.resolvedVisibleRunners(from: registered).map(\.rawValue) == ["flow.run"])
@@ -283,6 +290,7 @@ struct DashboardLayoutTests {
 			"email",
 			"tasks",
 			"calendar",
+			"news",
 			"flow.info",
 		])
 		#expect(!beforeTasks.isHidden(id: .email))

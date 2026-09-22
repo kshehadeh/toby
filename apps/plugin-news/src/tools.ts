@@ -12,6 +12,7 @@ export type ToolDefinition = {
 	displayName: string;
 	description: string;
 	readOnly?: boolean;
+	standardTool?: string;
 	inputSchema: {
 		type: string;
 		properties: Record<string, JsonRecord>;
@@ -86,6 +87,31 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 				},
 			},
 			required: ["query"],
+		},
+	},
+	{
+		name: "getLatestSummary",
+		displayName: "Latest headlines summary",
+		description:
+			"Dashboard summary of the latest headlines. Returns a standardized shape with count, items, and generatedAt. Tagged as news.latestSummary standard tool.",
+		readOnly: true,
+		standardTool: "news.latestSummary",
+		inputSchema: {
+			type: "object",
+			properties: {
+				limit: {
+					type: "number",
+					description: "Maximum articles per source (default 8, max 20).",
+				},
+				source: {
+					type: "string",
+					description: SOURCE_DESCRIPTION,
+				},
+				section: {
+					type: "string",
+					description: SECTION_DESCRIPTION,
+				},
+			},
 		},
 	},
 ];
@@ -173,7 +199,62 @@ export async function executeTool(
 			}
 		}
 
+		case "getLatestSummary": {
+			if (dryRun) {
+				return {
+					result: {
+						dryRun: true,
+						message: "Would fetch a dashboard summary of the latest headlines.",
+					},
+					appliedActions: [],
+				};
+			}
+			try {
+				const result = await fetchLatestNews(config, {
+					source: input.source as string | undefined,
+					section: input.section as string | undefined,
+					limit: input.limit as number | undefined,
+				});
+				return { result: toDashboardSummary(result), appliedActions: [] };
+			} catch (error) {
+				throw toToolError(error);
+			}
+		}
+
 		default:
 			throw new ToolFailure(`Unknown tool: ${tool}`);
 	}
+}
+
+function toDashboardSummary(result: NewsSearchResult): JsonRecord {
+	const items = result.articles.map((article) => ({
+		id: article.id,
+		title: article.title,
+		subtitle: article.section
+			? `${article.source} · ${article.section}`
+			: article.source,
+		...(article.summary ? { detail: article.summary } : {}),
+		...(article.publishedAt ? { timestamp: article.publishedAt } : {}),
+		...(article.url ? { url: article.url } : {}),
+	}));
+	const counts = new Map<string, number>();
+	for (const article of result.articles) {
+		counts.set(article.source, (counts.get(article.source) ?? 0) + 1);
+	}
+	const groups = [...counts.entries()].map(([label, count]) => ({
+		id: label === "The Guardian" ? "guardian" : "hacker-news",
+		label,
+		count,
+	}));
+	const launchUrl =
+		result.sources.length === 1 && result.sources[0] === "The Guardian"
+			? "https://www.theguardian.com"
+			: "https://news.ycombinator.com";
+	return {
+		count: items.length,
+		...(groups.length > 0 ? { groups } : {}),
+		items,
+		launchUrl,
+		generatedAt: new Date().toISOString(),
+	};
 }

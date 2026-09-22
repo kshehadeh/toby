@@ -118,6 +118,7 @@ describe("dashboard aggregator", () => {
 		expect(data).toHaveProperty("email");
 		expect(data).toHaveProperty("tasks");
 		expect(data).toHaveProperty("calendar");
+		expect(data).toHaveProperty("news");
 
 		// If a category is populated, verify its structure
 		if (data.email) {

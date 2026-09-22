@@ -40,7 +40,8 @@ export type ProviderCategory =
 	| "contacts"
 	| "chat"
 	| "documents"
-	| "work_tracker";
+	| "work_tracker"
+	| "news";
 
 export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	email: "Email Provider",
@@ -50,6 +51,7 @@ export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
 	chat: "Chat Provider",
 	documents: "Documents Provider",
 	work_tracker: "Work Tracker",
+	news: "News Provider",
 };
 
 export const PROVIDER_CATEGORY_DESCRIPTIONS: Record<ProviderCategory, string> =
@@ -65,6 +67,7 @@ export const PROVIDER_CATEGORY_DESCRIPTIONS: Record<ProviderCategory, string> =
 			"Choose which integration stores and retrieves contextual documents.",
 		work_tracker:
 			"Choose which integration tracks your work items and tickets.",
+		news: "Choose which integration fetches headlines and recent articles.",
 	};
 
 export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
@@ -75,6 +78,7 @@ export const ALL_PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
 	"chat",
 	"documents",
 	"work_tracker",
+	"news",
 ];
 
 /** Single credential field shown in configure UI (flat key namespace). */

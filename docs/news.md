@@ -16,6 +16,13 @@ itself.
 
 ## Setup
 
+Toby.app opens a guided setup sheet from **Settings → Integrations → News →
+Setup Guide**, and from the Home **News** card when News is not connected.
+The sheet asks for a default source, an optional Guardian key, and then
+connects.
+
+You can also set it up from the CLI:
+
 1. Run **`toby connect news`**. Hacker News is checked immediately; no key is
    required.
 2. Optional: get a free Guardian key at
@@ -23,7 +30,8 @@ itself.
    and enter it in **Toby.app → Settings → Integrations → News** (or `toby configure`).
    Re-connect so Toby validates the key.
 
-Toby.app also exposes this flow as an Integration Setup Guide (`setup guide`).
+The plugin still returns an Integration Setup Guide (`setup guide`) for the
+generic guide sheet. News settings open the guided wizard instead.
 
 ## Tools
 
@@ -31,6 +39,7 @@ Toby.app also exposes this flow as an Integration Setup Guide (`setup guide`).
 | ---- | ------- |
 | `getLatestNews` | Latest headlines. Optional `source` (`all`, `hacker-news`, `guardian`), `section`, `limit` (default 8, max 20 per source), `fromDate` (`YYYY-MM-DD`). |
 | `searchNews` | Search recent articles. Required `query`; same optional `source` / `section` / `limit` / `fromDate`. |
+| `getLatestSummary` | Dashboard standard tool `news.latestSummary`. Latest headlines in the reserved dashboard item shape. |
 
 `section` is source-specific:
 

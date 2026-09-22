@@ -10,6 +10,7 @@ struct ConfigureSectionDetailView: View {
 
 	@State private var guidedSetupProviderId: String?
 	@State private var emailSetupPresented = false
+	@State private var newsSetupPresented = false
 
 	private var fields: [SettingsItem] {
 		store.detailFields(for: section)
@@ -96,6 +97,9 @@ struct ConfigureSectionDetailView: View {
 									confirmLabel: "Remove"
 								)
 							}
+							: nil,
+						onOpenSetupGuide: section.key == "news"
+							? { newsSetupPresented = true }
 							: nil,
 					)
 				}
@@ -270,6 +274,19 @@ struct ConfigureSectionDetailView: View {
 			if isAIProviderSection {
 				await store.loadAIProviderStatuses()
 			}
+		}
+		.sheet(isPresented: $newsSetupPresented) {
+			NewsSetupWizardView(
+				initialSource: store.draft["news.defaultSource"],
+				initialSection: store.draft["news.defaultSection"],
+				onCompleted: {
+					Task {
+						await store.loadIntegrationStatus(for: section.key)
+						await store.loadSectionDetail(section.key)
+					}
+				},
+				onDismiss: { newsSetupPresented = false }
+			)
 		}
 		.sheet(isPresented: $emailSetupPresented) {
 			EmailSetupWizardView(
