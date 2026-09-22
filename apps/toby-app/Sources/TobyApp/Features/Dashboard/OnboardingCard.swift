@@ -3,6 +3,8 @@ import SwiftUI
 struct OnboardingCard: View {
 	let checklist: OnboardingChecklist
 	let onStepAction: (OnboardingStepKind) -> Void
+	/// Writes the same app-local preference as Settings → Home → Hide onboarding checklist.
+	let onHide: () -> Void
 
 	private let columnCount = 3
 
@@ -47,12 +49,24 @@ struct OnboardingCard: View {
 				.font(.system(size: DashboardBlockLayout.titleSize, weight: DashboardBlockLayout.titleWeight))
 				.tracking(DashboardBlockLayout.titleTracking)
 				.foregroundStyle(AppTheme.primaryText)
-			Spacer()
-			HStack(spacing: 0) {
-				Text("\(checklist.completedCount)")
-					.foregroundStyle(AppTheme.accent)
-				Text(" of \(checklist.totalCount) done")
-					.foregroundStyle(AppTheme.secondaryText)
+			Spacer(minLength: 12)
+			HStack(alignment: .firstTextBaseline, spacing: 12) {
+				HStack(spacing: 0) {
+					Text("\(checklist.completedCount)")
+						.foregroundStyle(AppTheme.accent)
+					Text(" of \(checklist.totalCount) done")
+						.foregroundStyle(AppTheme.secondaryText)
+				}
+				Button(action: onHide) {
+					Text("Hide")
+						.font(.system(size: 13, weight: .medium))
+						.foregroundStyle(AppTheme.accent)
+				}
+				.buttonStyle(.plain)
+				.accessibilityLabel("Hide onboarding checklist")
+				.accessibilityHint("Hides this checklist on Home. Show it again in Settings, Home.")
+				.accessibilityIdentifier("dashboard-hide-onboarding-button")
+				.help("Hide this checklist. Show it again in Settings → Home.")
 			}
 			.font(.system(size: 13, weight: .medium))
 		}

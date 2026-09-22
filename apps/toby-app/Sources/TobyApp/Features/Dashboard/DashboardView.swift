@@ -65,7 +65,7 @@ struct DashboardView: View {
 	/// user’s drag does not fight the system divider.
 	@State private var actionsInspectorIdealWidth: CGFloat?
 
-	/// Ready, incomplete, and not dismissed via Settings → Home.
+	/// Ready, incomplete, and not hidden from the checklist or Settings → Home.
 	private var shouldShowOnboarding: Bool {
 		isOnboardingReady
 			&& !onboarding.isComplete
@@ -180,7 +180,13 @@ struct DashboardView: View {
 			VStack(alignment: .leading, spacing: 24) {
 				greeting
 				if shouldShowOnboarding {
-					OnboardingCard(checklist: onboarding, onStepAction: handleStepAction)
+					OnboardingCard(
+						checklist: onboarding,
+						onStepAction: handleStepAction,
+						onHide: {
+							appearancePreferences.hideOnboardingBinding.wrappedValue = true
+						}
+					)
 						.transition(DashboardSectionMotion.transition)
 				}
 				cardGrid

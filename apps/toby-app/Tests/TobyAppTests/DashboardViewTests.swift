@@ -295,10 +295,31 @@ struct DashboardViewTests {
 			hasRecording: false,
 			hasSession: false
 		)
-		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in })
+		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in }, onHide: {})
 		#expect(throws: Never.self) {
 			try card.inspect().find(text: "Finish setting up Toby")
 		}
+	}
+
+	@Test("onboarding card hide control invokes hide")
+	func onboardingCardHideInvokesCallback() throws {
+		var didHide = false
+		let checklist = OnboardingChecklist.make(
+			hasConfiguredAIProvider: true,
+			hasConnectedIntegrations: true,
+			hasModelConfigured: true,
+			hasRequiredPermissions: false,
+			hasSchedule: false,
+			hasSkill: false,
+			hasTranscriptionConfigured: false,
+			hasRecording: false,
+			hasSession: false
+		)
+		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in }) {
+			didHide = true
+		}
+		try card.inspect().find(button: "Hide").tap()
+		#expect(didHide)
 	}
 
 	@Test("onboarding card shows up next and completed states")
@@ -314,7 +335,7 @@ struct DashboardViewTests {
 			hasRecording: false,
 			hasSession: false
 		)
-		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in })
+		let card = OnboardingCard(checklist: checklist, onStepAction: { _ in }, onHide: {})
 		#expect(throws: Never.self) {
 			try card.inspect().find(text: "UP NEXT")
 		}
@@ -363,6 +384,26 @@ struct DashboardViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-onboarding-card")
 		}
+	}
+
+	@Test("hide onboarding button stores the home preference")
+	func hideOnboardingButtonStoresPreference() throws {
+		let prefs = makeAppearance()
+		let view = DashboardView(
+			store: DashboardStore(),
+			userName: "Karim",
+			onboarding: incompleteChecklist(),
+			isOnboardingReady: true,
+			onRefresh: {},
+			onSelectRoute: { _ in },
+			onOpenPermissions: {},
+			actionContext: .init(startChat: {}),
+			appearancePreferences: prefs
+		)
+		try view.inspect().find(
+			viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-button"
+		).button().tap()
+		#expect(prefs.hideOnboarding == true)
 	}
 
 	@Test("dashboard hides onboarding when hide preference is enabled")

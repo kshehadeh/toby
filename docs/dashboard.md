@@ -188,8 +188,9 @@ Settings → Home visibility toggles continue to work. The underlying layout
 document and reorder implementation are intentionally retained so existing
 preferences do not require migration.
 
-Onboarding is not part of this layout; it still uses **Hide onboarding
-checklist**.
+Onboarding is not part of this layout. Hide it from the checklist header
+(**Hide**, next to the progress count) or with **Hide onboarding checklist**
+in Settings → Home. Both write `toby.appearance.hideOnboarding`.
 
 ## Continue working
 

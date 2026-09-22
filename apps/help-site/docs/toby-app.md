@@ -321,7 +321,8 @@ bodies are produced by built-in [flows](./flows).
   editor (these toggles only cover the three built-in cards).
 - **Hide onboarding checklist** — Off by default. Turning that on removes the
   setup checklist from Home even if steps remain incomplete; turn
-  it off to bring the checklist back.
+  it off to bring the checklist back. On Home, **Hide** next to the
+  progress count (for example “2 of 9 done”) sets the same preference.
 - **Reset Home layout** — Restores the default card order and shows all
   cards. Does not change the onboarding checklist.
 
