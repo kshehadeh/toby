@@ -19,7 +19,6 @@ struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	static let email = DashboardBlockID("email")
 	static let tasks = DashboardBlockID("tasks")
 	static let calendar = DashboardBlockID("calendar")
-	static let news = DashboardBlockID("news")
 }
 
 extension DashboardBlockID: Transferable {
@@ -137,26 +136,11 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 		listsSourceOpenActions: false
 	)
 
-	static let news = DashboardBlockDescriptor(
-		id: .news,
-		title: "News",
-		systemImage: "newspaper",
-		emptyWhenNil: "News isn’t set up. Connect News to see today’s headlines.",
-		emptyWhenZero: "No headlines right now.",
-		sortIndex: 3,
-		visibilityDefaultsKey: AppearanceDefaultsKey.showDashboardNews,
-		accessibilityIdentifier: "dashboard-news-card",
-		openFallbackBundleId: nil,
-		openPrimaryTitle: "Open News",
-		listsSourceOpenActions: false
-	)
-
 	/// Default registered data blocks (order = default layout).
 	static let builtIn: [DashboardBlockDescriptor] = [
 		.email,
 		.tasks,
 		.calendar,
-		.news,
 	]
 
 	static func flow(_ info: FlowDashboardBlockInfo, sortIndex: Int) -> DashboardBlockDescriptor {

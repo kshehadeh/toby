@@ -233,8 +233,5 @@ final class CategoryDashboardBlock: Identifiable {
 				workspace.open(mailto)
 			}
 		}
-		if id == .news, let url = URL(string: "https://news.ycombinator.com") {
-			workspace.open(url)
-		}
 	}
 }

@@ -48,7 +48,6 @@ Each provider category maps to a reserved standard tool ID:
 | `email` | `email.unreadSummary` |
 | `tasks` | `tasks.openSummary` |
 | `calendar` | `calendar.upcomingSummary` |
-| `news` | `news.latestSummary` |
 | `work_tracker` (future) | `work_tracker.openSummary` |
 
 A plugin tags one of its tool definitions with `standardTool: "<id>"` to
@@ -109,7 +108,6 @@ interface DashboardData {
   email: DashboardCategorySummary | null;
   tasks: DashboardCategorySummary | null;
   calendar: DashboardCategorySummary | null;
-  news: DashboardCategorySummary | null;
 }
 ```
 

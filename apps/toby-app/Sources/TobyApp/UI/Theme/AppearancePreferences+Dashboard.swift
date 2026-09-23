@@ -7,7 +7,6 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 	case email
 	case tasks
 	case calendar
-	case news
 
 	var id: String { rawValue }
 
@@ -16,7 +15,6 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		case .email: "Unread mail"
 		case .tasks: "Tasks"
 		case .calendar: "Upcoming"
-		case .news: "News"
 		}
 	}
 
@@ -25,7 +23,6 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		case .email: "Show unread mail"
 		case .tasks: "Show tasks"
 		case .calendar: "Show upcoming events"
-		case .news: "Show news"
 		}
 	}
 
@@ -35,7 +32,6 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		case .tasks: "Show the tasks card on the home dashboard. Stored only on this Mac."
 		case .calendar:
 			"Show the upcoming events card on the home dashboard. Stored only on this Mac."
-		case .news: "Show the news card on the home dashboard. Stored only on this Mac."
 		}
 	}
 
@@ -49,7 +45,6 @@ enum DashboardBlock: String, CaseIterable, Identifiable, Sendable {
 		case .email: AppearanceDefaultsKey.showDashboardEmail
 		case .tasks: AppearanceDefaultsKey.showDashboardTasks
 		case .calendar: AppearanceDefaultsKey.showDashboardCalendar
-		case .news: AppearanceDefaultsKey.showDashboardNews
 		}
 	}
 }
@@ -73,12 +68,6 @@ extension AppearancePreferences {
 	var showDashboardCalendar: Bool {
 		get { dashboardLayout.isVisible(id: .calendar) }
 		set { setDashboardBlockVisible(id: .calendar, visible: newValue) }
-	}
-
-	/// When true, show the news card on the home dashboard. Default is on.
-	var showDashboardNews: Bool {
-		get { dashboardLayout.isVisible(id: .news) }
-		set { setDashboardBlockVisible(id: .news, visible: newValue) }
 	}
 
 	/// Whether the given dashboard block should be visible on the home screen.

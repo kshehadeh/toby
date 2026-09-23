@@ -503,7 +503,6 @@ const DASHBOARD_CATEGORY_FLOWS: Readonly<Record<string, string>> = {
 	email: "dashboard.email.summary",
 	tasks: "dashboard.tasks.summary",
 	calendar: "dashboard.calendar.summary",
-	news: "dashboard.news.summary",
 };
 
 /**
@@ -514,7 +513,6 @@ const FLOW_DATA_CONTEXT_KEYS: Readonly<Record<string, string>> = {
 	"dashboard.email.summary": "unread",
 	"dashboard.tasks.summary": "openTasks",
 	"dashboard.calendar.summary": "upcoming",
-	"dashboard.news.summary": "headlines",
 };
 
 /**

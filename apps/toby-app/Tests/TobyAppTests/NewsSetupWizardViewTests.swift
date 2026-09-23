@@ -95,37 +95,4 @@ struct NewsSetupWizardViewTests {
 		}
 	}
 
-	@Test("unconfigured news card offers setup")
-	func dashboardSetupButton() throws {
-		let block = CategoryDashboardBlock(descriptor: .news)
-		let card = DashboardBlockCard(block: block)
-		#expect(throws: Never.self) {
-			try card.inspect().find(button: "Set up News")
-		}
-		#expect(throws: Never.self) {
-			try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-news-card")
-		}
-	}
-
-	@Test("configured news card hides the setup button")
-	func dashboardHidesSetupWhenConnected() throws {
-		let block = CategoryDashboardBlock(descriptor: .news)
-		block.content = DashboardBlockContent(
-			category: "news",
-			text: "A short briefing.",
-			generatedAt: "2026-09-22T12:00:00Z",
-			personaName: "Toby",
-			count: 1,
-			launchUrls: ["https://news.ycombinator.com"],
-			sources: nil,
-			sections: nil
-		)
-		let card = DashboardBlockCard(block: block)
-		#expect(throws: (any Error).self) {
-			try card.inspect().find(button: "Set up News")
-		}
-		#expect(throws: Never.self) {
-			try card.inspect().find(text: "News")
-		}
-	}
 }

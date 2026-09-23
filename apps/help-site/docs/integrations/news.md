@@ -23,8 +23,6 @@ The wizard asks you to:
 2. Optionally paste a free [Guardian Open Platform](https://open-platform.theguardian.com/access/) key. Leave it blank to use Hacker News only. The Guardian only requires a key.
 3. Connect. Toby checks Hacker News immediately, and The Guardian when a key is set.
 
-The same wizard opens from the **News** card on Home when News is not connected (**Set up News**).
-
 You can still edit the fields directly on the News detail page:
 
 | Field | Description |

@@ -29,7 +29,7 @@ toby plugins install ./apps/plugin-news --link --force
 | ---- | ------- |
 | `getLatestNews` | Latest headlines (`source`: `all`, `hacker-news`, `guardian`) |
 | `searchNews` | Search recent articles by topic on the same sources |
-| `getLatestSummary` | Dashboard standard tool `news.latestSummary` |
+| `getLatestSummary` | Latest headlines as `count`, `items`, and `generatedAt` |
 
 ## Layout
 

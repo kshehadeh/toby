@@ -424,7 +424,7 @@ struct DashboardViewTests {
 		}
 	}
 
-	@Test("dashboard shows mail, tasks, calendar, and news cards by default")
+	@Test("dashboard shows mail, tasks, and calendar cards by default")
 	func dashboardShowsMailAndTasksByDefault() throws {
 		let view = makeView(store: DashboardStore())
 		#expect(throws: Never.self) {
@@ -435,12 +435,6 @@ struct DashboardViewTests {
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-news-card")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(button: "Set up News")
 		}
 	}
 
@@ -579,7 +573,7 @@ struct DashboardViewTests {
 		let store = DashboardStore()
 		let layout = DashboardLayout(order: ["calendar", "email", "tasks"], hidden: ["tasks"])
 		#expect(
-			store.registry.orderedVisible(layout: layout).map(\.id.rawValue) == ["calendar", "email", "news"]
+			store.registry.orderedVisible(layout: layout).map(\.id.rawValue) == ["calendar", "email"]
 		)
 		#expect(store.registry.orderedHidden(layout: layout).map(\.id.rawValue) == ["tasks"])
 	}

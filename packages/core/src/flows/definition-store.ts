@@ -183,8 +183,23 @@ export function ensureBuiltinFlow(id: string): StoredFlowRecord | null {
 	}
 }
 
+/** Drop builtin rows whose ids are no longer shipped. */
+function pruneRetiredBuiltinFlows(): void {
+	const known = new Set(listBuiltinFlowIds());
+	const db = getDb();
+	const rows = db
+		.query("SELECT id FROM flows WHERE builtin = 1")
+		.all() as Array<{ id?: unknown }>;
+	for (const row of rows) {
+		const id = typeof row.id === "string" ? row.id : "";
+		if (!id || known.has(id)) continue;
+		deleteFlowDocument(id);
+	}
+}
+
 /** Ensure every known built-in id has a row. */
 export function ensureAllBuiltinFlows(): void {
+	pruneRetiredBuiltinFlows();
 	for (const id of listBuiltinFlowIds()) {
 		ensureBuiltinFlow(id);
 	}

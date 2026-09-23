@@ -37,7 +37,7 @@ extension Notification.Name {
 	/// Posted when chat (or another writer) creates/updates a local skill so the skills UI can refresh.
 	static let skillsDidChange = Notification.Name("toby.skillsDidChange")
 	/// Posted after guided setup connects an integration so Home can refresh that card.
-	/// `object` is the dashboard block id (`"news"`, …).
+	/// `object` is the dashboard block id.
 	static let dashboardBlockShouldRefresh = Notification.Name("toby.dashboardBlockShouldRefresh")
 	/// Posted after a successful in-process Toby home directory switch.
 	/// Shell should clear feature stores and reload from the new data root.

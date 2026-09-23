@@ -17,9 +17,9 @@ itself.
 ## Setup
 
 Toby.app opens a guided setup sheet from **Settings → Integrations → News →
-Setup Guide**, and from the Home **News** card when News is not connected.
-The sheet asks for a default source, an optional Guardian key, and then
-connects.
+Setup Guide**. The sheet asks for a default source, an optional Guardian key,
+and then connects. A News briefing on Home comes from a custom flow with a
+Dashboard destination, not from a built-in card.
 
 You can also set it up from the CLI:
 
@@ -39,7 +39,7 @@ generic guide sheet. News settings open the guided wizard instead.
 | ---- | ------- |
 | `getLatestNews` | Latest headlines. Optional `source` (`all`, `hacker-news`, `guardian`), `section`, `limit` (default 8, max 20 per source), `fromDate` (`YYYY-MM-DD`). |
 | `searchNews` | Search recent articles. Required `query`; same optional `source` / `section` / `limit` / `fromDate`. |
-| `getLatestSummary` | Dashboard standard tool `news.latestSummary`. Latest headlines in the reserved dashboard item shape. |
+| `getLatestSummary` | Latest headlines in the reserved summary item shape (`count`, `items`, `generatedAt`). |
 
 `section` is source-specific:
 

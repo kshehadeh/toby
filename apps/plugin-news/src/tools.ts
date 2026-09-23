@@ -93,9 +93,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		name: "getLatestSummary",
 		displayName: "Latest headlines summary",
 		description:
-			"Dashboard summary of the latest headlines. Returns a standardized shape with count, items, and generatedAt. Tagged as news.latestSummary standard tool.",
+			"Latest headlines in a summary shape with count, items, and generatedAt.",
 		readOnly: true,
-		standardTool: "news.latestSummary",
 		inputSchema: {
 			type: "object",
 			properties: {

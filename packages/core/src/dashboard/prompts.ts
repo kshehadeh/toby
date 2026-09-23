@@ -26,10 +26,6 @@ The summary should surface emails that should be attended to first followed by t
 This should be no longer than 5-6 sentences.`,
 	tasks: `Summarize my tasks and reminders focusing on the ones that are most urgent, are particularly late or appear to be important based on the description.
 This should be no longer than 5-6 sentences.`,
-	news: `Summarize the latest headlines, ordered by recency.
-Surface the stories that look most relevant first, then a few more worth mentioning.
-Attribute each item to its source (Hacker News or The Guardian).
-This should be no longer than 5-6 sentences.`,
 	calendar: `Summarize my upcoming calendar events for the next week.
 Call out what is happening soonest, any conflicts or back-to-back blocks if obvious from the list, and anything that looks like a meeting I should prepare for.
 This should be no longer than 5-6 sentences. Use "Today", "Tommorow", "Later" headers.  Do not go beyond the next three business days.  So, if it's Friday,

@@ -156,10 +156,6 @@ final class NewsSetupStore {
 			defaults.removeObject(forKey: stepKey)
 			defaults.removeObject(forKey: sourceKey)
 			defaults.removeObject(forKey: sectionKey)
-			NotificationCenter.default.post(
-				name: .dashboardBlockShouldRefresh,
-				object: DashboardBlockID.news.rawValue
-			)
 			return true
 		} catch {
 			self.error = error.localizedDescription
