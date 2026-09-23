@@ -3,8 +3,9 @@ import Foundation
 
 // MARK: - Identity
 
-/// Identity for a home-dashboard **data** block (not onboarding).
-/// Raw value matches the daemon category path (`email`, `tasks`, `calendar`, …).
+/// Identity for a home-dashboard block (not onboarding).
+/// Daemon-backed raw values match their category path; client-only cards use
+/// the reserved `local.` prefix.
 struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	let rawValue: String
 
@@ -19,6 +20,8 @@ struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	static let email = DashboardBlockID("email")
 	static let tasks = DashboardBlockID("tasks")
 	static let calendar = DashboardBlockID("calendar")
+	/// Client-local Home card that is not backed by a daemon dashboard block.
+	static let recentWork = DashboardBlockID("local.recent-work")
 }
 
 extension DashboardBlockID: Transferable {
@@ -28,6 +31,14 @@ extension DashboardBlockID: Transferable {
 	static var transferRepresentation: some TransferRepresentation {
 		ProxyRepresentation(exporting: \.rawValue) { DashboardBlockID($0) }
 	}
+}
+
+// MARK: - Home layout item
+
+/// One reorderable card in the Home waterfall. Data-backed dashboard blocks
+/// and client-local cards share the same stable layout identity.
+struct DashboardHomeItem: Identifiable, Sendable {
+	let id: DashboardBlockID
 }
 
 // MARK: - Snapshot

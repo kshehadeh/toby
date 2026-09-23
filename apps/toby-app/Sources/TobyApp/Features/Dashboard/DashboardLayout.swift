@@ -147,6 +147,8 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 	enum CardPlacement: Equatable, Sendable {
 		/// Immediately before this visible card.
 		case before(DashboardBlockID)
+		/// Immediately after this visible card.
+		case after(DashboardBlockID)
 		/// After the last visible card.
 		case end
 	}
@@ -172,6 +174,12 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 			} else {
 				cards.append(contentsOf: allowed)
 			}
+		case let .after(destination):
+			if let index = cards.firstIndex(of: destination) {
+				cards.insert(contentsOf: allowed, at: cards.index(after: index))
+			} else {
+				cards.append(contentsOf: allowed)
+			}
 		case .end:
 			cards.append(contentsOf: allowed)
 		}
@@ -180,6 +188,97 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		let hiddenIDs = resolvedHidden(from: descriptors).filter { !allowed.contains($0) }
 		return withCards(
 			order: cards.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
+			hidden: hiddenIDs.map(\.rawValue)
+		)
+	}
+
+	/// Visible Home-grid sequence, including client-local cards that do not
+	/// exist in the dashboard registry. Older stored documents omit these ids;
+	/// the fallback appends them in their default location without migration.
+	func resolvedVisibleHomeItems(
+		from descriptors: [DashboardBlockDescriptor]
+	) -> [DashboardBlockID] {
+		resolvedHomeSequence(from: descriptors).filter { id in
+			id == .recentWork || !hiddenSet.contains(id.rawValue)
+		}
+	}
+
+	/// Reorders registered informational cards and client-local Home cards.
+	/// Runner flows remain in the Actions inspector and cannot enter the grid.
+	func placingVisibleHomeItems(
+		_ ids: [DashboardBlockID],
+		at placement: CardPlacement,
+		from descriptors: [DashboardBlockDescriptor]
+	) -> DashboardLayout {
+		let allowed = ids.filter { id in
+			id == .recentWork
+				|| descriptors.contains { $0.id == id && !$0.isFlowRunner }
+		}
+		guard !allowed.isEmpty else { return self }
+
+		var items = resolvedVisibleHomeItems(from: descriptors)
+		items.removeAll { allowed.contains($0) }
+		switch placement {
+		case let .before(destination):
+			if let index = items.firstIndex(of: destination) {
+				items.insert(contentsOf: allowed, at: index)
+			} else {
+				items.append(contentsOf: allowed)
+			}
+		case let .after(destination):
+			if let index = items.firstIndex(of: destination) {
+				items.insert(contentsOf: allowed, at: items.index(after: index))
+			} else {
+				items.append(contentsOf: allowed)
+			}
+		case .end:
+			items.append(contentsOf: allowed)
+		}
+
+		let runners = resolvedVisibleRunners(from: descriptors)
+		let hiddenIDs = resolvedHidden(from: descriptors).filter { !allowed.contains($0) }
+		return withCards(
+			order: items.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
+			hidden: hiddenIDs.map(\.rawValue)
+		)
+	}
+
+	/// Hides a registered Home card or runner without disturbing client-local
+	/// card positions stored in the shared order document.
+	func hidingHomeItem(
+		_ id: DashboardBlockID,
+		from descriptors: [DashboardBlockDescriptor]
+	) -> DashboardLayout {
+		guard descriptors.contains(where: { $0.id == id }) else { return self }
+		let homeItems = resolvedVisibleHomeItems(from: descriptors).filter { $0 != id }
+		let runners = resolvedVisibleRunners(from: descriptors).filter { $0 != id }
+		var hiddenIDs = resolvedHidden(from: descriptors)
+		if !hiddenIDs.contains(id) {
+			hiddenIDs.append(id)
+		}
+		return withCards(
+			order: homeItems.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
+			hidden: hiddenIDs.map(\.rawValue)
+		)
+	}
+
+	/// Restores a registered item at the end of its Home grid or Actions group
+	/// while preserving client-local Home card positions.
+	func showingHomeItem(
+		_ id: DashboardBlockID,
+		from descriptors: [DashboardBlockDescriptor]
+	) -> DashboardLayout {
+		guard let descriptor = descriptors.first(where: { $0.id == id }) else { return self }
+		var homeItems = resolvedVisibleHomeItems(from: descriptors).filter { $0 != id }
+		var runners = resolvedVisibleRunners(from: descriptors).filter { $0 != id }
+		if descriptor.isFlowRunner {
+			runners.append(id)
+		} else {
+			homeItems.append(id)
+		}
+		let hiddenIDs = resolvedHidden(from: descriptors).filter { $0 != id }
+		return withCards(
+			order: homeItems.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
 			hidden: hiddenIDs.map(\.rawValue)
 		)
 	}
@@ -245,6 +344,27 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 	private func resolvedSequence(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
 		let registered = Set(descriptors.map(\.id.rawValue))
 		let fallback = Self.defaultOrder(descriptors)
+		var seen = Set<String>()
+		var result: [DashboardBlockID] = []
+		for raw in order where registered.contains(raw) && !seen.contains(raw) {
+			result.append(DashboardBlockID(raw))
+			seen.insert(raw)
+		}
+		for id in fallback where !seen.contains(id.rawValue) {
+			result.append(id)
+			seen.insert(id.rawValue)
+		}
+		return result
+	}
+
+	private func resolvedHomeSequence(
+		from descriptors: [DashboardBlockDescriptor]
+	) -> [DashboardBlockID] {
+		let cardIDs = descriptors.filter { !$0.isFlowRunner }.map(\.id)
+		let registered = Set(cardIDs.map(\.rawValue) + [DashboardBlockID.recentWork.rawValue])
+		let fallback = Self.defaultOrder(descriptors).filter { id in
+			cardIDs.contains(id)
+		} + [.recentWork]
 		var seen = Set<String>()
 		var result: [DashboardBlockID] = []
 		for raw in order where registered.contains(raw) && !seen.contains(raw) {

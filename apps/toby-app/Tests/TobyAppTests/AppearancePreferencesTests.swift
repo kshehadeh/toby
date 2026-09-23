@@ -295,6 +295,29 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.dashboardLayout.actionsWidth == 200)
 	}
 
+	@Test("Home card order including Continue working persists between sessions")
+	func homeCardOrderPersists() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.homeorder.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		prefs.dashboardLayout = DashboardLayout(
+			order: [
+				DashboardBlockID.recentWork.rawValue,
+				DashboardBlockID.calendar.rawValue,
+				DashboardBlockID.email.rawValue,
+				DashboardBlockID.tasks.rawValue,
+			],
+			hidden: []
+		)
+
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(reloaded.dashboardLayout.order == [
+			"local.recent-work",
+			"calendar",
+			"email",
+			"tasks",
+		])
+	}
+
 	@Test("flow card visibility is stored on the layout document")
 	func flowCardVisibilityPersists() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.flowvis.\(UUID().uuidString)")!

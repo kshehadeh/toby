@@ -38,6 +38,8 @@ struct RootView: View {
     @State private var emphasizeCreatePersona = false
     @State private var personaAttentionTask: Task<Void, Never>?
     @State private var isAIProviderSetupPresented = false
+    /// Session-only Home layout editor. Leaving Home always ends editing.
+    @State private var isEditingDashboard = false
     /// When true on a narrow Chats workspace, show the session list instead of the transcript.
     @State private var preferChatSessionList = false
     @State private var isConnectionStatusPresented = false
@@ -414,6 +416,9 @@ struct RootView: View {
         .navigationSubtitle(rootNavigationSubtitle)
         .toolbar { rootToolbar }
         .onChange(of: history.current) { _, route in
+            if route != .dashboard {
+                isEditingDashboard = false
+            }
             if route != .chat {
                 preferChatSessionList = false
             }
@@ -450,7 +455,9 @@ struct RootView: View {
                     planInChat: planCalendarInChat,
                     openFlow: openDashboardFlow,
                     runFlow: runDashboardFlow
-                )
+                ),
+                isEditing: isEditingDashboard,
+                onExitEditing: { isEditingDashboard = false }
             )
             .sheet(isPresented: Binding(
                 get: { flowsStore.showResultSheet },
@@ -498,6 +505,8 @@ struct RootView: View {
                                     RootToolbars.dashboard(
                                         common: commonToolbarModel,
                                         isRefreshing: dashboardStore.isRefreshing,
+                                        isEditing: isEditingDashboard,
+                                        onToggleEdit: { isEditingDashboard.toggle() },
                                         showActionsToggle: dashboardStore.blocks.contains {
                                             $0.descriptor.isFlowRunner
                                         },

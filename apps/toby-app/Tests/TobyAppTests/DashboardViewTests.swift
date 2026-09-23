@@ -557,6 +557,16 @@ struct DashboardViewTests {
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-tasks")
 		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(
+				viewWithAccessibilityIdentifier: "dashboard-edit-overlay-local.recent-work"
+			)
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(
+				viewWithAccessibilityIdentifier: "dashboard-reorder-local.recent-work"
+			)
+		}
 	}
 
 	@Test("view mode omits the hidden-card tray")
@@ -1294,5 +1304,4 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 }
-
 

@@ -303,6 +303,17 @@ struct RootToolbarsTests {
 		#expect(RootToolbars.dashboardActionsHelp(actionsVisible: false) == "Show Actions")
 	}
 
+	@Test("dashboard edit toolbar swaps Edit Home for Done")
+	func dashboardEditToolbarLabels() {
+		#expect(RootToolbars.dashboardEditLabel(isEditing: false) == "Edit Home")
+		#expect(RootToolbars.dashboardEditIdentifier(isEditing: false) == "dashboard-edit-button")
+		#expect(RootToolbars.dashboardEditLabel(isEditing: true) == "Done")
+		#expect(
+			RootToolbars.dashboardEditIdentifier(isEditing: true)
+				== "dashboard-done-editing-button"
+		)
+	}
+
 	@Test("projects toolbar is home, project details, or project chat")
 	func projectToolbarMode() {
 		#expect(

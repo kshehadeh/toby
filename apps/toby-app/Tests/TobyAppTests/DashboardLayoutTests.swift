@@ -221,6 +221,26 @@ struct DashboardLayoutTests {
 		#expect(hiddenRunner.resolvedHidden(from: registered).map(\.rawValue) == ["flow.run"])
 	}
 
+	@Test("Home items append Continue working for legacy and default layouts")
+	func homeItemsIncludeRecentWork() {
+		#expect(DashboardLayout.empty.resolvedVisibleHomeItems(from: registered).map(\.rawValue) == [
+			"email",
+			"tasks",
+			"calendar",
+			"flow.info",
+			"local.recent-work",
+		])
+
+		let legacy = DashboardLayout(order: ["calendar", "email", "tasks", "flow.info"])
+		#expect(legacy.resolvedVisibleHomeItems(from: registered).map(\.rawValue) == [
+			"calendar",
+			"email",
+			"tasks",
+			"flow.info",
+			"local.recent-work",
+		])
+	}
+
 	@Test("placingVisibleCards reorders informational cards and ignores runners")
 	func placingVisibleCardsReordersAndIgnoresRunners() {
 		let start = DashboardLayout.empty
@@ -245,29 +265,36 @@ struct DashboardLayoutTests {
 		#expect(ignored == start)
 	}
 
-	@Test("insert-before hit testing prefers containing slot then padded nearest")
-	func insertBeforeGeometry() {
+	@Test("drop hit testing resolves before and after edges")
+	func relativeDropGeometry() {
 		let frames: [DashboardBlockID: CGRect] = [
 			.email: CGRect(x: 0, y: 0, width: 100, height: 80),
 			.tasks: CGRect(x: 120, y: 0, width: 100, height: 80),
 			.calendar: CGRect(x: 240, y: 0, width: 100, height: 80),
 		]
 		#expect(
-			DashboardDropGeometry.insertBeforeID(
-				at: CGPoint(x: 150, y: 40),
+			DashboardDropGeometry.placement(
+				at: CGPoint(x: 150, y: 20),
 				frames: frames,
 				draggingID: .email
-			) == .tasks
+			) == .before(.tasks)
 		)
 		#expect(
-			DashboardDropGeometry.insertBeforeID(
-				at: CGPoint(x: 112, y: 40),
+			DashboardDropGeometry.placement(
+				at: CGPoint(x: 150, y: 60),
 				frames: frames,
 				draggingID: .email
-			) == .tasks
+			) == .after(.tasks)
 		)
 		#expect(
-			DashboardDropGeometry.insertBeforeID(
+			DashboardDropGeometry.placement(
+				at: CGPoint(x: 112, y: 20),
+				frames: frames,
+				draggingID: .email
+			) == .before(.tasks)
+		)
+		#expect(
+			DashboardDropGeometry.placement(
 				at: CGPoint(x: 50, y: 40),
 				frames: frames,
 				draggingID: .email
@@ -289,6 +316,45 @@ struct DashboardLayoutTests {
 
 		let atEnd = hidden.placingVisibleCards([.email], at: .end, from: registered)
 		#expect(atEnd.resolvedVisibleCards(from: registered).last == .email)
+	}
+
+	@Test("placing Home items supports before, after, and Continue working")
+	func placingHomeItemsSupportsRelativePlacement() {
+		let recentFirst = DashboardLayout.empty.placingVisibleHomeItems(
+			[.recentWork],
+			at: .before(.email),
+			from: registered
+		)
+		#expect(recentFirst.resolvedVisibleHomeItems(from: registered).first == .recentWork)
+
+		let emailAfterCalendar = recentFirst.placingVisibleHomeItems(
+			[.email],
+			at: .after(.calendar),
+			from: registered
+		)
+		#expect(emailAfterCalendar.resolvedVisibleHomeItems(from: registered).map(\.rawValue) == [
+			"local.recent-work",
+			"tasks",
+			"calendar",
+			"email",
+			"flow.info",
+		])
+	}
+
+	@Test("hiding and showing registered items preserves Continue working position")
+	func visibilityPreservesLocalCardPosition() {
+		var layout = DashboardLayout.empty.placingVisibleHomeItems(
+			[.recentWork],
+			at: .before(.email),
+			from: registered
+		)
+		layout = layout.hidingHomeItem(.tasks, from: registered)
+		#expect(layout.resolvedVisibleHomeItems(from: registered).first == .recentWork)
+		#expect(layout.isHidden(id: .tasks))
+
+		layout = layout.showingHomeItem(.tasks, from: registered)
+		#expect(layout.resolvedVisibleHomeItems(from: registered).first == .recentWork)
+		#expect(layout.resolvedVisibleHomeItems(from: registered).last == .tasks)
 	}
 
 	@Test("adaptive column count stays finite for infinite and NaN widths")

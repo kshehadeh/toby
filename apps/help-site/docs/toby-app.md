@@ -297,11 +297,19 @@ control in the toolbar (or the refresh control on a built-in or informational
 card) to regenerate card content. Cards load once the local service is ready
 when you open the app.
 
-Home card rearrangement is temporarily unavailable while that interaction is
-being redesigned. Toby still honors previously stored card order and
-visibility. Built-in card visibility, onboarding visibility, and layout reset
-remain available under **Settings → Home**. The Actions strip can still be
-shown, hidden, and resized from Home.
+To rearrange Home, click **Edit Home** in the toolbar. While editing:
+
+- Drag a card before or after another card. The insertion marker or placeholder
+  shows where it will land; **Continue working** can move like the other cards.
+- Use a card's hide control to move it into **Hidden cards**. Click **Show** to
+  restore it, or drag an informational card back into the grid.
+- Card actions and refresh controls stay disabled so a drag cannot accidentally
+  run an action.
+- Click **Done**, press Escape, or leave Home when you are finished.
+
+Toby saves each completed move on this Mac and restores the order the next time
+the app opens. Runner-only flows remain in the Actions strip rather than the
+card order; the strip can still be shown, hidden, and resized from Home.
 
 Under **Settings → Home**, you can set the persona used for Home
 summaries and control which home cards are visible (app-local). Card
@@ -323,8 +331,9 @@ bodies are produced by built-in [flows](./flows).
   setup checklist from Home even if steps remain incomplete; turn
   it off to bring the checklist back. On Home, **Hide** next to the
   progress count (for example “2 of 9 done”) sets the same preference.
-- **Reset Home layout** — Restores the default card order and shows all
-  cards. Does not change the onboarding checklist.
+- **Reset Home layout** — Restores the default card order, returns
+  **Continue working** to its default position, shows all cards, and resets the
+  Actions strip. It does not change the onboarding checklist.
 
 ### Permissions
 

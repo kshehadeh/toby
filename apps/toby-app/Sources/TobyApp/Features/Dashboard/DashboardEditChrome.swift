@@ -12,18 +12,25 @@ extension EnvironmentValues {
 	}
 }
 
-/// Hide button (and optional drag handle) shown in dashboard edit mode.
+/// Reordering controls and insertion feedback shown in dashboard edit mode.
 struct DashboardEditOverlay: View {
+	enum DropEdge: Equatable {
+		case before
+		case after
+	}
+
 	let title: String
 	let blockID: DashboardBlockID
 	var isDragging: Bool = false
-	/// Insert-before target while a card drag is over this slot.
-	var isDropTarget: Bool = false
+	/// Relative insertion target while a card drag is over this slot.
+	var dropEdge: DropEdge? = nil
 	/// Compact chrome for Actions rail rows (smaller radius and controls).
 	var compact: Bool = false
 	/// Visual reorder affordance. Off for the Actions rail (not reorderable).
 	var showsHandle: Bool = true
-	let onHide: () -> Void
+	var onHide: (() -> Void)? = nil
+	var onMoveEarlier: (() -> Void)? = nil
+	var onMoveLater: (() -> Void)? = nil
 
 	private var cornerRadius: CGFloat {
 		compact ? AppTheme.smallCornerRadius : AppTheme.cornerRadius
@@ -43,14 +50,13 @@ struct DashboardEditOverlay: View {
 						.foregroundStyle(AppTheme.separator)
 				}
 			}
-			.overlay(alignment: .leading) {
-				if isDropTarget {
+			.overlay(alignment: dropEdge == .after ? .bottom : .top) {
+				if dropEdge != nil {
 					Capsule()
 						.fill(AppTheme.accent)
-						.frame(width: 6)
-						.padding(.vertical, 6)
-						.offset(x: -9)
-						.shadow(color: AppTheme.accent.opacity(0.45), radius: 3, y: 0)
+						.frame(height: 4)
+						.padding(.horizontal, 10)
+						.offset(y: dropEdge == .after ? 10 : -10)
 						.accessibilityIdentifier("dashboard-drop-indicator-\(blockID.rawValue)")
 				}
 			}
@@ -61,13 +67,21 @@ struct DashboardEditOverlay: View {
 				}
 			}
 			.overlay(alignment: .topTrailing) {
-				if !isDragging {
+				if !isDragging, onHide != nil {
 					hideButton
 						.padding(controlPadding)
 				}
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 			.contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+			.accessibilityActions {
+				if let onMoveEarlier {
+					Button("Move earlier", action: onMoveEarlier)
+				}
+				if let onMoveLater {
+					Button("Move later", action: onMoveLater)
+				}
+			}
 	}
 
 	private var controlSize: CGFloat { compact ? 22 : 28 }
@@ -88,7 +102,9 @@ struct DashboardEditOverlay: View {
 	}
 
 	private var hideButton: some View {
-		Button(action: onHide) {
+		Button {
+			onHide?()
+		} label: {
 			Image(systemName: "eye.slash")
 				.font(.system(size: compact ? 11 : 12, weight: .semibold))
 				.foregroundStyle(AppTheme.primaryText)
@@ -137,21 +153,31 @@ struct DashboardDragPreview: View {
 	}
 }
 
-/// Hit-tests a drag-session point against card frames. Always “insert before”.
+/// Hit-tests a drag-session point against card frames and resolves the nearer
+/// before/after edge of the targeted card.
 enum DashboardDropGeometry {
-	static func insertBeforeID(
+	static func placement(
 		at point: CGPoint,
 		frames: [DashboardBlockID: CGRect],
 		draggingID: DashboardBlockID?
-	) -> DashboardBlockID? {
+	) -> DashboardLayout.CardPlacement? {
 		let slots = frames.filter { $0.key != draggingID && !$0.value.isNull && $0.value.width > 1 }
 		if let hit = slots.first(where: { $0.value.contains(point) }) {
-			return hit.key
+			return placement(for: point, id: hit.key, frame: hit.value)
 		}
 		let padded = slots.filter { $0.value.insetBy(dx: -16, dy: -16).contains(point) }
-		return padded.min { lhs, rhs in
+		guard let nearest = padded.min(by: { lhs, rhs in
 			distance(point, lhs.value) < distance(point, rhs.value)
-		}?.key
+		}) else { return nil }
+		return placement(for: point, id: nearest.key, frame: nearest.value)
+	}
+
+	private static func placement(
+		for point: CGPoint,
+		id: DashboardBlockID,
+		frame: CGRect
+	) -> DashboardLayout.CardPlacement {
+		point.y < frame.midY ? .before(id) : .after(id)
 	}
 
 	private static func distance(_ point: CGPoint, _ rect: CGRect) -> CGFloat {

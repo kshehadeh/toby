@@ -52,12 +52,14 @@ struct DashboardView: View {
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
 	/// Session-only layout editor. Toolbar toggle lives on `RootView`.
 	var isEditing: Bool = false
+	/// Leaves edit mode from the keyboard. Toolbar state remains owned by `RootView`.
+	var onExitEditing: () -> Void = {}
 
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
 	@State private var now = Date()
 	@State private var draggingID: DashboardBlockID?
-	@State private var dropTargetID: DashboardBlockID?
+	@State private var dropPlacement: DashboardLayout.CardPlacement?
 	@State private var slotFrames: [DashboardBlockID: CGRect] = [:]
 	@State private var dragSpaceGlobal: CGRect = .zero
 	@State private var layoutBeforeDrag: DashboardLayout?
@@ -76,8 +78,10 @@ struct DashboardView: View {
 		appearancePreferences.dashboardLayout
 	}
 
-	private var visibleCards: [CategoryDashboardBlock] {
-		store.registry.orderedVisibleCards(layout: layoutSource)
+	private var visibleHomeItems: [DashboardHomeItem] {
+		layoutSource.resolvedVisibleHomeItems(from: store.registry.descriptors).map {
+			DashboardHomeItem(id: $0)
+		}
 	}
 
 	private var visibleRunners: [CategoryDashboardBlock] {
@@ -92,12 +96,19 @@ struct DashboardView: View {
 		layoutSource.actionsVisible && !visibleRunners.isEmpty
 	}
 
+	private var usesNativeReordering: Bool {
+		if #available(macOS 27.0, *) {
+			return true
+		}
+		return false
+	}
+
 	/// Fingerprint of which dashboard sections are visible; drives insert/remove animation.
 	private var sectionVisibilityKey: String {
 		let hiddenKey = isEditing ? hiddenBlocks.map { "h:\($0.id.rawValue)" } : []
 		let railKey = isActionsInspectorPresented ? "actions" : ""
 		return ([shouldShowOnboarding ? "onboarding" : ""]
-			+ visibleCards.map(\.id.rawValue)
+			+ visibleHomeItems.map(\.id.rawValue)
 			+ visibleRunners.map { "r:\($0.id.rawValue)" }
 			+ [railKey]
 			+ hiddenKey).joined(separator: "|")
@@ -136,6 +147,10 @@ struct DashboardView: View {
 				if !editing {
 					cancelCardDrag()
 				}
+			}
+			.onExitCommand {
+				guard isEditing else { return }
+				onExitEditing()
 			}
 			.onChange(of: appearancePreferences.dashboardLayout) { _, layout in
 				if layout == .empty {
@@ -208,9 +223,12 @@ struct DashboardView: View {
 			.frame(maxWidth: .infinity, alignment: .top)
 			.dragConfiguration(DragConfiguration(allowMove: true))
 			.dropConfiguration { _ in DropConfiguration(operation: .move) }
-			.dropDestination(for: DashboardBlockID.self, isEnabled: isEditing) { items, session in
+			.dropDestination(
+				for: DashboardBlockID.self,
+				isEnabled: isEditing && !usesNativeReordering
+			) { items, session in
 				beginCardDragIfNeeded(items.first)
-				updateDropTarget(at: globalPoint(fromLocal: session.location))
+				updateDropPlacement(at: globalPoint(fromLocal: session.location))
 				commitDrop()
 			}
 			.onGeometryChange(for: CGRect.self) { proxy in
@@ -239,22 +257,62 @@ struct DashboardView: View {
 
 	@ViewBuilder
 	private var cardGrid: some View {
+		if #available(macOS 27.0, *) {
+			nativeReorderGrid
+		} else {
+			fallbackReorderGrid
+		}
+	}
+
+	@available(macOS 27.0, *)
+	private var nativeReorderGrid: some View {
 		AdaptiveColumnLayout(minItemWidth: 320, maxItemWidth: 460, spacing: 20) {
-			ForEach(visibleCards) { block in
-				editableCard(block)
+			ForEach(visibleHomeItems) { item in
+				editableHomeItem(item, usesManualDrag: false)
 					.transition(DashboardSectionMotion.transition)
 			}
-			DashboardRecentWorkSection(
-				items: recentWork,
-				isLoading: isRecentWorkLoading,
-				onSelect: onSelectRecentWork
-			)
-			.transition(DashboardSectionMotion.transition)
+			.reorderable()
+		}
+		.reorderContainer(for: DashboardHomeItem.self, isEnabled: isEditing) { difference in
+			handleNativeReorder(difference)
+		}
+		.dropDestination(for: DashboardBlockID.self, isEnabled: isEditing) { ids, session in
+			let destination = session.reorderDestination(for: DashboardHomeItem.self)
+			let placement: DashboardLayout.CardPlacement
+			switch destination?.position {
+			case let .before(id): placement = .before(id)
+			case .end, nil: placement = .end
+			}
+			handlePlacingHomeItems(ids, at: placement)
+		}
+	}
+
+	private var fallbackReorderGrid: some View {
+		AdaptiveColumnLayout(minItemWidth: 320, maxItemWidth: 460, spacing: 20) {
+			ForEach(visibleHomeItems) { item in
+				editableHomeItem(item, usesManualDrag: true)
+					.transition(DashboardSectionMotion.transition)
+			}
 		}
 	}
 
 	@ViewBuilder
-	private func editableCard(_ block: CategoryDashboardBlock) -> some View {
+	private func editableHomeItem(
+		_ item: DashboardHomeItem,
+		usesManualDrag: Bool
+	) -> some View {
+		if item.id == .recentWork {
+			editableRecentWork(usesManualDrag: usesManualDrag)
+		} else if let block = store.registry.block(id: item.id) {
+			editableCard(block, usesManualDrag: usesManualDrag)
+		}
+	}
+
+	@ViewBuilder
+	private func editableCard(
+		_ block: CategoryDashboardBlock,
+		usesManualDrag: Bool
+	) -> some View {
 		let isDragSource = draggingID == block.id
 		ZStack(alignment: .topLeading) {
 			blockCard(block)
@@ -265,14 +323,16 @@ struct DashboardView: View {
 					title: block.title,
 					blockID: block.id,
 					isDragging: isDragSource,
-					isDropTarget: dropTargetID == block.id,
-					onHide: { handleHide(block.id) }
+					dropEdge: dropEdge(for: block.id),
+					onHide: { handleHide(block.id) },
+					onMoveEarlier: moveEarlierAction(for: block.id),
+					onMoveLater: moveLaterAction(for: block.id)
 				)
 				.modifier(CardReorderModifier(
 					id: block.id,
 					title: block.title,
 					systemImage: block.systemImage,
-					enabled: true,
+					enabled: usesManualDrag,
 					onBegan: { beginCardDragIfNeeded(block.id) }
 				))
 				.accessibilityIdentifier("dashboard-edit-overlay-\(block.id.rawValue)")
@@ -284,6 +344,47 @@ struct DashboardView: View {
 		} action: { frame in
 			if slotFrames[block.id] != frame {
 				slotFrames[block.id] = frame
+			}
+		}
+	}
+
+	@ViewBuilder
+	private func editableRecentWork(usesManualDrag: Bool) -> some View {
+		let id = DashboardBlockID.recentWork
+		let isDragSource = draggingID == id
+		ZStack(alignment: .topLeading) {
+			DashboardRecentWorkSection(
+				items: recentWork,
+				isLoading: isRecentWorkLoading,
+				onSelect: onSelectRecentWork
+			)
+			.allowsHitTesting(!isEditing)
+			.opacity(isDragSource ? 0 : 1)
+			if isEditing {
+				DashboardEditOverlay(
+					title: "Continue working",
+					blockID: id,
+					isDragging: isDragSource,
+					dropEdge: dropEdge(for: id),
+					onMoveEarlier: moveEarlierAction(for: id),
+					onMoveLater: moveLaterAction(for: id)
+				)
+				.modifier(CardReorderModifier(
+					id: id,
+					title: "Continue working",
+					systemImage: "clock.arrow.circlepath",
+					enabled: usesManualDrag,
+					onBegan: { beginCardDragIfNeeded(id) }
+				))
+				.accessibilityIdentifier("dashboard-edit-overlay-\(id.rawValue)")
+			}
+		}
+		.contentShape(Rectangle())
+		.onGeometryChange(for: CGRect.self) { proxy in
+			proxy.frame(in: .global)
+		} action: { frame in
+			if slotFrames[id] != frame {
+				slotFrames[id] = frame
 			}
 		}
 	}
@@ -320,13 +421,14 @@ struct DashboardView: View {
 	}
 
 	private func handleDragSession(_ session: DragSession) {
+		guard !usesNativeReordering else { return }
 		let ids = session.draggedItemIDs(for: DashboardBlockID.self)
 		if let id = ids.first {
 			beginCardDragIfNeeded(id)
 		}
 		switch session.phase {
 		case .initial, .active:
-			updateDropTarget(at: globalPoint(fromLocal: session.location))
+			updateDropPlacement(at: globalPoint(fromLocal: session.location))
 		case let .ended(operation):
 			switch operation {
 			case .cancel, .forbidden:
@@ -340,9 +442,10 @@ struct DashboardView: View {
 	}
 
 	private func handleDropSession(_ session: DropSession) {
+		guard !usesNativeReordering else { return }
 		switch session.phase {
 		case .entering, .active:
-			updateDropTarget(at: globalPoint(fromLocal: session.location))
+			updateDropPlacement(at: globalPoint(fromLocal: session.location))
 		case let .ended(operation):
 			switch operation {
 			case .cancel, .forbidden:
@@ -359,15 +462,15 @@ struct DashboardView: View {
 		CGPoint(x: dragSpaceGlobal.minX + point.x, y: dragSpaceGlobal.minY + point.y)
 	}
 
-	private func updateDropTarget(at point: CGPoint) {
-		let visibleIDs = Set(visibleCards.map(\.id))
-		let next = DashboardDropGeometry.insertBeforeID(
+	private func updateDropPlacement(at point: CGPoint) {
+		let visibleIDs = Set(visibleHomeItems.map(\.id))
+		let next = DashboardDropGeometry.placement(
 			at: point,
 			frames: slotFrames.filter { visibleIDs.contains($0.key) },
 			draggingID: draggingID
 		)
-		if dropTargetID != next {
-			dropTargetID = next
+		if dropPlacement != next {
+			dropPlacement = next
 		}
 	}
 
@@ -382,7 +485,7 @@ struct DashboardView: View {
 	private func commitCardDrag() {
 		layoutBeforeDrag = nil
 		draggingID = nil
-		dropTargetID = nil
+		dropPlacement = nil
 	}
 
 	private func cancelCardDrag() {
@@ -391,7 +494,7 @@ struct DashboardView: View {
 		}
 		layoutBeforeDrag = nil
 		draggingID = nil
-		dropTargetID = nil
+		dropPlacement = nil
 	}
 
 	private func commitDrop() {
@@ -399,33 +502,70 @@ struct DashboardView: View {
 			commitCardDrag()
 			return
 		}
-		if let dropTargetID {
-			handlePlacingCards([draggingID], at: .before(dropTargetID))
+		if let dropPlacement {
+			handlePlacingHomeItems([draggingID], at: dropPlacement)
 		}
 		commitCardDrag()
 	}
 
-	private func handlePlacingCards(
+	private func handlePlacingHomeItems(
 		_ ids: [DashboardBlockID],
 		at placement: DashboardLayout.CardPlacement
 	) {
 		withAnimation(sectionAnimation) {
 			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
-				.placingVisibleCards(ids, at: placement, from: store.registry.descriptors)
+				.placingVisibleHomeItems(ids, at: placement, from: store.registry.descriptors)
 		}
+	}
+
+	@available(macOS 27.0, *)
+	private func handleNativeReorder(
+		_ difference: ReorderDifference<DashboardBlockID, ReorderableSingleCollectionIdentifier>
+	) {
+		let placement: DashboardLayout.CardPlacement
+		switch difference.destination.position {
+		case let .before(id): placement = .before(id)
+		case .end: placement = .end
+		}
+		handlePlacingHomeItems(difference.sources, at: placement)
+	}
+
+	private func dropEdge(for id: DashboardBlockID) -> DashboardEditOverlay.DropEdge? {
+		switch dropPlacement {
+		case let .before(target) where target == id: .before
+		case let .after(target) where target == id: .after
+		case .end where visibleHomeItems.last?.id == id: .after
+		default: nil
+		}
+	}
+
+	private func moveEarlierAction(for id: DashboardBlockID) -> (() -> Void)? {
+		let ids = visibleHomeItems.map(\.id)
+		guard let index = ids.firstIndex(of: id), index > ids.startIndex else { return nil }
+		let destination = ids[ids.index(before: index)]
+		return { handlePlacingHomeItems([id], at: .before(destination)) }
+	}
+
+	private func moveLaterAction(for id: DashboardBlockID) -> (() -> Void)? {
+		let ids = visibleHomeItems.map(\.id)
+		guard let index = ids.firstIndex(of: id), index < ids.index(before: ids.endIndex) else {
+			return nil
+		}
+		let destination = ids[ids.index(after: index)]
+		return { handlePlacingHomeItems([id], at: .after(destination)) }
 	}
 
 	private func handleHide(_ id: DashboardBlockID) {
 		withAnimation(sectionAnimation) {
 			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
-				.hiding(id, from: store.registry.descriptors)
+				.hidingHomeItem(id, from: store.registry.descriptors)
 		}
 	}
 
 	private func handleShow(_ id: DashboardBlockID) {
 		withAnimation(sectionAnimation) {
 			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
-				.showing(id, at: nil, from: store.registry.descriptors)
+				.showingHomeItem(id, from: store.registry.descriptors)
 		}
 	}
 

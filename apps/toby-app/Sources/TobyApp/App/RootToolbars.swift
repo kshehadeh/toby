@@ -297,6 +297,8 @@ enum RootToolbars {
 	static func dashboard(
 		common model: RootCommonToolbarModel,
 		isRefreshing: Bool,
+		isEditing: Bool = false,
+		onToggleEdit: @escaping () -> Void = {},
 		showActionsToggle: Bool = false,
 		actionsVisible: Bool = true,
 		onToggleActions: @escaping () -> Void = {},
@@ -307,22 +309,42 @@ enum RootToolbars {
 			header: RootHeaderTitle(title: "Home")
 		)
 		contextualActions {
-			if showActionsToggle {
-				Button(action: onToggleActions) {
-					Image(systemName: "sidebar.trailing")
+			if isEditing {
+				Button(dashboardEditLabel(isEditing: true), action: onToggleEdit)
+					.help("Done editing Home")
+					.accessibilityIdentifier(dashboardEditIdentifier(isEditing: true))
+			} else {
+				Button(action: onToggleEdit) {
+					Image(systemName: "square.and.pencil")
 				}
-				.help(dashboardActionsHelp(actionsVisible: actionsVisible))
-				.accessibilityLabel(dashboardActionsHelp(actionsVisible: actionsVisible))
-				.accessibilityIdentifier("dashboard-actions-toggle")
+				.help("Edit Home")
+				.accessibilityLabel("Edit Home")
+				.accessibilityIdentifier(dashboardEditIdentifier(isEditing: false))
+				if showActionsToggle {
+					Button(action: onToggleActions) {
+						Image(systemName: "sidebar.trailing")
+					}
+					.help(dashboardActionsHelp(actionsVisible: actionsVisible))
+					.accessibilityLabel(dashboardActionsHelp(actionsVisible: actionsVisible))
+					.accessibilityIdentifier("dashboard-actions-toggle")
+				}
+				Button(action: onRefresh) {
+					Image(systemName: "arrow.clockwise")
+				}
+				.help("Refresh")
+				.accessibilityLabel("Refresh")
+				.disabled(isRefreshing)
+				.accessibilityIdentifier("dashboard-refresh-button")
 			}
-			Button(action: onRefresh) {
-				Image(systemName: "arrow.clockwise")
-			}
-			.help("Refresh")
-			.accessibilityLabel("Refresh")
-			.disabled(isRefreshing)
-			.accessibilityIdentifier("dashboard-refresh-button")
 		}
+	}
+
+	static func dashboardEditLabel(isEditing: Bool) -> String {
+		isEditing ? "Done" : "Edit Home"
+	}
+
+	static func dashboardEditIdentifier(isEditing: Bool) -> String {
+		isEditing ? "dashboard-done-editing-button" : "dashboard-edit-button"
 	}
 
 	static func dashboardActionsHelp(actionsVisible: Bool) -> String {

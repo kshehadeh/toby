@@ -142,7 +142,7 @@ server settings.
 
 ```json
 {
-  "order": ["calendar", "email", "tasks"],
+  "order": ["local.recent-work", "calendar", "email", "tasks"],
   "hidden": ["tasks"],
   "actionsVisible": true,
   "actionsWidth": 156
@@ -162,7 +162,8 @@ Older documents without the Actions keys load as visible at the default width.
 
 1. Built-ins by `sortIndex` (email, tasks, calendar)
 2. Informational flow cards
-3. Runner flows (Actions rail; not grid cells)
+3. The client-local `local.recent-work` card (**Continue working**)
+4. Runner flows (Actions rail; not grid cells)
 
 The home grid renders only built-ins and informational cards. Visible runners
 render in a trailing **inspector** column (SwiftUI `.inspector`) in that same
@@ -182,11 +183,23 @@ The dashboard toolbar includes **Hide Actions** / **Show Actions** (trailing
 sidebar icon) when at least one runner flow is registered. That toggle is
 stored as `actionsVisible` and does not hide individual runners.
 
-The previous Home edit/reorder entry point is currently hidden while that
-interaction is reconsidered. Existing stored order remains honored, and
-Settings → Home visibility toggles continue to work. The underlying layout
-document and reorder implementation are intentionally retained so existing
-preferences do not require migration.
+The Home toolbar includes **Edit Home**. Edit mode is session-only; click
+**Done**, press Escape, or leave Home to exit it. While editing, card actions
+and refresh controls are disabled. Drag a visible card before or after another
+card; **Continue working** participates as a peer. On macOS 27, SwiftUI's
+reorder container supplies the lift and placeholder. The macOS 26 fallback uses
+the same placement model with explicit before/after indicators. A completed
+drop writes the layout document immediately; cancelling a drag restores the
+pre-drag layout.
+
+Each registered card also exposes a hide action in edit mode. Hidden registered
+cards appear in the **Hidden cards** tray and can be shown again; informational
+cards can also be dragged back into the grid. Runner flows remain in the
+Actions inspector and are not reorderable with grid cards.
+
+Existing stored orders need no migration. Documents created before
+`local.recent-work` existed resolve it at the default trailing position until
+the user first changes the layout.
 
 Onboarding is not part of this layout. Hide it from the checklist header
 (**Hide**, next to the progress count) or with **Hide onboarding checklist**
