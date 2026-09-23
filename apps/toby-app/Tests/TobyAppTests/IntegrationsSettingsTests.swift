@@ -297,6 +297,44 @@ struct IntegrationsSettingsTests {
 		)
 	}
 
+	@Test("connected integration omits a healthy status banner")
+	func connectedIntegrationOmitsHealthyBanner() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Apple Calendar", kind: .section, key: "applecalendar", navKey: "applecalendar",
+			children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let status = IntegrationStatus(
+			name: "applecalendar", displayName: "Apple Calendar", description: nil,
+			connected: true, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil,
+			health: IntegrationHealth(
+				ok: true,
+				details: "Calendar.app reachable; validated 7 tool check(s).",
+				tools: nil
+			),
+			authMethods: nil
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: status,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Connected · Authentication valid")
+		}
+		#expect(
+			(try? view.inspect().find(
+				text: "Calendar.app reachable; validated 7 tool check(s)."
+			)) == nil
+		)
+	}
+
 	@Test("connected integration still shows an unhealthy health banner")
 	func connectedIntegrationShowsUnhealthyBanner() throws {
 		let store = ConfigureStore()

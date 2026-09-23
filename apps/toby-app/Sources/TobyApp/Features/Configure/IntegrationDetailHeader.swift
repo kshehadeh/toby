@@ -61,13 +61,11 @@ struct IntegrationDetailHeader: View {
 
 				if status.connected,
 					let health = status.health,
+					!health.ok,
 					let details = health.details,
 					!details.isEmpty
 				{
-					InlineStatusMessage(
-						message: details,
-						tone: health.ok ? .success : .error
-					)
+					InlineStatusMessage(message: details, tone: .error)
 				}
 			}
 
