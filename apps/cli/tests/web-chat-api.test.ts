@@ -214,8 +214,8 @@ describe("web chat API routes", () => {
 							text: "read this",
 							attachments: [
 								{
-									filename: "notes.txt",
-									mediaType: "text/plain",
+									filename: "image.png",
+									mediaType: "image/png",
 									dataBase64: "aGVsbG8=",
 									byteSize: 5,
 								},

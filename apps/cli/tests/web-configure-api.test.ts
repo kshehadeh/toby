@@ -433,15 +433,15 @@ describe("web API routes", () => {
 		};
 		expect(body.sections).toHaveLength(9);
 		expect(body.sections.map((s) => s.key)).toEqual([
-			"integrations",
-			"chatInbound",
-			"defaults",
+			"dashboard",
 			"ai",
+			"library",
+			"chatInbound",
+			"integrations",
+			"defaults",
 			"transcription",
 			"webSearch",
 			"weather",
-			"dashboard",
-			"library",
 		]);
 		expect(body.sections.find((s) => s.key === "dashboard")?.label).toBe(
 			"Home",
