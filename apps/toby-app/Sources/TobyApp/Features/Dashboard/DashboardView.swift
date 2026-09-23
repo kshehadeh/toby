@@ -255,39 +255,7 @@ struct DashboardView: View {
 		)
 	}
 
-	@ViewBuilder
 	private var cardGrid: some View {
-		if #available(macOS 27.0, *) {
-			nativeReorderGrid
-		} else {
-			fallbackReorderGrid
-		}
-	}
-
-	@available(macOS 27.0, *)
-	private var nativeReorderGrid: some View {
-		AdaptiveColumnLayout(minItemWidth: 320, maxItemWidth: 460, spacing: 20) {
-			ForEach(visibleHomeItems) { item in
-				editableHomeItem(item, usesManualDrag: false)
-					.transition(DashboardSectionMotion.transition)
-			}
-			.reorderable()
-		}
-		.reorderContainer(for: DashboardHomeItem.self, isEnabled: isEditing) { difference in
-			handleNativeReorder(difference)
-		}
-		.dropDestination(for: DashboardBlockID.self, isEnabled: isEditing) { ids, session in
-			let destination = session.reorderDestination(for: DashboardHomeItem.self)
-			let placement: DashboardLayout.CardPlacement
-			switch destination?.position {
-			case let .before(id): placement = .before(id)
-			case .end, nil: placement = .end
-			}
-			handlePlacingHomeItems(ids, at: placement)
-		}
-	}
-
-	private var fallbackReorderGrid: some View {
 		AdaptiveColumnLayout(minItemWidth: 320, maxItemWidth: 460, spacing: 20) {
 			ForEach(visibleHomeItems) { item in
 				editableHomeItem(item, usesManualDrag: true)
@@ -516,18 +484,6 @@ struct DashboardView: View {
 			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
 				.placingVisibleHomeItems(ids, at: placement, from: store.registry.descriptors)
 		}
-	}
-
-	@available(macOS 27.0, *)
-	private func handleNativeReorder(
-		_ difference: ReorderDifference<DashboardBlockID, ReorderableSingleCollectionIdentifier>
-	) {
-		let placement: DashboardLayout.CardPlacement
-		switch difference.destination.position {
-		case let .before(id): placement = .before(id)
-		case .end: placement = .end
-		}
-		handlePlacingHomeItems(difference.sources, at: placement)
 	}
 
 	private func dropEdge(for id: DashboardBlockID) -> DashboardEditOverlay.DropEdge? {
