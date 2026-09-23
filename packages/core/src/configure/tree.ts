@@ -259,15 +259,6 @@ export function buildSettingsTree(
 				...credentialItems,
 				...inboundItems,
 			];
-			if (configChildren.length === 0) {
-				configChildren.push({
-					label:
-						mod.configureHint ??
-						"No configuration options for this integration.",
-					kind: "hint",
-					key: `${mod.name}._hint`,
-				});
-			}
 
 			return {
 				label: mod.displayName,

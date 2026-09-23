@@ -10,6 +10,7 @@ struct IntegrationDetailHeader: View {
 	var onRemove: (() -> Void)? = nil
 	/// When set, Setup Guide opens this flow instead of the generic guide sheet.
 	var onOpenSetupGuide: (() -> Void)? = nil
+	@State private var isPluginPathHovered = false
 
 	private var isRemoving: Bool {
 		store.integrationActionLoading == "\(section.key).remove"
@@ -38,14 +39,31 @@ struct IntegrationDetailHeader: View {
 			}
 
 			if let status {
-				if let pluginPath = status.pluginPath {
-					Text("Plugin: \(pluginPath)")
-						.font(.caption)
-						.foregroundStyle(AppTheme.tertiaryText)
-						.textSelection(.enabled)
+				if let pluginPath = status.pluginPath, !pluginPath.isEmpty {
+					Button {
+						RevealInFinder.reveal(path: pluginPath)
+					} label: {
+						Text("Plugin: \(pluginPath)")
+							.font(.caption)
+							.foregroundStyle(
+								isPluginPathHovered ? AppTheme.accent : AppTheme.tertiaryText
+							)
+							.multilineTextAlignment(.leading)
+							.fixedSize(horizontal: false, vertical: true)
+							.frame(maxWidth: .infinity, alignment: .leading)
+					}
+					.buttonStyle(.plain)
+					.onHover { isPluginPathHovered = $0 }
+					.help("Show in Finder")
+					.accessibilityLabel("Show plugin folder in Finder")
+					.accessibilityValue(pluginPath)
 				}
 
-				if let health = status.health, let details = health.details, !details.isEmpty {
+				if status.connected,
+					let health = status.health,
+					let details = health.details,
+					!details.isEmpty
+				{
 					InlineStatusMessage(
 						message: details,
 						tone: health.ok ? .success : .error

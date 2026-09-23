@@ -260,6 +260,76 @@ struct IntegrationsSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Connected") }
 	}
 
+	@Test("disconnected integration omits the health banner")
+	func disconnectedIntegrationOmitsHealthBanner() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Apple Calendar", kind: .section, key: "applecalendar", navKey: "applecalendar",
+			children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let status = IntegrationStatus(
+			name: "applecalendar", displayName: "Apple Calendar", description: nil,
+			connected: false, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil,
+			health: IntegrationHealth(
+				ok: false,
+				details: "Apple Calendar is not connected. Run `toby connect applecalendar` on this Mac.",
+				tools: nil
+			),
+			authMethods: nil
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: status,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in }
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Not connected") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Connect") }
+		#expect(
+			(try? view.inspect().find(
+				text: "Apple Calendar is not connected. Run `toby connect applecalendar` on this Mac."
+			)) == nil
+		)
+	}
+
+	@Test("connected integration still shows an unhealthy health banner")
+	func connectedIntegrationShowsUnhealthyBanner() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Apple Calendar", kind: .section, key: "applecalendar", navKey: "applecalendar",
+			children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let status = IntegrationStatus(
+			name: "applecalendar", displayName: "Apple Calendar", description: nil,
+			connected: true, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil,
+			health: IntegrationHealth(
+				ok: false,
+				details: "Calendar permission was denied.",
+				tools: nil
+			),
+			authMethods: nil
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: status,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in }
+		)
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Calendar permission was denied.")
+		}
+	}
+
 	@Test("integration header shows connect when not connected")
 	func integrationHeaderShowsConnect() throws {
 		let store = ConfigureStore()
@@ -284,15 +354,41 @@ struct IntegrationsSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Connect") }
 	}
 
-	@Test("integration meta sections show plugin path")
-	func integrationMetaSectionsShowPluginPath() throws {
+	@Test("integration header reveals the plugin folder")
+	func integrationHeaderRevealsPluginFolder() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let status = IntegrationStatus(
+			name: "gmail", displayName: "Gmail", description: nil,
+			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
+			setupDescription: nil, health: nil, authMethods: nil
+		)
+		let view = IntegrationDetailHeader(
+			store: store,
+			section: section,
+			status: status,
+			isLoading: false,
+			isActionLoading: false,
+			onAction: { _ in }
+		)
+		let button = try view.inspect().find(button: "Plugin: /Users/toby/plugins/gmail")
+		#expect(try button.accessibilityLabel().string() == "Show plugin folder in Finder")
+	}
+
+	@Test("integration meta sections omit the plugin location section")
+	func integrationMetaSectionsOmitPluginLocation() throws {
 		let status = IntegrationStatus(
 			name: "gmail", displayName: "Gmail", description: nil,
 			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
 			setupDescription: nil, health: nil, authMethods: nil
 		)
 		let view = IntegrationSettingsMetaSections(status: status)
-		#expect(throws: Never.self) { try view.inspect().find(RevealPathButton.self) }
+		#expect((try? view.inspect().find(text: "Location")) == nil)
+		#expect((try? view.inspect().find(RevealPathButton.self)) == nil)
 	}
 
 	@Test("plugin nav key seeds settings selection for a deep link")
@@ -391,8 +487,8 @@ struct IntegrationsSettingsTests {
 		#expect(try stack.alignment() == .leading)
 	}
 
-	@Test("setup guide steps are leading aligned")
-	func setupGuideStepsAreLeadingAligned() throws {
+	@Test("setup guide steps stay out of the integration form")
+	func setupGuideStepsStayOutOfTheForm() throws {
 		let store = ConfigureStore()
 		let section = SettingsItem(
 			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
@@ -415,10 +511,11 @@ struct IntegrationsSettingsTests {
 			],
 			error: nil
 		)
+		store.setupGuideLoading = "gmail"
 		let view = IntegrationSettingsToolsAndGuideSections(store: store, section: section)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Setup Guide") }
-		let stack = try view.inspect().find(ViewType.VStack.self)
-		#expect(try stack.alignment() == .leading)
+		#expect((try? view.inspect().find(text: "Setup Guide")) == nil)
+		#expect((try? view.inspect().find(text: "What Gmail can do")) == nil)
+		#expect((try? view.inspect().find(text: "Loading setup guide…")) == nil)
 	}
 
 	@Test("empty integrations catalog still shows MCP add and the grouping tip")
@@ -602,7 +699,7 @@ struct IntegrationsSettingsTests {
 			setupDescription: nil, health: nil, authMethods: nil
 		)
 		let view = IntegrationSettingsMetaSections(status: status)
-		#expect(throws: Never.self) { try view.inspect().find(RevealPathButton.self) }
+		#expect((try? view.inspect().find(text: "Location")) == nil)
 		#expect((try? view.inspect().find(text: "Connection")) == nil)
 		#expect((try? view.inspect().find(text: "Status")) == nil)
 	}
@@ -637,10 +734,10 @@ struct IntegrationsSettingsTests {
 		#expect((try? view.inspect().find(text: "Enter value")) == nil)
 	}
 
-	@Test("empty integration config shows a tip card")
-	func emptyIntegrationConfigShowsTipCard() throws {
+	@Test("empty integration config omits the no-options tip")
+	func emptyIntegrationConfigOmitsNoOptionsTip() throws {
 		let store = ConfigureStore()
-		let field = SettingsItem(
+		let hint = SettingsItem(
 			label: "No configuration options for this integration.",
 			kind: .hint,
 			key: "macos._hint",
@@ -654,16 +751,24 @@ struct IntegrationsSettingsTests {
 			selectedValues: nil,
 			readOnly: nil
 		)
-		let view = ConfigureBlockFieldView(
-			store: store,
-			field: field,
-			sectionLabel: "macOS",
-			usesFormChrome: true
+		let section = SettingsItem(
+			label: "macOS",
+			kind: .section,
+			key: "macos",
+			navKey: "macos",
+			children: [hint],
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: nil
 		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "configure-tip-hint")
-		}
-		let card = try view.inspect().find(SetupTipCard.self).actualView()
-		#expect(card.title == "No configuration options for this integration.")
+		#expect(store.detailFields(for: section).isEmpty)
+		let view = ConfigureSectionDetailView(store: store, section: section)
+		#expect(
+			(try? view.inspect().find(text: "No configuration options for this integration.")) == nil
+		)
 	}
 }

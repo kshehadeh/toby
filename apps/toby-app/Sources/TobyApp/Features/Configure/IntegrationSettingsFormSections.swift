@@ -1,18 +1,13 @@
-import AppKit
 import SwiftUI
 
-/// Plugin path and authentication methods as grouped Form sections.
+/// Authentication methods as a grouped Form section.
+/// The plugin folder is shown in the detail header, which reveals it in Finder.
 struct IntegrationSettingsMetaSections: View {
 	let status: IntegrationStatus?
 
 	@ViewBuilder
 	var body: some View {
 		if let status {
-			if let pluginPath = status.pluginPath, !pluginPath.isEmpty {
-				Section("Location") {
-					RevealPathButton(path: pluginPath, label: "Plugin folder")
-				}
-			}
 			if let authMethods = status.authMethods, !authMethods.isEmpty {
 				Section("Authentication") {
 					ForEach(authMethods, id: \.id) { method in
@@ -30,23 +25,15 @@ struct IntegrationSettingsMetaSections: View {
 	}
 }
 
-/// Tools list and setup-guide steps as grouped Form sections.
+/// Tools list as a grouped Form section.
+/// Setup steps open from the header Setup Guide button, not an inline disclosure.
 struct IntegrationSettingsToolsAndGuideSections: View {
 	@Bindable var store: ConfigureStore
 	let section: SettingsItem
 	@State private var isToolsExpanded = false
-	@State private var isSetupGuideExpanded = false
 
 	private var status: IntegrationStatus? {
 		store.integrationStatus[section.key]
-	}
-
-	private var guide: IntegrationSetupGuide? {
-		store.setupGuide
-	}
-
-	private var isGuideLoading: Bool {
-		store.setupGuideLoading == section.key
 	}
 
 	@ViewBuilder
@@ -73,87 +60,6 @@ struct IntegrationSettingsToolsAndGuideSections: View {
 				.accessibilityLabel(isToolsExpanded ? "Collapse tools" : "Expand tools")
 			}
 		}
-
-		if isGuideLoading {
-			Section("Setup Guide") {
-				HStack(spacing: 8) {
-					ProgressView().controlSize(.small)
-					Text("Loading setup guide…")
-						.foregroundStyle(.secondary)
-				}
-				.formLeadingAligned()
-			}
-		} else if let guide, guide.ok, let steps = guide.steps, !steps.isEmpty {
-			Section {
-				DisclosureGroup(isExpanded: $isSetupGuideExpanded) {
-					ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-						setupStep(index: index, step: step)
-					}
-				} label: {
-					Text("Setup Guide")
-						.formLeadingAligned()
-				}
-				.formLeadingAligned()
-				.accessibilityLabel(
-					isSetupGuideExpanded ? "Collapse setup guide" : "Expand setup guide"
-				)
-			}
-		} else if let guide, !guide.ok, let error = guide.error {
-			Section("Setup Guide") {
-				InlineStatusMessage(message: error, tone: .error, font: .caption)
-			}
-		}
-	}
-
-	private func setupStep(index: Int, step: IntegrationSetupGuideStep) -> some View {
-		VStack(alignment: .leading, spacing: 8) {
-			Text("\(index + 1). \(step.title)")
-				.font(.subheadline.weight(.semibold))
-			if let description = step.description, !description.isEmpty {
-				Text(description)
-					.font(.caption)
-					.foregroundStyle(.secondary)
-					.fixedSize(horizontal: false, vertical: true)
-			}
-			if let links = step.links, !links.isEmpty {
-				ForEach(Array(links.enumerated()), id: \.offset) { _, link in
-					if let url = URL(string: link.url) {
-						Link(destination: url) {
-							Label(link.label, systemImage: "link")
-						}
-						.formLeadingAligned()
-					}
-				}
-			}
-			if let artifacts = step.artifacts, !artifacts.isEmpty {
-				ForEach(artifacts) { artifact in
-					VStack(alignment: .leading, spacing: 4) {
-						Text(artifact.label)
-							.font(.caption.weight(.medium))
-							.foregroundStyle(.secondary)
-						HStack {
-							Text(artifact.value)
-								.font(.caption.monospaced())
-								.textSelection(.enabled)
-							Spacer()
-							Button("Copy") {
-								NSPasteboard.general.clearContents()
-								NSPasteboard.general.setString(artifact.value, forType: .string)
-							}
-							.controlSize(.small)
-						}
-						if let hint = artifact.hint, !hint.isEmpty {
-							Text(hint)
-								.font(.caption)
-								.foregroundStyle(.tertiary)
-						}
-					}
-					.formLeadingAligned()
-				}
-			}
-		}
-		.formLeadingAligned()
-		.padding(.vertical, 4)
 	}
 }
 

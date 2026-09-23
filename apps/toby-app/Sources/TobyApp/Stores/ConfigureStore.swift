@@ -688,6 +688,11 @@ final class ConfigureStore {
 			if child.kind == .hint, child.key.hasSuffix("._empty") {
 				return false
 			}
+			if child.kind == .hint, child.key.hasSuffix("._hint"),
+				child.label == "No configuration options for this integration."
+			{
+				return false
+			}
 			return isFieldVisible(
 				child,
 				selectedAuthMethod: selectedAuthMethod,

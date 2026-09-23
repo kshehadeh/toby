@@ -149,8 +149,6 @@ export function createMcpIntegrationModule(
 			{ id: "headers", label: "HTTP headers / bearer token" },
 			{ id: "oauth", label: "OAuth 2.1" },
 		],
-		configureHint:
-			"Add an MCP server with a command (stdio) or URL (HTTP/SSE), then Connect.",
 		getCredentialDescriptors: () => credentialDescriptors(id, record),
 		seedCredentialValues: (creds: CredentialsFile) => {
 			const block = creds.connections?.[id] ?? {};
