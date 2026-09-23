@@ -262,7 +262,7 @@ export function sanitizeModelMessagesForProvider(
 		if (!Array.isArray(message.content)) {
 			return message;
 		}
-		const nextContent: typeof message.content = [];
+		const nextContent: unknown[] = [];
 		for (const part of message.content) {
 			if (
 				!part ||

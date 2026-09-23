@@ -188,7 +188,7 @@ export function createLibraryTools(
 					items: results.slice(0, 15).map(summarizeItem),
 				};
 			},
-			toModelOutput: ({ output }) => {
+			toModelOutput: ({ output }: { output: unknown }) => {
 				const result = output as {
 					ok?: boolean;
 					kind?: string;
@@ -215,7 +215,7 @@ export function createLibraryTools(
 										}),
 									},
 									{
-										type: "media",
+										type: "image-data",
 										mediaType: opened.item.mimeType,
 										data: Buffer.from(opened.bytes).toString("base64"),
 									},
@@ -227,8 +227,8 @@ export function createLibraryTools(
 					}
 				}
 				return {
-					type: "json",
-					value: output as Record<string, unknown>,
+					type: "text",
+					value: JSON.stringify(output),
 				};
 			},
 		}),

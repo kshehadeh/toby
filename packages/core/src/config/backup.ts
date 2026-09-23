@@ -143,6 +143,7 @@ export async function restoreConfigBackupFile(
 		databasesStaged: restored.databases !== undefined,
 		projectsStaged: false,
 		recordingsStaged: false,
+		libraryStaged: false,
 	};
 }
 
