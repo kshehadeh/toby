@@ -114,10 +114,21 @@ struct FlowNodeSnapshot: Decodable, Identifiable, Equatable {
 
 struct FlowToolRef: Decodable, Equatable {
 	let standardTool: String?
+	let userToolId: String?
+	let displayName: String?
 	let moduleName: String?
 	let toolName: String?
 
+	init(standardTool: String?, userToolId: String? = nil, moduleName: String?, toolName: String?) {
+		self.standardTool = standardTool
+		self.userToolId = userToolId
+		self.displayName = nil
+		self.moduleName = moduleName
+		self.toolName = toolName
+	}
+
 	var displayLabel: String {
+		if let userToolId { return displayName ?? userToolId }
 		if let standardTool, !standardTool.isEmpty {
 			return standardTool
 		}

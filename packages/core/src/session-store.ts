@@ -258,6 +258,29 @@ CREATE TABLE IF NOT EXISTS flows (
 
 CREATE INDEX IF NOT EXISTS idx_flows_name ON flows(name);
 
+CREATE TABLE IF NOT EXISTS user_tools (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  language TEXT NOT NULL,
+  input_names_json TEXT NOT NULL,
+  output_kind TEXT NOT NULL,
+  current_revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_tool_revisions (
+  tool_id TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (tool_id, revision),
+  FOREIGN KEY (tool_id) REFERENCES user_tools(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_tools_name ON user_tools(name);
+
 CREATE TABLE IF NOT EXISTS chat_external_sessions (
   integration TEXT NOT NULL,
   external_key TEXT NOT NULL,

@@ -2,8 +2,25 @@ import SwiftUI
 
 struct FlowsSidebarView: View {
 	@Bindable var store: FlowsStore
+	@Binding var showScriptTools: Bool
+
+	init(store: FlowsStore, showScriptTools: Binding<Bool> = .constant(false)) {
+		self.store = store
+		self._showScriptTools = showScriptTools
+	}
 
 	var body: some View {
+		VStack(spacing: 0) {
+		Button {
+			showScriptTools = true
+		} label: {
+			Label("Script Tools", systemImage: "curlybraces")
+		}
+		.buttonStyle(.plain)
+		.padding(12)
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityIdentifier("open-script-tools")
+		Divider()
 		FeatureBrowserList(
 			isLoading: store.isListLoading,
 			isEmpty: store.flows.isEmpty,
@@ -34,6 +51,7 @@ struct FlowsSidebarView: View {
 					}
 				}
 			}
+		}
 		}
 	}
 }

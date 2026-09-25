@@ -1,3 +1,4 @@
+import { getUserTool } from "../user-tools/store";
 import type {
 	FlowDefinition,
 	FlowDefinitionSnapshot,
@@ -27,10 +28,14 @@ function snapshotInputs(
 
 function snapshotNode(node: FlowNodeDefinition): FlowNodeSnapshot {
 	if (node.type === "tool_executor") {
+		const tool =
+			"userToolId" in node.tool
+				? { ...node.tool, displayName: getUserTool(node.tool.userToolId)?.name }
+				: node.tool;
 		return {
 			id: node.id,
 			type: "tool_executor",
-			tool: node.tool,
+			tool,
 			inputs: snapshotInputs(node.inputs),
 			outputs: node.outputs,
 		};

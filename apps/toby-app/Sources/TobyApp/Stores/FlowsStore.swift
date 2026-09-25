@@ -151,11 +151,7 @@ final class FlowsStore {
 			let loaded = try await client.fetchPlugins()
 			let modules = loaded.plugins.compactMap(FlowCatalogModule.init(plugin:))
 			catalog = FlowToolCatalog(modules: modules)
-			if modules.isEmpty {
-				editorError = "No integrations are installed. Open Integrations to add a plugin, then try again."
-			} else {
-				editorError = nil
-			}
+			editorError = nil
 		} catch {
 			catalog = nil
 			editorError = "Couldn’t load integrations: \(error.localizedDescription)"

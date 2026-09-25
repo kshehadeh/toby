@@ -4,6 +4,7 @@ struct FlowEditorView: View {
 	@Bindable var store: FlowsStore
 	@Binding var draft: FlowEditorDraft
 	@State private var pickingToolForIndex: Int?
+	@State private var scriptTools: [UserScriptTool] = []
 
 	var body: some View {
 		ScrollView {
@@ -22,10 +23,16 @@ struct FlowEditorView: View {
 			get: { pickingToolForIndex != nil },
 			set: { if !$0 { pickingToolForIndex = nil } }
 		)) {
-			FlowToolPickerView(store: store) { tool in
+			FlowToolPickerView(store: store, onPick: { tool in
 				addTool(tool)
 				pickingToolForIndex = nil
-			}
+			}, onPickUserTool: { tool in
+				addUserTool(tool)
+				pickingToolForIndex = nil
+			})
+		}
+		.task {
+			scriptTools = (try? await TobyClient().listUserScriptTools()) ?? []
 		}
 	}
 
@@ -160,6 +167,7 @@ struct FlowEditorView: View {
 						FlowEditorNodeCard(
 							node: $node,
 							catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName),
+							scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
 							canMoveUp: draft.nodes.first?.id != node.id && !node.isLLM,
 							canMoveDown: draft.nodes.last?.id != node.id && !node.isLLM,
 							onMove: { direction in move(nodeId: node.id, direction: direction) },
@@ -230,6 +238,12 @@ struct FlowEditorView: View {
 		}
 	}
 
+	private func addUserTool(_ tool: UserScriptTool) {
+		let node = FlowEditorNode.userTool(tool)
+		if draft.nodes.last?.isLLM == true { draft.nodes.insert(node, at: draft.nodes.count - 1) }
+		else { draft.nodes.append(node) }
+	}
+
 	private func addLLM() {
 		guard !draft.nodes.contains(where: \.isLLM) else { return }
 		draft.nodes.append(.llm())
@@ -247,6 +261,7 @@ struct FlowEditorView: View {
 private struct FlowEditorNodeCard: View {
 	@Binding var node: FlowEditorNode
 	let catalogTool: FlowCatalogTool?
+	let scriptTool: UserScriptTool?
 	let canMoveUp: Bool
 	let canMoveDown: Bool
 	let onMove: (Int) -> Void
@@ -312,9 +327,18 @@ private struct FlowEditorNodeCard: View {
 					}
 				}
 			} else {
-				Text("\(node.moduleName).\(node.toolName)")
-					.font(.system(size: 12, design: .monospaced))
-					.foregroundStyle(SettingsDesign.rowDescription)
+				if let scriptTool {
+					Text(scriptTool.description)
+						.font(.caption)
+						.foregroundStyle(SettingsDesign.rowDescription)
+					ForEach(scriptTool.inputNames, id: \.self) { key in
+						TextField(key, text: stringBinding(for: key))
+						}
+				} else {
+					Text(node.userToolId ?? "\(node.moduleName).\(node.toolName)")
+						.font(.system(size: 12, design: .monospaced))
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
 			}
 		}
 		.padding(12)
@@ -330,7 +354,7 @@ private struct FlowEditorNodeCard: View {
 
 	private var title: String {
 		if node.isLLM { return "LLM Prompter" }
-		return catalogTool?.label ?? node.toolName
+		return scriptTool?.name ?? catalogTool?.label ?? node.toolName
 	}
 
 	private func stringBinding(for key: String) -> Binding<String> {
@@ -455,12 +479,21 @@ private struct FlowColorSwatchButton: View {
 struct FlowToolPickerView: View {
 	@Bindable var store: FlowsStore
 	let onPick: (FlowCatalogTool) -> Void
+	let onPickUserTool: (UserScriptTool) -> Void
 	@Environment(\.dismiss) private var dismiss
 	@State private var query = ""
+	@State private var scriptTools: [UserScriptTool] = []
 
 	var body: some View {
 		NavigationStack {
 			List {
+				if !scriptTools.isEmpty {
+					Section("My Tools") {
+						ForEach(scriptTools.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }) { tool in
+							Button(tool.name) { onPickUserTool(tool); dismiss() }
+						}
+					}
+				}
 				if let catalog = store.catalog, !catalog.modules.isEmpty {
 					ForEach(filteredModules(catalog)) { module in
 						Section(sectionTitle(module)) {
@@ -484,11 +517,11 @@ struct FlowToolPickerView: View {
 							}
 						}
 					}
-				} else if let editorError = store.editorError, !editorError.isEmpty {
+				} else if scriptTools.isEmpty, let editorError = store.editorError, !editorError.isEmpty {
 					Text(editorError)
 						.foregroundStyle(SettingsDesign.rowDescription)
-				} else {
-					Text("No integrations with tools are available. Open Integrations to confirm plugins are installed, then try again.")
+				} else if scriptTools.isEmpty {
+					Text("No tools are available. Create a Script Tool from the Flows list, or connect an integration with tools.")
 						.foregroundStyle(SettingsDesign.rowDescription)
 				}
 			}
@@ -501,6 +534,7 @@ struct FlowToolPickerView: View {
 			}
 			.task {
 				await store.loadCatalog()
+				scriptTools = (try? await TobyClient().listUserScriptTools()) ?? []
 			}
 		}
 		.frame(minWidth: 480, minHeight: 420)

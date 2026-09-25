@@ -117,9 +117,40 @@ the tool payload).
 | --- | --- |
 | `{ standardTool: "…" }` | Prefer category modules, then default provider, then first connected module that tags the tool |
 | `{ moduleName, toolName }` | Named module + tool (defs checked when available) |
+| `{ userToolId }` | Shared user-authored TypeScript or AppleScript tool, resolved by stable ID |
 
-Execution uses the same plugin envelope as chat/dashboard hooks: credentials
+Plugin tool execution uses the same plugin envelope as chat/dashboard hooks: credentials
 config, integration state, `dataDir`, and `pluginToolsExecuteAsync`.
+
+### User script tools
+
+The Flows sidebar opens a Script Tools library. Each tool has a stable
+`tool.<uuid>` ID, name, language (`typescript` or `applescript`), ordered input
+names, output kind (`text` or `json`), and source. Tool metadata is in
+`user_tools`; immutable source revisions are in `user_tool_revisions`. A flow
+stores `{ userToolId }` in its Tool Executor node. Editing a tool changes the
+revision used by all referencing flows. A flow run records the revision in its
+tool call detail. Deletion is blocked while a custom flow references the tool.
+
+TypeScript source exports a default async function taking an input object and
+returning a text or JSON value. It runs in a separate Bun process using the
+bundled runtime resolver. AppleScript source uses `on run argv`, receiving the
+declared inputs as strings in order. It runs through `/usr/bin/osascript` and
+returns text, or JSON text when JSON output is selected. Scripts run with the
+current user's local permissions. The runner supplies a minimal environment,
+limits input to 256 KB, execution to 30 seconds, and output to 1 MB, and removes its temporary
+files after execution. These limits do not isolate a script from the user's
+files, network, or macOS automation permissions.
+
+Script tools are available in flows and their own test action. The editor's
+**Run Test** executes the current draft source and inputs without saving a tool
+or creating a revision. They are not added to chat's model-selected tool set.
+
+Toby.app edits inputs as individual named strings and builds the test input
+object from matching fields. The script editor uses CodeEditorView with
+line numbers and TypeScript lexical highlighting; AppleScript uses the same editor in
+plain-text mode. A tool's selected list row uses the shared feature-browser
+selection style.
 
 **Naming note:** IDs like `email.unreadSummary` mean “dashboard **list/count**
 shape,” not an LLM summary of the whole inbox. The tool returns structured
@@ -265,6 +296,7 @@ All of the following live in **`~/.toby/chat.sqlite`**:
 | --- | --- |
 | `flows` | Flow **definitions** (JSON documents) |
 | `flow_runs` / `flow_run_nodes` | Execution **history** |
+| `user_tools` / `user_tool_revisions` | Shared script definitions and immutable source revisions |
 
 ### Definition table (`flows`)
 
@@ -384,6 +416,10 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 | `POST` | `/api/flows/:id/run` | Run now, extract declared result, deliver email/slack destinations |
 | `GET` | `/api/flows/runs` | Run summaries (`?flowName=&limit=&offset=`) |
 | `GET` | `/api/flows/runs/:id` | Full run + ordered nodes + destination results |
+| `GET` / `POST` | `/api/user-tools` | List or create script tools |
+| `GET` / `PUT` / `DELETE` | `/api/user-tools/:id` | Inspect, edit, or delete a script tool |
+| `POST` | `/api/user-tools/test` | Execute a draft with `language`, `inputNames`, `outputKind`, `source`, and `input` without saving |
+| `POST` | `/api/user-tools/:id/test` | Execute a saved revision with `{ input: {...} }` |
 
 List responses omit heavy node I/O; use `GET /api/flows/:id` or a run detail
 route for click-through.

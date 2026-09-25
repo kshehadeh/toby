@@ -83,6 +83,7 @@ export async function runToolExecutorNode(
 				input: inputs as Record<string, unknown>,
 				ok: true,
 				result: exec.result,
+				...(exec.revision ? { revision: exec.revision } : {}),
 				error: null,
 				durationMs,
 			},

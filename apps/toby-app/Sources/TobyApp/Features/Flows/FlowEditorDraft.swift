@@ -74,6 +74,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 	var type: String
 	var moduleName: String
 	var toolName: String
+	var userToolId: String?
 	var constInputs: [String: String]
 	var systemPrompt: String
 	var userPrompt: String
@@ -90,6 +91,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 			type: "tool_executor",
 			moduleName: moduleName,
 			toolName: toolName,
+			userToolId: nil,
 			constInputs: inputs,
 			systemPrompt: "",
 			userPrompt: ""
@@ -102,9 +104,23 @@ struct FlowEditorNode: Identifiable, Equatable {
 			type: "llm_prompter",
 			moduleName: "",
 			toolName: "",
+			userToolId: nil,
 			constInputs: [:],
 			systemPrompt: "Write a short status for the user. Reply with markdown only.",
 			userPrompt: "Previous step output:\n\n{{json bag.result}}"
+		)
+	}
+
+	static func userTool(_ tool: UserScriptTool) -> FlowEditorNode {
+		FlowEditorNode(
+			id: "node-\(UUID().uuidString.prefix(8))",
+			type: "tool_executor",
+			moduleName: "",
+			toolName: "",
+			userToolId: tool.id,
+			constInputs: Dictionary(uniqueKeysWithValues: tool.inputNames.map { ($0, "") }),
+			systemPrompt: "",
+			userPrompt: ""
 		)
 	}
 
@@ -113,6 +129,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		type = stored.type
 		moduleName = stored.tool?.moduleName ?? ""
 		toolName = stored.tool?.toolName ?? ""
+		userToolId = stored.tool?.userToolId
 		var inputs: [String: String] = [:]
 		if let storedInputs = stored.inputs {
 			for (key, source) in storedInputs {
@@ -131,6 +148,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		type: String,
 		moduleName: String,
 		toolName: String,
+		userToolId: String? = nil,
 		constInputs: [String: String],
 		systemPrompt: String,
 		userPrompt: String
@@ -139,6 +157,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		self.type = type
 		self.moduleName = moduleName
 		self.toolName = toolName
+		self.userToolId = userToolId
 		self.constInputs = constInputs
 		self.systemPrompt = systemPrompt
 		self.userPrompt = userPrompt
@@ -164,7 +183,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		var body: [String: Any] = [
 			"id": id,
 			"type": "tool_executor",
-			"tool": ["moduleName": moduleName, "toolName": toolName],
+			"tool": userToolId.map { ["userToolId": $0] } ?? ["moduleName": moduleName, "toolName": toolName],
 		]
 		if !inputs.isEmpty {
 			body["inputs"] = inputs

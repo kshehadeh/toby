@@ -15,6 +15,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseToolRef(raw: unknown): ToolRef | null {
 	if (!isRecord(raw)) return null;
+	if (typeof raw.userToolId === "string" && raw.userToolId.trim()) {
+		return { userToolId: raw.userToolId.trim() };
+	}
 	if (typeof raw.standardTool === "string" && raw.standardTool.trim()) {
 		return { standardTool: raw.standardTool };
 	}

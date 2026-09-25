@@ -135,6 +135,15 @@ import {
 	handleProjectsList,
 } from "./handlers/projects";
 import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
+import {
+	handleUserToolDelete,
+	handleUserToolDetail,
+	handleUserToolPreview,
+	handleUserToolSave,
+	handleUserToolTest,
+	handleUserToolsList,
+	rejectUnsafeUserToolRequest,
+} from "./handlers/user-tools";
 import { errorResponse, jsonResponse } from "./http-utils";
 import { resolveIconStaticDir } from "./static-path";
 
@@ -195,6 +204,33 @@ export async function handleWebRequest(
 	const { pathname } = url;
 
 	if (pathname.startsWith("/api/")) {
+		if (
+			pathname === "/api/user-tools" ||
+			pathname.startsWith("/api/user-tools/")
+		) {
+			const rejection = rejectUnsafeUserToolRequest(req);
+			if (rejection) return rejection;
+		}
+		if (pathname === "/api/user-tools") {
+			if (req.method === "GET") return handleUserToolsList();
+			if (req.method === "POST") return handleUserToolSave(req);
+		}
+		if (pathname === "/api/user-tools/test" && req.method === "POST") {
+			return handleUserToolPreview(req);
+		}
+		const userToolTestMatch = /^\/api\/user-tools\/([^/]+)\/test$/.exec(
+			pathname,
+		);
+		if (userToolTestMatch && req.method === "POST") {
+			return handleUserToolTest(decodeURIComponent(userToolTestMatch[1]), req);
+		}
+		const userToolMatch = /^\/api\/user-tools\/([^/]+)$/.exec(pathname);
+		if (userToolMatch) {
+			const id = decodeURIComponent(userToolMatch[1]);
+			if (req.method === "GET") return handleUserToolDetail(id);
+			if (req.method === "PUT") return handleUserToolSave(req, id);
+			if (req.method === "DELETE") return handleUserToolDelete(id);
+		}
 		if (pathname === "/api/health") {
 			return jsonResponse({
 				ok: true,

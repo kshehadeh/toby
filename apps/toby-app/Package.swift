@@ -12,12 +12,15 @@ let package = Package(
 	dependencies: [
 		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
 		.package(url: "https://github.com/nalexn/ViewInspector", from: "0.10.0"),
+		.package(url: "https://github.com/mchakravarty/CodeEditorView", exact: "0.16.0"),
 	],
 	targets: [
 		.executableTarget(
 			name: "TobyApp",
 			dependencies: [
 				.product(name: "Sparkle", package: "Sparkle"),
+				.product(name: "CodeEditorView", package: "CodeEditorView"),
+				.product(name: "LanguageSupport", package: "CodeEditorView"),
 			],
 			path: "Sources/TobyApp",
 			exclude: ["Info.plist"],

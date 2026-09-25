@@ -206,6 +206,10 @@ flows) or **+** opens a sheet with **Cancel** and **Save**. Built-in flows
 stay read-only. Running a custom flow from a [schedule](./schedules) is still
 later.
 
+The Flows list also has **Script Tools**. Create and test reusable TypeScript
+or AppleScript tools there, then select them from **My Tools** when editing a
+flow. One saved script can be used by several flows.
+
 ![Toby.app Flows](/img/toby-app-flows.png)
 
 See [Flows](./flows) for a fuller explanation.

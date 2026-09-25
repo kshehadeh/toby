@@ -55,8 +55,9 @@ Choose **New flow** from the toolbar. A **New Flow** sheet opens with
    a color. The icon identifies the flow throughout Flows, schedules, and Home
    dashboard cards. The color fills Home **Actions** tiles (teal if you skip
    it).
-2. Add **steps**. Each step is either a **tool** (one action from a connected integration) or a final **LLM** step that writes markdown.
+2. Add **steps**. Each step is either a **tool** (one action from a connected integration or a script tool you created) or a final **LLM** step that writes markdown.
 3. For tools that need arguments (for example “Wi-Fi on/off”), fill those values when you build the flow. Steps do not pass data into later **tools** — that kind of mapping is not available yet.
+
 4. Choose **what happens when it finishes**:
    - **Show a result window** (default)
    - **Send email** (Email must be connected)
@@ -84,6 +85,26 @@ A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. T
 
 To run a flow on a timetable, open **Schedules**, set **When it runs** to
 **Flow**, and pick the flow. See [Schedules](./schedules).
+
+### Reuse a script in several flows
+
+Open **Script Tools** from the Flows list, then choose **New Tool**. Give the
+tool a name, choose TypeScript or AppleScript, add a named row for each string
+input, and choose text or JSON output. The code editor shows line numbers and
+colors TypeScript syntax; AppleScript is shown as plain text. Enter example
+values in the matching **Test inputs** fields and choose **Run Test** at any
+time, including before saving a new tool or edits. Testing does not save changes.
+Choose **Save Tool** when you're ready to make the script available to flows.
+In a flow's **Add tool**
+picker, your scripts appear under **My Tools**.
+
+TypeScript tools export a default async function that receives an object of
+named inputs and returns the output. AppleScript tools use `on run argv`; the
+inputs arrive as strings in the order you listed them. For JSON output,
+AppleScript must return a JSON string. Editing a saved script changes what all
+flows using it run. The library shows how many flows use each tool, and it
+won't delete a tool while a flow references it. Scripts run with your macOS
+user permissions, so review code before saving and testing it.
 
 ## Flows vs chat vs schedules
 

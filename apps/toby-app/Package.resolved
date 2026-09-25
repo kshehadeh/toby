@@ -1,6 +1,24 @@
 {
-  "originHash" : "80e1919289ffb89f5624b6db175834fef600ca111afc573c65fa68fa7146a29d",
+  "originHash" : "01d5d2fd79385221fcc9688d7f08cb5954107eb656f7600341c91216c3ea1673",
   "pins" : [
+    {
+      "identity" : "codeeditorview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mchakravarty/CodeEditorView",
+      "state" : {
+        "revision" : "5386056ab53d43363083cb96069715a9608aa048",
+        "version" : "0.16.0"
+      }
+    },
+    {
+      "identity" : "rearrange",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Rearrange.git",
+      "state" : {
+        "revision" : "5ff7f3363f7a08f77e0d761e38e6add31c2136e1",
+        "version" : "1.8.1"
+      }
+    },
     {
       "identity" : "sparkle",
       "kind" : "remoteSourceControl",

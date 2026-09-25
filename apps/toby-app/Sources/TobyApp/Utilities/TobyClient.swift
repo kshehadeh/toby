@@ -847,6 +847,46 @@ struct TobyClient {
 
 	// MARK: - Flows
 
+	func listUserScriptTools() async throws -> [UserScriptTool] {
+		let url = baseURL.appendingPathComponent("api/user-tools")
+		let (data, response) = try await URLSession.shared.data(from: url)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let tools: [UserScriptTool] }
+		return try JSONDecoder().decode(Payload.self, from: data).tools
+	}
+
+	func saveUserScriptTool(id: String?, body: [String: Any]) async throws -> UserScriptTool {
+		let url = id.map { baseURL.appendingPathComponent("api/user-tools/\($0)") }
+			?? baseURL.appendingPathComponent("api/user-tools")
+		var request = URLRequest(url: url)
+		request.httpMethod = id == nil ? "POST" : "PUT"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		struct Payload: Decodable { let tool: UserScriptTool }
+		return try JSONDecoder().decode(Payload.self, from: data).tool
+	}
+
+	func testUserScriptTool(draft: UserScriptToolDraft, input: [String: Any]) async throws -> UserScriptToolTest {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/test"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		var body = draft.body
+		body["input"] = input
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(UserScriptToolTest.self, from: data)
+	}
+
+	func deleteUserScriptTool(id: String) async throws {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/\(id)"))
+		request.httpMethod = "DELETE"
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+	}
+
 	func listFlows() async throws -> [FlowListItem] {
 		let url = baseURL.appendingPathComponent("api/flows")
 		let (data, response) = try await URLSession.shared.data(from: url)

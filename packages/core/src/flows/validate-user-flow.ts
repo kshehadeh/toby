@@ -1,3 +1,4 @@
+import { getUserTool } from "../user-tools/store";
 import { isBuiltinFlowId } from "./builtins";
 import type {
 	FlowDestination,
@@ -57,6 +58,17 @@ function resolveCatalogTool(
 	tool: ToolRef,
 	tools: readonly FlowCatalogTool[],
 ): FlowCatalogTool | undefined {
+	if ("userToolId" in tool) {
+		const userTool = getUserTool(tool.userToolId);
+		return userTool
+			? {
+					moduleName: "userTools",
+					toolName: userTool.id,
+					displayName: userTool.name,
+					inputSchema: { required: userTool.inputNames },
+				}
+			: undefined;
+	}
 	if ("standardTool" in tool) {
 		const id = tool.standardTool.trim();
 		if (!id) return undefined;
@@ -94,9 +106,11 @@ function validateToolNode(
 	const catalogTool = resolveCatalogTool(node.tool, options.tools);
 	if (!catalogTool) {
 		const label =
-			"standardTool" in node.tool
-				? node.tool.standardTool
-				: `${node.tool.moduleName}.${node.tool.toolName}`;
+			"userToolId" in node.tool
+				? node.tool.userToolId
+				: "standardTool" in node.tool
+					? node.tool.standardTool
+					: `${node.tool.moduleName}.${node.tool.toolName}`;
 		issues.push(`Node "${node.id}" references unknown tool "${label}"`);
 		return;
 	}

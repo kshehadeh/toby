@@ -3,6 +3,8 @@ import SwiftUI
 struct FlowsView: View {
 	@Bindable var store: FlowsStore
 	@State private var preferList = false
+	@State private var showScriptTools = false
+	@State private var scriptToolsStore = UserScriptToolsStore()
 
 	private var hasSelection: Bool {
 		store.selectedFlow != nil
@@ -20,7 +22,7 @@ struct FlowsView: View {
 			isShowingList: preferList || !hasSelection,
 			onShowList: { preferList = true }
 		) {
-			FlowsSidebarView(store: store)
+			FlowsSidebarView(store: store, showScriptTools: $showScriptTools)
 		} detail: {
 			FlowsDetailView(store: store)
 		}
@@ -32,6 +34,9 @@ struct FlowsView: View {
 		}
 		.task {
 			await store.ensureLoaded()
+		}
+		.sheet(isPresented: $showScriptTools) {
+			UserScriptToolsView(store: scriptToolsStore)
 		}
 		.sheet(item: editorSheetItem($store.editor, onDismiss: {
 			store.cancelEditor()

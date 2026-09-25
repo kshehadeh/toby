@@ -23,6 +23,8 @@ import type {
 	ProviderCategory,
 } from "../integrations/types";
 import { daemonLog } from "../logging/daemon-log";
+import { executeUserToolById } from "../user-tools/execute";
+import type { ToolRef } from "./types";
 
 export type ResolvedToolTarget = {
 	readonly moduleName: string;
@@ -34,6 +36,7 @@ export type ExecuteToolResult =
 	| {
 			readonly ok: true;
 			readonly result: unknown;
+			readonly revision?: number;
 			readonly appliedActions?: readonly string[];
 			readonly moduleName: string;
 			readonly toolName: string;
@@ -275,11 +278,31 @@ export async function executeNamedTool(params: {
 
 /** Resolve and execute a standardTool or named tool. */
 export async function executeToolRef(
-	tool:
-		| { readonly standardTool: string }
-		| { readonly moduleName: string; readonly toolName: string },
+	tool: ToolRef,
 	input: Record<string, unknown>,
 ): Promise<ExecuteToolResult> {
+	if ("userToolId" in tool) {
+		try {
+			const { result, revision } = await executeUserToolById(
+				tool.userToolId,
+				input,
+			);
+			return {
+				ok: true,
+				result,
+				revision,
+				moduleName: "userTools",
+				toolName: tool.userToolId,
+			};
+		} catch (error) {
+			return {
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+				moduleName: "userTools",
+				toolName: tool.userToolId,
+			};
+		}
+	}
 	if ("standardTool" in tool) {
 		const resolved = await resolveStandardTool(tool.standardTool);
 		if (!resolved) {

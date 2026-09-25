@@ -23,6 +23,7 @@ export type FlowOutputMap = Readonly<Record<string, string>>;
 
 export type ToolRef =
 	| { readonly standardTool: string }
+	| { readonly userToolId: string; readonly displayName?: string }
 	| { readonly moduleName: string; readonly toolName: string };
 
 export type ToolExecutorNodeDefinition = {
@@ -95,6 +96,7 @@ export type FlowNodeStatus = "running" | "success" | "error" | "skipped";
 export type FlowRunStatus = "running" | "success" | "error";
 
 export type ToolCallRecord = {
+	readonly revision?: number;
 	readonly moduleName: string;
 	readonly toolName: string;
 	readonly standardTool?: string;
