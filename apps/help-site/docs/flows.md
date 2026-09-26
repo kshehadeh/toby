@@ -91,7 +91,7 @@ To run a flow on a timetable, open **Schedules**, set **When it runs** to
 Open **Script Tools** from the Flows list, then choose **New Tool**. Give the
 tool a name, choose TypeScript or AppleScript, add a named row for each string
 input, and choose text or JSON output. The code editor shows line numbers and
-colors TypeScript syntax; AppleScript is shown as plain text. Enter example
+colors TypeScript and AppleScript syntax. Enter example
 values in the matching **Test inputs** fields and choose **Run Test** at any
 time, including before saving a new tool or edits. Testing does not save changes.
 Choose **Save Tool** when you're ready to make the script available to flows.

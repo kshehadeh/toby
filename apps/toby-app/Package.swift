@@ -65,6 +65,7 @@ let package = Package(
 			dependencies: [
 				"TobyApp",
 				.product(name: "ViewInspector", package: "ViewInspector"),
+				.product(name: "LanguageSupport", package: "CodeEditorView"),
 			],
 			path: "Tests/TobyAppTests",
 		),

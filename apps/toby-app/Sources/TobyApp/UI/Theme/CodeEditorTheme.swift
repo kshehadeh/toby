@@ -26,7 +26,7 @@ extension Theme {
 			textColour: NSColor(white: 1.0, alpha: 0.88),        // --text-body (dark)
 			commentColour: NSColor(white: 1.0, alpha: 0.38),     // --text-faint
 			stringColour: NSColor(red: 0.55, green: 0.85, blue: 0.55, alpha: 1.0),   // --toby-json-string
-			characterColour: NSColor(red: 0.55, green: 0.85, blue: 0.55, alpha: 1.0),
+			characterColour: NSColor(white: 1.0, alpha: 0.38),       // AppleScript # comment
 			numberColour: NSColor(red: 0.95, green: 0.75, blue: 0.40, alpha: 1.0),   // --toby-json-number
 			identifierColour: NSColor(white: 1.0, alpha: 0.88),  // plain identifiers stay body text
 			operatorColour: NSColor(white: 1.0, alpha: 0.58),    // --text-muted
@@ -52,7 +52,7 @@ extension Theme {
 			textColour: NSColor(white: 0.0, alpha: 0.88),        // --text-body (light)
 			commentColour: NSColor(white: 0.0, alpha: 0.38),     // --text-faint
 			stringColour: NSColor(red: 0.12, green: 0.48, blue: 0.28, alpha: 1.0),   // --toby-json-string
-			characterColour: NSColor(red: 0.12, green: 0.48, blue: 0.28, alpha: 1.0),
+			characterColour: NSColor(white: 0.0, alpha: 0.38),       // AppleScript # comment
 			numberColour: NSColor(red: 0.72, green: 0.38, blue: 0.05, alpha: 1.0),   // --toby-json-number
 			identifierColour: NSColor(white: 0.0, alpha: 0.88),
 			operatorColour: NSColor(white: 0.0, alpha: 0.55),    // --text-muted

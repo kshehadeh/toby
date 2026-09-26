@@ -155,8 +155,9 @@ Generation does not execute or persist the returned code.
 
 Toby.app edits inputs as individual named strings and builds the test input
 object from matching fields. The script editor uses CodeEditorView with
-line numbers and TypeScript lexical highlighting; AppleScript uses the same editor in
-plain-text mode. A tool's selected list row uses the shared feature-browser
+line numbers and lexical highlighting for TypeScript and AppleScript. AppleScript
+keywords, strings, numbers, `--` and `#` line comments, and nested `(* … *)` comments
+use the shared code theme. A tool's selected list row uses the shared feature-browser
 selection style.
 
 **Naming note:** IDs like `email.unreadSummary` mean “dashboard **list/count**
