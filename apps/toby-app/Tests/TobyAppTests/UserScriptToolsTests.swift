@@ -100,7 +100,7 @@ struct UserScriptToolsTests {
 		#expect(store.draft?.isValid == true)
 	}
 
-	@Test("generated code replaces only the current editor draft")
+	@Test("generated code supports follow-up edits in the current editor draft")
 	func generatedCodeReplacesDraft() throws {
 		let store = UserScriptToolsStore()
 		store.create()
@@ -109,10 +109,19 @@ struct UserScriptToolsTests {
 		#expect(!generate.isDisabled())
 		let original = try #require(store.draft)
 		let session = store.editorSessionId
-		#expect(store.applyGeneratedSource("export default () => 'Generated'", to: original, in: session))
+		#expect(store.applyGeneratedSource("export default () => 'Generated'", instruction: "Generate a greeting", to: original, in: session))
 		#expect(store.draft?.source == "export default () => 'Generated'")
+		#expect(store.generationRequests == ["Generate a greeting"])
 		#expect(store.editorSessionId != session)
-		#expect(!store.applyGeneratedSource("stale", to: original, in: session))
+		#expect(!store.applyGeneratedSource("stale", instruction: "Stale request", to: original, in: session))
 		#expect(store.draft?.source == "export default () => 'Generated'")
+		#expect(store.generationRequests == ["Generate a greeting"])
+		let followUp = try #require(store.draft)
+		let followUpSession = store.editorSessionId
+		#expect(store.applyGeneratedSource("export default () => 'Generated!'", instruction: "Add an exclamation mark", to: followUp, in: followUpSession))
+		#expect(store.draft?.source == "export default () => 'Generated!'")
+		#expect(store.generationContext == ["Generate a greeting", "Add an exclamation mark"])
+		store.create()
+		#expect(store.generationRequests.isEmpty)
 	}
 }

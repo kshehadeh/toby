@@ -98,11 +98,14 @@ Choose **Save Tool** when you're ready to make the script available to flows.
 In a flow's **Add tool**
 picker, your scripts appear under **My Tools**.
 
-To draft the script with AI, choose **Generate code** above the editor and
-describe the behavior you want. Toby sends your description, current tool
-settings, and current code to your configured AI model. The generated code
-replaces the editor contents, where you can review, test, and save it. Generation
-does not run or save the script.
+To draft or revise a script with AI, choose **Edit with AI** above the editor.
+Describe what to build, then enter follow-up requests such as “add an error
+message when the input is empty.” Each request uses the latest editor code,
+tool settings, and recent requests as context. Toby replaces the editor code
+with the result, so review it before you test or save. You can edit the code
+yourself between requests. The request history lasts only while this tool is
+open in the editor. AI editing supports code up to 20,000 characters. AI edits
+do not run or save the script.
 
 TypeScript tools export a default async function that receives an object of
 named inputs and returns the output. AppleScript tools use `on run argv`; the

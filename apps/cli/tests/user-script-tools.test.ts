@@ -78,6 +78,38 @@ describe("user script tools", () => {
 		expect(listUserTools()).toHaveLength(0);
 	});
 
+	it("updates the current code with follow-up requests", async () => {
+		const body = {
+			instruction: "Add an exclamation mark to the greeting",
+			previousRequests: ["Create a greeting function"],
+			name: "Greeting",
+			description: "Return a greeting",
+			language: "typescript",
+			inputNames: ["name"],
+			outputKind: "text",
+			source: "export default ({ name }: { name: string }) => `Hello ${name}`",
+		};
+		const request = parseScriptGenerationRequest(body);
+		const { instructions, prompt } = scriptGenerationPrompt(request);
+		expect(prompt).toContain(body.previousRequests[0]);
+		expect(prompt).toContain(body.instruction);
+		expect(prompt).toContain(body.source);
+		expect(instructions).toContain("current source is authoritative");
+		const updated =
+			"export default ({ name }: { name: string }) => `Hello ${name}!`";
+		const response = await handleUserToolGenerate(
+			new Request("http://127.0.0.1/api/user-tools/generate", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			}),
+			async () => updated,
+		);
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ source: updated });
+		expect(listUserTools()).toHaveLength(0);
+	});
+
 	it("validates generation and gives TypeScript only Bun runtime imports", async () => {
 		const request = parseScriptGenerationRequest({
 			instruction: "Return a greeting",
@@ -103,6 +135,12 @@ describe("user script tools", () => {
 		expect(() =>
 			parseScriptGenerationRequest({ ...request, instruction: " " }),
 		).toThrow();
+		expect(() =>
+			parseScriptGenerationRequest({ ...request, source: "x".repeat(20_001) }),
+		).toThrow("too long to safely update");
+		expect(() =>
+			parseScriptGenerationRequest({ ...request, previousRequests: [" "] }),
+		).toThrow("Previous requests");
 		const foreign = await handleWebRequest(
 			new Request("http://127.0.0.1/api/user-tools/generate", {
 				method: "POST",

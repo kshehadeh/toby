@@ -146,11 +146,16 @@ Script tools are available in flows and their own test action. The editor's
 **Run Test** executes the current draft source and inputs without saving a tool
 or creating a revision. They are not added to chat's model-selected tool set.
 
-**Generate code** sends the user's description plus the draft name, description,
-language, ordered input names, output kind, and current source to the configured
-default persona's AI model. The language-specific generation guide describes
-Toby's Bun or `osascript` runner contract. A successful response replaces only
-the editor's draft source; the user can review, test, and save it separately.
+**Edit with AI** sends the latest instruction plus the draft name, description,
+language, ordered input names, output kind, current source, and recent successful
+requests to the configured default persona's AI model. The language-specific
+generation guide describes Toby's Bun or `osascript` runner contract. The
+current source remains authoritative if the user makes manual edits or a later
+request supersedes an earlier one. A successful response replaces only the
+editor's draft source and adds the request to an in-memory history for that
+editor session. The history is cleared when the user starts editing another
+tool; only the latest eight requests, up to 12,000 characters total, are sent
+to the model. Source above 20,000 characters is rejected rather than truncated.
 Generation does not execute or persist the returned code.
 
 Toby.app edits inputs as individual named strings and builds the test input
@@ -427,7 +432,7 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 | `GET` / `POST` | `/api/user-tools` | List or create script tools |
 | `GET` / `PUT` / `DELETE` | `/api/user-tools/:id` | Inspect, edit, or delete a script tool |
 | `POST` | `/api/user-tools/test` | Execute a draft with `language`, `inputNames`, `outputKind`, `source`, and `input` without saving |
-| `POST` | `/api/user-tools/generate` | Generate replacement `source` from an `instruction` and current draft settings without saving |
+| `POST` | `/api/user-tools/generate` | Generate replacement `source` from an `instruction`, optional `previousRequests`, and current draft settings without saving |
 | `POST` | `/api/user-tools/:id/test` | Execute a saved revision with `{ input: {...} }` |
 
 List responses omit heavy node I/O; use `GET /api/flows/:id` or a run detail

@@ -11,9 +11,12 @@ const MAX_REQUEST_CHARS = 4_000;
 const MAX_SOURCE_CHARS = 100_000;
 const MAX_SOURCE_CONTEXT_CHARS = 20_000;
 const MAX_DESCRIPTION_CHARS = 2_000;
+const MAX_PREVIOUS_REQUESTS = 8;
+const MAX_PREVIOUS_REQUEST_CHARS = 12_000;
 
 export type ScriptGenerationRequest = {
 	readonly instruction: string;
+	readonly previousRequests: readonly string[];
 	readonly name: string;
 	readonly description: string;
 	readonly language: "typescript" | "applescript";
@@ -38,6 +41,30 @@ export function parseScriptGenerationRequest(
 	if (typeof raw.source !== "string" || raw.source.length > MAX_SOURCE_CHARS) {
 		throw new Error("Current source must be at most 100,000 characters");
 	}
+	if (raw.source.length > MAX_SOURCE_CONTEXT_CHARS) {
+		throw new Error(
+			"Current code is too long to safely update with AI (20,000 character limit)",
+		);
+	}
+	const previousRequests = raw.previousRequests ?? [];
+	if (
+		!Array.isArray(previousRequests) ||
+		previousRequests.length > MAX_PREVIOUS_REQUESTS ||
+		previousRequests.some(
+			(value) =>
+				typeof value !== "string" ||
+				!value.trim() ||
+				value.length > MAX_REQUEST_CHARS,
+		) ||
+		previousRequests.reduce(
+			(total: number, value: string) => total + value.length,
+			0,
+		) > MAX_PREVIOUS_REQUEST_CHARS
+	) {
+		throw new Error(
+			"Previous requests must contain up to 8 short instructions",
+		);
+	}
 	const name = typeof raw.name === "string" ? raw.name.trim() : "";
 	if (
 		typeof raw.description === "string" &&
@@ -52,6 +79,7 @@ export function parseScriptGenerationRequest(
 	});
 	return {
 		instruction,
+		previousRequests: previousRequests.map((value: string) => value.trim()),
 		name,
 		description: validated.description,
 		language: validated.language,
@@ -69,13 +97,15 @@ export function scriptGenerationPrompt(request: ScriptGenerationRequest): {
 		request.language === "applescript"
 			? APPLESCRIPT_GENERATION_GUIDANCE
 			: TYPESCRIPT_GENERATION_GUIDANCE;
-	const sourceContext =
-		request.source.length > MAX_SOURCE_CONTEXT_CHARS
-			? `${request.source.slice(0, MAX_SOURCE_CONTEXT_CHARS)}\n[remaining source omitted]`
-			: request.source || "(empty)";
+	const sourceContext = request.source || "(empty)";
+	const earlierRequests = request.previousRequests.length
+		? `Earlier requests in this editing session (oldest first):\n${request.previousRequests
+				.map((instruction, index) => `${index + 1}. ${instruction}`)
+				.join("\n")}\n\n`
+		: "";
 	return {
-		instructions: `${guide}\n\nTreat the tool settings and existing source as context. Follow the user's requested behavior while preserving the runtime contract. Return only the replacement source code.`,
-		prompt: `User request:\n${request.instruction}\n\nCurrent tool settings:\n${JSON.stringify(
+		instructions: `${guide}\n\nThe current source is authoritative. Apply the latest request to that source, preserving existing behavior unless the user asks to change it. Earlier requests provide intent but may be superseded by the latest request or manual edits. Return only the complete replacement source code.`,
+		prompt: `${earlierRequests}Latest request:\n${request.instruction}\n\nCurrent tool settings:\n${JSON.stringify(
 			{
 				name: request.name,
 				description: request.description,
@@ -120,7 +150,7 @@ async function generateWithConfiguredModel(params: {
 		model: createModelForPersona(resolveDefaultPersona()),
 		instructions: params.instructions,
 		prompt: params.prompt,
-		maxOutputTokens: 6_000,
+		maxOutputTokens: 12_000,
 		abortSignal: AbortSignal.timeout(90_000),
 	});
 	return result.text;

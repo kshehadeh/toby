@@ -42,6 +42,7 @@ struct UserScriptToolsView: View {
 				}
 			}
 			.task { await store.load() }
+			.onChange(of: store.editorSessionId) { _, _ in generationPrompt = "" }
 			.interactiveDismissDisabled(store.isDirty)
 			.confirmationDialog("Discard unsaved changes?", isPresented: $showDiscard) {
 				Button("Discard Changes", role: .destructive) {
@@ -296,10 +297,9 @@ struct UserScriptToolsView: View {
 					ProgressView().controlSize(.small)
 					Text("Generating…").font(.caption).foregroundStyle(.secondary)
 				}
-				Button("Generate code", systemImage: "sparkles") {
+				Button("Edit with AI", systemImage: "sparkles") {
 					showGenerationPrompt = true
 				}
-				.disabled(store.isGeneratingCode)
 				.accessibilityIdentifier("script-tool-generate-code")
 				.popover(isPresented: $showGenerationPrompt) {
 					generationPromptView
@@ -345,23 +345,58 @@ struct UserScriptToolsView: View {
 
 	private var generationPromptView: some View {
 		VStack(alignment: .leading, spacing: 12) {
-			Text("Generate \(store.draft?.language == "applescript" ? "AppleScript" : "TypeScript") code")
+			Text("Code assistant")
 				.font(.headline)
-			Text("Describe what the script should do. Toby will use the tool name, description, language, and inputs as context.")
+			Text("Describe what to build or change. Toby uses the current \(store.draft?.language == "applescript" ? "AppleScript" : "TypeScript") code, tool settings, and earlier requests.")
 				.font(.subheadline)
 				.foregroundStyle(.secondary)
-			TextField("Describe the script", text: $generationPrompt, axis: .vertical)
+			if !store.generationRequests.isEmpty {
+				ScrollView {
+					VStack(alignment: .leading, spacing: 12) {
+						ForEach(Array(store.generationRequests.enumerated()), id: \.offset) { index, request in
+							HStack(alignment: .top, spacing: 8) {
+								Image(systemName: "checkmark.circle.fill")
+									.foregroundStyle(.secondary)
+									.accessibilityHidden(true)
+								VStack(alignment: .leading, spacing: 3) {
+									Text("Request \(index + 1) · Applied to editor")
+										.font(.caption)
+										.foregroundStyle(.secondary)
+									Text(request)
+										.font(.subheadline)
+										.textSelection(.enabled)
+								}
+							}
+						}
+					}
+				}
+				.frame(maxHeight: 200)
+				.accessibilityIdentifier("script-tool-generation-history")
+			}
+			if let error = store.generationError {
+				InlineStatusMessage(message: error, tone: .error, font: .caption)
+			}
+			TextField(store.generationRequests.isEmpty ? "Describe the script" : "What should change next?", text: $generationPrompt, axis: .vertical)
 				.lineLimit(3...7)
+				.disabled(store.isGeneratingCode)
 				.accessibilityIdentifier("script-tool-generation-prompt")
+			if generationPrompt.utf16.count > 4_000 {
+				Text("Keep the request under 4,000 characters.")
+					.font(.caption)
+					.foregroundStyle(.red)
+			}
 			HStack {
+				if store.isGeneratingCode {
+					ProgressView().controlSize(.small)
+					Text("Updating code…").font(.caption).foregroundStyle(.secondary)
+				}
 				Spacer()
-				Button("Cancel") { showGenerationPrompt = false }
-				Button("Generate") {
+				Button("Close") { showGenerationPrompt = false }
+				Button(store.generationRequests.isEmpty ? "Generate" : "Update code") {
 					let instruction = generationPrompt
-					showGenerationPrompt = false
 					Task { await store.generateCode(instruction: instruction) }
 				}
-				.disabled(generationPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+				.disabled(store.isGeneratingCode || generationPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || generationPrompt.utf16.count > 4_000)
 				.accessibilityIdentifier("script-tool-submit-generation")
 			}
 		}

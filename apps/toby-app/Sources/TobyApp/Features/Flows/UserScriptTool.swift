@@ -90,6 +90,7 @@ final class UserScriptToolsStore {
 	var isSaving = false
 	var isTesting = false
 	var isGeneratingCode = false
+	var generationRequests: [String] = []
 	var generationError: String?
 	var error: String?
 	var testValues: [String: String] = [:]
@@ -101,6 +102,16 @@ final class UserScriptToolsStore {
 	private var activeGeneration: UUID?
 
 	var isDirty: Bool { draft != baseline }
+	var generationContext: [String] {
+		var remaining = 12_000
+		var context: [String] = []
+		for request in generationRequests.suffix(8).reversed() {
+			guard request.utf16.count <= remaining else { break }
+			context.insert(request, at: 0)
+			remaining -= request.utf16.count
+		}
+		return context
+	}
 	var testInputObject: [String: String] {
 		var result: [String: String] = [:]
 		for name in draft?.names ?? [] where !name.isEmpty {
@@ -123,6 +134,7 @@ final class UserScriptToolsStore {
 		testOutput = nil
 		error = nil
 		generationError = nil
+		generationRequests = []
 		activeGeneration = nil
 		isGeneratingCode = false
 		editorSessionId = UUID()
@@ -135,6 +147,7 @@ final class UserScriptToolsStore {
 		testOutput = nil
 		error = nil
 		generationError = nil
+		generationRequests = []
 		activeGeneration = nil
 		isGeneratingCode = false
 		editorSessionId = UUID()
@@ -146,6 +159,7 @@ final class UserScriptToolsStore {
 		testValues = [:]
 		error = nil
 		generationError = nil
+		generationRequests = []
 		activeGeneration = nil
 		isGeneratingCode = false
 		editorSessionId = UUID()
@@ -196,8 +210,13 @@ final class UserScriptToolsStore {
 			}
 		}
 		do {
-			let response = try await client.generateUserScriptToolCode(draft: draft, instruction: request)
-			_ = applyGeneratedSource(response.source, to: draft, in: session)
+			let response = try await client.generateUserScriptToolCode(
+				draft: draft, instruction: request, previousRequests: generationContext
+			)
+			if !applyGeneratedSource(response.source, instruction: request, to: draft, in: session),
+				self.draft?.id == draft.id, editorSessionId == session, generationError == nil {
+				generationError = "The code changed while the request was running. Ask again to apply it to the latest code."
+			}
 		} catch {
 			if self.draft == draft, editorSessionId == session {
 				generationError = error.localizedDescription
@@ -206,13 +225,14 @@ final class UserScriptToolsStore {
 	}
 
 	@discardableResult
-	func applyGeneratedSource(_ source: String, to original: UserScriptToolDraft, in session: UUID) -> Bool {
+	func applyGeneratedSource(_ source: String, instruction: String, to original: UserScriptToolDraft, in session: UUID) -> Bool {
 		guard draft == original, editorSessionId == session else { return false }
 		guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
 			generationError = "AI returned no code. Try describing the task more specifically."
 			return false
 		}
 		draft?.source = source
+		generationRequests.append(instruction)
 		editorSessionId = UUID()
 		return true
 	}
