@@ -98,6 +98,12 @@ Choose **Save Tool** when you're ready to make the script available to flows.
 In a flow's **Add tool**
 picker, your scripts appear under **My Tools**.
 
+To draft the script with AI, choose **Generate code** above the editor and
+describe the behavior you want. Toby sends your description, current tool
+settings, and current code to your configured AI model. The generated code
+replaces the editor contents, where you can review, test, and save it. Generation
+does not run or save the script.
+
 TypeScript tools export a default async function that receives an object of
 named inputs and returns the output. AppleScript tools use `on run argv`; the
 inputs arrive as strings in the order you listed them. For JSON output,

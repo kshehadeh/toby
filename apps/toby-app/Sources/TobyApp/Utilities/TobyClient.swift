@@ -880,6 +880,19 @@ struct TobyClient {
 		return try JSONDecoder().decode(UserScriptToolTest.self, from: data)
 	}
 
+	func generateUserScriptToolCode(draft: UserScriptToolDraft, instruction: String) async throws -> UserScriptToolGeneration {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/generate"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.timeoutInterval = 95
+		var body = draft.body
+		body["instruction"] = instruction
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(UserScriptToolGeneration.self, from: data)
+	}
+
 	func deleteUserScriptTool(id: String) async throws {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/\(id)"))
 		request.httpMethod = "DELETE"

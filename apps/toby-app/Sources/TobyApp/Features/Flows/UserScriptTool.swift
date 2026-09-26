@@ -19,6 +19,10 @@ struct UserScriptToolTest: Decodable {
 	let error: String?
 }
 
+struct UserScriptToolGeneration: Decodable {
+	let source: String
+}
+
 struct ScriptInputDraft: Identifiable, Equatable {
 	let id = UUID()
 	var name: String
@@ -75,13 +79,18 @@ final class UserScriptToolsStore {
 	var tools: [UserScriptTool] = []
 	var draft: UserScriptToolDraft? {
 		didSet {
-			if draft != oldValue { testOutput = nil }
+			if draft != oldValue {
+				testOutput = nil
+				generationError = nil
+			}
 		}
 	}
 	var baseline: UserScriptToolDraft?
 	var isLoading = false
 	var isSaving = false
 	var isTesting = false
+	var isGeneratingCode = false
+	var generationError: String?
 	var error: String?
 	var testValues: [String: String] = [:]
 	var testOutput: String?
@@ -89,6 +98,7 @@ final class UserScriptToolsStore {
 	var editorSessionId = UUID()
 
 	private let client = TobyClient()
+	private var activeGeneration: UUID?
 
 	var isDirty: Bool { draft != baseline }
 	var testInputObject: [String: String] {
@@ -112,6 +122,9 @@ final class UserScriptToolsStore {
 		testValues = [:]
 		testOutput = nil
 		error = nil
+		generationError = nil
+		activeGeneration = nil
+		isGeneratingCode = false
 		editorSessionId = UUID()
 	}
 
@@ -121,6 +134,9 @@ final class UserScriptToolsStore {
 		testValues = [:]
 		testOutput = nil
 		error = nil
+		generationError = nil
+		activeGeneration = nil
+		isGeneratingCode = false
 		editorSessionId = UUID()
 	}
 
@@ -129,6 +145,9 @@ final class UserScriptToolsStore {
 		baseline = nil
 		testValues = [:]
 		error = nil
+		generationError = nil
+		activeGeneration = nil
+		isGeneratingCode = false
 		editorSessionId = UUID()
 	}
 
@@ -159,6 +178,43 @@ final class UserScriptToolsStore {
 		} catch {
 			if self.draft == draft { testOutput = error.localizedDescription }
 		}
+	}
+
+	func generateCode(instruction: String) async {
+		guard let draft, !isGeneratingCode else { return }
+		let request = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !request.isEmpty else { return }
+		let session = editorSessionId
+		let generation = UUID()
+		activeGeneration = generation
+		isGeneratingCode = true
+		generationError = nil
+		defer {
+			if activeGeneration == generation {
+				activeGeneration = nil
+				isGeneratingCode = false
+			}
+		}
+		do {
+			let response = try await client.generateUserScriptToolCode(draft: draft, instruction: request)
+			_ = applyGeneratedSource(response.source, to: draft, in: session)
+		} catch {
+			if self.draft == draft, editorSessionId == session {
+				generationError = error.localizedDescription
+			}
+		}
+	}
+
+	@discardableResult
+	func applyGeneratedSource(_ source: String, to original: UserScriptToolDraft, in session: UUID) -> Bool {
+		guard draft == original, editorSessionId == session else { return false }
+		guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+			generationError = "AI returned no code. Try describing the task more specifically."
+			return false
+		}
+		draft?.source = source
+		editorSessionId = UUID()
+		return true
 	}
 
 	func delete(_ tool: UserScriptTool) async {

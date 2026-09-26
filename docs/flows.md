@@ -146,6 +146,13 @@ Script tools are available in flows and their own test action. The editor's
 **Run Test** executes the current draft source and inputs without saving a tool
 or creating a revision. They are not added to chat's model-selected tool set.
 
+**Generate code** sends the user's description plus the draft name, description,
+language, ordered input names, output kind, and current source to the configured
+default persona's AI model. The language-specific generation guide describes
+Toby's Bun or `osascript` runner contract. A successful response replaces only
+the editor's draft source; the user can review, test, and save it separately.
+Generation does not execute or persist the returned code.
+
 Toby.app edits inputs as individual named strings and builds the test input
 object from matching fields. The script editor uses CodeEditorView with
 line numbers and TypeScript lexical highlighting; AppleScript uses the same editor in
@@ -419,6 +426,7 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 | `GET` / `POST` | `/api/user-tools` | List or create script tools |
 | `GET` / `PUT` / `DELETE` | `/api/user-tools/:id` | Inspect, edit, or delete a script tool |
 | `POST` | `/api/user-tools/test` | Execute a draft with `language`, `inputNames`, `outputKind`, `source`, and `input` without saving |
+| `POST` | `/api/user-tools/generate` | Generate replacement `source` from an `instruction` and current draft settings without saving |
 | `POST` | `/api/user-tools/:id/test` | Execute a saved revision with `{ input: {...} }` |
 
 List responses omit heavy node I/O; use `GET /api/flows/:id` or a run detail

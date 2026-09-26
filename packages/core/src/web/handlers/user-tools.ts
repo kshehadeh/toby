@@ -1,5 +1,10 @@
 import { executeUserTool, executeUserToolById } from "../../user-tools/execute";
 import {
+	type ScriptGenerationRequest,
+	generateUserToolSource,
+	parseScriptGenerationRequest,
+} from "../../user-tools/generate";
+import {
 	type UserToolDraft,
 	deleteUserTool,
 	getUserTool,
@@ -140,5 +145,32 @@ export async function handleUserToolPreview(req: Request): Promise<Response> {
 			ok: false,
 			error: error instanceof Error ? error.message : String(error),
 		});
+	}
+}
+
+/** Generate replacement source for an unsaved editor draft. Never persists it. */
+export async function handleUserToolGenerate(
+	req: Request,
+	generate: typeof generateUserToolSource = generateUserToolSource,
+): Promise<Response> {
+	const body = await readJsonBody(req);
+	if (!body || Array.isArray(body))
+		return errorResponse("Invalid JSON body", 400);
+	let request: ScriptGenerationRequest;
+	try {
+		request = parseScriptGenerationRequest(body);
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			400,
+		);
+	}
+	try {
+		return jsonResponse({ source: await generate(request) });
+	} catch (error) {
+		return errorResponse(
+			error instanceof Error ? error.message : String(error),
+			502,
+		);
 	}
 }

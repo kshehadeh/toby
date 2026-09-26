@@ -10,12 +10,19 @@ import { runFlow } from "@toby/core/flows/runner";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { executeUserToolById } from "@toby/core/user-tools/execute";
 import {
+	extractGeneratedScript,
+	generateUserToolSource,
+	parseScriptGenerationRequest,
+	scriptGenerationPrompt,
+} from "@toby/core/user-tools/generate";
+import {
 	deleteUserTool,
 	getUserTool,
 	listToolUses,
 	listUserTools,
 	saveUserTool,
 } from "@toby/core/user-tools/store";
+import { handleUserToolGenerate } from "@toby/core/web/handlers/user-tools";
 import { handleWebRequest } from "@toby/core/web/routes";
 
 let priorDir: string | undefined;
@@ -33,6 +40,83 @@ afterEach(() => {
 });
 
 describe("user script tools", () => {
+	it("generates code from the current settings without saving it", async () => {
+		const body = {
+			instruction: "Show the selected Finder item's name",
+			name: "Finder selection",
+			description: "Return the selected item's name",
+			language: "applescript",
+			inputNames: ["fallbackName"],
+			outputKind: "text",
+			source: "on run argv\n  return item 1 of argv\nend run",
+		};
+		const request = parseScriptGenerationRequest(body);
+		const { instructions, prompt } = scriptGenerationPrompt(request);
+		expect(instructions).toContain("on run argv");
+		expect(instructions).toContain("quoted form");
+		expect(instructions).toContain("/usr/bin/osascript");
+		expect(prompt).toContain(body.instruction);
+		expect(prompt).toContain(body.description);
+		expect(prompt).toContain("fallbackName");
+		expect(prompt).toContain(body.source);
+		const generated = await generateUserToolSource(
+			request,
+			async () =>
+				"```applescript\non run argv\n  return item 1 of argv\nend run\n```",
+		);
+		expect(generated).toBe(body.source);
+		const response = await handleUserToolGenerate(
+			new Request("http://127.0.0.1/api/user-tools/generate", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			}),
+			async () => generated,
+		);
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ source: body.source });
+		expect(listUserTools()).toHaveLength(0);
+	});
+
+	it("validates generation and gives TypeScript only Bun runtime imports", async () => {
+		const request = parseScriptGenerationRequest({
+			instruction: "Return a greeting",
+			name: "",
+			description: "",
+			language: "typescript",
+			inputNames: [],
+			outputKind: "text",
+			source: "",
+		});
+		const { instructions } = scriptGenerationPrompt(request);
+		expect(instructions).toContain("node:*");
+		expect(instructions).toContain("Do not import npm packages");
+		expect(
+			extractGeneratedScript(
+				"export default async function run() { return 'Hi'; }",
+				"typescript",
+			),
+		).toContain("export default");
+		expect(() =>
+			extractGeneratedScript("Here is a script", "typescript"),
+		).toThrow();
+		expect(() =>
+			parseScriptGenerationRequest({ ...request, instruction: " " }),
+		).toThrow();
+		const foreign = await handleWebRequest(
+			new Request("http://127.0.0.1/api/user-tools/generate", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Origin: "https://example.com",
+				},
+				body: JSON.stringify(request),
+			}),
+			null,
+		);
+		expect(foreign.status).toBe(403);
+	});
+
 	it("tests an unsaved draft without adding or revising a library tool", async () => {
 		const url = "http://127.0.0.1/api/user-tools/test";
 		const draft = {

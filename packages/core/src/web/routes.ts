@@ -138,6 +138,7 @@ import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
 import {
 	handleUserToolDelete,
 	handleUserToolDetail,
+	handleUserToolGenerate,
 	handleUserToolPreview,
 	handleUserToolSave,
 	handleUserToolTest,
@@ -217,6 +218,9 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/user-tools/test" && req.method === "POST") {
 			return handleUserToolPreview(req);
+		}
+		if (pathname === "/api/user-tools/generate" && req.method === "POST") {
+			return handleUserToolGenerate(req);
 		}
 		const userToolTestMatch = /^\/api\/user-tools\/([^/]+)\/test$/.exec(
 			pathname,

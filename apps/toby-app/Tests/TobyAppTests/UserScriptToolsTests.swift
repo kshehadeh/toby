@@ -99,4 +99,20 @@ struct UserScriptToolsTests {
 		store.draft?.inputs[0].name = "customer"
 		#expect(store.draft?.isValid == true)
 	}
+
+	@Test("generated code replaces only the current editor draft")
+	func generatedCodeReplacesDraft() throws {
+		let store = UserScriptToolsStore()
+		store.create()
+		let view = UserScriptToolsView(store: store)
+		let generate = try view.inspect().find(viewWithAccessibilityIdentifier: "script-tool-generate-code").button()
+		#expect(!generate.isDisabled())
+		let original = try #require(store.draft)
+		let session = store.editorSessionId
+		#expect(store.applyGeneratedSource("export default () => 'Generated'", to: original, in: session))
+		#expect(store.draft?.source == "export default () => 'Generated'")
+		#expect(store.editorSessionId != session)
+		#expect(!store.applyGeneratedSource("stale", to: original, in: session))
+		#expect(store.draft?.source == "export default () => 'Generated'")
+	}
 }

@@ -86,6 +86,7 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` / `POST` | `/api/user-tools` | List or create reusable script tools |
 | `GET` / `PUT` / `DELETE` | `/api/user-tools/:id` | Inspect, edit, or delete a script tool |
 | `POST` | `/api/user-tools/test` | Test draft script code and inputs without saving |
+| `POST` | `/api/user-tools/generate` | Generate replacement source from an instruction and current draft settings |
 | `POST` | `/api/user-tools/:id/test` | Test a saved script with a JSON input object |
 | `POST` | `/api/issues` | File or forward a GitHub issue report |
 | `GET` | `/api/daemon/status` | Process + inbound chat status |

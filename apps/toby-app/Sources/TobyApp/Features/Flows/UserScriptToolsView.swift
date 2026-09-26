@@ -7,6 +7,8 @@ struct UserScriptToolsView: View {
 	@State private var pendingNew = false
 	@State private var pendingDone = false
 	@State private var showDiscard = false
+	@State private var showGenerationPrompt = false
+	@State private var generationPrompt = ""
 
 	var body: some View {
 		NavigationStack {
@@ -290,12 +292,27 @@ struct UserScriptToolsView: View {
 			HStack {
 				SettingsSectionHeader(title: "Code")
 				Spacer()
+				if store.isGeneratingCode {
+					ProgressView().controlSize(.small)
+					Text("Generating…").font(.caption).foregroundStyle(.secondary)
+				}
+				Button("Generate code", systemImage: "sparkles") {
+					showGenerationPrompt = true
+				}
+				.disabled(store.isGeneratingCode)
+				.accessibilityIdentifier("script-tool-generate-code")
+				.popover(isPresented: $showGenerationPrompt) {
+					generationPromptView
+				}
 				Image(systemName: "info.circle")
 					.foregroundStyle(.secondary)
 					.help(store.draft?.language == "typescript"
 						? "Export a default async function. Named inputs are properties of its input object."
 						: "Use on run argv. Named inputs arrive as strings in the listed order; return JSON text for JSON output.")
 					.accessibilityLabel("Code format help")
+			}
+			if let error = store.generationError {
+				InlineStatusMessage(message: error, tone: .error, font: .caption)
 			}
 			VStack(spacing: 0) {
 				HStack {
@@ -324,6 +341,32 @@ struct UserScriptToolsView: View {
 					.stroke(SettingsDesign.controlBorder)
 			}
 		}
+	}
+
+	private var generationPromptView: some View {
+		VStack(alignment: .leading, spacing: 12) {
+			Text("Generate \(store.draft?.language == "applescript" ? "AppleScript" : "TypeScript") code")
+				.font(.headline)
+			Text("Describe what the script should do. Toby will use the tool name, description, language, and inputs as context.")
+				.font(.subheadline)
+				.foregroundStyle(.secondary)
+			TextField("Describe the script", text: $generationPrompt, axis: .vertical)
+				.lineLimit(3...7)
+				.accessibilityIdentifier("script-tool-generation-prompt")
+			HStack {
+				Spacer()
+				Button("Cancel") { showGenerationPrompt = false }
+				Button("Generate") {
+					let instruction = generationPrompt
+					showGenerationPrompt = false
+					Task { await store.generateCode(instruction: instruction) }
+				}
+				.disabled(generationPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+				.accessibilityIdentifier("script-tool-submit-generation")
+			}
+		}
+		.padding(16)
+		.frame(width: 440)
 	}
 
 	private var testEditor: some View {
