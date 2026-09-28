@@ -93,6 +93,7 @@ final class MockChatClient: ChatClientable {
 
 	func streamTranscribeRecording(
 		id: String,
+		reuseLiveTranscript: Bool,
 		onStatus: @escaping (String) -> Void,
 	) async throws -> ListenRecordingDetail {
 		if let error { throw error }

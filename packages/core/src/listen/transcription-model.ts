@@ -10,6 +10,7 @@ import {
 	OPENROUTER_DEFAULT_BASE_URL,
 	buildAiGatewayAttributionHeaders,
 } from "../ai/model-factory";
+import { nativeRequest } from "./macos/audio-capture";
 import type { TranscriptPayload, TranscriptSegment } from "./transcript-types";
 import { ListenTranscriptionError } from "./transcription-errors";
 import {
@@ -31,6 +32,7 @@ const CHUNK_SAFETY_MARGIN = 256 * 1024;
 export interface TranscribeWithModelOptions {
 	readonly input: string;
 	readonly outDir: string;
+	readonly reuseLiveTranscript?: boolean;
 	readonly onStatus?: (message: string) => void;
 }
 
@@ -399,6 +401,27 @@ async function transcribeChunkedOrSingle(params: {
 export async function transcribeWithModel(
 	options: TranscribeWithModelOptions,
 ): Promise<ListenRecordingFiles> {
+	if (options.reuseLiveTranscript) {
+		const transcriptPath = path.join(options.outDir, "transcript.json");
+		try {
+			const payload = JSON.parse(
+				await fs.promises.readFile(transcriptPath, "utf8"),
+			);
+			if (
+				payload.text?.trim() &&
+				payload.engine === "apple-live" &&
+				payload.complete === true &&
+				fs.existsSync(path.join(options.outDir, "transcript.txt"))
+			) {
+				return {
+					transcript: "transcript.txt",
+					transcriptJson: "transcript.json",
+				};
+			}
+		} catch {
+			/* No complete live transcript; transcribe the saved audio. */
+		}
+	}
 	const selection = resolveTranscriptionSelection();
 	if (!selection) {
 		throw new ListenTranscriptionError(
@@ -423,6 +446,34 @@ export async function transcribeWithModel(
 		);
 	}
 
+	if (selection.provider === "apple") {
+		if (process.platform !== "darwin")
+			throw new ListenTranscriptionError(
+				"unsupported_platform",
+				"Apple transcription requires Toby.app on macOS 26 or later.",
+			);
+		options.onStatus?.(
+			"Transcribing on your Mac; downloading the speech language model if needed…",
+		);
+		const payload = (await nativeRequest("audio/transcribe", "POST", {
+			input: inputPath,
+		})) as TranscriptPayload;
+		if (!payload?.text?.trim() || !Array.isArray(payload.segments))
+			throw new ListenTranscriptionError(
+				"empty_transcript",
+				"No speech was recognized. Audio has been kept for retry.",
+			);
+		await fs.promises.mkdir(options.outDir, { recursive: true });
+		await fs.promises.writeFile(
+			path.join(options.outDir, "transcript.txt"),
+			`${payload.text}\n`,
+		);
+		await fs.promises.writeFile(
+			path.join(options.outDir, "transcript.json"),
+			`${JSON.stringify(payload, null, 2)}\n`,
+		);
+		return { transcript: "transcript.txt", transcriptJson: "transcript.json" };
+	}
 	const prepared = await prepareInput(inputPath);
 	try {
 		let maxBytes = getMaxAudioBytes();

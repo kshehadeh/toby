@@ -427,6 +427,7 @@ struct TobyClient {
 
 	func streamTranscribeRecording(
 		id: String,
+		reuseLiveTranscript: Bool = false,
 		onStatus: @escaping (String) -> Void,
 	) async throws -> ListenRecordingDetail {
 		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe")
@@ -434,7 +435,7 @@ struct TobyClient {
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 		request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-		request.httpBody = Data("{}".utf8)
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["reuseLiveTranscript": reuseLiveTranscript])
 
 		let (bytes, response) = try await URLSession.shared.bytes(for: request)
 		guard let http = response as? HTTPURLResponse else {

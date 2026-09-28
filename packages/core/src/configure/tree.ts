@@ -490,6 +490,9 @@ export function buildSettingsTree(
 		transcriptionProviderInfo?.displayName ?? transcriptionProviderId;
 	// Single status tip — avoid stacking a second provider-specific "needs key" hint.
 	const transcriptionStatusHint = (() => {
+		if (transcriptionProviderId === "apple") {
+			return "Live transcription runs on your Mac using its current language. The first recording downloads the language model if needed. Requires supported hardware and language; no API key is needed.";
+		}
 		if (!values["transcription.provider"]?.trim()) {
 			return "Choose a provider and model. OpenAI and Vercel can reuse AI keys; Groq and OpenRouter need their own API keys.";
 		}
@@ -551,12 +554,16 @@ export function buildSettingsTree(
 				})),
 				currentValue: transcriptionModelValue,
 			},
-			{
-				label: "API Key",
-				kind: "value" as const,
-				key: `transcription.${transcriptionProviderId}.apiKey`,
-				masked: true,
-			},
+			...(transcriptionProviderId === "apple"
+				? []
+				: [
+						{
+							label: "API Key",
+							kind: "value" as const,
+							key: `transcription.${transcriptionProviderId}.apiKey`,
+							masked: true,
+						},
+					]),
 			{
 				label: "Persona for recording summaries",
 				kind: "select" as const,

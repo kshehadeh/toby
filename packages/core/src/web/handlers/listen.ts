@@ -243,6 +243,7 @@ async function handleListenRecordingTranscribeJson(
 		const transcriptFiles = await transcribeWithModel({
 			input,
 			outDir: recording.dir,
+			reuseLiveTranscript: body?.reuseLiveTranscript === true,
 		});
 		return jsonResponse(finalizeTranscription(recording, transcriptFiles));
 	} catch (error) {
@@ -305,6 +306,7 @@ async function handleListenRecordingTranscribeStream(
 				const transcriptFiles = await transcribeWithModel({
 					input,
 					outDir: recording.dir,
+					reuseLiveTranscript: body?.reuseLiveTranscript === true,
 					onStatus: (message) => {
 						controller.enqueue(encode("status", { message }));
 					},

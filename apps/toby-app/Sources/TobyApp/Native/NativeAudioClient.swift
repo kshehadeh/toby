@@ -35,6 +35,7 @@ struct NativeAudioClient {
 			method: "POST",
 			body: ["mic": micOn, "system": systemOn],
 			as: ListenStatusResponse.self,
+			timeout: 0,
 		)
 	}
 

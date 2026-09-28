@@ -77,16 +77,50 @@ struct RecordingsDetailView: View {
 }
 
 
-private struct ActiveRecordingDetailView: View {
+struct ActiveRecordingDetailView: View {
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 	let active: ActiveRecordingInfo
 	var onStopRecording: (() -> Void)? = nil
 
 	var body: some View {
+		if let transcript = active.liveTranscript {
+			VStack(alignment: .leading, spacing: 16) {
+				HStack {
+					Label(active.isPreparing ? "Preparing recording…" : "Recording in progress", systemImage: "record.circle")
+						.font(.title2.weight(.semibold))
+					Spacer()
+					if let onStopRecording {
+						Button(action: onStopRecording) {
+							Label("Stop Recording", systemImage: "stop.circle.fill")
+						}
+						.buttonStyle(.borderedProminent)
+						.tint(.red)
+						.disabled(active.isPreparing)
+						.help(active.isPreparing ? "Wait for speech setup to finish before stopping." : "Stop and save this recording.")
+						.accessibilityIdentifier("active-stop-recording-button")
+					}
+				}
+				Text(sourceText(active.sources))
+					.font(.subheadline).foregroundStyle(.secondary)
+				LiveRecordingTranscriptView(transcript: transcript)
+					.frame(maxHeight: .infinity, alignment: .topLeading)
+				Text("Recent words may change as you speak. The transcript is saved when you stop.")
+					.font(.caption).foregroundStyle(.secondary)
+			}
+			.padding(24)
+			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+			.accessibilityIdentifier("active-recording-detail")
+		} else {
+			captureOnlyBody
+		}
+	}
+
+	private var captureOnlyBody: some View {
 		VStack(spacing: 24) {
 			Image(systemName: "record.circle")
 				.font(.system(size: 56, weight: .regular))
 				.foregroundStyle(.red)
-				.symbolEffect(.variableColor.iterative, options: .repeating)
+				.symbolEffect(.variableColor.iterative, options: .repeating, isActive: !reduceMotion)
 				.accessibilityHidden(true)
 
 			VStack(spacing: 8) {

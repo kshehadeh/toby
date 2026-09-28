@@ -14,6 +14,7 @@ final class NativeAudioHandler {
 	private var helperVersion = "native-app"
 	/// True while capture has stopped and combine / save is still running.
 	private var isFinalizing = false
+	private var isStarting = false
 	private var finalizingOptions: NativeRecordOptions?
 
 	private init() {}
@@ -23,7 +24,7 @@ final class NativeAudioHandler {
 			return json([
 				"ok": true,
 				"data": statePayload(
-					status: "recording",
+					status: isStarting ? "starting" : "recording",
 					options: session.options,
 					message: "Recording.",
 				),
@@ -49,6 +50,8 @@ final class NativeAudioHandler {
 		guard !isFinalizing else {
 			return json(["ok": false, "error": "Still finishing the previous recording."])
 		}
+		isStarting = true
+		defer { isStarting = false }
 		do {
 			let sources = parseSources(body: body)
 			let prepared = try prepareSession(sources: sources)
@@ -59,7 +62,7 @@ final class NativeAudioHandler {
 				"ok": true,
 				"data": statePayload(
 					status: "recording",
-					session: prepared,
+					options: recording.options,
 					message: "Recording.",
 				),
 			])
@@ -71,6 +74,7 @@ final class NativeAudioHandler {
 	}
 
 	func stop(body: Data?) async -> Data {
+		guard !isStarting else { return json(["ok": false, "error": "Preparing the recording. Wait for speech setup to finish before stopping."]) }
 		guard let session else {
 			if isFinalizing {
 				return json(["ok": false, "error": "Still finishing the previous recording."])
@@ -85,7 +89,7 @@ final class NativeAudioHandler {
 			isFinalizing = false
 			finalizingOptions = nil
 		}
-		await session.stop()
+		await session.stop(discard: discard)
 
 		if discard {
 			try? FileManager.default.removeItem(at: session.options.tempDir)
@@ -99,6 +103,10 @@ final class NativeAudioHandler {
 			await finalizeCombinedAudio(files: snapshotFiles, outDir: tempDir)
 		}.value
 		files = finalized.files
+		if let speech = session.speech, speech.snapshot.error == nil {
+			do { files.merge(try speech.write(to: tempDir)) { _, new in new } }
+			catch { session.addError(String(describing: error)) }
+		}
 		lastCombineDetails = finalized.details
 
 		if let errorMessage = finalized.errorMessage {
@@ -319,6 +327,9 @@ final class NativeAudioHandler {
 		message: String,
 	) -> [String: Any] {
 		var payload: [String: Any] = ["status": status, "message": message]
+		if let snapshot = self.session?.speech?.statusSnapshot,
+			let data = try? JSONEncoder().encode(snapshot),
+			let value = try? JSONSerialization.jsonObject(with: data) { payload["liveTranscript"] = value }
 		if let session {
 			payload["session"] = [
 				"id": session.id,
@@ -335,7 +346,7 @@ final class NativeAudioHandler {
 		options: NativeRecordOptions,
 		message: String,
 	) -> [String: Any] {
-		[
+		var payload: [String: Any] = [
 			"status": status,
 			"message": message,
 			"session": [
@@ -345,6 +356,10 @@ final class NativeAudioHandler {
 			],
 			"outputDir": options.finalDir.path,
 		]
+		if let snapshot = session?.speech?.statusSnapshot,
+			let data = try? JSONEncoder().encode(snapshot),
+			let value = try? JSONSerialization.jsonObject(with: data) { payload["liveTranscript"] = value }
+		return payload
 	}
 }
 
@@ -362,7 +377,7 @@ struct PreparedNativeAudioSession {
 
 struct NativeRecordOptions {
 	let id: String
-	let startedAt: Date
+	var startedAt: Date
 	let tempDir: URL
 	let finalDir: URL
 	let mic: Bool
@@ -381,48 +396,68 @@ enum NativeAudioError: Error, CustomStringConvertible {
 	}
 }
 
-final class NativeMicrophoneRecorder {
-	private var recorder: AVAudioRecorder?
-	let url: URL
+/// Written by the audio callback and read after the engine has stopped.
+private final class MicrophoneWriteFailure: @unchecked Sendable {
+	private let lock = NSLock()
+	private var message: String?
+	var error: String? { lock.withLock { message } }
+	func record(_ error: Error) { lock.withLock { message = error.localizedDescription } }
+}
 
-	init(url: URL) {
+final class NativeMicrophoneRecorder {
+	private let engine = AVAudioEngine()
+	private let writeFailure = MicrophoneWriteFailure()
+	var error: String? { writeFailure.error }
+	private let url: URL
+	private let speech: SpeechAudioFeed?
+
+	init(url: URL, speech: SpeechAudioFeed? = nil) {
 		self.url = url
+		self.speech = speech
 	}
 
 	func start() throws {
-		let settings: [String: Any] = [
-			AVFormatIDKey: kAudioFormatLinearPCM,
-			AVSampleRateKey: 48_000,
-			AVNumberOfChannelsKey: 1,
-			AVLinearPCMBitDepthKey: 16,
-			AVLinearPCMIsFloatKey: false,
-			AVLinearPCMIsBigEndianKey: false,
-		]
-		let recorder = try AVAudioRecorder(url: url, settings: settings)
-		recorder.prepareToRecord()
-		guard recorder.record() else {
-			throw NativeAudioError.runtime("Could not start microphone recording.")
+		let input = engine.inputNode
+		let format = input.outputFormat(forBus: 0)
+		guard format.sampleRate > 0, format.channelCount > 0 else {
+			throw NativeAudioError.runtime("No microphone input is available.")
 		}
-		self.recorder = recorder
+		let file = try AVAudioFile(forWriting: url, settings: format.settings)
+		let speech = speech
+		let writeFailure = writeFailure
+		input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
+			do { try file.write(from: buffer) }
+			catch { writeFailure.record(error) }
+			speech?.append(buffer)
+		}
+		do {
+			engine.prepare()
+			try engine.start()
+		} catch {
+			input.removeTap(onBus: 0)
+			throw error
+		}
 	}
 
 	func stop() {
-		recorder?.stop()
-		recorder = nil
+		engine.stop()
+		engine.inputNode.removeTap(onBus: 0)
 	}
 }
 
 final class NativeSystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private let url: URL
 	private let queue = DispatchQueue(label: "toby.native-app.system-audio")
+	private let speech: SpeechAudioFeed?
 	private var stream: SCStream?
 	private var writer: AVAssetWriter?
 	private var input: AVAssetWriterInput?
 	private var startedWriting = false
 	private(set) var didWriteAudio = false
 
-	init(url: URL) {
+	init(url: URL, speech: SpeechAudioFeed? = nil) {
 		self.url = url
+		self.speech = speech
 	}
 
 	@MainActor
@@ -453,6 +488,10 @@ final class NativeSystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegat
 		if let stream {
 			try? await stream.stopCapture()
 		}
+		// Drain callbacks before closing files or finalizing speech.
+		await withCheckedContinuation { continuation in
+			queue.async { continuation.resume() }
+		}
 		input?.markAsFinished()
 		if let writer, startedWriting {
 			await withCheckedContinuation { continuation in
@@ -477,6 +516,7 @@ final class NativeSystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegat
 		else {
 			return
 		}
+		speech?.append(sampleBuffer)
 		try? append(sampleBuffer)
 	}
 
@@ -529,8 +569,9 @@ final class NativeSystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegat
 
 @MainActor
 final class NativeRecordingSession {
-	let options: NativeRecordOptions
+	private(set) var options: NativeRecordOptions
 	private(set) var errors: [String] = []
+	private(set) var speech: NativeSpeechTranscriber?
 	private var micRecorder: NativeMicrophoneRecorder?
 	private var systemRecorder: NativeSystemAudioRecorder?
 
@@ -538,12 +579,27 @@ final class NativeRecordingSession {
 		self.options = options
 	}
 
+	func addError(_ message: String) { errors.append(message) }
+
 	func start() async throws -> [String: String] {
 		try FileManager.default.createDirectory(
 			at: options.tempDir,
 			withIntermediateDirectories: true,
 		)
 		var files: [String: String] = [:]
+		var feeds: [String: SpeechAudioFeed] = [:]
+		if NativeSpeechTranscriber.selected {
+			let speech = NativeSpeechTranscriber()
+			self.speech = speech
+			do {
+				feeds = try await speech.prepare(sources: [(options.mic ? "mic" : nil), (options.system ? "system" : nil)].compactMap { $0 }, startedAt: options.startedAt)
+			} catch {
+				speech.fail(error)
+				await speech.cancel()
+			}
+		}
+		options.startedAt = Date()
+		for feed in feeds.values { feed.begin(at: options.startedAt) }
 		if options.mic {
 			do {
 				let granted = await AVAudioApplication.requestRecordPermission()
@@ -551,7 +607,7 @@ final class NativeRecordingSession {
 					throw NativeAudioError.permission("Microphone permission denied.")
 				}
 				let url = options.tempDir.appendingPathComponent("mic.wav")
-				let recorder = NativeMicrophoneRecorder(url: url)
+				let recorder = NativeMicrophoneRecorder(url: url, speech: feeds["mic"])
 				try recorder.start()
 				micRecorder = recorder
 				files["mic"] = url.path
@@ -562,7 +618,7 @@ final class NativeRecordingSession {
 		if options.system {
 			do {
 				let url = options.tempDir.appendingPathComponent("system.wav")
-				let recorder = NativeSystemAudioRecorder(url: url)
+				let recorder = NativeSystemAudioRecorder(url: url, speech: feeds["system"])
 				try await recorder.start()
 				systemRecorder = recorder
 				files["system"] = url.path
@@ -571,20 +627,25 @@ final class NativeRecordingSession {
 			}
 		}
 		if files.isEmpty {
+			await speech?.cancel()
 			throw NativeAudioError.runtime(errors.first ?? "Could not start audio recording.")
 		}
 		return files
 	}
 
-	func stop() async {
+	func stop(discard: Bool = false) async {
 		micRecorder?.stop()
-		let didWriteSystemAudio = systemRecorder?.didWriteAudio ?? false
+		if let error = micRecorder?.error { errors.append("Could not save microphone audio: \(error)") }
 		await systemRecorder?.stop()
+		let didWriteSystemAudio = systemRecorder?.didWriteAudio ?? false
 		if options.system && !didWriteSystemAudio {
 			errors.append("System audio was enabled, but no system audio was captured. Check Screen Recording permission and make sure another app is producing audio.")
 		}
 		micRecorder = nil
 		systemRecorder = nil
+		if discard { await speech?.cancel() }
+		else { await speech?.finish() }
+
 	}
 }
 

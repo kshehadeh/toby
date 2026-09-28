@@ -66,6 +66,11 @@ export const TRANSCRIPTION_PROVIDERS: readonly TranscriptionProviderInfo[] = [
 			"deepgram/nova-3",
 		],
 	},
+	{
+		id: "apple",
+		displayName: "Apple — On Device",
+		models: ["speech-transcriber"],
+	},
 ];
 
 export function getTranscriptionProvider(
@@ -86,15 +91,17 @@ export interface TranscriptionSelection {
 
 export function resolveTranscriptionApiKey(
 	providerId: string,
-	creds: ReturnType<typeof readCredentials> = readCredentials(),
+	creds?: ReturnType<typeof readCredentials>,
 ): string | undefined {
-	const specific = creds.transcription?.[providerId]?.apiKey?.trim();
+	if (providerId === "apple") return "";
+	const credentials = creds ?? readCredentials();
+	const specific = credentials.transcription?.[providerId]?.apiKey?.trim();
 	if (specific) return specific;
 	if (providerId === "openai") {
-		return creds.ai?.openai?.token?.trim() || undefined;
+		return credentials.ai?.openai?.token?.trim() || undefined;
 	}
 	if (providerId === "vercel") {
-		const fromCreds = creds.ai?.vercel?.apiKey?.trim();
+		const fromCreds = credentials.ai?.vercel?.apiKey?.trim();
 		if (fromCreds) return fromCreds;
 		const fromEnv = process.env.AI_GATEWAY_API_KEY?.trim();
 		if (fromEnv && fromEnv.length > 0) return fromEnv;
@@ -108,7 +115,7 @@ export function resolveTranscriptionApiKey(
 		return undefined;
 	}
 	if (providerId === "openrouter") {
-		const fromCreds = creds.ai?.openrouter?.apiKey?.trim();
+		const fromCreds = credentials.ai?.openrouter?.apiKey?.trim();
 		if (fromCreds) return fromCreds;
 		const fromEnv = process.env.OPENROUTER_API_KEY?.trim();
 		if (fromEnv && fromEnv.length > 0) return fromEnv;
@@ -139,7 +146,10 @@ export function getTranscriptionSetupStatus(): {
 	const displayName = info?.displayName ?? provider ?? "transcription";
 
 	let statusMessage: string;
-	if (configured) {
+	if (provider === "apple" && hasProviderAndModel) {
+		statusMessage =
+			"Apple transcription runs on your Mac using its current language. Supported hardware and a downloaded language model are required. No API key is needed.";
+	} else if (configured) {
 		statusMessage = `Transcription is ready (${displayName}${model ? ` / ${model}` : ""}).`;
 	} else if (hasProviderAndModel && !hasApiKey) {
 		statusMessage = `${displayName} is selected, but no API key is available. Paste a key below${

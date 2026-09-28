@@ -13,7 +13,7 @@ Open **Toby.app → Settings → Transcription**.
 
 | Setting | Purpose |
 | ------- | ------- |
-| **Provider** | Transcription backend (OpenAI, Groq, Vercel AI Gateway, or OpenRouter) |
+| **Provider** | Transcription backend (Apple — On Device, OpenAI, Groq, Vercel AI Gateway, or OpenRouter) |
 | **Model** | Model id offered by that provider |
 | **API Key** | Optional dedicated key for transcription |
 | **Persona for recording summaries** | Persona used when you summarize a recording transcript (falls back to the default persona) |
@@ -31,6 +31,27 @@ kept when transcription fails, so you can retry. Once the audio is deleted, the
 recording cannot be re-transcribed; you can also delete a recording's audio
 manually with **Delete Audio** in the Recordings toolbar. Turn this setting off to keep audio
 files alongside transcripts.
+
+### Apple — On Device
+
+Choose **Apple — On Device** as the provider and **speech-transcriber** as the
+model to see a live transcript while recording. Open **Recordings** and select
+the active recording. Recent words appear in a lighter style and update as you
+speak; finalized words are saved when you stop.
+
+No API key is required. Recognition happens on your Mac using its current
+language. The first recording may wait for a language-model download before
+capture starts. Once installed, transcription can work offline. Supported
+Mac hardware and language support are required; Toby shows a message if Apple
+recognition is unavailable and keeps recording audio for a later retry.
+
+Microphone and system audio are labeled separately, rather than by speaker.
+Use headphones to reduce the same speech being picked up by both sources.
+Existing cloud provider selections remain unchanged, and Toby does not
+silently send audio to a cloud provider when Apple recognition fails.
+
+**Re-transcribe** also uses Apple when selected and requires retained audio.
+Recording summaries still use your chosen AI persona.
 
 ### OpenAI
 
@@ -72,6 +93,7 @@ GPT-4o transcribe variants, Voxtral Mini Transcribe, Deepgram Nova-3, and simila
 
 ## When transcription runs
 
+- During recording when **Apple — On Device** is selected; the transcript is finalized when you stop.
 - After you **stop and save** a recording in Toby.app (or a capture path that finalizes into Listen storage)
 - When you **retry / re-transcribe** a recording from the Recordings window or related tools
 - Via the local service [Server API](../api/server-api) listen transcribe endpoint used by the app

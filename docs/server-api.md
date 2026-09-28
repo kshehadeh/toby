@@ -410,15 +410,20 @@ Errors:
 
 ### `POST /api/listen/recordings/:id/transcribe`
 
-Invokes the configured transcription plugin against the resolved audio file,
+Invokes the configured transcription provider against the resolved audio file,
 copies transcript artifacts into the recording directory, updates
 `metadata.json`, and returns refreshed metadata and transcript detail.
 
 Body (optional):
 
 ```json
-{ "recordingsDir": "/path/to/recordings" }
+{ "recordingsDir": "/path/to/recordings", "reuseLiveTranscript": false }
 ```
+
+The app sets `reuseLiveTranscript: true` after stopping native capture. This
+reuses only a complete persisted Apple live transcript, then applies the usual
+metadata update and audio-retention policy. The default is `false`, so manual
+re-transcription always processes the audio again.
 
 Pass `recordingsDir` when the recording lives outside the default
 `~/.toby/listen/recordings` directory. The endpoint uses this directory as the

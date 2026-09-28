@@ -258,9 +258,10 @@ The native server listens on a random localhost port written to `~/.toby/native-
 | `POST` | `/api/native/macos/minimize-app` | Minimize app windows (Accessibility) |
 | `POST` | `/api/native/macos/unminimize-app` | Unminimize app windows (Accessibility) |
 | `GET` | `/api/native/macos/accessibility-status` | Check if Accessibility is granted |
-| `GET` | `/api/native/audio/status` | Check native audio state (`idle`, `recording`, or `stopping` while combine/export runs) |
+| `GET` | `/api/native/audio/status` | Check native audio state (`idle`, `starting`, `recording`, or `stopping`); includes `liveTranscript` segments/message/error when Apple recognition is selected |
 | `POST` | `/api/native/audio/start` | Start native microphone/system audio capture |
 | `POST` | `/api/native/audio/stop` | Stop capture, then finalize (combine/export off the main actor) and save |
+| `POST` | `/api/native/audio/transcribe` | Transcribe an existing audio file on-device; body `{ "input": "/path/to/audio" }`, returns text, timed segments, locale, sourceAudio, createdAt |
 | `POST` | `/api/native/audio/combine` | Combine existing mic/system WAV files into `combined.m4a` |
 | `GET` | `/api/native/icloud/status` | iCloud Drive folder availability and vault path |
 | `POST` | `/api/native/icloud/ensure` | Download a dataless vault/history file if needed |

@@ -17,6 +17,7 @@ protocol ChatClientable {
 		-> ListenRecordingDetail
 	func streamTranscribeRecording(
 		id: String,
+		reuseLiveTranscript: Bool,
 		onStatus: @escaping (String) -> Void,
 	) async throws -> ListenRecordingDetail
 	func streamTurn(

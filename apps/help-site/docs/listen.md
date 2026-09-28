@@ -24,6 +24,14 @@ By default Toby records **both** your microphone and system audio (other apps
 such as meetings). You can turn either source off under
 **Settings → Transcription** (**Record microphone** / **Record system audio**).
 
+For a **live transcript**, select **Apple — On Device** under
+**Settings → Transcription → Provider**, then start a recording. The active
+recording shows microphone and system-audio text as it arrives. Recent words
+may change before becoming final. Recognition runs on your Mac without an API
+key; the first use may download language assets before capture begins. See
+[Transcription settings](configuration/transcription#apple--on-device) for
+language support and setup.
+
 When you stop and save:
 
 1. Capture stops immediately. Long recordings then take a while to **prepare
@@ -37,7 +45,9 @@ When you stop and save:
    **stereo dual-mono** (left = your mic, right = system audio)—not a mix that
    stacks both onto one channel (that causes echo from headphone bleed). Raw
    tracks are always kept.
-3. Toby requests transcription through the local service when a model is configured.
+3. Toby saves the finalized Apple live transcript, or requests transcription
+   through the local service using your selected provider. A completed live
+   transcript does not require another transcription pass.
 4. Once transcription succeeds, Toby **deletes the recording's audio files** by
    default (**Delete audio after transcription**, under **Settings →
    Transcription**). The recording entry, transcript, and any summary are kept;

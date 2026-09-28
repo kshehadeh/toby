@@ -143,7 +143,7 @@ async function ensureNativeServer(): Promise<number> {
 	return launchTobyApp();
 }
 
-async function nativeRequest(
+export async function nativeRequest(
 	endpoint: string,
 	method: string,
 	body?: Record<string, unknown>,
@@ -154,6 +154,8 @@ async function nativeRequest(
 		method,
 		headers: body ? { "Content-Type": "application/json" } : undefined,
 		body: body ? JSON.stringify(body) : undefined,
+		// Local speech model download and long recordings may take several minutes.
+		signal: AbortSignal.timeout(60 * 60 * 1000),
 	});
 	if (!res.ok) {
 		throw new ListenCaptureError(

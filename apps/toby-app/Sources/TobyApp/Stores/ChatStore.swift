@@ -147,6 +147,7 @@ final class ChatStore {
 	private var activeTurnUserIndex: Int?
 	private var askUserContinuation: CheckedContinuation<(selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?), Never>?
 	@ObservationIgnored
+	nonisolated(unsafe) private var recordingStatusTask: Task<Void, Never>?
 	nonisolated(unsafe) private var externalSessionRefreshTask: Task<Void, Never>?
 
 	init(
@@ -159,6 +160,7 @@ final class ChatStore {
 
 	deinit {
 		externalSessionRefreshTask?.cancel()
+		recordingStatusTask?.cancel()
 	}
 
 	func bootstrap() async {
@@ -527,10 +529,11 @@ final class ChatStore {
 	/// Ignore a lagging "still recording" native snapshot while stop / finalize
 	/// is already in flight so chrome cannot flip back to live capture.
 	private func applyRefreshedListenStatus(_ native: ListenStatusResponse) {
-		if (isListenRequestInFlight || recordingProcessing?.isActive == true), native.isLiveCapture {
+		if (listenStatus?.isFinalizing == true || recordingProcessing?.isActive == true), native.isLiveCapture {
 			return
 		}
 		listenStatus = native
+		if native.isActive { beginRecordingStatusUpdates() }
 		if native.isFinalizing, recordingProcessing?.isActive != true {
 			recordingProcessing = RecordingProcessingState(
 				recordingId: native.session?.id,
@@ -712,8 +715,24 @@ final class ChatStore {
 		}
 	}
 
+	private func beginRecordingStatusUpdates() {
+		guard recordingStatusTask == nil else { return }
+		recordingStatusTask = Task { [weak self] in
+			while !Task.isCancelled {
+				do { try await Task.sleep(for: .milliseconds(500)) } catch { break }
+				guard let self else { break }
+				guard self.listenStatus?.isActive == true || self.isListenRequestInFlight else { break }
+				if let status = try? await self.nativeAudioClient.status() {
+					self.applyRefreshedListenStatus(status)
+				}
+			}
+			self?.recordingStatusTask = nil
+		}
+	}
+
 	private func startRecording() async {
 		isListenRequestInFlight = true
+		beginRecordingStatusUpdates()
 		defer { isListenRequestInFlight = false }
 		if status?.transcription?.configured != true {
 			toast = ChatRecordingController.unconfiguredTranscriptionToast()
@@ -762,7 +781,7 @@ final class ChatStore {
 			guard case .readyForTranscription(let id, _) = classification else { return }
 
 			do {
-				_ = try await client.streamTranscribeRecording(id: id) { message in
+				_ = try await client.streamTranscribeRecording(id: id, reuseLiveTranscript: true) { message in
 					Task { @MainActor in
 						var progress = self.recordingUIState()
 						ChatRecordingController.applyTranscriptionProgress(

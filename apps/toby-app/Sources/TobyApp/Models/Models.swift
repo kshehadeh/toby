@@ -759,6 +759,7 @@ struct ListenSessionInfo: Decodable {
 }
 
 struct ListenStatusResponse: Decodable {
+	var liveTranscript: LiveTranscriptSnapshot? = nil
 	let status: String
 	let session: ListenSessionInfo?
 	let outputDir: String?
@@ -785,6 +786,8 @@ struct ListenStatusResponse: Decodable {
 /// Derived from `ListenStatusResponse` when `isActive` is true. Not a persisted
 /// recording — it cannot be fetched from the recordings API until after stop/save.
 struct ActiveRecordingInfo: Identifiable, Equatable {
+	var isPreparing = false
+	var liveTranscript: LiveTranscriptSnapshot? = nil
 	let id: String
 	let startedAt: String
 	let sources: ListenSourceSelection
@@ -796,6 +799,8 @@ struct ActiveRecordingInfo: Identifiable, Equatable {
 		self.startedAt = session.startedAt
 		self.sources = session.sources
 		self.outputDir = status.outputDir
+		self.liveTranscript = status.liveTranscript
+		self.isPreparing = status.status == "starting"
 	}
 
 	init(id: String, startedAt: String, sources: ListenSourceSelection, outputDir: String? = nil) {

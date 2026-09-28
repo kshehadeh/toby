@@ -5,6 +5,33 @@ separate integration capability: the shared recording lifecycle, metadata,
 lookup, and transcription adapters live in `packages/core/src/listen/`.
 Toby.app provides native recording controls and the Recordings window.
 
+## Live on-device transcription
+
+Select **Settings → Transcription → Provider → Apple — On Device** (model
+`speech-transcriber`). Existing cloud selections are preserved. This uses
+macOS 26 SpeechAnalyzer/SpeechTranscriber in Toby.app, with no API key or cloud
+audio upload. It uses the Mac’s current locale; unsupported hardware/languages
+produce a visible error while audio capture remains available. The first use
+may download Apple’s language assets before capture starts.
+
+Microphone capture uses AVAudioEngine and system capture uses ScreenCaptureKit.
+Each source has its own analyzer, audio conversion, bounded input stream, and
+session-relative timestamps. The native status response includes a
+`liveTranscript` snapshot; the app polls during recording and displays provisional
+and finalized segments in the active recording detail. Source labels identify
+microphone/system audio, not individual speakers. Headphone bleed may appear in
+both live sources; use headphones to reduce duplicate speech.
+
+Stop drains capture callbacks and finalizes recognition before saving
+`transcript.txt` and `transcript.json`. Complete live transcripts carry
+`engine: "apple-live"` and `complete: true`. The app sends
+`reuseLiveTranscript: true` to the daemon’s transcription endpoint to reuse them
+and apply the existing metadata/audio-retention lifecycle. Manual re-transcribe
+omits that flag and processes saved audio again via
+`POST /api/native/audio/transcribe`. Recognition failures never trigger an
+automatic cloud fallback; audio is retained when transcription fails. Summaries
+still use the separately configured AI persona.
+
 ## Current Scope
 
 - macOS-only capture adapter.
@@ -70,9 +97,10 @@ Stopping performs these steps:
    `combined.m4a` (dual-mono stereo when both tracks exist) **off the main
    actor**. Native `GET /api/native/audio/status` reports `stopping` until
    the session is moved into the shared recordings directory.
-3. The app calls the daemon's
+3. For Apple, finalized live transcript files are saved with the recording.
+   The app calls the daemon's
    `POST /api/listen/recordings/:id/transcribe` endpoint.
-4. The daemon invokes the configured transcription plugin and updates
+4. The daemon reuses a complete Apple live transcript or invokes the configured transcription provider and updates
    `metadata.json` with transcript paths, or appends the failure to
    `metadata.errors`. A later successful re-transcribe clears those errors
    (and any prior AI summary). On success, when **Delete audio after
