@@ -15,6 +15,9 @@ permissions:
 jobs:
   build:
     runs-on: macos-26
+    permissions:
+      contents: read
+      actions: write
 
     steps:
       - name: Checkout
@@ -33,12 +36,19 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Cache SwiftPM binary artifacts
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm/artifacts
+          key: swiftpm-artifacts-${{ hashFiles('apps/toby-app/Package.resolved') }}
+
       - name: Build release artifacts
         env:
           BUN_TARGET: bun-darwin-arm64
           SWIFT_ARCH: arm64
           TOBY_APP_BUILD_NUMBER: ${{ github.run_number }}
           TOBY_SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: chmod +x scripts/build-release-artifacts.sh && ./scripts/build-release-artifacts.sh
 
       - name: Check signing configuration
@@ -233,10 +243,14 @@ jobs:
         if: steps.signing.outputs.enabled == 'true' && steps.sparkle.outputs.enabled == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           sparkle_dir="$RUNNER_TEMP/sparkle"
           sparkle_zip="$RUNNER_TEMP/sparkle.zip"
-          curl -fsSL https://github.com/sparkle-project/Sparkle/releases/download/2.9.3/Sparkle-for-Swift-Package-Manager.zip -o "$sparkle_zip"
+          # Same GitHub release asset SwiftPM fails to download with HTTP 500.
+          # Reuse the zip already verified into the SwiftPM artifact cache.
+          cached_zip="$(bash scripts/prefetch-sparkle-spm-artifact.sh --print-path)"
+          cp "$cached_zip" "$sparkle_zip"
           unzip -q "$sparkle_zip" -d "$sparkle_dir"
 
           appcast_input="$RUNNER_TEMP/toby-appcast"

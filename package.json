@@ -48,7 +48,7 @@
     "format": "bunx biome format . --write",
     "test": "turbo run test",
     "test:watch": "bun run --cwd apps/cli test:watch",
-    "test:swift": "swift test --package-path apps/toby-app",
+    "test:swift": "bash scripts/prefetch-sparkle-spm-artifact.sh && swift test --package-path apps/toby-app",
     "timing": "node scripts/analyze-turn-timing.mjs",
     "release": "release-it",
     "release:dry": "release-it --dry-run",
