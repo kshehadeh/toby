@@ -1,5 +1,5 @@
 /**
- * Attachment chip — filename plus byte size, optionally removable.
+ * Attachment chip (AttachmentChip): selection-filled capsule, 10px text.
  */
 export interface ChipProps {
   /** Small leading glyph (paperclip in the app). */

@@ -1,14 +1,19 @@
 /**
- * One selectable row in the sidebar — chat session, integration, skill, memory.
+ * Sidebar and list-column row. variant="browser" is FeatureBrowserRow, the
+ * row of every list/detail column; variant="destination" is a primary
+ * sidebar destination (Home, Chats, Projects, …).
  */
 export interface SidebarRowProps {
+  variant?: 'browser' | 'destination';
   title: string;
-  /** Second line, e.g. relative time or model name. */
+  /** Browser rows only: 10px tertiary second line. */
   subtitle?: string;
-  /** 16px leading icon or integration favicon. */
+  /** Browser rows only: small capsule after the title, e.g. "Built-in". */
+  badge?: string;
   glyph?: React.ReactNode;
   selected?: boolean;
-  /** Trailing status affordance (awaiting-user bubble, count). */
+  /** Browser rows only: false when the host draws its own selection. */
+  drawsSelectionFill?: boolean;
   trailing?: React.ReactNode;
   onClick?: () => void;
 }

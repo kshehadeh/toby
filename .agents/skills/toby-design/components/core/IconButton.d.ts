@@ -1,15 +1,15 @@
 /**
- * Circular glyph-only button — attach, send, cancel, dismiss, refresh.
+ * Circular glyph-only button (.buttonBorderShape(.circle)).
  */
 export interface IconButtonProps {
-  /** The icon node (an <svg> or <img>); sized to ~54% of the button. */
   glyph?: React.ReactNode;
   /** Accessible label; also the tooltip. */
   label: string;
-  /** inverted = solid primary-text fill used by the enabled Send button. */
-  tone?: 'muted' | 'faint' | 'accent' | 'inverted';
+  /** muted = grey circle; prominent = accent circle, white glyph (Send); accent = accent wash; faint = quiet glyph. `inverted` is accepted as an alias of prominent. */
+  tone?: 'muted' | 'faint' | 'accent' | 'prominent' | 'inverted';
+  /** 22 / 28 / 34px. */
   size?: 'sm' | 'md' | 'lg';
-  /** false renders a bare glyph with no circular fill (header controls). */
+  /** false renders a bare glyph with no fill. */
   filled?: boolean;
   disabled?: boolean;
   onClick?: () => void;

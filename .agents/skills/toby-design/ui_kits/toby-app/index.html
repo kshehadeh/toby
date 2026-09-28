@@ -1,120 +1,192 @@
-<!-- @dsCard group="Toby for macOS" viewport="1280x800" name="Toby app" subtitle="Click-through recreation: dashboard, chat, integrations, settings" -->
-<!-- @startingPoint section="Toby for macOS" subtitle="Full app shell — sidebar, toolbar, and four screens" viewport="1280x800" -->
+<!-- @dsCard group="Toby for macOS" viewport="1280x840" name="Toby app" subtitle="Click-through macOS 26 window: Home, Chats, Flows" -->
+<!-- @startingPoint section="Toby for macOS" subtitle="Full app shell: floating sidebar, glass toolbar, Home, Chats and Flows" viewport="1280x840" -->
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-accent="orange"><head><meta charset="utf-8"><title>Toby — macOS app</title>
+<html lang="en"><head><meta charset="utf-8"><title>Toby app</title>
 <link rel="stylesheet" href="../../styles.css">
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
 <script src="../../_ds_bundle.js"></script>
-<script src="data.js"></script>
 <style>
-html,body{margin:0;height:100%}
-body{background:var(--surface-content);color:var(--text-body);font-family:var(--font-system);font-size:var(--size-body);overflow:hidden}
-#root{height:100vh}
-a{color:var(--text-accent)}a:hover{color:var(--text-body)}
-::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-faint) 40%,transparent);border-radius:999px}::-webkit-scrollbar-track{background:transparent}
+body{margin:0;background:var(--surface-settings-canvas);font-family:var(--font-system);color:var(--text-body)}
+.win{position:relative;width:1280px;height:840px;background:var(--surface-content);border-radius:16px;overflow:hidden;display:flex;box-shadow:0 0 0 1px var(--border-hairline)}
+.side{position:absolute;left:8px;top:8px;bottom:8px;width:250px;border-radius:18px;background:var(--surface-sidebar);display:flex;flex-direction:column;padding:10px 10px 8px;box-sizing:border-box;z-index:2}
+.lights{display:flex;gap:8px;padding:4px 4px 0;height:24px;align-items:center}
+.lights span{width:12px;height:12px;border-radius:99px;background:color-mix(in srgb,var(--text-body) 18%,transparent)}
+.main{position:absolute;left:258px;right:0;top:0;bottom:0;display:flex;flex-direction:column}
+.toolbar{height:52px;display:flex;align-items:center;gap:12px;padding:0 12px 0 10px;flex-shrink:0}
+.cap{display:inline-flex;align-items:center;gap:2px;height:36px;padding:0 6px;border-radius:99px;color:var(--text-body)}
+.cap button{border:none;background:transparent;color:inherit;width:30px;height:30px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.cap button:hover{background:var(--surface-hover)}
+.cap .search{width:auto;padding:0 10px 0 6px;gap:6px;color:var(--text-muted);font-size:13px}
+.ttl{display:flex;flex-direction:column;line-height:1.15}
+.ttl b{font-size:13px;font-weight:600;color:var(--text-body)}
+.ttl span{font-size:11px;color:var(--text-muted)}
+.body{flex:1;min-height:0;display:flex}
+.col{width:230px;flex-shrink:0;background:var(--surface-settings-canvas);border-right:1px solid var(--border-hairline);padding:8px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.scroll{flex:1;min-width:0;overflow:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.seg{display:inline-flex;padding:2px;border-radius:99px;background:var(--surface-selected);align-self:center}
+.seg button{border:none;background:transparent;font:inherit;font-size:12px;color:var(--text-body);padding:4px 14px;border-radius:99px;cursor:pointer}
+.seg button.on{background:var(--surface-card);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.inset{border-radius:16px;background:color-mix(in srgb,var(--text-body) 4%,var(--surface-settings-canvas));padding:22px 24px;display:flex;flex-direction:column;gap:22px}
+.step{display:flex;gap:12px;padding:12px;border-radius:10px;background:var(--surface-card);border:1px solid var(--border-card)}
+.num{width:22px;height:22px;border-radius:99px;background:color-mix(in srgb,var(--toby-accent) 16%,transparent);color:var(--toby-accent);font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.mono{font-family:var(--font-mono)}
 </style>
 </head><body><div id="root"></div>
-<script type="text/babel" src="Sidebar.jsx"></script>
-<script type="text/babel" src="ChatScreen.jsx"></script>
-<script type="text/babel" src="DashboardScreen.jsx"></script>
-<script type="text/babel" src="IntegrationsScreen.jsx"></script>
-<script type="text/babel" src="SettingsScreen.jsx"></script>
 <script type="text/babel">
-const { IconButton, Button, Toast } = window.TobyDesignSystem_28de33;
-const data = window.TobyKitData;
+const NS = window.TobyDesignSystem_28de33;
+const { SidebarSection, SidebarRow, PersonaFooter, DashboardCard, CardSection, FlowRunnerCard, UserMessage, AssistantMessage, WorkStepRow, InputDock, DetailSection, DetailMetadata, Badge } = NS;
+const I = ({n,s=14}) => <i data-lucide={n} style={{width:s,height:s,display:'inline-flex'}}></i>;
+const TOBY = '../../assets/personas/toby.png';
 
-const answerFor = (prompt) => 'Three threads are waiting on you. The vendor renewal from Priya is the oldest — open since Thursday, and it names a Friday deadline.\n\nThe other two are quick confirmations: a calendar accept for Thursday\u2019s design review and a one-line reply to the security questionnaire.';
-
-function Toolbar({ title, activity, onNewChat, onSettings }) {
-  return (
-    <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '0 var(--pad-content)',
-      borderBottom: '1px solid var(--border-hairline)', background: 'var(--surface-content)' }}>
-      <span style={{ fontSize: 'var(--size-headline)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-body)' }}>{title}</span>
-      {activity ? <span style={{ fontSize: 'var(--size-caption)', color: 'var(--text-faint)' }}>{activity}</span> : null}
-      <span style={{ flex: 1 }} />
-      <IconButton label="Command palette" filled={false} tone="faint" glyph={<Icon name="search" size={14} />} />
-      <IconButton label="Settings" filled={false} tone="faint" glyph={<Icon name="settings-2" size={14} />} onClick={onSettings} />
-      <IconButton label="New chat" glyph={<Icon name="plus" size={14} />} onClick={onNewChat} />
-    </div>
-  );
+function Toolbar({ title, subtitle }) {
+  return <div className="toolbar">
+    <span className="cap toby-glass"><button aria-label="Back"><I n="chevron-left" s={16}/></button><button aria-label="Forward" style={{opacity:.35}}><I n="chevron-right" s={16}/></button></span>
+    <div className="ttl"><b>{title}</b>{subtitle ? <span>{subtitle}</span> : null}</div>
+    <span style={{flex:1}}/>
+    <span className="cap toby-glass">
+      <button aria-label="Record"><I n="circle-dot" s={16}/></button>
+      <button aria-label="Settings"><I n="settings" s={16}/></button>
+      <button className="search" aria-label="Search"><I n="search" s={15}/>Search</button>
+    </span>
+    <span className="cap toby-glass"><button aria-label="Refresh"><I n="rotate-cw" s={15}/></button></span>
+  </div>;
 }
 
-function NotBuilt({ route }) {
-  const r = data.routes.find((x) => x.id === route);
-  return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ maxWidth: 420, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-        <span style={{ color: 'var(--text-faint)' }}><Icon name={r.icon} size={28} /></span>
-        <span style={{ fontSize: 'var(--size-title2)', fontWeight: 'var(--weight-semibold)' }}>{r.title}</span>
-        <span style={{ fontSize: 'var(--size-callout)', color: 'var(--text-muted)', textWrap: 'pretty' }}>{r.detail}</span>
-        <span style={{ fontSize: 'var(--size-caption)', color: 'var(--text-faint)' }}>Left blank on purpose — this surface is not recreated in the UI kit.</span>
+function Home({ go }) {
+  return <React.Fragment><div className="scroll"><div style={{maxWidth:'var(--dashboard-cards-max)',padding:'16px 32px 40px',display:'flex',flexDirection:'column',gap:24}}>
+    <div>
+      <div style={{fontSize:'var(--size-greeting)',fontWeight:700,letterSpacing:'var(--tracking-greeting)'}}>Good morning, Karim</div>
+      <div style={{fontSize:13,color:'var(--text-muted)',marginTop:3}}>Friday, September 18</div>
+    </div>
+    <div className="grid2">
+      <div style={{display:'flex',flexDirection:'column',gap:20}}>
+        <DashboardCard title="Unread mail" glyph={<I n="mail"/>} lastRan="9/18/26 07:08">
+          <CardSection label="Needs attention" items={[{title:'Priya: signed renewal before Friday',subtitle:'Open since Thursday, no reply yet'},{title:'Design review invite',subtitle:'Conflicts with your 1:1'}]}/>
+          <CardSection label="Ignore">Nine newsletters and three receipts.</CardSection>
+        </DashboardCard>
+        <DashboardCard title="Continue working" glyph={<I n="history"/>} actions={null}>
+          {[['folder','Product Launch','Project'],['folder','Weekly Planning','Project'],['message-circle','Morning briefing','Recent chat']].map(([ic,t,s],i)=>
+            <button key={t} onClick={()=>go(ic==='folder'?'home':'chat')} style={{display:'flex',alignItems:'center',gap:12,width:'100%',border:'none',background:'transparent',padding:'9px 10px',borderTop:i?'1px solid var(--border-hairline)':'none',cursor:'pointer',textAlign:'left',color:'var(--text-body)'}}>
+              <span style={{width:24,display:'inline-flex',justifyContent:'center'}}><I n={ic} s={15}/></span>
+              <span style={{flex:1,display:'flex',flexDirection:'column',gap:2}}><span style={{fontSize:13,fontWeight:500}}>{t}</span><span style={{fontSize:10,color:'var(--text-faint)'}}>{s}</span></span>
+              <span style={{color:'var(--text-faint)'}}><I n="chevron-right" s={11}/></span>
+            </button>)}
+        </DashboardCard>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:20}}>
+        <DashboardCard title="Tasks" glyph={<I n="list-todo"/>}>No tasks found. Connect a task provider to see open tasks.</DashboardCard>
+        <DashboardCard title="Upcoming" glyph={<I n="calendar"/>}>No events found. Connect a calendar provider to see upcoming events.</DashboardCard>
       </div>
     </div>
-  );
+  </div></div>
+  <div style={{width:156,flexShrink:0,borderLeft:'1px solid var(--border-hairline)',padding:'2px 8px',display:'flex',flexDirection:'column',gap:8}}>
+    <span style={{fontSize:10,color:'var(--text-faint)',padding:'2px 8px 0'}}>Actions</span>
+    <div style={{display:'flex',flexDirection:'column',gap:12,padding:'0 8px'}}>
+      <FlowRunnerCard title="Weekly review" glyph={<I n="git-branch" s={15}/>} description="Collects last week's work into one summary."/>
+      <FlowRunnerCard title="Morning briefing" glyph={<I n="sun" s={15}/>} color="var(--toby-accent-blue)"/>
+      <FlowRunnerCard title="Triage inbox" glyph={<I n="inbox" s={15}/>} color="var(--toby-accent-purple)"/>
+    </div>
+  </div></React.Fragment>;
+}
+
+function Chats() {
+  const [sel,setSel]=React.useState('brief');
+  const [open,setOpen]=React.useState(false);
+  const [draft,setDraft]=React.useState('');
+  const rows=[['new','New chat','Jul 10, 2026 at 9:11 AM'],['brief','Morning briefing','Jul 9, 2026 at 11:35 PM'],['weather','Weather check','Jul 9, 2026 at 11:35 AM'],['mail','Unread email summary','Jul 8, 2026 at 11:35 AM']];
+  return <React.Fragment>
+    <div className="col">{rows.map(([id,t,s])=><SidebarRow key={id} title={t} subtitle={s} glyph={<I n="message-circle" s={14}/>} selected={sel===id} onClick={()=>setSel(id)}/>)}</div>
+    <div style={{flex:1,minWidth:0,position:'relative'}}>
+      <div className="scroll" style={{position:'absolute',inset:0,padding:'12px 24px 170px'}}>
+        <div style={{maxWidth:720,display:'flex',flexDirection:'column',gap:18}}>
+          <UserMessage text="How are you today? Give me a short morning check-in." timestamp="9h ago"/>
+          <WorkStepRow label="Worked for 4s" expanded={open} onToggle={()=>setOpen(!open)} steps={[
+            {glyph:<I n="calendar" s={15}/>, title:'Upcoming events', detail:'2 meetings after 11 AM', duration:'1.2s'},
+            {glyph:<I n="list-todo" s={15}/>, title:'Open tasks', detail:'3 due this week', duration:'0.8s'}]}/>
+          <AssistantMessage timestamp="9h ago">
+            <p style={{margin:0}}>Good morning! I'm ready to help. Here's a quick check-in:</p>
+            <ul style={{margin:'4px 0',paddingLeft:18}}>
+              <li><b>Calendar:</b> 2 meetings after 11 AM, open morning for focus work</li>
+              <li><b>Tasks:</b> 3 open items due this week</li>
+              <li><b>Inbox:</b> a few unread messages worth a skim</li>
+            </ul>
+            <p style={{margin:0}}>Want me to expand any of those?</p>
+          </AssistantMessage>
+        </div>
+      </div>
+      <div style={{position:'absolute',left:24,right:24,bottom:18}}><div style={{maxWidth:720}}>
+        <InputDock value={draft} onChange={setDraft} contextPercent={12}/>
+      </div></div>
+    </div>
+  </React.Fragment>;
+}
+
+function Flows() {
+  const [sel,setSel]=React.useState('cal');
+  const [tab,setTab]=React.useState('details');
+  const rows=[['cal','Calendar Summary','Fetch upcoming events via the…','calendar'],['mail','Email Summary','Fetch unread inbox items via t…','mail'],['tasks','Tasks Summary','Fetch open tasks via the tasks…','list-todo']];
+  return <React.Fragment>
+    <div className="col">{rows.map(([id,t,s,ic])=><SidebarRow key={id} title={t} subtitle={s} badge="Built-in" glyph={<I n={ic} s={14}/>} selected={sel===id} onClick={()=>setSel(id)}/>)}</div>
+    <div className="scroll" style={{background:'var(--surface-settings-canvas)',padding:24,display:'flex',flexDirection:'column',gap:0}}>
+      <div className="seg" style={{marginBottom:-14,position:'relative',zIndex:1}}>
+        <button className={tab==='details'?'on':''} onClick={()=>setTab('details')}>Details</button>
+        <button className={tab==='runs'?'on':''} onClick={()=>setTab('runs')}>Recent runs</button>
+      </div>
+      <div className="inset" style={{paddingTop:30}}>
+        {tab==='details' ? <React.Fragment>
+          <DetailSection title="Description">Fetch upcoming events via the calendar.upcomingSummary standard tool, then produce a short markdown summary with the dashboard persona.</DetailSection>
+          <DetailSection title="Steps">
+            <div style={{display:'flex',flexDirection:'column'}}>
+              {[['wrench','Tool Executor','calendar.upcomingSummary','fetch-upcoming-events'],['message-square','LLM Prompter','CalendarDashboardSummary','summarize']].map(([ic,t,a,b],i)=>
+                <React.Fragment key={t}>
+                  {i ? <div style={{display:'flex',justifyContent:'center',padding:'6px 0',color:'var(--text-faint)'}}><I n="chevron-down" s={12}/></div> : null}
+                  <div className="step"><span className="num">{i+1}</span>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <span style={{display:'flex',alignItems:'center',gap:8}}><span style={{color:'var(--text-muted)',display:'inline-flex'}}><I n={ic} s={13}/></span><b style={{fontSize:13}}>{t}</b></span>
+                      <span className="mono" style={{fontSize:12,color:'var(--text-row-description)'}}>{a}</span>
+                      <span className="mono" style={{fontSize:11,color:'var(--text-faint)'}}>{b}</span>
+                    </div>
+                  </div>
+                </React.Fragment>)}
+            </div>
+          </DetailSection>
+          <DetailMetadata rows={[{label:'ID',value:'dashboard.calendar.summary',mono:true},{label:'Persona',value:'Dashboard'},{label:'Steps',value:'2'},{label:'Type',value:'Built-in'},{label:'Updated',value:'Sep 18, 2026 at 7:08 AM'}]}/>
+          <DetailSection title="About flows"><span style={{color:'var(--text-row-description)'}}>Flows run a fixed sequence of Tool Executor and LLM Prompter nodes. Built-in flows remain read-only.</span></DetailSection>
+        </React.Fragment> : <DetailSection title="Recent runs"><span style={{color:'var(--text-row-description)'}}>No runs yet.</span></DetailSection>}
+      </div>
+    </div>
+  </React.Fragment>;
 }
 
 function App() {
-  const [route, setRoute] = React.useState('dashboard');
-  const [session, setSession] = React.useState('s1');
-  const [turns, setTurns] = React.useState([]);
-  const [draft, setDraft] = React.useState('');
-  const [refreshing, setRefreshing] = React.useState(null);
-  const [theme, setTheme] = React.useState('dark');
-  const [accent, setAccent] = React.useState('orange');
-  const [tab, setTab] = React.useState('appearance');
-  const [personaOpen, setPersonaOpen] = React.useState(false);
-  const [toast, setToast] = React.useState(null);
-
-  React.useEffect(() => { lucide.createIcons(); });
-  React.useEffect(() => {
-    const el = document.documentElement;
-    el.setAttribute('data-accent', accent);
-    if (theme === 'system') { el.removeAttribute('data-theme'); } else { el.setAttribute('data-theme', theme); }
-  }, [theme, accent]);
-
-  const send = () => {
-    if (!draft.trim()) return;
-    const prompt = draft;
-    setDraft('');
-    setTurns((t) => t.concat([{ prompt, steps: [{ title: 'Search mail', icon: 'mail', active: true }], answer: null }]));
-    setTimeout(() => setTurns((t) => t.map((x, i) => i === t.length - 1 ? {
-      prompt: x.prompt,
-      steps: [
-        { title: 'Search mail', icon: 'mail', body: '12 threads since Monday, 3 flagged', duration: '1.4s', count: 3 },
-        { title: 'Planning', icon: 'list', body: 'Group by sender, rank by age', duration: '0.4s' }
-      ],
-      answer: answerFor(x.prompt)
-    } : x)), 1100);
-  };
-
-  const refresh = (id) => { setRefreshing(id); setTimeout(() => setRefreshing(null), 1200); };
-  const newChat = () => { setRoute('chat'); setTurns([]); setDraft(''); };
-
-  const titles = { dashboard: 'Home', chat: turns.length ? 'Inbox triage' : 'New chat', integrations: 'Integrations', settings: 'Settings' };
-
-  return (
-    <div style={{ height: '100%', display: 'flex' }}>
-      <TobySidebar route={route} onRoute={setRoute} sessions={data.sessions} activeSession={session} onSession={setSession}
-        personaOpen={personaOpen} onPersona={() => { setPersonaOpen(!personaOpen); setToast({ title: 'Persona picker', message: 'Toby and Mailman are built in; custom personas live in Settings.' }); setTimeout(() => setToast(null), 2600); }} />
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: route === 'settings' ? 'var(--surface-settings-canvas)' : 'var(--surface-content)' }}>
-        <Toolbar title={titles[route] || (data.routes.find((r) => r.id === route) || {}).title}
-          activity={route === 'chat' && turns.length ? 'worked for 4.2s · 2 tools' : null}
-          onNewChat={newChat} onSettings={() => setRoute('settings')} />
-        <div style={{ flex: 1, minHeight: 0 }}>
-          {route === 'dashboard' ? <DashboardScreen refreshing={refreshing} onRefresh={refresh} />
-            : route === 'chat' ? <ChatScreen turns={turns} draft={draft} setDraft={setDraft} onSend={send} />
-            : route === 'integrations' ? <IntegrationsScreen selected={session} onSelect={setSession} />
-            : route === 'settings' ? <SettingsScreen theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} tab={tab} setTab={setTab} />
-            : <NotBuilt route={route} />}
-        </div>
-      </div>
-      {toast ? <div style={{ position: 'fixed', right: 20, bottom: 20 }}><Toast title={toast.title} message={toast.message} onDismiss={() => setToast(null)} /></div> : null}
+  const [route,setRoute]=React.useState('home');
+  React.useEffect(()=>{lucide.createIcons();});
+  const d=(id,title,icon)=><SidebarRow key={id} variant="destination" title={title} glyph={<I n={icon} s={15}/>} selected={route===id} onClick={()=>setRoute(id)}/>;
+  const titles={home:['Home'],chat:['Morning briefing','Ready'],flows:['Calendar Summary','dashboard.calendar.summary']};
+  const t=titles[route]||[route];
+  return <div className="win">
+    <div className="side">
+      <div className="lights"><span/><span/><span/><span style={{flex:1,background:'none'}}/><span style={{width:'auto',height:'auto',background:'none',color:'var(--text-muted)',display:'inline-flex'}}><I n="panel-left" s={16}/></span></div>
+      <div style={{height:14}}/>
+      <SidebarSection>{[d('home','Home','house'),d('chat','Chats','message-circle'),d('projects','Projects','folder'),d('library','Library','library'),d('rec','Recordings','audio-lines')]}</SidebarSection>
+      <SidebarSection title="Automation">{[d('sched','Schedules','calendar'),d('flows','Flows','git-branch')]}</SidebarSection>
+      <SidebarSection title="Tools">{[d('skills','Skills','graduation-cap')]}</SidebarSection>
+      <div style={{flex:1}}/>
+      <PersonaFooter name="Toby" imageSrc={TOBY} status="connected"/>
     </div>
-  );
+    <div className="main">
+      <Toolbar title={t[0]} subtitle={t[1]}/>
+      <div className="body">
+        {route==='home' ? <Home go={setRoute}/> : route==='chat' ? <Chats/> : route==='flows' ? <Flows/> :
+          <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:8,color:'var(--text-muted)'}}>
+            <I n="mouse-pointer-click" s={28}/><span style={{fontSize:13}}>This kit recreates Home, Chats and Flows. Pick one in the sidebar.</span></div>}
+      </div>
+    </div>
+  </div>;
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script></body></html>

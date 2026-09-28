@@ -1,18 +1,18 @@
 /**
- * Compact Actions-rail tile for a runner-only flow: colored Shortcuts-style
- * card, flow icon, play glyph, hover popover (title + description), spinner
- * while running. Not a full dashboard card.
+ * Home Actions tile for a runner-only flow (DashboardActionRunnersRail): a
+ * Shortcuts-style colored card, 68px tall, 16px corners.
  */
 export interface FlowRunnerCardProps {
   title: string;
-  /** Flow description; shown on hover (native: SidebarActionHelpPopover). */
-  description?: string;
-  /** Optional leading glyph. Native uses the flow SF Symbol. */
-  stamp?: React.ReactNode;
-  /** Named tile fill from the flow editor (`FLOW_TILE_COLORS`). */
+  /** 15px white glyph, top-left. */
+  glyph?: React.ReactNode;
+  /** The flow's color preset; defaults to var(--toby-accent-teal). */
   color?: string;
+  /** Shown as the hover help. */
+  description?: string;
+  /** Swaps the glyph for a spinner and pulses the fill. */
   running?: boolean;
-  /** Error text from the last run, shown under the row. */
+  /** Error text from the last run, shown under the tile. */
   error?: string;
   onRun?: () => void;
 }

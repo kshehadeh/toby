@@ -1,9 +1,10 @@
-Standard Toby text button — use it for settings actions, card actions, and wizard steps; `prominent` is reserved for the single primary action in a view.
+Standard push button. On macOS 26 every push button is a capsule: use `bordered` (grey capsule) for ordinary actions and `prominent` (accent capsule) for the one primary action in a view.
 
 ```jsx
-<Button variant="prominent" wide onClick={run}>Run Now</Button>
-<Button onClick={openDocs} external>Open setup guide</Button>
+<Button onClick={test}>Test connection</Button>
+<Button variant="prominent">Save</Button>
+<Button external onClick={openDocs}>Open setup guide</Button>
 <Button variant="destructive">Delete persona</Button>
 ```
 
-Variants: `bordered` (default), `prominent` (accent fill, near-black label), `plain` (accent text only — used inline in toasts and transcripts), `destructive`. Props: `wide`, `disabled`, `external`.
+`plain` is accent text for inline actions (toasts, transcripts). Props: `wide`, `disabled`, `external`.

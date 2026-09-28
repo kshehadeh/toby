@@ -1,22 +1,26 @@
 import React from 'react';
 
+// macOS 26 push buttons are capsules. `bordered` is the quiet grey fill
+// (`.buttonStyle(.bordered)`), `prominent` the accent fill
+// (`.borderedProminent`), `plain` accent text, `destructive` a bordered
+// capsule with a red label.
 const base = {
-  fontFamily: 'var(--font-system)', fontSize: 'var(--size-body)', fontWeight: 'var(--weight-medium)',
+  fontFamily: 'var(--font-system)', fontSize: 'var(--size-body)', fontWeight: 'var(--weight-regular)',
   lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  gap: '6px', borderRadius: 'var(--radius-control)', cursor: 'pointer',
-  transition: 'background var(--dur-hover) var(--ease-out), border-color var(--dur-hover) var(--ease-out)',
+  gap: '6px', borderRadius: 'var(--radius-pill)', cursor: 'pointer', border: 'none',
+  transition: 'background var(--dur-hover) var(--ease-out)',
   padding: '0 12px', height: 'var(--form-control-height)', whiteSpace: 'nowrap'
 };
 
 const buttonVariants = {
-  bordered: { background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--border-control)' },
-  prominent: { background: 'var(--toby-accent)', color: 'var(--text-on-accent)', border: '1px solid transparent', fontWeight: 'var(--weight-semibold)' },
-  plain: { background: 'transparent', color: 'var(--text-accent)', border: '1px solid transparent', padding: '0 2px', fontWeight: 'var(--weight-semibold)' },
-  destructive: { background: 'var(--surface-card)', color: 'var(--status-danger)', border: '1px solid var(--border-control)' }
+  bordered: { background: 'var(--surface-selected)', color: 'var(--text-body)' },
+  prominent: { background: 'var(--toby-accent)', color: 'var(--text-on-accent)', fontWeight: 'var(--weight-medium)' },
+  plain: { background: 'transparent', color: 'var(--text-accent)', padding: '0 2px', fontWeight: 'var(--weight-medium)' },
+  destructive: { background: 'var(--surface-selected)', color: 'var(--status-danger)' }
 };
 
 export function Button({ variant = 'bordered', wide = false, disabled = false, external = false, children, onClick, ...rest }) {
-  const style = { ...base, ...buttonVariants[variant] || buttonVariants.bordered };
+  const style = { ...base, ...(buttonVariants[variant] || buttonVariants.bordered) };
   if (wide) { style.width = '100%'; }
   if (disabled) { style.opacity = 0.4; style.cursor = 'default'; }
   return (

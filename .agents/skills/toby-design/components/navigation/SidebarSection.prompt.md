@@ -1,7 +1,5 @@
-Sidebar group heading with its rows. Heading is 10px semibold uppercase and faint.
+Groups sidebar rows under a 10px tertiary label in sentence case ("Automation", "Tools"). Omit `title` for the primary group at the top.
 
 ```jsx
-<SidebarSection title="Today">
-  <SidebarRow title="Weekly review prep" subtitle="4 messages" selected />
-</SidebarSection>
+<SidebarSection title="Automation">…</SidebarSection>
 ```

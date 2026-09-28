@@ -1,7 +1,7 @@
-Inline success/error strip for form feedback and connection health. Prefer a Toast for ephemeral global notices.
+Inline success or error strip for forms and health details: the tone's fill and stroke, 6px corners, 11px text with a semibold glyph.
 
 ```jsx
-<InlineStatusMessage tone="error" message="Couldn't reach the daemon. Try restarting the server." />
+<InlineStatusMessage tone="error" message="Couldn't reach the daemon. Restart the server from the sidebar." />
 ```
 
-Uses the dedicated status tokens (tinted background + 45%/40% border + darkened foreground) — never raw red/green.
+Healthy connections show no banner: the status line already says so.

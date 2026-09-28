@@ -1,0 +1,18 @@
+/* Web-only helpers the React specimens rely on (2026-09-28 re-sync). */
+/* Liquid Glass stand-in for the web. macOS 26 renders .glassEffect() natively;
+   this approximates it with the material tokens and a backdrop blur. */
+.toby-glass{
+  background:var(--material-glass);
+  -webkit-backdrop-filter:var(--blur-material) saturate(1.6);
+  backdrop-filter:var(--blur-material) saturate(1.6);
+  box-shadow:inset 0 0 0 1px var(--material-glass-edge),var(--shadow-glass);
+}
+.toby-card-section + .toby-card-section{border-top:1px solid var(--border-hairline);margin-top:12px;padding-top:12px}
+@keyframes tobyPulse{0%{opacity:1;transform:scale(1)}100%{opacity:.45;transform:scale(1.03)}}
+.toby-pulse{animation:tobyPulse var(--dur-pulse) var(--ease-in-out) infinite alternate}
+@keyframes tobySpin{to{transform:rotate(360deg)}}
+.toby-spin{animation:tobySpin var(--spin-refresh) linear infinite}
+.toby-spinner{display:inline-block;width:14px;height:14px;border-radius:999px;border:2px solid currentColor;border-right-color:transparent;animation:tobySpin var(--spin-refresh) linear infinite;box-sizing:border-box}
+@keyframes tobyTileRun{0%{filter:brightness(1)}100%{filter:brightness(.88)}}
+.toby-tile-running{animation:tobyTileRun var(--dur-pulse) var(--ease-in-out) infinite alternate}
+@media (prefers-reduced-motion:reduce){.toby-pulse,.toby-spin,.toby-spinner,.toby-tile-running{animation:none}}

@@ -1,21 +1,30 @@
 /**
- * One line of pipeline chrome in the transcript — a tool call, plan, or
- * lifecycle step, with duration and expandable output.
+ * Tool-activity group (WorkedForRow): a 13px secondary "Worked for 4s" line
+ * with a disclosure chevron; expanded, one row per step.
  */
-export interface WorkStepRowProps {
-  /** Rendered uppercase and tracked-out so it recedes behind the answer. */
-  title: string;
-  body?: string;
-  /** Preformatted duration, e.g. "1.4s". */
-  duration?: string;
-  /** Aggregated repeat count; renders "×3" when > 1. */
-  count?: number;
-  /** Tool icon; falls back to a 7px accent dot. */
+export interface WorkStep {
+  /** Tool glyph, tinted in the markdown-heading blue. */
   glyph?: React.ReactNode;
-  /** Step still running (spinner state). */
-  active?: boolean;
-  expandable?: boolean;
+  title: string;
+  /** One-line detail under the title. */
+  detail?: string;
+  /** Render the detail in the monospaced face (file paths). */
+  path?: boolean;
+  /** Shown as "×3" when above 1; otherwise duration shows. */
+  count?: number;
+  duration?: string;
+  /** Marks the failing step: red glyph and error text. */
+  failing?: boolean;
+  error?: string;
+}
+export interface WorkStepRowProps {
+  /** "Worked for 4s", "Working… 3s", "Stopped after 2s". */
+  label?: string;
+  /** Adds the pulsing accent dot. */
+  running?: boolean;
+  failed?: boolean;
   expanded?: boolean;
+  steps?: WorkStep[];
   onToggle?: () => void;
 }
 export declare function WorkStepRow(props: WorkStepRowProps): JSX.Element;

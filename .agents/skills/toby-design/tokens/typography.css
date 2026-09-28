@@ -1,5 +1,6 @@
-/* Toby uses the macOS system faces. Rounded SF is the transcript/chrome voice;
-   a serif face carries assistant prose; Inter is the help site's web face. */
+/* Toby uses the macOS system faces: SF Pro everywhere, including assistant
+   answers (no serif). SF Pro Rounded is kept for transcript timestamps and
+   notice labels; SF Mono for paths and code; Inter is the help site's face. */
 :root{
   --font-system:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,sans-serif;
   --font-rounded:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",var(--font-system);
@@ -16,27 +17,31 @@
   --size-caption:10px;
 
   /* Explicit sizes lifted from source */
-  --size-card-title:15px;  /* dashboard card header */
+  --size-greeting:26px;    /* Home greeting, bold, -0.45px */
+  --size-card-title:14px;  /* DashboardBlockLayout.titleSize, semibold */
   --size-card-body:13px;
   --size-card-meta:11px;
   --size-row-title:13px;
   --size-tile-title:13px;
   --size-tile-sub:11px;
-  --size-answer:15px;      /* assistant prose, serif */
-  --size-step-meta:10.5px; /* tool/skill chrome, rounded, uppercase */
+  --size-answer:15px;      /* answer + user bubble, SF Pro (transcriptAnswerFont) */
+  --size-step-meta:10.5px; /* notice labels: rounded, medium, uppercase */
   --size-badge:9px;        /* UP NEXT capsule */
   --size-wordmark:19px;
-  --size-stamp:54px;       /* decorative card glyph */
+  --size-stamp:54px;       /* legacy: retired dashboard corner glyph */
 
   --weight-regular:400;
   --weight-medium:500;
   --weight-semibold:600;
   --weight-bold:700;
 
-  --leading-answer:1.5;    /* 15px + 7px lineSpacing */
+  --leading-answer:1.6;    /* 15px + 6pt transcriptAnswerLineSpacing */
+  --leading-card-body:1.55;/* 13px + 4pt dashboard summary spacing */
   --leading-body:1.4;
   --leading-web-prose:1.7;
   --tracking-step-meta:.07em;
+  --tracking-eyebrow:.7px; /* dashboard section eyebrow */
+  --tracking-greeting:-.45px;
   --tracking-web-eyebrow:.06em;
   --tracking-web-h1:-.025em;
 }
