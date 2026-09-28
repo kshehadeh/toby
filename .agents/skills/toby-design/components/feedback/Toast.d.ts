@@ -1,10 +1,9 @@
 /**
- * Floating notice with blurred material background, optional inline action.
+ * Global notice (ToastView): a Liquid Glass slab, max 420px.
  */
 export interface ToastProps {
   style?: 'success' | 'error' | 'progress';
   title: string;
-  /** Truncated at ~120 characters in the app. */
   message?: string;
   actionLabel?: string;
   onAction?: () => void;

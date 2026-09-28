@@ -1,7 +1,9 @@
-The user's turn: left-aligned quiet well, max 720px, elevated fill, concentric corners, no accent stripe. Same 15pt system sans as the answer.
+The user's prompt: a left-aligned bubble in the same 720px column as the answer, on the elevated fill at 92% with a hairline stroke and 14px corners, text in SF Pro 15.
 
 ```jsx
-<UserMessage text="Summarize unread mail that needs a reply" footer={<CopyLink />} />
+<UserMessage text="How are you today? Give me a short morning check-in." timestamp="2m ago" />
 ```
 
-Prompts longer than 12 lines collapse with a "Show more" link. Copy and relative time sit under the well.
+It is not right-aligned and has no accent edge. Long prompts collapse after 12 lines behind an accent "Show more" in the app.
+
+**Native:** `Features/Chat/UserMessageRow.swift`.

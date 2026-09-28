@@ -1,15 +1,17 @@
 /**
- * Sidebar footer: persona portrait, persona name, active model, and the
- * up/down chevron that opens the persona picker.
+ * Sidebar footer (SidebarFooter): the persona picker button and the server
+ * status dot.
  */
 export interface PersonaFooterProps {
   name?: string;
-  /** Provider/model slug shown beneath the name. */
-  model?: string;
-  /** Persona portrait — see assets/personas/. */
+  /** 24px portrait with 4px corners. */
   imageSrc?: string;
-  /** True while the picker popover is open (keeps the row filled). */
+  /** Server status dot color: green / accent / red / faint. */
+  status?: 'connected' | 'connecting' | 'error' | 'idle';
+  /** Picker open: 14% accent fill. */
   open?: boolean;
+  /** Asking for attention: 16% accent fill, accent stroke, pulse. */
+  attention?: boolean;
   onClick?: () => void;
 }
 export declare function PersonaFooter(props: PersonaFooterProps): JSX.Element;

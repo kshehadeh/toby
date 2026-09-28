@@ -41,6 +41,12 @@
   --toby-md-code:#b3661a;
   --toby-md-code-bg:rgba(0,0,0,.05);
   --toby-md-bold:rgba(0,0,0,.92);
+  /* Apple system colors (SwiftUI .green / .red) */
+  --system-green:#34c759;
+  --system-red:#ff3b30;
+  /* Web stand-in for Liquid Glass (not a source value; see primitives.css) */
+  --material-glass:rgba(242,242,244,.8);
+  --material-glass-edge:rgba(255,255,255,.6);
 
   /* Fixed (appearance-independent) */
   --toby-toggle-tint:#33c759;
@@ -84,6 +90,10 @@
     --toby-md-code:#e6a56a;
     --toby-md-code-bg:rgba(255,255,255,.05);
     --toby-md-bold:rgba(255,255,255,.95);
+    --system-green:#30d158;
+    --system-red:#ff453a;
+    --material-glass:rgba(38,38,40,.66);
+    --material-glass-edge:rgba(255,255,255,.10);
   }
 }
 [data-theme="dark"]{
@@ -122,6 +132,10 @@
   --toby-md-code:#e6a56a;
   --toby-md-code-bg:rgba(255,255,255,.05);
   --toby-md-bold:rgba(255,255,255,.95);
+  --system-green:#30d158;
+  --system-red:#ff453a;
+  --material-glass:rgba(38,38,40,.66);
+  --material-glass-edge:rgba(255,255,255,.10);
 }
 [data-theme="light"]{
   /* App chrome */
@@ -163,4 +177,10 @@
   --toby-md-code:#b3661a;
   --toby-md-code-bg:rgba(0,0,0,.05);
   --toby-md-bold:rgba(0,0,0,.92);
+  /* Apple system colors (SwiftUI .green / .red) */
+  --system-green:#34c759;
+  --system-red:#ff3b30;
+  /* Web stand-in for Liquid Glass (not a source value; see primitives.css) */
+  --material-glass:rgba(242,242,244,.8);
+  --material-glass-edge:rgba(255,255,255,.6);
 }

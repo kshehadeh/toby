@@ -1,7 +1,9 @@
-Persona switcher pinned to the bottom of the sidebar. Shows who is answering and on which model.
+The bottom of the sidebar: the persona picker button (24px portrait with 4px corners, the persona name in 13px, a chevron.up.chevron.down) and the server status dot beside it.
 
 ```jsx
-<PersonaFooter name="Mailman" model="gpt-4.1-mini" imageSrc="assets/personas/mailman.png" onClick={openPicker} />
+<PersonaFooter name="Toby" imageSrc="…" status="connected" onClick={openPicker} />
 ```
 
-While waiting for the daemon the app shows "Connecting" / "Waiting for daemon" instead of blanks.
+No fill at rest; 14% accent while the picker is open; a 16% accent fill with an accent stroke and pulse when it needs attention. The model name is not shown here.
+
+**Native:** `Features/Sidebar/SidebarFooter.swift`.

@@ -1,13 +1,12 @@
 /**
- * Text button used across settings rows, dashboard cards, and dialogs.
+ * Capsule push button (macOS 26): settings actions, card actions, dialogs.
  */
 export interface ButtonProps {
-  /** bordered = default macOS bordered control; prominent = accent-filled; plain = accent text; destructive = red label. */
+  /** bordered = grey capsule; prominent = accent capsule; plain = accent text; destructive = red label on a grey capsule. */
   variant?: 'bordered' | 'prominent' | 'plain' | 'destructive';
-  /** Fill the container width (used for "Run Now" in flow cards). */
   wide?: boolean;
   disabled?: boolean;
-  /** Appends the ↗ affordance used for links that leave the app. */
+  /** Appends the ↗ affordance for links that leave the app. */
   external?: boolean;
   children?: React.ReactNode;
   onClick?: () => void;

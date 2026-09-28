@@ -14,7 +14,7 @@ memories, schedules, daemon-run flows, and a local "listen" mode that records
 and transcribes audio on-device.
 
 The product's design goal, in the maintainer's words, is to be **as Mac-like as
-possible** — light/dark that follows the system, a user-selectable accent color,
+possible**: light/dark that follows the system, a user-selectable accent color,
 and layouts that stay *spacious, never busy*.
 
 ## Products represented
@@ -29,12 +29,13 @@ and layouts that stay *spacious, never busy*.
 
 Nothing here was designed from scratch; every value was read out of the source.
 
-- **GitHub:** <https://github.com/kshehadeh/toby> — worth exploring further before
+- **GitHub:** <https://github.com/kshehadeh/toby>, worth exploring further before
   building anything new for Toby: the SwiftUI views are the real specification.
   Especially `apps/toby-app/Sources/TobyApp/UI/Theme/` (tokens),
   `UI/Primitives/` + `UI/SettingsControls/` (components), `Features/*` (screens),
   and `apps/help-site/src/css/custom.css` (web brand).
-- **Attached codebase:** the same repo mounted locally as `toby/`.
+- **Last synced:** `2f06640` (v0.176.0), 2026-09-28. The React specimens are
+  hand-written web recreations of the SwiftUI views, not a build of the app.
 - **Docs read for tone:** `docs/*.md`, `apps/help-site/docs/**`, root `README.md`.
 - The current **Toby Design System** Figma file is a catalog and visual
   reference. Its native component/page mapping and limitations are documented
@@ -53,134 +54,71 @@ Nothing here was drawn or invented.
 what it will cost you. It never sells, never exclaims, and never apologizes at
 length.
 
-- **Person.** Product UI speaks to *you* about *Toby* in the third person:
-  "What should Toby take care of?", "Toby can read and send mail for this
-  account." Toby never says "I". Docs use *you* and imperatives: "Install Toby,
-  set up AI, connect integrations, and start chatting."
-- **Casing.** Sentence case everywhere — titles, buttons, menu items ("Check for
-  updates", "Show more", "Run Now" is the one Title-Case exception in the app).
-  Uppercase is a *typographic device*, not a copy style: it is applied by the UI
-  to step metadata, sidebar section labels, and dashboard summary headings.
-- **Length.** Row descriptions are one full sentence: "Keep Toby reachable
-  without the main window." Destination help text is one sentence too: "Browse
-  installed skills, inspect their instructions, edit them, or add new reusable
-  workflows."
+- **Person.** Speak to *you* about *Toby* in the third person: "What should
+  Toby take care of?", "Toby can read and send mail for this account." Toby
+  never says "I". Docs use *you* and imperatives: "Install Toby, set up AI,
+  connect integrations, and start chatting."
+- **Casing.** Sentence case everywhere: titles, buttons, menu items ("Check for
+  updates", "Show more", "Run Now" is the one Title-Case exception). Uppercase
+  is a *typographic device*, not a copy style: apply it to card-section eyebrows,
+  badges, and transcript notice labels, never to buttons, sidebar labels or
+  running prose.
+- **Length.** Write row descriptions as one full sentence: "Keep Toby reachable
+  without the main window." Keep destination help text to one sentence too:
+  "Browse installed skills, inspect their instructions, edit them, or add new
+  reusable workflows."
 - **Empty states name the next action**, not the absence: "Content unavailable.
   {error}", "No due date", "Waiting for daemon", "Connecting".
 - **Suggestions are written as user speech**, verb-first and specific:
   "Summarize unread mail that needs a reply", "Turn on Focus and minimize
   distracting windows".
 - **Status vocabulary is fixed and short:** Connected · Connecting… · Disabled ·
-  Idle · Error · Unknown · Completed · Overdue · Due today · Due tomorrow.
-- **Numbers are quiet.** "2 of 6 done", "×3", "1.4s", "42% full" — no
+  Idle · Error · Unknown · Completed · Overdue · Due today · Due tomorrow. Do
+  not invent new status words.
+- **Numbers are quiet.** "2 of 6 done", "×3", "1.4s", "42% full"; no
   celebratory framing, no percentages invented for decoration.
-- **Priority labels** from the personas: *Needs attention · Worth noting ·
-  Ignore*. Reuse these exact words for triage content.
-- **Typography of ellipsis and punctuation:** real ellipsis in progress labels
-  ("Refreshing...", "Connecting…"), typographic apostrophes in prose ("today’s
-  calendar"), em dashes in explanatory asides.
+- **Priority labels** are exactly: *Needs attention · Worth noting · Ignore*.
+  Reuse these exact words for triage content.
+- **Typography of ellipsis and punctuation:** use a real ellipsis in progress
+  labels ("Refreshing...", "Connecting…"), typographic apostrophes in prose
+  ("today's calendar"), and em dashes in explanatory asides.
 - **No emoji in the app.** The one exception is the help site's download CTA
-  glyph (`⬇ Download Toby for macOS`) and emoji fallbacks for third-party icons
-  a plugin didn't ship. Do not add emoji to app UI.
+  glyph (`⬇ Download Toby for macOS`) and emoji fallbacks for a third-party
+  icon a plugin didn't ship. Do not add emoji to app UI.
 
 ## Visual foundations
 
-**Colors.** Two independent palettes. The app uses dynamic AppKit colors that
-flip with the system appearance; surfaces are neutral greys (light: `#f2f2f5`
-sidebar → `#fcfcfc` content; dark: `#1f2426` sidebar → `#141414` content) and
-*all* text and hairlines are alpha over the surface (88% / 55–58% / 38%), never
-opaque greys. The help site is dark-only, near-black (`#000` → `#0a0a0a` →
-`#141414`) with `#f97316`.
+**Platform.** Toby is a macOS 26 app, and the chrome is the system's: a Liquid Glass sidebar panel floating inside the window (inset 8px, rounded), a 52px toolbar whose controls sit in glass capsules (back/forward; record, settings, search), and capsule-shaped push buttons, pop-ups and segmented controls. Draw new surfaces inside that frame; don't paint over it. In web work, stand in for glass with the `.toby-glass` class (`tokens/primitives.css`) (`material-glass`, `material-glass-edge`, `blur-material`, `shadow-glass`) and flag it as an approximation.
 
-**Accent.** One accent at a time, chosen by the user from eight presets (orange
-is default) and identical in light and dark. Accent appears as: the send-button
-and up-next fills, small glyph marks, "Show more" links, the dashboard block's
-cap rule, and 10 / 18 / 22 / 25 / 55 % opacity washes for wash, hover, selection
-and borders. Never a second accent hue, never a gradient of it. Sidebar
-destinations are the only place with a fixed multi-hue set (one identity color
-per destination), and even there the color only shows as an 18–22% wash.
+**Colors.** Default to light, and follow the system appearance. Use the dynamic surfaces: `surface-content` for the detail column and dashboard cards, `surface-settings-canvas` for Settings and for every list column and detail pane, `surface-elevated` for the user bubble and resting tiles, `surface-card` for settings cards. Set *all* text and hairlines as alpha over the surface (`text-body` 88%, `text-muted` 55–58%, `text-faint` 38%, `border-hairline` 8–10%), never as opaque greys. On the help site, stay dark-only, near-black (`web-black` → `web-surface` → `web-surface-raised`) with `web-accent`.
 
-**Type.** System faces only: SF Pro for chrome and transcript prose (15pt
-assistant answers with extra leading so a response reads like a document),
-and SF Mono for logs, JSON and paths. Sizes are small and few:
-17 / 15 / 13 / 12 / 11 / 10.5 / 10. Collapsed work is a 13pt secondary caption;
-expanded step metadata is 10.5px semibold uppercase with +0.07em tracking so it
-recedes behind the answer. The help site is Inter,
-with tight display tracking (−0.025em) and 1.7 prose leading.
+**Accent.** Show one accent at a time: `toby-accent`, the user's preset (orange by default; blue, green, purple, pink, red, teal and gray also exist), identical in light and dark. Use it for the send button, the up-next onboarding tile, a selected browser row's glyph, "Show more", a card's … menu and plain buttons, and use its washes (`accent-wash-weak` 10%, `accent-wash` 18%, `accent-wash-strong` 22%, `accent-border-soft` 25%, `accent-border` 55%) for tints and strokes. Never add a second accent hue or a gradient of it. The one place other presets appear is Home's Actions tiles, which take each flow's own color (teal by default). Navigation carries no color: the `--toby-route-*` tokens are legacy.
 
-**Spacing and density.** Spacious, not dense: 24px content padding, 22px card
-padding, 42px settings rows, 640px form column, 720px transcript reading column,
-250px sidebar. The scale is *not* a strict 4pt grid — 5, 7, 9, 14, 22 all appear
-in source and are preserved verbatim. Whitespace, not rules, separates things:
-one hairline divider per card at most.
+**Type.** Use SF Pro everywhere, at small, few sizes: 26 (the Home greeting, bold, −0.45px) / 17 / 15 / 14 / 13 / 12 / 11 / 10. The transcript is plain SF Pro: set the answer and the user's bubble at 15px with 6pt of extra leading (`answer`, `leading-answer`) in a 720px reading column; there is no serif. SF Pro Rounded (`--font-rounded`) is reserved for transcript timestamps and notice labels; SF Mono (`--font-mono`) for paths, IDs and code. Dashboard card titles are 14px semibold, their summaries 13px secondary; browser-row titles 12px medium; sidebar section labels 10px tertiary in sentence case. Uppercase appears only as a small tracked eyebrow (10px semibold, +0.7px) over a card section and in badges. None of these faces ship as binaries: they resolve natively on macOS and fall back to `system-ui` / Georgia elsewhere; the help site loads Inter from Google Fonts.
 
-**Backgrounds.** Flat solid surfaces. No imagery, no gradients, no patterns or
-textures anywhere in the app. The only gradients are functional: the
-bottom-of-card "Show more" fade, and small brand-colored icon badges on the help
-site. Photography and illustration appear only as persona portraits and the
-architecture diagram.
+**Spacing and density.** Keep things spacious, not dense: 24px content padding, 16px card padding, 14px under a card header, 42px settings rows, 640px settings column, 720px transcript column, 250px sidebar, 240px list column, 940px Home column. The scale is *not* a strict 4pt grid (5, 7, 9, 14, 22 all appear) and must be preserved verbatim. Separate things with whitespace and single hairlines.
 
-**Borders, cards, shadows.** Settings cards are a flat card fill + a 1px hairline
-border (8% alpha) + radius; no shadow in their resting state. Dashboard blocks
-drop the border entirely: flat panel fill, a 2px accent rule capping the top, and
-an oversized flat glyph at 4.5% opacity in the lower-right corner. Shadows are
-rare, always downward, and reserved for things that float: the input dock
-(`0 12px 20px / 16%`), toasts (`0 6px 16px / 22%`), popovers (`0 8px 14px /
-28%`), an expanded dashboard card (`0 6px 12px / 18%`). Radii: 16 cards & dock,
-14 message bubbles, 12 tiles, 10 settings cards, 9 rows/buttons, 8 list rows,
-6 controls, pill for chips and switches.
+**Backgrounds.** Use flat solid surfaces; the only translucency is the system's glass. Do not add imagery, gradients, patterns or textures. The only gradients allowed are functional: a card's "Show more" fade, and small brand-colored icon badges on the help site.
 
-**Transparency and blur.** Used sparingly and only for floating chrome: toasts
-use ultra-thin material; the help-site navbar blurs at ≥997px. Everything else
-is opaque. Transparency *as alpha on text and separators* is, by contrast,
-the foundation of the whole palette.
+**Borders, cards, shadows.** A dashboard card is `surface-content` with a 1px `border-hairline` stroke and 16px concentric corners, a header (glyph, title, "last ran" time, refresh, …) closed by a divider; it keeps its natural height up to 340px, then clips into a 40px fade and a 36px "Show more" bar. Settings cards are `surface-card` + a 1px `border-card` + 10px corners. List rows use 8px corners, the user bubble 14px, onboarding tiles 12px, the dock, toasts and Actions tiles 16px; controls are capsules. Nothing casts a shadow except glass; there are no cap rules, corner glyphs or accent edges on cards.
 
-**Motion.** Default motion is short and quiet: 80ms popover dismiss, 120ms
-hover tints, and 200ms disclosure. Damped springs are reserved for meaningful
-toast and dashboard section transitions. State-signaling attention animation
-may use a 1.03 persona scale, recording pulse, or symbol effect. A refresh
-glyph spins only while refreshing. Everything new must respect Reduce Motion.
+**Motion.** Use short ease-outs, no bounce, no spring: 80ms popover dismiss, 120ms hover tints, 200ms disclosure, 250ms dashboard reflow. Repeating animations are limited to the pulsing accent dot of a running work step and the persona footer's attention pulse (850ms, opacity + 1.03 scale), the 800ms skeleton pulse, a running Actions tile's fill pulse, and a refresh glyph spinning one turn per 800ms *only while refreshing*. Respect Reduce Motion everywhere.
 
-**Hover and press.** Hover = a neutral 6–8% wash, or an 18% wash of the item's
-own hue, plus a promotion of text from muted → primary; sidebar destination
-glyphs also swap monochrome → palette rendering. Selected = the same wash at
-22%, held. There is **no press-scale, no darkening, no ripple** — macOS controls
-handle their own press states.
+**Selection and hover.** Selected list rows take a `surface-selected` fill and promote their text from secondary to primary; a selected primary sidebar destination takes the stronger grey pill (`surface-selected-strong`). Glyphs in browser rows turn accent when selected. Hover adds at most a light wash; there is no press-scale, darkening or ripple, since macOS controls handle their own press states.
 
-**Layout rules.** A fixed 250px sidebar (resizable to 320) beside a scrolling
-detail column; a 52px toolbar; the composer floats over the transcript, pinned
-to the bottom with an 18px gutter, and the transcript reserves padding equal to
-the composer's measured height. Dashboard cards share a fixed 340px collapsed
-height so a row aligns. Settings content is capped at 640px and left-aligned.
+**Layout rules.** The window is a floating sidebar panel beside a detail area under the toolbar. Home is a greeting, a two-column grid of cards capped at 940px, and an Actions inspector column (about 156px) of colored flow tiles. Chats and every other workspace (Projects, Library, Skills, Schedules, Flows, Recordings, Script Tools) are a list column on the settings canvas beside a detail pane: build their rows from `SidebarRow` (the FeatureBrowserRow pattern), their loading and empty states from `FeatureBrowserList` / `FeatureBrowserPlaceholder`, and their detail panes from segmented tabs over an inset panel holding `DetailSection` blocks and a `DetailMetadata` grid. In a chat, float the glass `InputDock` over the transcript, pinned to the bottom, and reserve padding equal to its height. Cap settings content at 640px, left-aligned.
 
-**Imagery vibe.** Neutral and cool-grey; the only warmth in the interface is the
-accent. Persona portraits are flat line/vector-style illustrations on light
-backgrounds, circular-masked. No photography, no grain, no duotone.
+**Imagery vibe.** Keep imagery neutral and cool-grey; the only warmth is the accent. Persona portraits are flat line illustrations on light backgrounds, shown with 4px rounded corners. No photography, grain or duotone.
 
 ## Iconography
 
-- **The app's icon system is SF Symbols**, referenced by name in Swift
-  (`message`, `rectangle.3.group`, `wand.and.stars`, `arrow.clockwise`,
-  `chevron.up.chevron.down`, …). Weights are `.medium`/`.semibold` at 10–18pt;
-  the dashboard ghost glyph is ~120px flat at 4.5% opacity (it was a rotated,
-  shadowed 54pt stamp in the app — simplified here). Some
-  destinations swap to the `.fill` variant on hover.
-- **SF Symbols cannot be shipped to the web.** The HTML cards and UI kits here
-  use **Lucide** (CDN, `unpkg.com/lucide@0.417.0`), matched name-for-name to the
-  SF Symbol in the source — same 24px grid, ~2px stroke, rounded caps. **This is
-  a substitution; flag it in any deliverable that will sit next to the real app.**
-  In native work, use the SF Symbol names from the Swift source.
-- **Real raster icons were copied in** and should always be used instead of
-  redrawing: integration marks in `assets/icons/integrations/` (email, todoist,
-  slack, jira, notion, macos, apple-calendar, apple-reminders) and AI-provider
-  marks in `assets/icons/ai/` (openai, ollama, openrouter, vercel, chutes).
-- **Emoji** are not used as app iconography. A plugin manifest *may* provide an
-  emoji string, which the integrations sidebar renders as a fallback when no icon
-  file exists; the help site uses `⬇` in its download CTA. That is the whole
-  extent of it.
-- **Unicode glyphs** stand in for a few affordances: `×3` counts, `✕` closers,
-  `↗` external-link marks, `→` on tile CTAs.
-- The only illustration in the repo is `assets/illustrations/toby-architecture.svg`.
+- **Use SF Symbols, referenced by name**, as the Swift source does (`house`, `message`, `folder`, `books.vertical`, `waveform`, `calendar`, `arrow.triangle.branch`, `graduationcap`, `arrow.clockwise`, `ellipsis`, `chevron.up.chevron.down`, …). Sidebar destination glyphs are monochrome in primary text; card header glyphs are 14px medium in primary text; work-step glyphs are tinted `toby-md-heading`; browser-row glyphs are tertiary, accent when selected; Actions tiles use white glyphs.
+- **SF Symbols cannot be shipped to the web.** For HTML cards and UI kits, use **Lucide** (CDN, `lucide@0.417.0`), matched name-for-name to the SF Symbol it stands in for; the bundled components draw a few small inline equivalents themselves. Flag this substitution in any deliverable that will sit next to the real app.
+- **Use the real raster icons that were copied in** rather than redrawing them: integration marks (email, todoist, slack, jira, notion, macos, apple-calendar, apple-reminders) and AI-provider marks (openai, ollama, openrouter, vercel, chutes) in `assets/icons/integrations/` and `assets/icons/ai/`.
+- **There is no vector logo.** The mark ships only as raster PNGs (`assets/logo/`): a line-drawn portrait of a bespectacled man in a suit. Where a mark can't be placed, set the wordmark **TOBY** in bold system type, all caps; never redraw or vectorize the portrait.
+- **Do not use emoji as app iconography.** A plugin manifest *may* provide an emoji string, which the integrations sidebar renders when no icon file exists; the help site uses `⬇` in its download CTA. That is the whole extent of it.
+- **Unicode glyphs** stand in for a few affordances: `×3` counts, `✕` closers, `↗` external-link marks.
+- The only illustration in the system is `assets/illustrations/toby-architecture.svg`.
 
 ---
 
@@ -188,49 +126,53 @@ backgrounds, circular-masked. No photography, no grain, no duotone.
 
 | Path | What's there |
 | --- | --- |
-| `styles.css` | The single entry point — `@import`s only. |
-| `tokens/` | `colors.css` (light/dark base), `accents.css` (8 presets + destination hues), `semantic.css` (aliases to use in product work), `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `layout.css`, `web.css` (help site), `fonts.css`. |
-| `guidelines/` | 23 specimen cards for the Design System tab: surfaces (light/dark), text tiers, accents, accent washes, destination hues, status, syntax, web palette, font families, app scale, assistant prose, step chrome, web type, spacing, density, radii, elevation, motion, logo, personas, integration icons, provider icons. |
-| `components/` | React primitives, grouped `core` / `forms` / `feedback` / `navigation` / `chat` / `dashboard`. |
-| `ui_kits/toby-app/` | Click-through recreation of the macOS app (dashboard, chat, integrations, settings). See its README. |
+| `styles.css` | The single entry point: `@import`s only. |
+| `tokens/` | `colors.css` (light/dark base, system colors, glass stand-in), `accents.css` (8 presets + legacy destination hues), `semantic.css` (aliases to use in product work), `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `layout.css`, `web.css` (help site), `fonts.css`, `primitives.css` (the web helper classes the specimens use: `.toby-glass`, card-section dividers, pulse and spinner animations). |
+| `components/` | React specimens grouped `core` / `forms` / `feedback` / `navigation` / `chat` / `dashboard` / `detail`, plus `glyphs.jsx` (small inline stand-ins for the SF Symbols the components draw). |
+| `_ds_bundle.js` | All components as one classic script on `window.TobyDesignSystem_28de33`, built from `components/**` with esbuild (IIFE, `react` / `react-dom` read from `window`). Rebuild it whenever a `.jsx` changes. |
+| `ui_kits/toby-app/` | Click-through macOS 26 window: Home, Chats, Flows. See its README. |
 | `ui_kits/help-site/` | Recreation of the documentation site (home, integrations, architecture). |
 | `assets/` | `logo/`, `personas/`, `icons/integrations/`, `icons/ai/`, `illustrations/`. |
 | `github.md` | Source repo association + screen map for upstream sync. |
-| `SKILL.md` | Agent-skill wrapper for use outside this project. |
+| `SKILL.md` | Agent-skill wrapper. |
 | `references/` | Source-backed component recipes, screen patterns, SwiftUI workflow, and Figma map. |
 
 ### Components
 
 Grouped by concern; each has a `.jsx`, a `.d.ts` props contract, a
-`.prompt.md` usage note, and one `@dsCard` per directory.
+`.prompt.md` usage note, and one `@dsCard` showcase page per directory.
 
-- **core** — `Button`, `IconButton`, `Badge`, `Chip`, `ProgressBar`
-- **forms** — `SettingsCard`, `SettingsRow`, `SettingsSectionHeader`,
+- **core**: `Button`, `IconButton`, `Badge`, `Chip`, `ProgressBar`
+- **forms**: `SettingsCard`, `SettingsRow`, `SettingsSectionHeader`,
   `TextField`, `Select`, `Toggle`
-- **feedback** — `InlineStatusMessage`, `Toast`, `Skeleton`
-- **navigation** — `SidebarSection`, `SidebarRow`, `SidebarActionGrid`,
-  `PersonaFooter`
-- **chat** — `InputDock`, `UserMessage`, `AssistantMessage`, `WorkStepRow`
-- **dashboard** — `DashboardCard`, `CardSection`, `FlowRunnerCard` (Actions rail row), `OnboardingTile`
+- **feedback**: `InlineStatusMessage`, `Toast`, `Skeleton`
+- **navigation**: `SidebarSection`, `SidebarRow` (destination and browser-row
+  variants), `PersonaFooter`, `SidebarActionGrid` (deprecated)
+- **chat**: `InputDock`, `UserMessage`, `AssistantMessage`, `WorkStepRow`
+- **dashboard**: `DashboardCard`, `CardSection`, `FlowRunnerCard` (Actions rail
+  tile), `OnboardingTile`
+- **detail**: `DetailSection`, `DetailMetadata`
 
 The inventory mirrors what the app actually defines (`UI/Primitives`,
 `UI/SettingsControls`, and the reusable row/card types inside `Features/`).
-Nothing was added that has no counterpart in the source — no Tabs, no Avatar,
+Nothing was added that has no counterpart in the source: no Tabs, no Avatar,
 no Tooltip, no Dialog, because the app builds those from stock SwiftUI.
-
-**Intentional additions:** none. Two renames for clarity: `Toggle` ←
-`SettingsToggle`, `TextField` ← `SettingsInlineField`.
-
-This visual catalog contains **26 named component families**. Their production
-source mapping and behavioral contracts are in
-[`references/component-recipes.md`](references/component-recipes.md).
+Two renames for clarity: `Toggle` ← `SettingsToggle`, `TextField` ←
+`SettingsInlineField`. Production source mapping and behavioral contracts are
+in [`references/component-recipes.md`](references/component-recipes.md).
 
 ### Reference limits
 
-- No font binaries: SF Pro / SF Pro Rounded / New York resolve natively on
-  macOS and fall back to `system-ui` / Georgia elsewhere. Inter is loaded from
-  Google Fonts, exactly as the help site does.
-- SF Symbols → Lucide substitution (see Iconography).
+- Not recreated: the command palette, logs viewer, markdown editor,
+  permissions screen, Script Tools editor, and the Projects, Library, Skills,
+  Memories, Schedules and Recordings detail panes. Primitives with no specimen:
+  `CopyButton`, `InlineTitleField`, `EditorSheet`, `GatewayFundsBanner`,
+  `IntelligenceOutline`.
+- No font binaries are committed: SF Pro / SF Pro Rounded / New York resolve
+  natively on macOS and fall back to `system-ui` / Georgia elsewhere. Inter is
+  loaded from Google Fonts, exactly as the help site does.
+- SF Symbols → Lucide / inline glyph substitution, and Liquid Glass → the
+  `.toby-glass` approximation (see above).
 - The UI kit and Figma layout references intentionally simplify dynamic
   behavior. They do not define source-of-truth state, scrolling, focus,
   accessibility, AppKit window behavior, or async ownership.

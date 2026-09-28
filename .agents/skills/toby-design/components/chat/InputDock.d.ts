@@ -1,17 +1,23 @@
 /**
- * The chat composer — floating rounded dock with attach on the left, send on
- * the right, and keyboard-shortcut placeholder copy.
+ * Chat composer (InputDock): one Liquid Glass slab with the text field on
+ * top and a control row: attach (leading), context gauge, stop, send.
  */
 export interface InputDockProps {
   value?: string;
-  /** Default: "Return to send · Shift+Return for newline". */
+  /** Defaults to the key hint, "Return to send · Shift+Return for newline". */
   placeholder?: string;
-  /** 0–100; renders the ring gauge. Omit when the provider doesn't report it. */
+  /** 0–100; draws the ring gauge (accent from 80%). */
   contextPercent?: number;
-  /** Attachment chips row rendered above the field. */
+  /** Shows the slash-circle "no context info" glyph instead of the gauge. */
+  contextUnavailable?: boolean;
+  /** Chip row above the field. */
   attachments?: React.ReactNode;
+  /** Disables the field and shows the stop button. */
   loading?: boolean;
+  canAttach?: boolean;
   onChange?: (value: string) => void;
   onSubmit?: () => void;
+  onCancel?: () => void;
+  onAttach?: () => void;
 }
 export declare function InputDock(props: InputDockProps): JSX.Element;

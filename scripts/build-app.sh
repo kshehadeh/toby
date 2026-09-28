@@ -200,6 +200,10 @@ trap restore_info_plist EXIT
 /usr/libexec/PlistBuddy -c "Set :CFBundleName ${APP_DISPLAY_NAME}" "${SOURCE_INFO_PLIST}" >/dev/null
 echo "Embedding bundle identity ${APP_BUNDLE_ID} (${APP_DISPLAY_NAME}) into binary…"
 
+# SwiftPM's own downloader fails the build when GitHub returns 500 for the
+# Sparkle binary zip. Seed the artifact cache before the first swift invocation.
+"${ROOT}/scripts/prefetch-sparkle-spm-artifact.sh"
+
 # SPM does not track the sectcreate Info.plist as an input, so remove the
 # prior binary to force a re-link with the variant identity above.
 BUILD_DIR="$(

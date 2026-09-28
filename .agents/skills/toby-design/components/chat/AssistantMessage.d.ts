@@ -1,14 +1,16 @@
 /**
- * Assistant turn: persona rail on the left, serif long-form answer on the right.
+ * Assistant turn (AssistantMessageRow): SF Pro 15px answer with 6pt extra
+ * leading, left-aligned in the 720px reading column. No avatar, no label.
  */
 export interface AssistantMessageProps {
-  /** Small semibold label above the answer — usually the persona name. */
-  header?: string;
-  /** Persona portrait for the rail. */
-  avatarSrc?: string;
-  /** The answer body — prose, lists, tables. */
+  /** The answer body: prose, lists, tables. */
   children?: React.ReactNode;
-  /** Copy-response control. */
+  /** Compact relative time shown trailing in the actions row, e.g. "2m ago". */
+  timestamp?: string;
+  /** While streaming, the copy/timestamp row is hidden. */
+  streaming?: boolean;
+  /** Replaces the default copy + timestamp row; pass null to hide it. */
   footer?: React.ReactNode;
+  onCopy?: () => void;
 }
 export declare function AssistantMessage(props: AssistantMessageProps): JSX.Element;

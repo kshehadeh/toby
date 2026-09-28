@@ -6,3 +6,5 @@ Uppercase capsule for status labels. Toby uses it sparingly — one per surface 
 ```
 
 `accent` is a solid accent fill with a near-black label; `neutral` is a faint outlined capsule; `accentSoft` is the tinted-wash variant.
+
+**Native:** `UI/Primitives/Badge.swift` mirrors this exactly: same three tones, same names. First real use: the language tag (`TS` / `AppleScript`) above the Script Tools code editor.

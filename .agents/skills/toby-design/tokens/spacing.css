@@ -17,7 +17,7 @@
 
   /* Named, load-bearing insets */
   --pad-content:24px;      /* AppTheme.contentPadding */
-  --pad-card:22px;         /* DashboardCard body */
+  --pad-card:16px;         /* DashboardBlockLayout.cardPadding */
   --pad-tile:14px;         /* onboarding tile */
   --pad-sidebar-x:10px;
   --pad-sidebar-y:12px;
@@ -29,6 +29,6 @@
   --pad-chip-y:5px;
   --pad-bubble-x:16px;
   --pad-bubble-y:12px;
-  --gap-grid:6px;          /* sidebar action grid */
+  --gap-grid:6px;          /* legacy: retired sidebar action grid */
   --gap-tile:12px;
 }

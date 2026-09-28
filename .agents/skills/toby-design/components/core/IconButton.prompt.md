@@ -1,9 +1,8 @@
-Circular icon-only control used in the input dock (attach / send / stop), toasts (dismiss) and card headers (refresh, actions).
+Circular glyph-only control: the dock's attach, stop and send buttons, and other bordered circles.
 
 ```jsx
-<IconButton label="Send" tone="inverted" glyph={<ArrowUp />} />
 <IconButton label="Add files" glyph={<Plus />} />
-<IconButton label="Actions" filled={false} tone="faint" glyph={<Ellipsis />} />
+<IconButton label="Send" tone="prominent" glyph={<ArrowUp />} />
 ```
 
-Tones: `muted` (default), `faint`, `accent`, `inverted` (solid, for the enabled Send state). Sizes 22 / 26 / 34px.
+Tones: `muted` (grey circle, default), `prominent` (accent circle, white glyph), `accent` (wash), `faint`. Sizes 22 / 28 / 34px. The white-on-accent send glyph is the system's own and sits below 3:1 on the lighter presets.

@@ -4,9 +4,14 @@
   --settings-content-max:640px;
   --form-row-height:42px;
   --form-control-height:24px;
-  --transcript-user-max:520px;
-  --transcript-assistant-max:640px;
-  --dashboard-card-collapsed:340px;
+  --transcript-user-max:720px;      /* AppTheme.transcriptReadingWidth */
+  --transcript-assistant-max:720px; /* one shared reading column */
+  --dashboard-card-collapsed:340px; /* maximum; short cards keep natural height */
+  --dashboard-header-gap:14px;
+  --dashboard-cards-max:940px;
+  --action-tile-min:100px;
+  --action-tile-height:68px;
+  --feature-column-width:240px;
   --dashboard-fade-height:40px;
   --dashboard-showmore-height:36px;
   --onboarding-tile-min:148px;

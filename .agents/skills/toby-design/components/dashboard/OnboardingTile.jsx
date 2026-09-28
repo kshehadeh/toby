@@ -1,5 +1,11 @@
 import React from 'react';
+import { ArrowRight, CheckCircle } from '../glyphs.jsx';
 
+// OnboardingStepTile: 148px minimum, 14px padding, 12px concentric corners.
+// Resting tiles sit on the elevated fill with a separator stroke; the up-next
+// tile takes a 10% accent wash, a 55% accent stroke, an "UP NEXT" badge and
+// an accent-filled action. Completed tiles fade to tertiary with an accent
+// check and a green "Completed" label.
 export function OnboardingTile({ title, subtitle, glyph, actionLabel, upNext = false, complete = false, onAction }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'var(--onboarding-tile-min)', boxSizing: 'border-box',
@@ -9,12 +15,12 @@ export function OnboardingTile({ title, subtitle, glyph, actionLabel, upNext = f
       {upNext ? (
         <span style={{ alignSelf: 'flex-start', marginBottom: '10px', background: 'var(--toby-accent)', color: 'var(--text-on-accent)',
           borderRadius: 'var(--radius-pill)', padding: '3px 7px', fontFamily: 'var(--font-system)', fontSize: 'var(--size-badge)',
-          fontWeight: 'var(--weight-bold)', letterSpacing: '.04em', textTransform: 'uppercase', lineHeight: 1 }}>Up next</span>
+          fontWeight: 'var(--weight-bold)', textTransform: 'uppercase', lineHeight: 1 }}>Up next</span>
       ) : null}
       <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '10px' }}>
         <span aria-hidden="true" style={{ width: '22px', height: '22px', display: 'inline-flex', color: complete ? 'var(--text-faint)' : 'var(--text-muted)' }}>{glyph}</span>
         <span style={{ flex: 1 }} />
-        {complete ? <span aria-hidden="true" style={{ color: 'var(--toby-accent)', fontSize: '15px' }}>✓</span> : null}
+        {complete ? <span aria-hidden="true" style={{ color: 'var(--toby-accent)', display: 'inline-flex' }}><CheckCircle size={16} /></span> : null}
       </div>
       <span style={{ fontFamily: 'var(--font-system)', fontSize: 'var(--size-tile-title)', fontWeight: 'var(--weight-semibold)',
         color: complete ? 'var(--text-faint)' : 'var(--text-body)', textWrap: 'pretty' }}>{title}</span>
@@ -29,7 +35,7 @@ export function OnboardingTile({ title, subtitle, glyph, actionLabel, upNext = f
           border: upNext ? '1px solid transparent' : '1px solid var(--border-hairline)',
           color: upNext ? 'var(--text-on-accent)' : 'var(--text-body)',
           fontFamily: 'var(--font-system)', fontSize: 'var(--size-callout)', fontWeight: 'var(--weight-semibold)' }}>
-          {actionLabel}<span aria-hidden="true" style={{ fontSize: '10px' }}>→</span>
+          {actionLabel}<ArrowRight size={10} stroke={3} />
         </button>
       ) : null}
     </div>

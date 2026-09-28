@@ -1,7 +1,7 @@
-Ephemeral global notice. Max 420px wide, 16px radius, ultra-thin material with a hairline border.
+Global, ephemeral notice: a Liquid Glass slab (16px corners, max 420px) with a system-green or system-red glyph (a spinner for progress), an 11px semibold title, a 10px secondary message, an optional accent action and a dismiss ✕.
 
 ```jsx
-<Toast style="success" title="Backup restored" message="Config and credentials were written to ~/.toby." actionLabel="Reveal in Finder" />
+<Toast style="success" title="Backup restored" message="Config was written to ~/.toby." actionLabel="Reveal in Finder" />
 ```
 
-`progress` style swaps the glyph for a spinner and hides the dismiss button.
+Use `InlineStatusMessage` for feedback that belongs to a form.

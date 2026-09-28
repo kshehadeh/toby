@@ -21,9 +21,9 @@
 [data-accent="teal"]{--toby-accent:var(--toby-accent-teal)}
 [data-accent="gray"]{--toby-accent:var(--toby-accent-gray)}
 
-/* Per-destination hues for the sidebar action grid (AppSidebar.swift).
-   These are fixed identity colors and do NOT follow the user's accent —
-   except Dashboard and Schedules, which intentionally use the accent. */
+/* Legacy: per-destination hues from the retired sidebar action grid. Current
+   navigation is monochrome; do not wire new UI to these. Red, teal and gray
+   above are live presets (teal is the default Home action-tile color). */
 :root{
   --toby-route-dashboard:var(--toby-accent);
   --toby-route-chats:#59adff;

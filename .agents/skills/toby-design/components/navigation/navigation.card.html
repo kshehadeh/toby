@@ -1,56 +1,37 @@
-<!-- @dsCard group="Components" viewport="700x330" name="Navigation" subtitle="Sidebar sections, rows, action grid, persona footer" -->
+<!-- @dsCard group="Components" viewport="560x400" name="Navigation" subtitle="Sidebar destinations, browser rows, persona footer" -->
 <!DOCTYPE html>
-<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Navigation</title>
+<html lang="en"><head><meta charset="utf-8"><title>Navigation</title>
 <link rel="stylesheet" href="../../styles.css">
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
 <script src="../../_ds_bundle.js"></script>
-<style>body{margin:0;background:var(--surface-content);font-family:var(--font-system);color:var(--text-body)}#root{padding:20px;display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}.pane{background:var(--surface-sidebar);border-radius:12px;padding:12px 10px}.lbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}a{color:var(--text-accent)}a:hover{color:var(--text-body)}</style>
+<style>body{margin:0;background:var(--surface-content);font-family:var(--font-system);color:var(--text-body)}.lbl{font-size:10px;color:var(--text-faint);margin-bottom:8px}#root{padding:16px;display:grid;grid-template-columns:250px 260px;gap:16px}.panel{border-radius:18px;background:var(--surface-sidebar);padding:10px 10px 8px;display:flex;flex-direction:column;min-height:360px}.col{border-radius:12px;background:var(--surface-settings-canvas);padding:8px 10px;display:flex;flex-direction:column;gap:2px}</style>
 </head><body><div id="root"></div>
 <script type="text/babel">
-const { SidebarSection, SidebarRow, SidebarActionGrid, PersonaFooter } = window.TobyDesignSystem_28de33;
-const I = ({n,s=16}) => <i data-lucide={n} style={{width:s,height:s,display:'inline-flex'}}></i>;
-const routes=[
-  {id:'dashboard',title:'Dashboard',color:'var(--toby-route-dashboard)',glyph:<I n="layout-grid" s={18}/>},
-  {id:'chat',title:'Chats',color:'var(--toby-route-chats)',glyph:<I n="message-square" s={18}/>},
-  {id:'integrations',title:'Integrations',color:'var(--toby-route-integrations)',glyph:<I n="grid-2x2" s={18}/>},
-  {id:'projects',title:'Projects',color:'var(--toby-route-projects)',glyph:<I n="folder" s={18}/>},
-  {id:'skills',title:'Skills',color:'var(--toby-route-skills)',glyph:<I n="sparkles" s={18}/>},
-  {id:'memories',title:'Memories',color:'var(--toby-route-memories)',glyph:<I n="brain" s={18}/>},
-  {id:'schedules',title:'Schedules',color:'var(--toby-route-schedules)',glyph:<I n="clock" s={18}/>},
-  {id:'flows',title:'Flows',color:'var(--toby-route-flows)',glyph:<I n="git-branch" s={18}/>},
-  {id:'recordings',title:'Recordings',color:'var(--toby-route-recordings)',glyph:<I n="audio-lines" s={18}/>}
-];
+const I = ({n,s=14}) => <i data-lucide={n} style={{width:s,height:s,display:'inline-flex'}}></i>;
+const { SidebarSection, SidebarRow, PersonaFooter } = window.TobyDesignSystem_28de33;
 function Card(){
-  const [route,setRoute]=React.useState('chat');
+  const [route,setRoute]=React.useState('home');
+  const [row,setRow]=React.useState('cal');
   React.useEffect(()=>{lucide.createIcons();});
+  const d=(id,title,icon)=><SidebarRow key={id} variant="destination" title={title} glyph={<I n={icon} s={15}/>} selected={route===id} onClick={()=>setRoute(id)}/>;
   return <React.Fragment>
-    <div className="pane">
-      <SidebarSection title="Today">
-        <SidebarRow title="Weekly review prep" subtitle="4 messages" glyph={<I n="message-square"/>} selected/>
-        <SidebarRow title="Jira triage" subtitle="11:20" glyph={<img src="../../assets/icons/integrations/jira.png" alt="" width="16" height="16"/>}/>
-        <SidebarRow title="Inbox digest" subtitle="Awaiting reply" glyph={<img src="../../assets/icons/integrations/email.png" alt="" width="16" height="16"/>} trailing={<I n="message-circle-question" s={12}/>}/>
-      </SidebarSection>
-      <SidebarActionGrid items={routes} selectedId={route} onSelect={setRoute}/>
-      <div style={{height:1,background:'var(--border-hairline)',margin:'8px 0'}}/>
-      <PersonaFooter name="Toby" model="gpt-4.1 · openai" imageSrc="../../assets/personas/toby.png"/>
+    <div className="panel">
+      <SidebarSection>{[d('home','Home','house'),d('chat','Chats','message-circle'),d('projects','Projects','folder'),d('library','Library','library'),d('rec','Recordings','audio-lines')]}</SidebarSection>
+      <SidebarSection title="Automation">{[d('sched','Schedules','calendar'),d('flows','Flows','git-branch')]}</SidebarSection>
+      <SidebarSection title="Tools">{[d('skills','Skills','graduation-cap')]}</SidebarSection>
+      <div style={{flex:1}}/>
+      <PersonaFooter name="Toby" imageSrc="../../assets/personas/toby.png" status="connected"/>
     </div>
-    <div>
-      <div className="lbl">Row states</div>
-      <div style={{background:'var(--surface-sidebar)',borderRadius:12,padding:10,display:'flex',flexDirection:'column',gap:2}}>
-        <SidebarRow title="Default" glyph={<I n="message-square"/>}/>
-        <SidebarRow title="Selected" glyph={<I n="message-square"/>} selected/>
-        <SidebarRow title="With subtitle" subtitle="Yesterday · 8 turns" glyph={<I n="message-square"/>}/>
-        <SidebarRow title="External chat" subtitle="From Slack" glyph={<img src="../../assets/icons/integrations/slack.png" alt="" width="16" height="16"/>}/>
-      </div>
-      <div className="lbl" style={{marginTop:18}}>Persona footer · open</div>
-      <div style={{background:'var(--surface-sidebar)',borderRadius:12,padding:10}}>
-        <PersonaFooter name="Mailman" model="gpt-4.1-mini · openai" imageSrc="../../assets/personas/mailman.png" open/>
-      </div>
+    <div className="col">
+      <SidebarRow title="Calendar Summary" subtitle="Fetch upcoming events" badge="Built-in" glyph={<I n="calendar" s={14}/>} selected={row==='cal'} onClick={()=>setRow('cal')}/>
+      <SidebarRow title="Email Summary" subtitle="Fetch unread inbox items" badge="Built-in" glyph={<I n="mail" s={14}/>} selected={row==='mail'} onClick={()=>setRow('mail')}/>
+      <SidebarRow title="Tasks Summary" subtitle="Fetch open tasks" badge="Built-in" glyph={<I n="list-todo" s={14}/>} selected={row==='tasks'} onClick={()=>setRow('tasks')}/>
     </div>
   </React.Fragment>;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<Card/>);
+requestAnimationFrame(()=>lucide.createIcons());
 </script></body></html>

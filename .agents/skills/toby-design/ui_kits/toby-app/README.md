@@ -1,39 +1,18 @@
-# Toby for macOS — UI kit
+# Toby for macOS: UI kit
 
-Click-through recreation of the native SwiftUI app, built from
-`toby/apps/toby-app/Sources/TobyApp`. All chrome comes from the design system's
-own components (`window.TobyDesignSystem_28de33`); this kit only composes them.
-
-Open `index.html`.
+A click-through recreation of the macOS 26 window, rebuilt on 2026-09-28 against `apps/toby-app/Sources/TobyApp` at v0.176.0. Open `index.html`. It composes only the system's own components (`window.TobyDesignSystem_28de33`). It follows the system appearance; set `data-theme="light"` or `"dark"` on `<html>` to pin one.
 
 ## Screens
 
-| Screen | File | Source |
+| Screen | What it shows | Source |
 | --- | --- | --- |
-| App shell (sidebar + toolbar) | `Sidebar.jsx`, `index.html` | `Features/Sidebar/AppSidebar.swift`, `SidebarHeader.swift`, `SidebarFooter.swift`, `App/RootToolbars.swift` |
-| Home / dashboard | `DashboardScreen.jsx` | `Features/Dashboard/DashboardCards.swift`, `OnboardingCard.swift` |
-| Chat (empty + active) | `ChatScreen.jsx` | `Features/Chat/ChatWorkspaceComponents.swift`, `UserMessageRow.swift`, `AssistantMessageRow.swift`, `TranscriptStepRows.swift`, `UI/Primitives/InputDock.swift` |
-| Integrations | `IntegrationsScreen.jsx` | `Features/Configure/{IntegrationsSettingsView,ConfigureSectionDetailView,IntegrationDetailHeader}.swift` |
-| Settings | `SettingsScreen.jsx` | `Features/Configure/AppearanceSettingsView.swift`, `SettingsWindowView.swift`, `UI/SettingsControls/*` |
+| Window shell | Floating sidebar panel (inset 8px, 18px corners), destination list with Automation and Tools sections, persona footer with status dot; toolbar with glass capsules (back/forward, record/settings/search, refresh) | `Features/Sidebar/AppSidebar.swift`, `SidebarFooter.swift`, `App/RootToolbars.swift` |
+| Home | Greeting, hairline-bordered cards with CardSection content, "Continue working" rows, and the Actions inspector rail of colored flow tiles | `Features/Dashboard/DashboardView.swift`, `DashboardCards.swift`, `DashboardActionRunnersRail.swift`, `DashboardRecentWork.swift` |
+| Chats | List column of chat rows; transcript with a left-aligned user bubble, the "Worked for" row, a plain SF Pro answer, and the glass InputDock | `Features/Chat/*`, `UI/Primitives/InputDock.swift` |
+| Flows | List column of browser rows with "Built-in" badges; detail pane with segmented Details / Recent runs tabs over an inset panel, numbered step cards and the metadata grid | `Features/Flows/FlowDetailContent.swift`, `UI/Primitives/DetailInspect.swift` |
 
-## What is interactive
-
-- The 3×3 sidebar grid switches destinations.
-- Chat: pick a suggestion or type, press Send → work steps stream, then a document-style answer.
-- Dashboard: the refresh control swaps the card body for the loading skeleton.
-- Integrations: Settings catalog rows push plugin detail.
-- Settings → Appearance: theme and accent controls re-theme the whole kit live
-  (this is the app's real behavior — accent is a user preference).
-
-## Deliberately blank
-
-Projects, Skills, Memories, Schedules, Flows, and Recordings show their real
-one-sentence descriptions from `AppSidebar.swift` plus a note that the surface
-is not recreated here. Nothing on those screens is invented.
+Every other destination shows a one-line placeholder: nothing on those screens is invented.
 
 ## Substitutions
 
-Icons are **Lucide** (CDN), standing in for SF Symbols, which have no web
-distribution. Names were matched one-to-one with the `systemImage` strings in
-the Swift source. Integration and AI-provider icons are the real PNGs copied
-from the repo.
+Icons are **Lucide** (CDN), standing in for SF Symbols, matched by name to the `systemImage` strings in the Swift source. Liquid Glass is approximated with the `.toby-glass` class (`material-glass`, `material-glass-edge`, `blur-material`, `shadow-glass`); native work uses `.glassEffect()`. The persona portrait is `assets/personas/toby.png`.
