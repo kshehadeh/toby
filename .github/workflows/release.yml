@@ -173,11 +173,15 @@ jobs:
           ditto -c -k --keepParent dist/Toby.app dist/Toby.app.notary.zip
           # Submit and wait; notarytool --wait exits 0 even when notarization
           # is rejected, so parse the status from the output directly.
-          submit_output="$(xcrun notarytool submit dist/Toby.app.notary.zip \
+          if ! submit_output="$(xcrun notarytool submit dist/Toby.app.notary.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait 2>&1)"
+            --wait 2>&1)"; then
+            echo "$submit_output" >&2
+            echo "::error::Toby.app notarization submission failed."
+            exit 1
+          fi
           echo "$submit_output"
 
           # Extract the first submission ID (appears multiple times in output)
@@ -215,11 +219,15 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          submit_output="$(xcrun notarytool submit dist/Toby-arm64.dmg \
+          if ! submit_output="$(xcrun notarytool submit dist/Toby-arm64.dmg \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait 2>&1)"
+            --wait 2>&1)"; then
+            echo "$submit_output" >&2
+            echo "::error::DMG notarization submission failed."
+            exit 1
+          fi
           echo "$submit_output"
 
           submission_id="$(echo "$submit_output" | grep -m1 'id:' | awk '{print $2}')"
