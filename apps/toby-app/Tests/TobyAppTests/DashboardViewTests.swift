@@ -745,6 +745,37 @@ struct DashboardViewTests {
 @MainActor
 @Suite("DashboardBlockContent")
 struct DashboardBlockContentTests {
+	@Test("linked rows open web and native destinations using the shared renderer")
+	func linkedRows() throws {
+		for raw in ["https://example.com/article?a=1&b=2", "customapp://items/42"] {
+			let item = DashboardBlockContentItem(title: "Open item", subtitle: "Details", url: raw)
+			let link = try DashboardStructuredItemRow(item: item).inspect().find(ViewType.Link.self)
+			#expect(try link.url().absoluteString == raw)
+			#expect(try link.labelView().find(text: "Open item").string() == "Open item")
+		}
+	}
+
+	@Test("rows without absolute destinations remain plain content")
+	func unlinkedRows() throws {
+		for raw in [nil, "", "   ", "relative/path", "https:"] as [String?] {
+			let item = DashboardBlockContentItem(title: "Plain item", subtitle: nil, url: raw)
+			#expect(item.destinationURL == nil)
+			let view = try DashboardStructuredItemRow(item: item).inspect()
+			#expect(throws: (any Error).self) { try view.find(ViewType.Link.self) }
+			#expect(try view.find(text: "Plain item").string() == "Plain item")
+		}
+	}
+
+	@Test("custom Markdown rows preserve bold linked titles and native destinations")
+	func boldLinkedRow() {
+		let sections = DashboardContentSectionParser.parse(
+			"- **[Review draft](customapp://documents/42)** — Due today"
+		)
+		#expect(sections?.first?.items.first?.title == "Review draft")
+		#expect(sections?.first?.items.first?.subtitle == "Due today")
+		#expect(sections?.first?.items.first?.destinationURL?.absoluteString == "customapp://documents/42")
+	}
+
 	@Test("DashboardBlockContent decodes from JSON")
 	func contentDecodes() throws {
 		let json = """
@@ -1304,4 +1335,3 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 }
-

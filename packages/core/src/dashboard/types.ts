@@ -51,7 +51,7 @@ export interface DashboardItem {
 	readonly timestamp?: string;
 	/** Deterministic only: overdue, flagged, starred — never AI-inferred. */
 	readonly urgency?: "low" | "normal" | "high";
-	/** Deep link the dashboard can open. */
+	/** Absolute item URL (web or native app scheme), supplied by the provider. */
 	readonly url?: string;
 	/** Ties back to `groups[].id`. */
 	readonly groupId?: string;
@@ -153,7 +153,7 @@ export interface DashboardBlockContentItem {
 	readonly title: string;
 	/** Optional supporting copy following the title. */
 	readonly subtitle?: string;
-	/** First Markdown link target found in the source row. */
+	/** First Markdown link target in the row; an absolute web or native app URL. */
 	readonly url?: string;
 }
 

@@ -8,6 +8,11 @@ import { resolveDefaultPersona, resolvePersona } from "../personas/index";
 import { composeSystemPromptWithPersona } from "../personas/prompt";
 import type { DashboardItem } from "./types";
 
+/** Shared by built-in and legacy summaries; destinations belong to providers. */
+export const DASHBOARD_ITEM_LINK_INSTRUCTIONS = `- Put each individual item in its own bullet row.
+- When an item includes a URL, link its title using [title](URL), preserving the supplied destination exactly. Put supporting copy after the link, separated by an em dash.
+- Never invent an item URL or substitute an inbox/app launch URL. Leave items without a URL as plain text.`;
+
 /** Resolve the persona configured for dashboard summaries, falling back to default. */
 export function resolveDashboardPersona(): Persona {
 	const config = readConfig();
@@ -48,7 +53,8 @@ export function formatItemsForPrompt(items: readonly DashboardItem[]): string {
 				? `\n   when: ${formatLocalTimestampForPrompt(item.timestamp)}`
 				: "";
 			const urgency = item.urgency ? `\n   urgency: ${item.urgency}` : "";
-			return `${idx + 1}. ${title}${subtitle}${detail}${time}${urgency}`;
+			const url = item.url ? `\n   URL: ${item.url}` : "";
+			return `${idx + 1}. ${title}${subtitle}${detail}${time}${urgency}${url}`;
 		})
 		.join("\n");
 }
@@ -79,6 +85,7 @@ CRITICAL OUTPUT RULES:
 Format:
 - Use **bold** for names, subjects, deadlines, and other key items the user should notice.
 - Use bullet points for lists of items.
+${DASHBOARD_ITEM_LINK_INSTRUCTIONS}
 - Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
 - Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.
 

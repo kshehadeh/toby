@@ -10,6 +10,7 @@ import {
 	clearDashboardSummaryCache,
 	extractDashboardSummaryText,
 } from "@toby/core/dashboard/summarizer";
+import { tasksDashboardSummaryDocument } from "@toby/core/flows/builtins";
 import { resetPluginModuleCache } from "@toby/core/integrations/plugins/registry";
 
 describe("dashboard prompt timezone handling", () => {
@@ -42,6 +43,31 @@ describe("dashboard prompt timezone handling", () => {
 		);
 		expect(out).toContain("## Current date and time");
 		expect(out).toContain("- Timezone:");
+	});
+
+	it("preserves web and native item destinations in model input", () => {
+		const out = formatItemsForPrompt([
+			{ id: "1", title: "Article", url: "https://example.com/article?a=1&b=2" },
+			{ id: "2", title: "Task", url: "customapp://items/42" },
+			{ id: "3", title: "No destination" },
+		]);
+		expect(out).toContain("URL: https://example.com/article?a=1&b=2");
+		expect(out).toContain("URL: customapp://items/42");
+		expect(out.split("URL:")).toHaveLength(3);
+	});
+
+	it("built-in and legacy summaries request item links without inventing destinations", () => {
+		const node = tasksDashboardSummaryDocument.nodes.find(
+			(node) => node.type === "llm_prompter",
+		);
+		if (node?.type !== "llm_prompter") throw new Error("Missing summary node");
+		for (const prompt of [
+			node.systemPrompt,
+			buildDashboardSummarySystemPrompt("Summarize tasks.", persona),
+		]) {
+			expect(prompt).toContain("[title](URL)");
+			expect(prompt).toContain("Never invent an item URL");
+		}
 	});
 });
 
@@ -179,6 +205,19 @@ Monday is packed: **Standup: UAI Web** at 10 AM, then overlapping afternoon meet
 });
 
 describe("dashboardContentSections", () => {
+	it("uses the same linked row contract for any custom block or native app", () => {
+		const sections = dashboardContentSections(
+			"- **[Review draft](customapp://documents/42)** — Due today\n- Unlinked item",
+		);
+		expect(sections?.[0]?.items).toEqual([
+			{
+				title: "Review draft",
+				subtitle: "Due today",
+				url: "customapp://documents/42",
+			},
+			{ title: "Unlinked item" },
+		]);
+	});
 	it("derives headings, prose, rows, and links from dashboard markdown", () => {
 		const sections = dashboardContentSections(`## Technology
 ### The changing landscape of AI agents

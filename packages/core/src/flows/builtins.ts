@@ -1,4 +1,7 @@
-import { CATEGORY_PROMPTS } from "../dashboard/prompts";
+import {
+	CATEGORY_PROMPTS,
+	DASHBOARD_ITEM_LINK_INSTRUCTIONS,
+} from "../dashboard/prompts";
 import type { FlowDocument } from "./document-types";
 
 /**
@@ -21,6 +24,7 @@ CRITICAL OUTPUT RULES:
 Format:
 - Use **bold** for names, subjects, deadlines, and other key items the user should notice.
 - Use bullet points for lists of items.
+${DASHBOARD_ITEM_LINK_INSTRUCTIONS}
 - Use a \`## \` sub-heading to separate "Needs attention" from "Worth mentioning" when appropriate.
 - Keep the total response concise (5-6 sentences). Do not over-format — use markdown only where it genuinely aids readability.`;
 }

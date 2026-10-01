@@ -93,6 +93,18 @@ struct DashboardBlockContentItem: Decodable, Equatable, Identifiable {
 	let url: String?
 
 	var id: String { "\(title)|\(subtitle ?? "")|\(url ?? "")" }
+
+	/// External destinations must be absolute; native app schemes are supported.
+	var destinationURL: URL? {
+		guard let url, !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+			let destination = URL(string: url), let scheme = destination.scheme,
+			!scheme.isEmpty
+		else { return nil }
+		if ["http", "https"].contains(scheme.lowercased()), destination.host?.isEmpty != false {
+			return nil
+		}
+		return destination
+	}
 }
 
 struct DashboardBlockContentSection: Decodable, Equatable, Identifiable {

@@ -97,6 +97,43 @@ interface DashboardBlockContent {
 | `count === 0` / empty `text` | Connected but nothing to show → definition empty copy |
 | Non-empty `text` | Flow markdown for the body |
 
+## Item destinations (built-in and custom blocks)
+
+Item navigation uses one category-independent contract: an optional absolute
+`url`. A provider supplies the destination of the specific item; Toby.app uses
+a native SwiftUI `Link` to open it in the browser or registered external app.
+No block id, provider switch, or client-side URL construction is needed.
+Relative, empty, and malformed web destinations render as plain rows.
+
+Standard tools can include `DashboardItem.url`. The `{{dashboardItems bag.key}}`
+prompt helper preserves it, and built-in summaries instruct the model to copy
+the supplied URL into the item's Markdown link without inventing destinations.
+Models may still omit an item or its link; summaries are generated prose.
+
+Custom informational flows use the same rendering path. Return bullet rows
+with a Markdown link on the title and optional supporting text:
+
+```md
+## Needs attention
+- [Review draft](https://example.com/documents/42) — Due today
+- [Open task](customapp://items/42) — Assigned to you
+- An item without a destination
+```
+
+The parser takes the first link in each bullet as `sections[].items[].url`,
+making the whole row clickable, including its supporting copy. Percent-encode
+spaces and parentheses in destinations. Use one destination per item row;
+grouped prose with multiple links should remain prose rather than a bullet.
+API clients can also render the same `title` / `subtitle` / `url` section shape.
+Native links require an installed app that handles the scheme and can resolve
+the item. The dashboard does not fall back from an item URL to `launchUrls` or
+`sources[].launchUrl`, which open a provider generally.
+
+News articles and Todoist tasks already supply item URLs. The IMAP email plugin
+currently supplies only an inbox launch URL, so its messages remain unlinked;
+an inbox link is not a message destination. Existing cached summaries gain
+links when regenerated if the source supplies URLs.
+
 ## Single update path
 
 ```

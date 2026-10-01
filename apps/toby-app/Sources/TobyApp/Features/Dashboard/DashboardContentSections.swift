@@ -109,7 +109,7 @@ enum DashboardContentSectionParser {
 			let close = raw.dropFirst(2).range(of: "**")
 		else { return nil }
 		let titleStart = raw.index(raw.startIndex, offsetBy: 2)
-		let title = String(raw[titleStart..<close.lowerBound])
+		let title = plainInline(String(raw[titleStart..<close.lowerBound]))
 			.trimmingCharacters(in: CharacterSet(charactersIn: ":").union(.whitespaces))
 		let remainder = String(raw[close.upperBound...])
 			.trimmingCharacters(

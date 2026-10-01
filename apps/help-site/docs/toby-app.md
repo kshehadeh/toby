@@ -98,6 +98,24 @@ columns, so short status cards can sit beside a longer briefing. Structured
 flow output can show a category, lead item, supporting rows, and links while
 plain Markdown continues to render normally.
 
+Items with a link are clickable across all Home cards. Select a row to open
+the item in your browser or the app that handles its link. Items without a
+destination remain plain text. Availability depends on the integration: news
+articles and Todoist tasks provide item links; IMAP email currently provides
+an inbox action rather than links to individual messages. Refresh a card to
+regenerate older summaries with links.
+
+Custom informational flows can do the same by returning Markdown bullet rows:
+
+```md
+- [Review draft](https://example.com/documents/42) — Due today
+```
+
+The whole row opens the linked item. App links such as `customapp://items/42`
+also work when the corresponding app is installed. When using an AI step,
+include source URLs in its input and instruct it to preserve them in linked
+titles.
+
 **Continue working** is another card in the responsive layout and shows up to
 five recently updated chats and projects. Select a row to resume that chat or
 open the project. This feed stays on Home rather than in the global sidebar.

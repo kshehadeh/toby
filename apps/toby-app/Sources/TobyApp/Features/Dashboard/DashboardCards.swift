@@ -483,14 +483,16 @@ private struct DashboardStructuredSection: View {
 	}
 }
 
-private struct DashboardStructuredItemRow: View {
+struct DashboardStructuredItemRow: View {
 	let item: DashboardBlockContentItem
 
 	var body: some View {
 		Group {
-			if let rawURL = item.url, let url = URL(string: rawURL) {
+			if let url = item.destinationURL {
 				Link(destination: url) { rowContent(showsChevron: true) }
 					.buttonStyle(.plain)
+					.help("Open \(item.title) in its app or browser")
+					.accessibilityHint("Opens in an external app or browser")
 			} else {
 				rowContent(showsChevron: false)
 			}
@@ -575,5 +577,4 @@ enum DashboardFormat {
 		return ("Due \(formatter.string(from: date))", AppTheme.secondaryText)
 	}
 }
-
 
