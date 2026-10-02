@@ -283,8 +283,11 @@ final class FlowsStore {
 		showResultSheet = false
 	}
 
-	func catalogTool(moduleName: String, toolName: String) -> FlowCatalogTool? {
-		catalog?.modules
+	func catalogTool(moduleName: String, toolName: String, standardTool: String? = nil) -> FlowCatalogTool? {
+		if let standardTool {
+			return catalog?.modules.flatMap(\.tools).first(where: { $0.standardTool == standardTool })
+		}
+		return catalog?.modules
 			.first(where: { $0.name == moduleName })?
 			.tools.first(where: { $0.toolName == toolName })
 	}

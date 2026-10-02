@@ -153,6 +153,47 @@ describe("validateUserFlowDocument", () => {
 		}
 	});
 
+	it("requires the declared result to reference an emitted bag key, not a node id", () => {
+		const doc = wifiThenMinimize({
+			nodes: [
+				{
+					id: "recommendation",
+					type: "llm_prompter",
+					schema: { kind: "markdown" },
+					systemPrompt: "Recommend next work",
+					userPrompt: "Use the supplied data",
+					outputs: { summary: "object" },
+				},
+			],
+			result: { from: "recommendation", path: "markdown" },
+		});
+		expect(() =>
+			validateUserFlowDocument(doc, {
+				tools: catalog,
+				connectedModules: connected,
+			}),
+		).toThrow(/unknown output "recommendation"/);
+		const valid = validateUserFlowDocument(
+			{ ...doc, result: { from: "summary", path: "markdown" } },
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(
+			extractFlowResult({ summary: { markdown: "Start here" } }, valid).text,
+		).toBe("Start here");
+		const defaults = validateUserFlowDocument(
+			{
+				...doc,
+				nodes: [{ ...doc.nodes[0], outputs: undefined }],
+				result: { from: "object", path: "markdown" },
+			},
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(
+			extractFlowResult({ object: { markdown: "Default output" } }, defaults)
+				.text,
+		).toBe("Default output");
+	});
+
 	it("rejects a required tool input that was not filled", () => {
 		const doc = wifiThenMinimize({
 			nodes: [

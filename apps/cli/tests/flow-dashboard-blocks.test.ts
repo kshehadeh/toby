@@ -12,6 +12,7 @@ import {
 	type UserFlowRunResult,
 	completeFlowRun,
 	createFlowRun,
+	getFlowRecord,
 	saveUserFlowDocument,
 } from "@toby/core/flows";
 import { closeChatDbForTests } from "@toby/core/session-store";
@@ -155,6 +156,40 @@ describe("listFlowDashboardBlocks", () => {
 		expect(blocks[2]?.color).toBe("teal");
 		expect(blocks[1]?.icon).toBeNull();
 		expect(blocks[1]?.color).toBeNull();
+	});
+
+	it("refresh preserves both calendar-fetch and LLM steps in the saved definition", async () => {
+		const document: FlowDocument = {
+			...infoDoc,
+			nodes: [
+				{
+					id: "fetch",
+					type: "tool_executor",
+					tool: { standardTool: "calendar.upcomingSummary" },
+					outputs: { upcoming: "result" },
+				},
+				{
+					...infoDoc.nodes[0],
+					type: "llm_prompter",
+					schema: { kind: "markdown" },
+					systemPrompt: "Summarize events",
+					userPrompt: "{{json bag.upcoming}}",
+				},
+			],
+			result: { from: "summary", path: "markdown" },
+		};
+		saveUserFlowDocument(document);
+		const runUserFlow = mock(async (id: string) => {
+			expect(getFlowRecord(id)?.document).toEqual(document);
+			return fakeOkRun(id, "Calendar brief");
+		});
+		const content = await getFlowDashboardContent(document.id, {
+			force: true,
+			runUserFlow,
+		});
+		expect(content?.text).toBe("Calendar brief");
+		expect(runUserFlow).toHaveBeenCalledTimes(1);
+		expect(getFlowRecord(document.id)?.document).toEqual(document);
 	});
 
 	it("resolves explicit informational refresh on the list payload", () => {

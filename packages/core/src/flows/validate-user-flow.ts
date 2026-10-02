@@ -322,6 +322,22 @@ export function validateUserFlowDocument(
 
 	if (document.result && !document.result.from.trim()) {
 		issues.push("Result pointer needs a bag key");
+	} else if (document.result) {
+		const outputKeys = new Set(
+			document.nodes.flatMap((node) =>
+				Object.keys(
+					node.outputs ??
+						(node.type === "llm_prompter"
+							? { object: "object" }
+							: { result: "result" }),
+				),
+			),
+		);
+		if (!outputKeys.has(document.result.from.trim())) {
+			issues.push(
+				`Result references unknown output "${document.result.from.trim()}". Use an output bag key, not a step id. Available outputs: ${[...outputKeys].join(", ")}`,
+			);
+		}
 	}
 
 	if (issues.length > 0) {

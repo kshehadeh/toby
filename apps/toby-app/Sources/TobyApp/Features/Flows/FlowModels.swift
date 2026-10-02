@@ -623,6 +623,25 @@ struct FlowStoredNode: Decodable, Equatable {
 	let schema: FlowSchemaKind?
 	let systemPrompt: String?
 	let userPrompt: String?
+	/// Keep fields the simple editor does not expose when saving other changes.
+	let originalFields: [String: AnyCodable]
+
+	private enum CodingKeys: String, CodingKey {
+		case id, type, tool, inputs, outputs, schema, systemPrompt, userPrompt
+	}
+
+	init(from decoder: Decoder) throws {
+		let fields = try decoder.container(keyedBy: CodingKeys.self)
+		id = try fields.decode(String.self, forKey: .id)
+		type = try fields.decode(String.self, forKey: .type)
+		tool = try fields.decodeIfPresent(FlowToolRef.self, forKey: .tool)
+		inputs = try fields.decodeIfPresent([String: FlowInputSourceSnapshot].self, forKey: .inputs)
+		outputs = try fields.decodeIfPresent([String: String].self, forKey: .outputs)
+		schema = try fields.decodeIfPresent(FlowSchemaKind.self, forKey: .schema)
+		systemPrompt = try fields.decodeIfPresent(String.self, forKey: .systemPrompt)
+		userPrompt = try fields.decodeIfPresent(String.self, forKey: .userPrompt)
+		originalFields = try decoder.singleValueContainer().decode([String: AnyCodable].self)
+	}
 }
 
 struct FlowSchemaKind: Decodable, Equatable {

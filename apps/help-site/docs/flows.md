@@ -21,6 +21,24 @@ and an optional LLM step runs last. For a new AppleScript or TypeScript step,
 Toby can draft the code and guide you through saving it in **Script Tools**
 before adding it to the flow.
 
+Changing a flow's destination to a dashboard card preserves its existing steps
+and the data passed to its LLM prompt. Refreshing the card runs the saved flow.
+
+### Use step data in an LLM prompt
+
+Tool steps show the reference you can copy into a prompt. The LLM step's
+**Insert step output** menu inserts one for you. For example,
+`{{json bag.jiraIssues}}` includes the Jira data when a step saves its output as
+`jiraIssues`. The reference uses the saved output name, which can differ from
+the step's name. When multiple steps share a reference, the last step's data is
+used.
+
+To inspect the actual data, open a flow's **Recent runs**, select a run, and
+expand the step's **Outputs** under **Nodes**. The Jira search output includes an
+`issues` array. An LLM output saved as `summary` is displayed from
+`summary.markdown`; flow creation now checks that the requested result exists
+in the step outputs.
+
 ## What flows are for
 
 | Piece | Role |

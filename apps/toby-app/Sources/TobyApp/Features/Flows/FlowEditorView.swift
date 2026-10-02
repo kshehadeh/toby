@@ -163,13 +163,14 @@ struct FlowEditorView: View {
 					.foregroundStyle(SettingsDesign.rowDescription)
 			} else {
 				VStack(alignment: .leading, spacing: 12) {
-					ForEach($draft.nodes) { $node in
+					ForEach(draft.nodes) { node in
 						FlowEditorNodeCard(
-							node: $node,
-							catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName),
+							node: $draft.node(node),
+							catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
 							scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
 							canMoveUp: draft.nodes.first?.id != node.id && !node.isLLM,
 							canMoveDown: draft.nodes.last?.id != node.id && !node.isLLM,
+							promptOutputs: promptOutputs(before: node.id),
 							onMove: { direction in move(nodeId: node.id, direction: direction) },
 							onDelete: { draft.nodes.removeAll { $0.id == node.id } }
 						)
@@ -217,11 +218,24 @@ struct FlowEditorView: View {
 					.foregroundStyle(SettingsDesign.rowDescription)
 			}
 
-			ForEach($draft.destinations) { $destination in
-				FlowDestinationRow(destination: $destination) {
+			ForEach(draft.destinations) { destination in
+				FlowDestinationRow(destination: $draft.destination(destination)) {
 					draft.destinations.removeAll { $0.id == destination.id }
 				}
 			}
+		}
+	}
+
+	private func promptOutputs(before nodeId: String) -> [FlowPromptOutput] {
+		draft.promptOutputs(before: nodeId).map { output in
+			var reference = output
+			if let index = draft.nodes.firstIndex(where: { $0.id == output.stepId }) {
+				let source = draft.nodes[index]
+				reference.stepName = scriptTools.first(where: { $0.id == source.userToolId })?.name
+					?? store.catalogTool(moduleName: source.moduleName, toolName: source.toolName, standardTool: source.standardTool)?.label
+					?? "Step \(index + 1)"
+			}
+			return reference
 		}
 	}
 
@@ -264,6 +278,7 @@ private struct FlowEditorNodeCard: View {
 	let scriptTool: UserScriptTool?
 	let canMoveUp: Bool
 	let canMoveDown: Bool
+	let promptOutputs: [FlowPromptOutput]
 	let onMove: (Int) -> Void
 	let onDelete: () -> Void
 
@@ -298,6 +313,19 @@ private struct FlowEditorNodeCard: View {
 				TextField("User prompt", text: $node.userPrompt, axis: .vertical)
 					.textFieldStyle(.roundedBorder)
 					.lineLimit(3...8)
+				if !promptOutputs.isEmpty {
+					Menu("Insert step output") {
+						ForEach(promptOutputs) { output in
+							Button("\(output.stepName ?? "Step output") · \(output.key)") {
+								node.userPrompt += "\(node.userPrompt.isEmpty ? "" : "\n\n")\(output.token)"
+							}
+						}
+					}
+					.accessibilityIdentifier("flow-editor-insert-output")
+					Text("Inserted references include the step's data each time the flow runs.")
+						.font(.caption)
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
 			} else if let catalogTool {
 				Text(catalogTool.description ?? "")
 					.font(.caption)
@@ -340,6 +368,22 @@ private struct FlowEditorNodeCard: View {
 						.foregroundStyle(SettingsDesign.rowDescription)
 				}
 			}
+			if !node.isLLM {
+				VStack(alignment: .leading, spacing: 4) {
+					Text("Use this output in an LLM prompt:")
+						.font(.caption)
+						.foregroundStyle(SettingsDesign.rowDescription)
+					ForEach(node.outputKeys, id: \.self) { key in
+						Text(FlowPromptOutput(key: key, stepId: node.id).token)
+							.font(.system(.caption, design: .monospaced))
+							.foregroundStyle(SettingsDesign.rowTitle)
+							.textSelection(.enabled)
+					}
+					Text("Inspect values in Recent runs → Nodes → Outputs. If steps share a reference, the last step's data is used.")
+						.font(.caption)
+						.foregroundStyle(SettingsDesign.rowDescription)
+				}
+			}
 		}
 		.padding(12)
 		.background(
@@ -354,7 +398,7 @@ private struct FlowEditorNodeCard: View {
 
 	private var title: String {
 		if node.isLLM { return "LLM Prompter" }
-		return scriptTool?.name ?? catalogTool?.label ?? node.toolName
+		return scriptTool?.name ?? catalogTool?.label ?? node.standardTool ?? node.toolName
 	}
 
 	private func stringBinding(for key: String) -> Binding<String> {

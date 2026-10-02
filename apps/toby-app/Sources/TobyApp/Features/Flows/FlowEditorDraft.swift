@@ -9,10 +9,24 @@ struct FlowEditorDraft: Equatable, Identifiable {
 	var personaName: String
 	var nodes: [FlowEditorNode]
 	var destinations: [FlowEditorDestination]
+	var result: FlowResultPointer?
+	var originalPersona: FlowPersonaSpec?
 
 	var id: String { existingId ?? "new" }
 
 	var isNew: Bool { existingId == nil }
+
+	/// If steps write the same bag key, only the last writer is available.
+	func promptOutputs(before nodeId: String) -> [FlowPromptOutput] {
+		var outputs: [FlowPromptOutput] = []
+		for node in nodes.prefix(while: { $0.id != nodeId }) {
+			for key in node.outputKeys {
+				outputs.removeAll { $0.key == key }
+				outputs.append(FlowPromptOutput(key: key, stepId: node.id))
+			}
+		}
+		return outputs
+	}
 
 	static func blank() -> FlowEditorDraft {
 		FlowEditorDraft(
@@ -43,7 +57,9 @@ struct FlowEditorDraft: Equatable, Identifiable {
 			color: FlowColorOption.resolvedId(document.color),
 			personaName: personaName,
 			nodes: document.nodes.map(FlowEditorNode.init(stored:)),
-			destinations: destinations.isEmpty ? [FlowEditorDestination.modal()] : destinations
+			destinations: destinations.isEmpty ? [FlowEditorDestination.modal()] : destinations,
+			result: document.result,
+			originalPersona: document.persona
 		)
 	}
 
@@ -63,7 +79,12 @@ struct FlowEditorDraft: Equatable, Identifiable {
 		if !trimmedPersona.isEmpty {
 			body["persona"] = ["source": "named", "name": trimmedPersona]
 		} else {
-			body["persona"] = ["source": "default"]
+			body["persona"] = ["source": originalPersona?.source == "dashboard" ? "dashboard" : "default"]
+		}
+		if let result {
+			var pointer = ["from": result.from]
+			if let path = result.path { pointer["path"] = path }
+			body["result"] = pointer
 		}
 		return body
 	}
@@ -78,8 +99,19 @@ struct FlowEditorNode: Identifiable, Equatable {
 	var constInputs: [String: String]
 	var systemPrompt: String
 	var userPrompt: String
+	var standardTool: String?
+	var originalJSON: Data?
+	var originalInputStrings: [String: String] = [:]
 
 	var isLLM: Bool { type == "llm_prompter" }
+
+	var outputKeys: [String] {
+		let body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+		if let outputs = body?["outputs"] as? [String: String] {
+			return outputs.keys.sorted()
+		}
+		return [isLLM ? "object" : "result"]
+	}
 
 	static func tool(moduleName: String, toolName: String, required: [String]) -> FlowEditorNode {
 		var inputs: [String: String] = [:]
@@ -130,6 +162,8 @@ struct FlowEditorNode: Identifiable, Equatable {
 		moduleName = stored.tool?.moduleName ?? ""
 		toolName = stored.tool?.toolName ?? ""
 		userToolId = stored.tool?.userToolId
+		standardTool = stored.tool?.standardTool
+		originalJSON = try? JSONSerialization.data(withJSONObject: stored.originalFields.mapValues(\.value), options: .sortedKeys)
 		var inputs: [String: String] = [:]
 		if let storedInputs = stored.inputs {
 			for (key, source) in storedInputs {
@@ -139,6 +173,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 			}
 		}
 		constInputs = inputs
+		originalInputStrings = inputs
 		systemPrompt = stored.systemPrompt ?? ""
 		userPrompt = stored.userPrompt ?? ""
 	}
@@ -164,27 +199,31 @@ struct FlowEditorNode: Identifiable, Equatable {
 	}
 
 	func jsonBody() -> [String: Any] {
+		var body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+		body["id"] = id
+		body["type"] = type
 		if isLLM {
-			return [
-				"id": id,
-				"type": "llm_prompter",
-				"schema": ["kind": "markdown"],
-				"systemPrompt": systemPrompt,
-				"userPrompt": userPrompt,
-				"promptHelpers": ["composePersona": true],
-			]
+			body["schema"] = ["kind": "markdown"]
+			body["systemPrompt"] = systemPrompt
+			body["userPrompt"] = userPrompt
+			if body["promptHelpers"] == nil { body["promptHelpers"] = ["composePersona": true] }
+			return body
 		}
 		var inputs: [String: Any] = [:]
+		let originalInputs = body["inputs"] as? [String: Any]
 		for (key, raw) in constInputs {
+			if originalInputStrings[key] == raw, let source = originalInputs?[key] {
+				inputs[key] = source
+				continue
+			}
 			let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 			if trimmed.isEmpty { continue }
 			inputs[key] = ["const": FlowEditorNode.jsonConst(trimmed)]
 		}
-		var body: [String: Any] = [
-			"id": id,
-			"type": "tool_executor",
-			"tool": userToolId.map { ["userToolId": $0] } ?? ["moduleName": moduleName, "toolName": toolName],
-		]
+		if let userToolId { body["tool"] = ["userToolId": userToolId] }
+		else if let standardTool { body["tool"] = ["standardTool": standardTool] }
+		else { body["tool"] = ["moduleName": moduleName, "toolName": toolName] }
+		body.removeValue(forKey: "inputs")
 		if !inputs.isEmpty {
 			body["inputs"] = inputs
 		}
@@ -203,6 +242,14 @@ struct FlowEditorNode: Identifiable, Equatable {
 	}
 }
 
+struct FlowPromptOutput: Identifiable, Equatable {
+	let key: String
+	let stepId: String
+	var stepName: String?
+	var id: String { key }
+	var token: String { "{{json bag.\(key)}}" }
+}
+
 struct FlowEditorDestination: Identifiable, Equatable {
 	var id: String
 	var type: String
@@ -211,6 +258,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 	var slackChannel: String
 	var dashboardVariant: String
 	var dashboardRefresh: String
+	var emailCc: [String]?
 
 	static func modal() -> FlowEditorDestination {
 		FlowEditorDestination(
@@ -265,6 +313,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		type = spec.type
 		emailTo = (spec.to ?? []).joined(separator: ", ")
 		emailSubject = spec.subject ?? ""
+		emailCc = spec.cc
 		slackChannel = spec.channel ?? ""
 		dashboardVariant = spec.variant ?? "informational"
 		dashboardRefresh = spec.refresh == "manual" ? "manual" : "asNeeded"
@@ -305,11 +354,13 @@ struct FlowEditorDestination: Identifiable, Equatable {
 				.split(separator: ",")
 				.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 				.filter { !$0.isEmpty }
-			return [
+			var body: [String: Any] = [
 				"type": "email",
 				"to": recipients,
 				"subject": emailSubject,
 			]
+			if let emailCc { body["cc"] = emailCc }
+			return body
 		case "slack":
 			return ["type": "slack", "channel": slackChannel]
 		case "dashboard":

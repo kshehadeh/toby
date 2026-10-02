@@ -8,6 +8,7 @@ import type {
 	StoredToolExecutorNode,
 } from "./document-types";
 import type { FlowInputMap, FlowOutputMap, ToolRef } from "./types";
+import { UserFlowValidationError } from "./validate-user-flow";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -169,9 +170,15 @@ export function parseUserFlowDocumentBody(
 	id: string,
 ): FlowDocument {
 	const nodesRaw = Array.isArray(body.nodes) ? body.nodes : [];
-	const nodes = nodesRaw
-		.map((node) => parseNode(node))
-		.filter((node): node is StoredFlowNode => node !== null);
+	const nodes = nodesRaw.map((raw, index) => {
+		const node = parseNode(raw);
+		if (!node) {
+			throw new UserFlowValidationError([
+				`Node ${index + 1} is invalid; every step needs an id, supported type, and valid tool reference for tool steps`,
+			]);
+		}
+		return node;
+	});
 	const persona = parsePersona(body.persona);
 	const result = parseResult(body.result);
 	const destinations = parseDestinations(body.destinations);

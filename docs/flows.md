@@ -35,6 +35,20 @@ LLM step, result pointers, personas, and destinations. They do not update
 existing flows or create Script Tools. A Home action uses
 `{ "type": "dashboard", "variant": "runner" }` alongside an optional modal.
 
+The native editor preserves standard-tool references, node output mappings,
+result pointers, typed constants, and LLM settings when changing destinations
+or prompts. Flow create/update requests with malformed steps return validation
+errors rather than silently dropping those steps. Dashboard refresh runs the
+stored definition; it does not rewrite it.
+
+The editor shows each tool step's prompt references and offers **Insert step
+output** on the LLM step. These references use output bag keys, not node IDs.
+For example, `outputs: { jiraIssues: "result" }` is read with
+`{{json bag.jiraIssues}}`. Repeated keys refer to the last step that wrote them.
+Custom-flow validation rejects a declared `result.from` that no step emits;
+an LLM writing `outputs: { summary: "object" }` needs
+`result: { from: "summary", path: "markdown" }`, or an omitted result for inference.
+
 ## Mental model
 
 ```

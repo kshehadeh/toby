@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+	getFlowRecord,
+	saveUserFlowDocument,
+} from "@toby/core/flows/definition-store";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
@@ -49,6 +53,44 @@ const llmOnlyBody = {
 };
 
 describe("user flow HTTP API", () => {
+	it("rejects malformed steps instead of silently saving a shortened flow", async () => {
+		await withTempTobyDir(async () => {
+			const record = saveUserFlowDocument({
+				id: "flow.keep-steps",
+				name: "Calendar brief",
+				nodes: [
+					{
+						id: "fetch",
+						type: "tool_executor",
+						tool: { standardTool: "calendar.upcomingSummary" },
+					},
+				],
+			});
+			const response = await handleWebRequest(
+				new Request(`http://127.0.0.1/api/flows/${record.id}`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						...llmOnlyBody,
+						nodes: [
+							{
+								id: "fetch",
+								type: "tool_executor",
+								tool: { moduleName: "", toolName: "" },
+							},
+							...llmOnlyBody.nodes,
+						],
+					}),
+				}),
+				null,
+			);
+			expect(response.status).toBe(400);
+			expect(await response.json()).toMatchObject({
+				issues: [expect.stringContaining("Node 1 is invalid")],
+			});
+			expect(getFlowRecord(record.id)?.document).toEqual(record.document);
+		});
+	});
 	afterEach(() => {
 		closeChatDbForTests();
 	});
