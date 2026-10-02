@@ -37,8 +37,10 @@ import {
 	isDaemonRunning,
 	killStaleDaemonProcesses,
 	killStaleInboundProcesses,
+	releaseDaemonLock,
 	restartDaemon,
 	stopDaemon,
+	waitForDaemonRunning,
 } from "../schedules/daemon-status";
 import { runSchedulerLoop } from "../schedules/scheduler";
 
@@ -115,13 +117,7 @@ function acquireLock(intervalSeconds: number): () => void {
 		lockPath,
 		JSON.stringify({ pid: process.pid, intervalSeconds }),
 	);
-	return () => {
-		try {
-			fs.unlinkSync(lockPath);
-		} catch {
-			// best effort
-		}
-	};
+	return () => releaseDaemonLock(process.pid);
 }
 
 async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
@@ -247,29 +243,6 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	}
 }
 
-function waitForDaemon(
-	maxAttempts = 10,
-	intervalMs = 300,
-): Promise<{ running: boolean; pid: number | null }> {
-	return new Promise((resolve) => {
-		let attempts = 0;
-		const check = () => {
-			const result = isDaemonRunning();
-			if (result.running) {
-				resolve(result);
-				return;
-			}
-			attempts++;
-			if (attempts >= maxAttempts) {
-				resolve({ running: false, pid: null });
-				return;
-			}
-			setTimeout(check, intervalMs);
-		};
-		check();
-	});
-}
-
 export function registerDaemonCommand(program: Command): void {
 	const daemon = program
 		.command("daemon")
@@ -316,7 +289,7 @@ export function registerDaemonCommand(program: Command): void {
 
 			console.log(chalk.dim("Starting daemon…"));
 
-			const result = await waitForDaemon();
+			const result = await waitForDaemonRunning();
 			if (result.running) {
 				console.log(chalk.green(`Daemon started (PID ${result.pid}).`));
 				console.log(chalk.dim(`  Log: ${getUnifiedLogPath()}`));

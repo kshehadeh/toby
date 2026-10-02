@@ -54,6 +54,8 @@ Implementation entrypoints:
 | `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
 | `toby daemon status` | Show PID, inbound connection state, log path |
 
+Background startup waits up to 15 seconds for a live daemon lock, allowing orphan cleanup and module loading to finish. Shutdown removes the lock only when it still belongs to that process. A timeout can still mean a slow startup; check `toby daemon status` and the unified log before trying again.
+
 Toby.app can also restart the server from the status-dot control in the sidebar footer.
 
 ### App handshake (dev vs production)

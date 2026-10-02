@@ -58,6 +58,8 @@ If something seems stuck:
 - Quit and reopen **Toby.app**, or
 - In chat, type **`/restart-server`** to restart the local service
 
+If you start the service from the terminal, `toby daemon start` allows up to 15 seconds for startup. If it reports a timeout, check `toby daemon status` before retrying; the service may have finished starting. For startup errors, inspect `logs/toby.log` in your Toby home directory or run `toby daemon run` after stopping the service.
+
 The service polls on an interval (default about 60 seconds) for due schedules.
 
 ## Manual run

@@ -3,10 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-	killStaleDaemonProcesses,
-	killStaleInboundProcesses,
 	parseDaemonLock,
+	parseMatchingProcessPids,
+	releaseDaemonLock,
 	restartDaemonIfRunning,
+	waitForDaemonRunning,
 } from "../src/schedules/daemon-status";
 
 describe("daemon-status lock parsing", () => {
@@ -56,26 +57,52 @@ describe("restartDaemonIfRunning", () => {
 			intervalSeconds: null,
 		});
 	});
-});
 
-describe("killStaleDaemonProcesses", () => {
-	it("does not throw when no stale daemons exist", () => {
-		// In the test environment there should be no "daemon run" processes.
-		const result = killStaleDaemonProcesses();
-		expect(result).toBeGreaterThanOrEqual(0);
+	it("waits beyond orphan cleanup before declaring startup failed", async () => {
+		const lockPath = path.join(tempDir, "daemon.lock");
+		const timer = setTimeout(() => {
+			fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid }));
+		}, 3100);
+		try {
+			expect(await waitForDaemonRunning()).toEqual({
+				running: true,
+				pid: process.pid,
+			});
+		} finally {
+			clearTimeout(timer);
+		}
+	}, 6000);
+
+	it("times out when no process acquires the lock", async () => {
+		expect(await waitForDaemonRunning(30, 10)).toEqual({
+			running: false,
+			pid: null,
+		});
 	});
 
-	it("does not kill the current process", () => {
-		// The function excludes process.pid from its kill list.
-		// Running it should never throw or kill the test runner.
-		killStaleDaemonProcesses();
-		expect(process.pid).toBeGreaterThan(0);
+	it("only releases a lock belonging to the retiring daemon", () => {
+		const lockPath = path.join(tempDir, "daemon.lock");
+		fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid }));
+		releaseDaemonLock(process.pid + 1);
+		expect(fs.existsSync(lockPath)).toBe(true);
+		releaseDaemonLock(process.pid);
+		expect(fs.existsSync(lockPath)).toBe(false);
+		releaseDaemonLock(process.pid);
 	});
 });
 
-describe("killStaleInboundProcesses", () => {
-	it("does not throw when no stale inbounds exist", () => {
-		const result = killStaleInboundProcesses();
-		expect(result).toBeGreaterThanOrEqual(0);
+describe("stale daemon process discovery", () => {
+	it("filters snapshots without signalling live user daemons", () => {
+		expect(
+			parseMatchingProcessPids(
+				[
+					"123 bun cli.ts daemon run --interval 60",
+					`${process.pid} bun cli.ts daemon run`,
+					"456 grep daemon run",
+					"789 bun cli.ts daemon start",
+				].join("\n"),
+				"daemon run",
+			),
+		).toEqual([123]);
 	});
 });

@@ -108,19 +108,27 @@ function findProcessPids(pattern: string): number[] {
 			encoding: "utf-8",
 			timeout: 5000,
 		});
-		const pids: number[] = [];
-		for (const line of output.split("\n")) {
-			if (!line.includes(pattern)) continue;
-			if (line.includes("grep") || line.includes("ps -eo")) continue;
-			const pid = Number.parseInt(line.trim().split(/\s+/)[0] ?? "", 10);
-			if (Number.isFinite(pid) && pid > 1 && pid !== process.pid) {
-				pids.push(pid);
-			}
-		}
-		return pids;
+		return parseMatchingProcessPids(output, pattern);
 	} catch {
 		return [];
 	}
+}
+
+/** Parse a process snapshot without signalling any processes. */
+export function parseMatchingProcessPids(
+	output: string,
+	pattern: string,
+): number[] {
+	const pids: number[] = [];
+	for (const line of output.split("\n")) {
+		if (!line.includes(pattern)) continue;
+		if (line.includes("grep") || line.includes("ps -eo")) continue;
+		const pid = Number.parseInt(line.trim().split(/\s+/)[0] ?? "", 10);
+		if (Number.isFinite(pid) && pid > 1 && pid !== process.pid) {
+			pids.push(pid);
+		}
+	}
+	return pids;
 }
 
 /** Send SIGTERM to each PID and wait up to `maxWaitMs` for them to exit. */
@@ -227,27 +235,30 @@ async function waitForDaemonStopped(
 	return false;
 }
 
-async function waitForDaemonRunning(
-	maxAttempts = 10,
+/** Allow time for orphan cleanup (up to six seconds) and module loading. */
+export async function waitForDaemonRunning(
+	maxWaitMs = 15_000,
 	intervalMs = 300,
 ): Promise<{ running: boolean; pid: number | null }> {
-	return new Promise((resolve) => {
-		let attempts = 0;
-		const check = () => {
-			const result = isDaemonRunning();
-			if (result.running) {
-				resolve({ running: true, pid: result.pid });
-				return;
-			}
-			attempts++;
-			if (attempts >= maxAttempts) {
-				resolve({ running: false, pid: null });
-				return;
-			}
-			setTimeout(check, intervalMs);
-		};
-		check();
-	});
+	const deadline = Date.now() + maxWaitMs;
+	while (true) {
+		const result = isDaemonRunning();
+		if (result.running) return { running: true, pid: result.pid };
+		const remaining = deadline - Date.now();
+		if (remaining <= 0) return { running: false, pid: null };
+		await new Promise((resolve) =>
+			setTimeout(resolve, Math.min(intervalMs, remaining)),
+		);
+	}
+}
+
+/** A retiring daemon must never remove its replacement's lock. */
+export function releaseDaemonLock(pid: number): void {
+	try {
+		if (readDaemonLock()?.pid === pid) fs.unlinkSync(getDaemonLockPath());
+	} catch {
+		// Already removed or unavailable.
+	}
 }
 
 export async function restartDaemon(
