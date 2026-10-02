@@ -17,6 +17,7 @@ import { hydrateFlowDocument } from "../../flows/hydrate";
 import { parseUserFlowDocumentBody } from "../../flows/parse-user-flow";
 import { runUserFlowById } from "../../flows/run-user-flow";
 import { getFlowRun, listFlowRuns } from "../../flows/store";
+import { describeFlowTool } from "../../flows/tool-display";
 import {
 	UserFlowValidationError,
 	validateUserFlowDocument,
@@ -39,7 +40,9 @@ function serializeFlowRecord(record: StoredFlowRecord) {
 		color: record.document.color ?? null,
 		builtin: record.builtin,
 		persona: record.document.persona ?? { source: "default" as const },
-		nodes: snapshot.nodes,
+		nodes: snapshot.nodes.map((node) =>
+			node.tool ? { ...node, display: describeFlowTool(node.tool) } : node,
+		),
 		result: record.document.result ?? null,
 		destinations: record.document.destinations ?? [],
 		createdAt: record.createdAt,

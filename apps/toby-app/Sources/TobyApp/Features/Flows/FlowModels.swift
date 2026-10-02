@@ -84,6 +84,8 @@ struct FlowNodeSnapshot: Decodable, Identifiable, Equatable {
 	let maxOutputTokens: Int?
 	let inputs: [String: FlowInputSourceSnapshot]?
 	let outputs: [String: String]?
+	/// Server-resolved names and icon for a tool step (`GET /api/flows`).
+	var display: FlowToolDisplay? = nil
 
 	var typeLabel: String {
 		switch type {
@@ -110,6 +112,19 @@ struct FlowNodeSnapshot: Decodable, Identifiable, Equatable {
 		default: return "circle.grid.2x2"
 		}
 	}
+}
+
+/// Human-facing description of a tool step, resolved by the daemon. Every
+/// field is optional: the daemon omits what it cannot resolve without running
+/// the tool, and the app falls back to labels derived from the tool ref.
+struct FlowToolDisplay: Decodable, Equatable {
+	var title: String? = nil
+	var description: String? = nil
+	var integrationName: String? = nil
+	var integrationDisplayName: String? = nil
+	var integrationIconUrl: String? = nil
+	/// Provider category for standard tools: "email", "tasks" or "calendar".
+	var category: String? = nil
 }
 
 struct FlowToolRef: Decodable, Equatable {

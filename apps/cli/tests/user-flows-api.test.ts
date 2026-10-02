@@ -147,6 +147,46 @@ describe("user flow HTTP API", () => {
 		});
 	});
 
+	it("GET /api/flows describes tool steps for display", async () => {
+		await withTempTobyDir(async () => {
+			saveUserFlowDocument({
+				id: "flow.display",
+				name: "Display check",
+				nodes: [
+					{
+						id: "calendar",
+						type: "tool_executor",
+						tool: { standardTool: "calendar.upcomingSummary" },
+					},
+					{
+						id: "mystery",
+						type: "tool_executor",
+						tool: { moduleName: "not-installed", toolName: "doThing" },
+					},
+				],
+			});
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/flows"),
+				null,
+			);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				flows: Array<{
+					id: string;
+					nodes: Array<{
+						id: string;
+						display?: { category?: string; integrationName?: string };
+					}>;
+				}>;
+			};
+			const flow = body.flows.find((item) => item.id === "flow.display");
+			const calendar = flow?.nodes.find((node) => node.id === "calendar");
+			const mystery = flow?.nodes.find((node) => node.id === "mystery");
+			expect(calendar?.display?.category).toBe("calendar");
+			expect(mystery?.display).toEqual({});
+		});
+	});
+
 	it("POST /api/flows creates an LLM-only custom flow", async () => {
 		await withTempTobyDir(async () => {
 			const res = await handleWebRequest(
