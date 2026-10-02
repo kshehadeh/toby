@@ -211,7 +211,7 @@ private struct FlowStoryRowView: View {
 	var body: some View {
 		HStack(alignment: .top, spacing: FlowStoryMetrics.columnSpacing) {
 			VStack(spacing: 0) {
-				FlowStoryIcon(row: row)
+				FlowStepIconTile(iconURL: row.iconURL, systemImage: row.systemImage, isAccent: row.tint == .accent)
 				if !isLast {
 					Rectangle()
 						.fill(SettingsDesign.cardBorder)
@@ -243,52 +243,6 @@ private struct FlowStoryRowView: View {
 		.fixedSize(horizontal: false, vertical: true)
 		.accessibilityElement(children: .combine)
 		.accessibilityLabel([row.title, row.subtitle].compactMap { $0 }.joined(separator: ", "))
-	}
-}
-
-private struct FlowStoryIcon: View {
-	let row: FlowStoryRow
-
-	var body: some View {
-		let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-		ZStack {
-			shape.fill(fill)
-			if let url = row.iconURL {
-				AsyncImage(url: url) { phase in
-					switch phase {
-					case .success(let image):
-						image
-							.resizable()
-							.scaledToFit()
-							.frame(width: 18, height: 18)
-					default:
-						symbol
-					}
-				}
-			} else {
-				symbol
-			}
-		}
-		.frame(width: FlowStoryMetrics.iconSize, height: FlowStoryMetrics.iconSize)
-		.overlay {
-			if row.tint == .neutral {
-				shape.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-			}
-		}
-		.accessibilityHidden(true)
-	}
-
-	private var fill: Color {
-		switch row.tint {
-		case .accent: return AppTheme.accent.opacity(0.18)
-		case .neutral: return row.iconURL == nil ? AppTheme.primaryText.opacity(0.05) : .white
-		}
-	}
-
-	private var symbol: some View {
-		Image(systemName: row.systemImage)
-			.font(.system(size: 13, weight: .semibold))
-			.foregroundStyle(row.tint == .accent ? AppTheme.accent : AppTheme.secondaryText)
 	}
 }
 

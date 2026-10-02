@@ -430,12 +430,21 @@ struct FlowCatalogModule: Equatable, Identifiable {
 	let displayName: String
 	let connected: Bool
 	let tools: [FlowCatalogTool]
+	/// Relative icon URL served by the daemon (e.g. `/api/plugins/todoist/icon`).
+	var iconUrl: String? = nil
 
-	init(name: String, displayName: String, connected: Bool, tools: [FlowCatalogTool]) {
+	init(name: String, displayName: String, connected: Bool, tools: [FlowCatalogTool], iconUrl: String? = nil) {
 		self.name = name
 		self.displayName = displayName
 		self.connected = connected
 		self.tools = tools
+		self.iconUrl = iconUrl
+	}
+
+	var resolvedIconURL: URL? {
+		guard let iconUrl, !iconUrl.isEmpty else { return nil }
+		if iconUrl.hasPrefix("http://") || iconUrl.hasPrefix("https://") { return URL(string: iconUrl) }
+		return URL(string: ConfigReader.baseURL().absoluteString + iconUrl)
 	}
 
 	init?(plugin: PluginSummary) {
@@ -446,7 +455,8 @@ struct FlowCatalogModule: Equatable, Identifiable {
 			name: plugin.name,
 			displayName: plugin.displayName,
 			connected: plugin.connected,
-			tools: tools
+			tools: tools,
+			iconUrl: plugin.iconUrl
 		)
 	}
 
@@ -457,7 +467,8 @@ struct FlowCatalogModule: Equatable, Identifiable {
 			name: name,
 			displayName: (raw["displayName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? name,
 			connected: raw["connected"] as? Bool ?? false,
-			tools: tools
+			tools: tools,
+			iconUrl: raw["iconUrl"] as? String
 		)
 	}
 }

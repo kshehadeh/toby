@@ -7,8 +7,8 @@ import ViewInspector
 @MainActor
 @Suite("Flow editor round trips")
 struct FlowEditorRoundTripTests {
-	@Test("editor exposes Jira data and inserts its reference into the LLM prompt")
-	func insertsJiraReference() throws {
+	@Test("editor shows the AI step with its data and persona controls")
+	func editorShowsAIStepControls() throws {
 		let data = """
 		{ "id": "jira", "type": "tool_executor",
 		  "tool": { "moduleName": "jira", "toolName": "searchJiraIssues" },
@@ -22,9 +22,51 @@ struct FlowEditorRoundTripTests {
 		let view = FlowEditorView(store: store, draft: editorDraftBinding(
 			Binding(get: { store.editor }, set: { store.editor = $0 }), fallback: .blank()
 		))
-		#expect(throws: Never.self) { try view.inspect().find(text: "{{json bag.jiraIssues}}") }
-		try view.inspect().find(button: "Step 1 · jiraIssues").tap()
-		#expect(store.editor?.nodes.last?.userPrompt.hasSuffix("{{json bag.jiraIssues}}") == true)
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Let it read") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Search jira issues") }
+		#expect(throws: (any Error).self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
+	}
+
+	@Test("an empty flow offers a source and an AI step, and a flow can skip either")
+	func editorSupportsMissingPhases() throws {
+		let store = FlowsStore()
+		var draft = FlowEditorDraft.blank()
+		let view = FlowEditorView(store: store, draft: .constant(draft))
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-step") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
+		#expect(throws: (any Error).self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona") }
+
+		draft.nodes = [.llm()]
+		let aiOnly = FlowEditorView(store: store, draft: .constant(draft))
+		#expect(throws: Never.self) { try aiOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step") }
+		#expect(throws: Never.self) {
+			try aiOnly.inspect().find(text: "Nothing to read yet. Add a source above to give AI some information.")
+		}
+
+		draft.nodes = [.tool(moduleName: "macos", toolName: "macWifiSetPower", required: ["enabled"])]
+		let toolsOnly = FlowEditorView(store: store, draft: .constant(draft))
+		#expect(throws: Never.self) { try toolsOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
+		#expect(throws: (any Error).self) { try toolsOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step") }
+	}
+
+	@Test("a new AI step reads every earlier step by default")
+	func newAIStepReadsEarlierSteps() {
+		let prompt = FlowEditorDraft.defaultAIPrompt(reading: [
+			FlowEditorDataOption(key: "tasks", label: "Open tasks summary", detail: "Todoist"),
+			FlowEditorDataOption(key: "jiraIssues", label: "Search issues", detail: "Jira"),
+		])
+		#expect(prompt == """
+		Write a short update for me from the information below.
+
+		Open tasks summary:
+		{{json bag.tasks}}
+
+		Search issues:
+		{{json bag.jiraIssues}}
+		""")
+		#expect(FlowEditorDraft.defaultAIPrompt(reading: []) == "Write a short update for me.")
 	}
 
 	@Test("prompt data references use output keys and the latest writer")
