@@ -73,8 +73,8 @@ describe("native app API fresh state", () => {
 			expect(body.hasConfiguredAIProvider).toBe(false);
 			expect(body.connectedIntegrations).toEqual([]);
 			expect(body.personaCount).toBe(2);
-			expect(body.skillCount).toBe(0);
-			expect(body.skills).toEqual([]);
+			expect(body.skillCount).toBe(1);
+			expect(body.skills.map((skill) => skill.name)).toEqual(["flow-builder"]);
 		});
 	});
 
@@ -329,7 +329,7 @@ describe("native app API fresh state", () => {
 		});
 	});
 
-	it("GET /api/skills returns empty list", async () => {
+	it("GET /api/skills includes the shipped flow-builder skill", async () => {
 		await withTempTobyDir(async () => {
 			const res = await handleWebRequest(
 				new Request("http://127.0.0.1/api/skills"),
@@ -339,7 +339,7 @@ describe("native app API fresh state", () => {
 			const body = (await res.json()) as {
 				skills: Array<{ name: string; summary: string; description: string }>;
 			};
-			expect(body.skills).toEqual([]);
+			expect(body.skills.map((skill) => skill.name)).toEqual(["flow-builder"]);
 		});
 	});
 
@@ -369,10 +369,13 @@ summary: Legacy summary.
 				null,
 			);
 			const listBody = (await listRes.json()) as {
-				skills: Array<{ summary: string; description: string }>;
+				skills: Array<{ name: string; summary: string; description: string }>;
 			};
-			expect(listBody.skills[0]?.summary).toBe("Legacy summary.");
-			expect(listBody.skills[0]?.description).toBe("Legacy summary.");
+			const research = listBody.skills.find(
+				(skill) => skill.name === "research",
+			);
+			expect(research?.summary).toBe("Legacy summary.");
+			expect(research?.description).toBe("Legacy summary.");
 
 			const detailRes = await handleWebRequest(
 				new Request("http://127.0.0.1/api/skills/research"),

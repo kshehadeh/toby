@@ -6,6 +6,8 @@
 const CORE_TOOL_LABELS: Record<string, string> = {
 	askUser: "Ask you to choose",
 	createLocalSkill: "Create local Toby skill",
+	listFlowAuthoringCatalog: "Inspect flow tools",
+	createFlow: "Create Toby flow",
 	getWeather: "Get weather",
 	getMyLocation: "Get my location",
 	readPdf: "Read PDF",

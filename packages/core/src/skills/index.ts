@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { getSkillsDir } from "../config/index";
+import { ensureBuiltinSkills } from "./builtins";
 
 export interface LocalSkill {
 	readonly dirName: string;
@@ -154,6 +155,14 @@ export function parseSkillFileContent(
 
 export function loadLocalSkills(skillsRoot?: string): LocalSkill[] {
 	const root = skillsRoot ?? getSkillsDir();
+	// Explicit roots are project/user catalogs, not the global default catalog.
+	if (skillsRoot === undefined) {
+		try {
+			ensureBuiltinSkills(root);
+		} catch {
+			// A read-only directory must not prevent loading existing skills.
+		}
+	}
 	if (!fs.existsSync(root)) {
 		return [];
 	}

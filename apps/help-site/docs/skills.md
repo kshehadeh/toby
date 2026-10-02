@@ -47,6 +47,17 @@ You do not pick skills manually each message—Toby chooses from names and summa
 
 ## Add and manage skills
 
+### Built-in flow builder
+
+Toby includes an editable **flow-builder** skill to help turn a description into
+a reusable [flow](./flows). Try: “Create a Home action that summarizes my upcoming
+calendar events.” Toby checks available tools, asks for required details, and
+saves the flow without running it. For new AppleScript or TypeScript steps,
+Toby can draft the script and guide you through saving it in Script Tools.
+
+The skill appears automatically in your global Skills catalog. You can edit,
+disable, or delete it like other skills; Toby preserves those choices.
+
 ### Manage in the app
 
 Open **Toby.app** and click **Skills** in the sidebar. The Skills workspace lists

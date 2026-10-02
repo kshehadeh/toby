@@ -9,6 +9,18 @@ title: Flows
 
 Think of a flow as a fixed recipe: fetch data with tools, then have the model write a short summary or transform that data under the persona’s instructions and model choice. That makes flows well suited for reliable, repeatable workflows—especially the short AI blurbs on [Home](./toby-app#home-related).
 
+## Build a flow from a description
+
+Ask Toby in chat, for example: “Create a Home action that summarizes my upcoming
+calendar events.” The built-in **flow-builder** skill checks available tools,
+collects any required details, and saves a custom flow. Open **Flows** to review
+or run it. Home actions also appear in the **Actions** rail.
+
+Saving does not run the flow. Tool arguments must be fixed when you build it,
+and an optional LLM step runs last. For a new AppleScript or TypeScript step,
+Toby can draft the code and guide you through saving it in **Script Tools**
+before adding it to the flow.
+
 ## What flows are for
 
 | Piece | Role |

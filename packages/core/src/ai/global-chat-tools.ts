@@ -37,6 +37,7 @@ import {
 import { formatChatModelError } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
 import { enableToolsPromptSection } from "./enable-tools-tool";
+import { createFlowAuthoringTools } from "./flow-authoring-tools";
 import {
 	createListenChatTools,
 	listenChatToolsPromptSection,
@@ -1511,6 +1512,7 @@ export function createGlobalChatTools(
 		: {};
 	return {
 		...reflectTools,
+		...createFlowAuthoringTools(ctx),
 		...projectAttachmentTools,
 		...createListenChatTools(),
 		...createWebFetchTools(),

@@ -191,6 +191,21 @@ When semantic routing is disabled, **ExpandPromptNode** uses a **small structure
 
 ## Local skills (optional)
 
+The default global catalog seeds the editable **flow-builder** skill on first
+load. Its source is `packages/core/src/skills/builtins/flow-builder/SKILL.md`,
+embedded by Bun into builds. The seed uses exclusive creation and a per-skill
+marker under the skills directory's `.builtin-seeds/`, preserving existing
+files, edits, disabled state, and subsequent deletion. Explicit catalog roots
+(including project skill directories) are not seeded.
+
+For requests to build flows or Home actions, the skill declares
+`listFlowAuthoringCatalog`, `createFlow`, and `askUser`. The catalog returns
+plugin tool schemas and connection states, saved Script Tool metadata, and
+supported icons/colors. `createFlow` validates through the same custom-flow
+validator as the HTTP API and saves a new definition; dry runs validate without
+writing. Neither tool executes a flow or delivers its result. Script authoring
+is guided through the existing Script Tools editor.
+
 Markdown skills in `~/.toby/skills/<skill-folder>/SKILL.md` have two content
 parts:
 

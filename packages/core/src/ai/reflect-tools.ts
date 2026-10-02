@@ -296,6 +296,16 @@ export function createReflectTools(
 function createGlobalToolsPreview(): { name: string; description: string }[] {
 	const lines = [
 		{
+			name: "listFlowAuthoringCatalog",
+			description:
+				"Inspect flow tools, input schemas, saved Script Tools, icons, and colors before building a flow.",
+		},
+		{
+			name: "createFlow",
+			description:
+				"Validate and save a new custom flow from a description; does not execute it.",
+		},
+		{
 			name: "getCurrentDateTime",
 			description:
 				"Get the current local datetime, UTC datetime, timezone, and Unix milliseconds.",

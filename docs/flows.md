@@ -24,6 +24,17 @@ compaction, multi-step tool loops, or session transcript.
 | Tools | Model chooses tools | **Tool Executor** runs one tool deterministically |
 | Docs | [chat-pipeline.md](chat-pipeline.md) | This file |
 
+## Build a flow from chat
+
+The shipped `flow-builder` skill guides natural-language requests into custom
+flows. Chat tools `listFlowAuthoringCatalog` and `createFlow` inspect available
+steps and save a validated definition respectively. Creation uses generated
+`flow.<uuid>` IDs and the existing user-flow store/validator, with no execution
+or delivery. The tools support fixed tool inputs, an optional final markdown
+LLM step, result pointers, personas, and destinations. They do not update
+existing flows or create Script Tools. A Home action uses
+`{ "type": "dashboard", "variant": "runner" }` alongside an optional modal.
+
 ## Mental model
 
 ```
