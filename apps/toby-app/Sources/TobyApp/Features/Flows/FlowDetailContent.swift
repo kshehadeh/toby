@@ -32,68 +32,37 @@ struct FlowDetailContent: View {
 struct FlowDetailsPane: View {
 	@Bindable var store: FlowsStore
 	let flow: FlowListItem
+	@State private var showsTechnicalDetails: Bool
+
+	init(store: FlowsStore, flow: FlowListItem, showsTechnicalDetails: Bool = false) {
+		_store = Bindable(store)
+		self.flow = flow
+		_showsTechnicalDetails = State(initialValue: showsTechnicalDetails)
+	}
 
 	var body: some View {
 		ScrollView {
-			VStack(alignment: .leading, spacing: 22) {
-				if let description = flow.description, !description.isEmpty {
-					DetailSection(title: "Description") {
-						Text(description)
-							.font(.body)
+			VStack(alignment: .leading, spacing: 26) {
+				FlowOverviewHeader(flow: flow)
+
+				DetailSection(title: "How it works") {
+					FlowStoryCard(flow: flow)
+				}
+
+				DisclosureGroup(isExpanded: $showsTechnicalDetails) {
+					FlowTechnicalDetails(flow: flow)
+						.padding(.top, 10)
+				} label: {
+					HStack(spacing: 6) {
+						Text("Technical details")
+							.font(.system(size: 13, weight: .semibold))
 							.foregroundStyle(SettingsDesign.rowTitle)
-							.frame(maxWidth: .infinity, alignment: .leading)
-							.fixedSize(horizontal: false, vertical: true)
+						Text("For troubleshooting")
+							.font(.system(size: 12))
+							.foregroundStyle(AppTheme.tertiaryText)
 					}
 				}
-
-				DetailSection(title: "Steps") {
-					FlowNodePipeline(nodes: flow.nodes)
-				}
-
-				DetailMetadataStack {
-					DetailMetadataRow(label: "ID", value: flow.id, monospaced: true)
-					DetailMetadataRow(label: "Persona", value: flow.personaLabel)
-					DetailMetadataRow(label: "Steps", value: "\(flow.nodes.count)")
-					DetailMetadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
-					if let updatedAt = flow.updatedAt, let date = FlowISO8601.date(from: updatedAt) {
-						DetailMetadataRow(
-							label: "Updated",
-							value: DateFormatter.localizedString(
-								from: date,
-								dateStyle: .medium,
-								timeStyle: .short
-							)
-						)
-					}
-				}
-
-				DetailSection(title: "About flows") {
-					VStack(alignment: .leading, spacing: 8) {
-						Text("Flows run a fixed sequence of Tool Executor and LLM Prompter nodes. They power dashboard AI blurbs and other non-chat workflows.")
-							.font(.system(size: 13))
-							.foregroundStyle(SettingsDesign.rowDescription)
-							.fixedSize(horizontal: false, vertical: true)
-
-						if flow.builtin {
-							Text("Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
-								.font(.system(size: 13))
-								.foregroundStyle(SettingsDesign.rowDescription)
-								.fixedSize(horizontal: false, vertical: true)
-						}
-					}
-				}
-
-				if let destinations = flow.destinations, !destinations.isEmpty {
-					DetailSection(title: "When it finishes") {
-						VStack(alignment: .leading, spacing: 6) {
-							ForEach(Array(destinations.enumerated()), id: \.offset) { _, dest in
-								Text(dest.summary)
-									.font(.system(size: 13))
-									.foregroundStyle(SettingsDesign.rowDescription)
-							}
-						}
-					}
-				}
+				.accessibilityIdentifier("flow-technical-details")
 
 				if let errorMessage = store.errorMessage, !store.flows.isEmpty {
 					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
@@ -105,6 +74,246 @@ struct FlowDetailsPane: View {
 		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.accessibilityIdentifier("flow-details-tab")
+	}
+}
+
+/// Flow glyph tile, name, plain summary, and a quiet type/updated line.
+private struct FlowOverviewHeader: View {
+	let flow: FlowListItem
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 14) {
+			Image(systemName: flow.systemImage)
+				.font(.system(size: 19, weight: .semibold))
+				.foregroundStyle(.white)
+				.frame(width: 44, height: 44)
+				.background(
+					FlowColorOption.resolved(flow.color).color,
+					in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+				)
+				.accessibilityHidden(true)
+
+			VStack(alignment: .leading, spacing: 6) {
+				Text(flow.displayName)
+					.font(.system(size: 17, weight: .semibold))
+					.foregroundStyle(SettingsDesign.rowTitle)
+					.textSelection(.enabled)
+
+				Text(flow.overviewSummary)
+					.font(.system(size: 13))
+					.foregroundStyle(SettingsDesign.rowDescription)
+					.fixedSize(horizontal: false, vertical: true)
+					.textSelection(.enabled)
+
+				HStack(spacing: 8) {
+					Text(flow.builtin ? "Built-in" : "Custom")
+						.font(.system(size: 9, weight: .semibold))
+						.foregroundStyle(AppTheme.tertiaryText)
+						.padding(.horizontal, 5)
+						.padding(.vertical, 1)
+						.background(Capsule().fill(AppTheme.primaryText.opacity(0.08)))
+					if let updated = flow.updatedLabel {
+						Text("Updated \(updated)")
+							.font(.system(size: 12))
+							.foregroundStyle(AppTheme.tertiaryText)
+					}
+				}
+				.padding(.top, 2)
+
+				if flow.builtin {
+					Text("Built-in flows are read-only. Create a custom flow if you want to change the steps.")
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowDescription)
+						.fixedSize(horizontal: false, vertical: true)
+						.padding(.top, 2)
+				}
+			}
+			Spacer(minLength: 0)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityIdentifier("flow-overview-header")
+	}
+}
+
+/// "How it works": every step and destination as a sentence on one card,
+/// grouped into Gathers / Thinks / Shares and joined by a hairline rail.
+private struct FlowStoryCard: View {
+	let flow: FlowListItem
+
+	var body: some View {
+		let rows = FlowStory.rows(for: flow)
+		let shape = AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
+		Group {
+			if flow.nodes.isEmpty {
+				Text("This flow has no steps.")
+					.font(.system(size: 13))
+					.foregroundStyle(SettingsDesign.rowDescription)
+			} else {
+				VStack(alignment: .leading, spacing: 0) {
+					ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+						if row.startsPhase {
+							FlowStoryPhaseLabel(phase: row.phase, showsRail: index > 0)
+						}
+						FlowStoryRowView(row: row, isLast: index == rows.count - 1)
+					}
+				}
+				.padding(.horizontal, 18)
+				.padding(.vertical, 16)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.background(SettingsDesign.cardBackground, in: shape)
+				.overlay {
+					shape.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+				}
+			}
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityIdentifier("flow-node-pipeline")
+	}
+}
+
+private enum FlowStoryMetrics {
+	static let iconSize: CGFloat = 30
+	static let columnSpacing: CGFloat = 14
+}
+
+private struct FlowStoryPhaseLabel: View {
+	let phase: FlowStoryPhase
+	let showsRail: Bool
+
+	var body: some View {
+		HStack(spacing: FlowStoryMetrics.columnSpacing) {
+			ZStack {
+				if showsRail {
+					Rectangle()
+						.fill(SettingsDesign.cardBorder)
+						.frame(width: 1)
+				}
+			}
+			.frame(width: FlowStoryMetrics.iconSize)
+			.frame(maxHeight: .infinity)
+
+			Text(phase.label.uppercased())
+				.font(.system(size: 10, weight: .semibold))
+				.tracking(0.7)
+				.foregroundStyle(AppTheme.tertiaryText)
+				.padding(.top, showsRail ? 8 : 0)
+				.padding(.bottom, 8)
+		}
+		.fixedSize(horizontal: false, vertical: true)
+		.accessibilityAddTraits(.isHeader)
+	}
+}
+
+private struct FlowStoryRowView: View {
+	let row: FlowStoryRow
+	let isLast: Bool
+
+	var body: some View {
+		HStack(alignment: .top, spacing: FlowStoryMetrics.columnSpacing) {
+			VStack(spacing: 0) {
+				FlowStepIconTile(iconURL: row.iconURL, systemImage: row.systemImage, isAccent: row.tint == .accent)
+				if !isLast {
+					Rectangle()
+						.fill(SettingsDesign.cardBorder)
+						.frame(width: 1)
+						.frame(minHeight: 10, maxHeight: .infinity)
+						.accessibilityHidden(true)
+						.accessibilityIdentifier("flow-pipeline-connector")
+				}
+			}
+			.frame(width: FlowStoryMetrics.iconSize)
+
+			VStack(alignment: .leading, spacing: 2) {
+				Text(row.title)
+					.font(.system(size: 13, weight: .medium))
+					.foregroundStyle(SettingsDesign.rowTitle)
+					.fixedSize(horizontal: false, vertical: true)
+				if let subtitle = row.subtitle {
+					Text(subtitle)
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowDescription)
+						.fixedSize(horizontal: false, vertical: true)
+				}
+			}
+			.padding(.top, 6)
+			.padding(.bottom, isLast ? 0 : 14)
+
+			Spacer(minLength: 0)
+		}
+		.fixedSize(horizontal: false, vertical: true)
+		.accessibilityElement(children: .combine)
+		.accessibilityLabel([row.title, row.subtitle].compactMap { $0 }.joined(separator: ", "))
+	}
+}
+
+/// IDs, node types and tool names for troubleshooting, collapsed by default.
+private struct FlowTechnicalDetails: View {
+	let flow: FlowListItem
+
+	var body: some View {
+		let shape = AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
+		VStack(alignment: .leading, spacing: 14) {
+			DetailMetadataStack {
+				DetailMetadataRow(label: "Flow ID", value: flow.id, monospaced: true)
+				DetailMetadataRow(label: "Persona", value: flow.personaLabel)
+				DetailMetadataRow(label: "Type", value: flow.builtin ? "Built-in" : "Custom")
+				if let updated = flow.updatedLabel {
+					DetailMetadataRow(label: "Updated", value: updated)
+				}
+				if let destinations = flow.destinations, !destinations.isEmpty {
+					DetailMetadataRow(
+						label: "Delivers to",
+						value: destinations.map(\.summary).joined(separator: ", ")
+					)
+				}
+			}
+
+			if !flow.nodes.isEmpty {
+				Rectangle()
+					.fill(SettingsDesign.cardBorder)
+					.frame(height: 1)
+
+				Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 6) {
+					GridRow {
+						Text("Step")
+						Text("ID")
+						Text("Runs")
+					}
+					.font(.system(size: 12))
+					.foregroundStyle(AppTheme.tertiaryText)
+
+					ForEach(Array(flow.nodes.enumerated()), id: \.element.id) { index, node in
+						GridRow {
+							Text("\(index + 1)")
+								.font(.system(size: 12))
+								.foregroundStyle(SettingsDesign.rowDescription)
+							Text(node.id)
+								.font(.system(size: 12, design: .monospaced))
+								.foregroundStyle(SettingsDesign.rowTitle)
+								.textSelection(.enabled)
+							VStack(alignment: .leading, spacing: 2) {
+								Text(node.typeLabel)
+									.font(.system(size: 12))
+									.foregroundStyle(SettingsDesign.rowDescription)
+								Text(node.detailLabel)
+									.font(.system(size: 12, design: .monospaced))
+									.foregroundStyle(SettingsDesign.rowTitle)
+									.lineLimit(2)
+									.textSelection(.enabled)
+							}
+						}
+					}
+				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+			}
+		}
+		.padding(.horizontal, 18)
+		.padding(.vertical, 14)
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.background(SettingsDesign.cardBackground, in: shape)
+		.overlay {
+			shape.stroke(SettingsDesign.cardBorder, lineWidth: 1)
+		}
 	}
 }
 
@@ -158,92 +367,6 @@ struct FlowRecentRunsPane: View {
 		.padding(20)
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.accessibilityIdentifier("flow-recent-runs-tab")
-	}
-}
-
-private struct FlowNodePipeline: View {
-	let nodes: [FlowNodeSnapshot]
-
-	var body: some View {
-		Group {
-			if nodes.isEmpty {
-				Text("This flow has no steps.")
-					.font(.system(size: 13))
-					.foregroundStyle(SettingsDesign.rowDescription)
-			} else {
-				VStack(alignment: .leading, spacing: 0) {
-					ForEach(Array(nodes.enumerated()), id: \.element.id) { index, node in
-						FlowPipelineStep(
-							index: index + 1,
-							total: nodes.count,
-							node: node
-						)
-						if index < nodes.count - 1 {
-							Image(systemName: "chevron.down")
-								.font(.system(size: 10, weight: .semibold))
-								.foregroundStyle(AppTheme.tertiaryText)
-								.frame(maxWidth: .infinity)
-								.padding(.vertical, 6)
-								.accessibilityHidden(true)
-								.accessibilityIdentifier("flow-pipeline-connector")
-						}
-					}
-				}
-			}
-		}
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.accessibilityIdentifier("flow-node-pipeline")
-	}
-}
-
-private struct FlowPipelineStep: View {
-	let index: Int
-	let total: Int
-	let node: FlowNodeSnapshot
-
-	var body: some View {
-		let shape = AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
-		HStack(alignment: .top, spacing: 12) {
-			ZStack {
-				Circle()
-					.fill(AppTheme.accent.opacity(0.16))
-					.frame(width: 22, height: 22)
-				Text("\(index)")
-					.font(.system(size: 11, weight: .semibold))
-					.foregroundStyle(AppTheme.accent)
-			}
-
-			VStack(alignment: .leading, spacing: 4) {
-				HStack(spacing: 8) {
-					Image(systemName: node.systemImage)
-						.font(.system(size: 12, weight: .semibold))
-						.foregroundStyle(AppTheme.secondaryText)
-						.accessibilityHidden(true)
-					Text(node.typeLabel)
-						.font(.system(size: 13, weight: .semibold))
-						.foregroundStyle(SettingsDesign.rowTitle)
-				}
-				Text(node.detailLabel)
-					.font(.system(size: 12, design: .monospaced))
-					.foregroundStyle(SettingsDesign.rowDescription)
-					.lineLimit(2)
-					.textSelection(.enabled)
-				Text(node.id)
-					.font(.system(size: 11, design: .monospaced))
-					.foregroundStyle(AppTheme.tertiaryText)
-					.lineLimit(1)
-					.textSelection(.enabled)
-			}
-			Spacer(minLength: 0)
-		}
-		.padding(12)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.background(SettingsDesign.cardBackground, in: shape)
-		.overlay {
-			shape.stroke(SettingsDesign.cardBorder, lineWidth: 1)
-		}
-		.accessibilityElement(children: .combine)
-		.accessibilityLabel("Step \(index) of \(total), \(node.typeLabel), \(node.detailLabel)")
 	}
 }
 

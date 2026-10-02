@@ -138,7 +138,7 @@ struct FlowsViewTests {
 		}
 	}
 
-	@Test("selected flow shows detail content")
+	@Test("selected flow shows a plain-language overview")
 	func selectedFlowShowsDetailContent() throws {
 		let store = FlowsStore()
 		let flow = sampleFlow()
@@ -149,29 +149,130 @@ struct FlowsViewTests {
 			try pane.inspect().find(text: "Fetch unread inbox items and summarize them.")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Built-in flows remain read-only. Duplicate their idea as a new custom flow if you want to change the steps.")
+			try pane.inspect().find(text: "Built-in flows are read-only. Create a custom flow if you want to change the steps.")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "fetch-unread")
-		}
-		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "summarize")
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-overview-header")
 		}
 		#expect(throws: Never.self) {
 			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-node-pipeline")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Tool Executor")
+			try pane.inspect().find(text: "How it works")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "LLM Prompter")
+			try pane.inspect().find(text: "Unread email")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "email.unreadSummary")
+			try pane.inspect().find(text: "From your email")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "EmailDashboardSummary")
+			try pane.inspect().find(text: "Asks AI to put it together")
 		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "GATHERS")
+		}
+		#expect(throws: Never.self) {
+			try pane.inspect().find(text: "THINKS")
+		}
+	}
+
+	@Test("technical details keep node types, tool names and step ids")
+	func technicalDetailsShowRawNames() throws {
+		let store = FlowsStore()
+		let flow = sampleFlow()
+		let pane = detailsPane(store: store, flow: flow, showsTechnicalDetails: true)
+		#expect(throws: Never.self) {
+			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-technical-details")
+		}
+		for text in ["fetch-unread", "summarize", "Tool Executor", "LLM Prompter", "email.unreadSummary", "EmailDashboardSummary", "dashboard.email.summary"] {
+			#expect(throws: Never.self) {
+				try pane.inspect().find(text: text)
+			}
+		}
+	}
+
+	@Test("story rows use daemon display names and destinations")
+	func storyRowsUseDisplayNamesAndDestinations() {
+		var tasks = FlowNodeSnapshot(
+			id: "tasks",
+			type: "tool_executor",
+			tool: FlowToolRef(standardTool: nil, moduleName: "todoist", toolName: "getOpenTasksSummary"),
+			schemaName: nil,
+			temperature: nil,
+			maxOutputTokens: nil,
+			inputs: nil,
+			outputs: nil
+		)
+		tasks.display = FlowToolDisplay(
+			title: "Open tasks summary",
+			integrationName: "todoist",
+			integrationDisplayName: "Todoist",
+			integrationIconUrl: "/api/plugins/todoist/icon"
+		)
+		let jira = FlowNodeSnapshot(
+			id: "jira",
+			type: "tool_executor",
+			tool: FlowToolRef(standardTool: nil, moduleName: "jira", toolName: "searchJiraIssues"),
+			schemaName: nil,
+			temperature: nil,
+			maxOutputTokens: nil,
+			inputs: nil,
+			outputs: nil
+		)
+		let flow = FlowListItem(
+			id: "flow.custom",
+			name: "What to work on next",
+			description: nil,
+			icon: nil,
+			color: "teal",
+			builtin: false,
+			persona: nil,
+			nodes: [tasks, jira, sampleLLMNode()],
+			result: nil,
+			destinations: [
+				FlowDestinationSpec(type: "dashboard", to: nil, subject: nil, cc: nil, channel: nil, variant: "informational", refresh: nil),
+			],
+			createdAt: nil,
+			updatedAt: nil
+		)
+
+		let rows = FlowStory.rows(for: flow)
+		#expect(rows.map(\.title) == [
+			"Open tasks summary",
+			"Search jira issues",
+			"Asks AI to put it together",
+			"Shows the result as a card on Home",
+		])
+		#expect(rows.map(\.subtitle) == [
+			"From Todoist",
+			"From Jira",
+			"Using the steps above, with Toby’s default persona",
+			"Refreshes on its own",
+		])
+		#expect(rows.map(\.phase) == [.gathers, .gathers, .thinks, .shares])
+		#expect(rows.map(\.startsPhase) == [true, false, true, true])
+		#expect(rows[0].iconURL?.path == "/api/plugins/todoist/icon")
+		#expect(rows[1].iconURL == nil)
+		#expect(rows[2].tint == .accent)
+		#expect(flow.overviewSummary == "Runs 3 steps in order.")
+	}
+
+	@Test("flow node decodes daemon display info")
+	func flowNodeDecodesDisplay() throws {
+		let json = """
+		{
+			"id": "calendar",
+			"type": "tool_executor",
+			"tool": { "standardTool": "calendar.upcomingSummary" },
+			"display": { "category": "calendar" }
+		}
+		""".data(using: .utf8)!
+		let node = try JSONDecoder().decode(FlowNodeSnapshot.self, from: json)
+		#expect(node.display?.category == "calendar")
+		#expect(node.plainTitle == "Upcoming events")
+		#expect(node.plainSubtitle == "From your calendar")
+		#expect(node.plainSystemImage == "calendar")
 	}
 
 	@Test("two-step flow shows a pipeline connector")
@@ -196,10 +297,10 @@ struct FlowsViewTests {
 			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-pipeline-connector")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Tool Executor")
+			try pane.inspect().find(text: "Unread email")
 		}
 		#expect(throws: (any Error).self) {
-			try pane.inspect().find(text: "LLM Prompter")
+			try pane.inspect().find(text: "Asks AI to put it together")
 		}
 	}
 
@@ -231,9 +332,12 @@ struct FlowsViewTests {
 			try view.inspect().tabView()
 		}
 		#expect(throws: Never.self) {
-			try detailsPane(store: store, flow: flow).inspect().find(text: "Steps")
+			try detailsPane(store: store, flow: flow).inspect().find(text: "How it works")
 		}
 		#expect(throws: Never.self) {
+			try detailsPane(store: store, flow: flow).inspect().find(text: "Technical details")
+		}
+		#expect(throws: (any Error).self) {
 			try detailsPane(store: store, flow: flow).inspect().find(text: "About flows")
 		}
 
@@ -662,8 +766,12 @@ struct FlowsViewTests {
 }
 
 @MainActor
-private func detailsPane(store: FlowsStore, flow: FlowListItem) -> FlowDetailsPane {
-	FlowDetailsPane(store: store, flow: flow)
+private func detailsPane(
+	store: FlowsStore,
+	flow: FlowListItem,
+	showsTechnicalDetails: Bool = false
+) -> FlowDetailsPane {
+	FlowDetailsPane(store: store, flow: flow, showsTechnicalDetails: showsTechnicalDetails)
 }
 
 @MainActor

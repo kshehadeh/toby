@@ -138,8 +138,8 @@ struct FlowEditorNode: Identifiable, Equatable {
 			toolName: "",
 			userToolId: nil,
 			constInputs: [:],
-			systemPrompt: "Write a short status for the user. Reply with markdown only.",
-			userPrompt: "Previous step output:\n\n{{json bag.result}}"
+			systemPrompt: "Reply with markdown only.",
+			userPrompt: "Write a short update for me."
 		)
 	}
 

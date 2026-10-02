@@ -292,6 +292,10 @@ final class FlowsStore {
 			.tools.first(where: { $0.toolName == toolName })
 	}
 
+	func catalogModule(named name: String) -> FlowCatalogModule? {
+		catalog?.modules.first(where: { $0.name == name })
+	}
+
 	func isModuleConnected(_ name: String) -> Bool {
 		catalog?.modules.contains(where: { $0.name == name }) ?? false
 	}

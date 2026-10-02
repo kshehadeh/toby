@@ -42,7 +42,7 @@ struct FlowsView: View {
 			store.cancelEditor()
 		})) { _ in
 			EditorSheet(
-				title: store.editor?.isNew == true ? "New Flow" : "Edit Flow",
+				title: store.editor?.isNew == true ? "New flow" : "Edit flow",
 				isSaving: store.isSaving,
 				canSave: flowEditorCanSave,
 				isDirty: store.isEditorDirty,

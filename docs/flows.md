@@ -445,7 +445,7 @@ Per node: resolved **inputs**, bag **outputs**, **duration_ms**,
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `icon`, `color`, `builtin`, `persona`, node graph snapshot, `result`, `destinations`, timestamps); seeds built-ins |
+| `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `icon`, `color`, `builtin`, `persona`, node graph snapshot with a best-effort `display` on tool steps, `result`, `destinations`, timestamps); seeds built-ins |
 | `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`) |
 | `GET` | `/api/flows/catalog` | Connected plugin tools including `inputSchema` |
 | `GET` | `/api/flows/:id` | List item + stored `document` (prompts, destinations) |
