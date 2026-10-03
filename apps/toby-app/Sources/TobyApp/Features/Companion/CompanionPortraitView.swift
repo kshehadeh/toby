@@ -1,6 +1,6 @@
 import AppKit
 
-/// A stationary cutout plus independent eye layers. Dragging doesn't take focus.
+/// A stationary cutout plus independent eye and mouth layers. Dragging doesn't take focus.
 final class CompanionPortraitView: NSView {
 	var open: (() -> Void)?
 	var moved: (() -> Void)?
@@ -10,6 +10,7 @@ final class CompanionPortraitView: NSView {
 	private var didDrag = false
 	var isDragging: Bool { dragStart != nil }
 	private(set) var gaze: CGPoint = .zero
+	private(set) var mouth = CompanionMouthState()
 	override var isFlipped: Bool { true }
 
 	override init(frame frameRect: NSRect) {
@@ -27,6 +28,18 @@ final class CompanionPortraitView: NSView {
 		CompanionPortraitArtwork.image?.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1,
 			respectFlipped: true, hints: nil)
 		CompanionEyes.draw(gaze: gaze, in: bounds)
+		CompanionMouth.draw(amount: mouth.amount, in: bounds)
+	}
+
+	func updateMouth(conversationVisible: Bool, now: TimeInterval, reduceMotion: Bool) {
+		let previous = mouth.amount
+		mouth.update(conversationVisible: conversationVisible, now: now, reduceMotion: reduceMotion)
+		if mouth.amount != previous { needsDisplay = true }
+	}
+
+	func resetMouth() {
+		mouth = CompanionMouthState()
+		needsDisplay = true
 	}
 
 	func updateGaze(cursor: CGPoint, engaged: Bool, reduceMotion: Bool) {

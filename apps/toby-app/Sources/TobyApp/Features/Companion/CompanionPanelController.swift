@@ -56,6 +56,7 @@ final class CompanionPanelController: NSObject {
 		pointerTimer = nil
 		face?.orderOut(nil)
 		closeConversation()
+		(face?.contentView as? CompanionPortraitView)?.resetMouth()
 	}
 
 	func closeConversation() { bubble?.orderOut(nil) }
@@ -107,8 +108,11 @@ final class CompanionPanelController: NSObject {
 	private func updatePointerBoundary() {
 		guard let face, let view = face.contentView, isVisible else { return }
 		let point = view.convert(face.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
-		(view as? CompanionPortraitView)?.updateGaze(cursor: point, engaged: bubble?.isVisible == true,
-			reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+		let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+		let engaged = bubble?.isVisible == true
+		(view as? CompanionPortraitView)?.updateGaze(cursor: point, engaged: engaged, reduceMotion: reduceMotion)
+		(view as? CompanionPortraitView)?.updateMouth(conversationVisible: engaged,
+			now: ProcessInfo.processInfo.systemUptime, reduceMotion: reduceMotion)
 		guard NSEvent.pressedMouseButtons == 0 else { return }
 		guard (view as? CompanionPortraitView)?.isDragging != true else { return }
 		// Returning nil from NSView.hitTest alone cannot pass clicks to another

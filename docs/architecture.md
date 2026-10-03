@@ -163,7 +163,12 @@ Command-Return to send.
 A 30 Hz pointer sample smoothly moves bounded pupils and redraws only the
 portrait. Opening the conversation centers the eyes; Reduce Motion keeps them
 still. Cursor positions stay local and are not persisted or transmitted.
-Expression animation is a later stage.
+`CompanionMouth` draws a native mouth layer over the stationary mouth ink.
+`CompanionMouthState` uses monotonic time: the open conversation targets a subtle
+smile; closing it targets a frown for two seconds, then neutral. Reopening clears
+the frown deadline; repeated close events do not extend it. The existing portrait
+timer interpolates the mouth only while visible. Hiding the whole companion
+resets the expression. Reduce Motion snaps between expressions without smoothing.
 
 The main window uses shared `RootToolbars` builders for its native header.
 Feature record lists (chats, recordings, schedules, skills, flows, integrations,

@@ -165,7 +165,11 @@ conversation lasts until you start over, switch Toby home directories, or quit
 the app; saved chats remain available in **Chats**.
 Toby’s eyes follow the cursor while idle and center when you open the
 conversation. Cursor positions stay on your Mac and are not sent with messages.
-Enable macOS **Reduce Motion** to keep the eyes still.
+Toby smiles subtly while the conversation is open. When you close the bubble,
+he briefly frowns for about two seconds, then returns to his normal expression.
+Reopening the conversation restores the smile.
+Enable macOS **Reduce Motion** to keep the eyes still and switch mouth
+expressions without animated transitions.
 
 Escape or clicking elsewhere closes the conversation while preserving its
 draft. Right-click the portrait and choose **Hide desktop companion** to hide

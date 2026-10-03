@@ -5,7 +5,9 @@
 The original portrait remains unchanged. Native eye whites, outlines, and pupils
 are drawn separately by `Features/Companion/CompanionEyes.swift`; their anchors
 use the original 155 × 156 coordinate space. No directional animation frames
-are required. Cursor movement changes only the pupil positions.
+are required. Cursor movement changes only the pupil positions. `CompanionMouth.swift` covers
+the original mouth ink inside the opaque face and draws independent native
+mouth curves for neutral, smile, and frown expressions. The bitmap is unchanged.
 
 Generation prompt:
 
