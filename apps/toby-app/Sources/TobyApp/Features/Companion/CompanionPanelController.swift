@@ -16,6 +16,7 @@ final class CompanionPanelController: NSObject {
 
 	override init() {
 		super.init()
+		observeBubbleSize()
 		NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
 			name: NSApplication.didChangeScreenParametersNotification, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(homeChanged),
@@ -75,15 +76,35 @@ final class CompanionPanelController: NSObject {
 			configure(panel)
 			panel.title = "Ask Toby"
 			panel.onDismiss = { [weak self] in self?.closeConversation() }
-			panel.contentView = NSHostingView(rootView: CompanionBubbleView(store: store,
+			panel.contentView = Self.makeBubbleHostingView(rootView: CompanionBubbleView(store: store,
 				close: { [weak self] in self?.closeConversation() }, hide: { [weak self] in self?.hide() })
-				.tobyAppearance(AppearancePreferences.shared)
-				.onChange(of: store.bubbleSize) { [weak self] in self?.placeBubble() })
+				.tobyAppearance(AppearancePreferences.shared))
 			bubble = panel
 		}
 		placeBubble()
 		bubble?.makeKeyAndOrderFront(nil)
 		store.presentationID = UUID()
+	}
+
+	static func makeBubbleHostingView<Content: View>(rootView: Content) -> NSHostingView<Content> {
+		let hosting = NSHostingView(rootView: rootView)
+		// placeBubble owns the size and screen-clamped origin. Automatic hosting
+		// resize can otherwise grow the window downward after that placement.
+		hosting.sizingOptions = []
+		return hosting
+	}
+
+	private func observeBubbleSize() {
+		// A modifier created once outside a SwiftUI body does not observe the
+		// store's changing size. Track it here, where window placement is owned.
+		withObservationTracking {
+			_ = store.bubbleSize
+		} onChange: { [weak self] in
+			Task { @MainActor [weak self] in
+				self?.placeBubble()
+				self?.observeBubbleSize()
+			}
+		}
 	}
 
 	private func makePanel(size: NSSize) -> NSPanel {

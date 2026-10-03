@@ -143,7 +143,10 @@ so transparent margins pass through to other apps. Sampling stops when hidden.
 The portrait can be dragged without becoming the main window; the bubble
 receives keyboard input and dismisses on Escape or loss of key focus.
 
-`CompanionGeometry` handles display clamping and bubble placement. The last
+`CompanionGeometry` handles display clamping and bubble placement. The bubble's
+hosting view disables automatic window sizing; the controller applies each size
+change with a clamped origin so conversation expansion slides upward as needed
+within the screen's usable area. The last
 portrait origin is stored in app-local UserDefaults (`toby.companion.origin`).
 `CompanionStore` owns a separate `ChatStore`, so companion turns do not change
 the main window's selected chat. Sessions are created lazily on the first send;

@@ -32,6 +32,32 @@ struct CompanionTests {
 		#expect(screen.contains(rightBubble))
 	}
 
+	@Test("Conversation expansion stays above the bottom edge after hosting layout")
+	func conversationExpansion() {
+		let screen = NSRect(x: -1440, y: 80, width: 1440, height: 820)
+		let face = NSRect(x: -120, y: 100, width: 112, height: 112)
+		let compactSize = NSSize(width: 372, height: 224)
+		let expandedSize = NSSize(width: 372, height: 480)
+		let panel = NSPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+		panel.isReleasedWhenClosed = false
+		defer { panel.close() }
+		let hosting = CompanionPanelController.makeBubbleHostingView(rootView:
+			Color.clear.frame(width: compactSize.width, height: compactSize.height))
+		panel.contentView = hosting
+		let compact = CompanionGeometry.bubbleFrame(face: face, screen: screen, size: compactSize)
+		panel.setFrame(compact, display: false)
+		hosting.layoutSubtreeIfNeeded()
+		let expanded = CompanionGeometry.bubbleFrame(face: face, screen: screen, size: expandedSize)
+		panel.setFrame(expanded, display: false)
+		hosting.rootView = Color.clear.frame(width: expandedSize.width, height: expandedSize.height)
+		hosting.layoutSubtreeIfNeeded()
+		#expect(hosting.sizingOptions.isEmpty)
+		#expect(panel.frame == expanded)
+		#expect(screen.contains(panel.frame))
+		#expect(panel.frame.minY == screen.minY)
+		#expect(panel.frame.maxY > compact.maxY)
+	}
+
 	@Test("Disconnected-display position is clamped into the usable area")
 	func offscreenRecovery() {
 		let screen = NSRect(x: 0, y: 80, width: 1440, height: 820)

@@ -147,7 +147,9 @@ as a portrait cutout without a window frame. Drag the portrait to move it; click
 it to open **How can I help?** with a multiline question field.
 You can also choose **View → Ask Desktop Companion** or press **⌥⌘T** to open
 the composer directly with the keyboard.
-The bubble starts compact and expands when you send a question.
+The bubble starts compact and expands when you send a question. Near the bottom
+of the screen, it automatically slides upward to keep the whole conversation
+on screen without moving Toby.
 
 Use **Send** or **⌘Return** to ask Toby. Return inserts a new line. Replies
 stream into the conversation, including Markdown and any choices Toby asks you
