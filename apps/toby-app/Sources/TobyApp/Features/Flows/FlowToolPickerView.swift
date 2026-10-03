@@ -377,6 +377,8 @@ private struct FlowToolPickerSectionView: View {
 							image
 								.resizable()
 								.scaledToFit()
+								.frame(width: 18, height: 18)
+								.background(Color.white)
 						default:
 							Image(systemName: "puzzlepiece")
 								.font(.system(size: 9, weight: .semibold))
@@ -390,7 +392,7 @@ private struct FlowToolPickerSectionView: View {
 				}
 			}
 			.frame(width: 18, height: 18)
-			.background(Color.white, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+			.background(AppTheme.primaryText.opacity(0.06), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
 			.clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
 			.accessibilityHidden(true)
 		}
