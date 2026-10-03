@@ -171,8 +171,13 @@ conversation. Cursor positions stay on your Mac and are not sent with messages.
 Toby smiles subtly while the conversation is open. When you close the bubble,
 he briefly frowns for about two seconds, then returns to his normal expression.
 Reopening the conversation restores the smile.
+While a question is processing, Toby raises one eyebrow. As the reply streams
+in, his mouth moves subtly as though he is talking, pausing when text delivery
+pauses. These expressions settle when processing finishes or Toby waits for
+your choice.
 Enable macOS **Reduce Motion** to keep the eyes still and switch mouth
-expressions without animated transitions.
+expressions without animated transitions. The processing eyebrow stays static,
+and talking motion is disabled.
 
 Escape or clicking elsewhere closes the conversation while preserving its
 draft. Right-click the portrait and choose **Hide desktop companion** to hide

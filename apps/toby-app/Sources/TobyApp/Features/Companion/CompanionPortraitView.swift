@@ -1,6 +1,6 @@
 import AppKit
 
-/// A stationary cutout plus independent eye and mouth layers. Dragging doesn't take focus.
+/// A stationary cutout plus independent facial layers. Dragging doesn't take focus.
 final class CompanionPortraitView: NSView {
 	var open: (() -> Void)?
 	var moved: (() -> Void)?
@@ -11,6 +11,7 @@ final class CompanionPortraitView: NSView {
 	var isDragging: Bool { dragStart != nil }
 	private(set) var gaze: CGPoint = .zero
 	private(set) var mouth = CompanionMouthState()
+	private(set) var eyebrows = CompanionEyebrowState()
 	override var isFlipped: Bool { true }
 
 	override init(frame frameRect: NSRect) {
@@ -27,18 +28,28 @@ final class CompanionPortraitView: NSView {
 	override func draw(_ dirtyRect: NSRect) {
 		CompanionPortraitArtwork.image?.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1,
 			respectFlipped: true, hints: nil)
+		CompanionEyebrows.draw(rightRaise: eyebrows.amount, in: bounds)
 		CompanionEyes.draw(gaze: gaze, in: bounds)
-		CompanionMouth.draw(amount: mouth.amount, in: bounds)
+		CompanionMouth.draw(amount: mouth.amount, openness: mouth.openness, in: bounds)
 	}
 
-	func updateMouth(conversationVisible: Bool, now: TimeInterval, reduceMotion: Bool) {
+	func updateMouth(conversationVisible: Bool, now: TimeInterval, reduceMotion: Bool, streamingText: String? = nil) {
 		let previous = mouth.amount
-		mouth.update(conversationVisible: conversationVisible, now: now, reduceMotion: reduceMotion)
-		if mouth.amount != previous { needsDisplay = true }
+		let previousOpenness = mouth.openness
+		mouth.update(conversationVisible: conversationVisible, now: now, reduceMotion: reduceMotion,
+			streamingText: streamingText)
+		if mouth.amount != previous || mouth.openness != previousOpenness { needsDisplay = true }
 	}
 
-	func resetMouth() {
+	func updateEyebrows(processing: Bool, reduceMotion: Bool) {
+		let previous = eyebrows.amount
+		eyebrows.update(processing: processing, reduceMotion: reduceMotion)
+		if eyebrows.amount != previous { needsDisplay = true }
+	}
+
+	func resetExpressions() {
 		mouth = CompanionMouthState()
+		eyebrows = CompanionEyebrowState()
 		needsDisplay = true
 	}
 

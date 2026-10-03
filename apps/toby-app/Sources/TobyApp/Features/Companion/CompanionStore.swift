@@ -49,6 +49,18 @@ final class CompanionStore {
 		return chat.isLoading ? "Thinking…" : "Connecting…"
 	}
 
+	var isProcessingResponse: Bool {
+		(isThinking || chat.isLoading) && chat.activeAskUserPrompt == nil
+	}
+
+	var speakingText: String? {
+		// inWorkArea is a transcript placement flag, including ordinary replies
+		// before any tool calls. Every streamingAssistant contains assistant text.
+		guard isProcessingResponse, let stream = chat.streamingAssistant,
+			!stream.text.isEmpty else { return nil }
+		return stream.text
+	}
+
 	var bubbleSize: CGSize {
 		CGSize(width: CompanionGeometry.bubbleSize.width, height: hasConversation ? 480 : (errorMessage == nil ? 224 : 320))
 	}

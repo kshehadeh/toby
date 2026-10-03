@@ -56,7 +56,7 @@ struct CompanionMouthTests {
 		}
 		#expect(view.mouth.amount == 0)
 		view.updateMouth(conversationVisible: true, now: 15, reduceMotion: true)
-		view.resetMouth()
+		view.resetExpressions()
 		#expect(view.mouth.amount == 0 && !view.mouth.conversationVisible)
 	}
 

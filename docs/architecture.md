@@ -177,6 +177,16 @@ smile; closing it targets a frown for two seconds, then neutral. Reopening clear
 the frown deadline; repeated close events do not extend it. The existing portrait
 timer interpolates the mouth only while visible. Hiding the whole companion
 resets the expression. Reduce Motion snaps between expressions without smoothing.
+`CompanionEyebrows` replaces the stationary eyebrow ink with independently
+controllable native curves. The right eyebrow rises while a companion turn is
+connecting, thinking, or streaming, and settles when processing ends or an
+ask-user prompt waits for input. `CompanionMouthState` also tracks visible reply
+text delivery: a bounded talking motion continues while text arrives and fades
+out after a 450 ms delivery gap. Only assistant-text streams drive speech;
+tool results and preparation entries do not.
+Closing the bubble stops talking and preserves the two-second frown; hiding
+resets both expression layers. Reduce Motion uses a static processing eyebrow
+and disables talking motion. All layers reuse the existing visible-only timer.
 
 The main window uses shared `RootToolbars` builders for its native header.
 Feature record lists (chats, recordings, schedules, skills, flows, integrations,
