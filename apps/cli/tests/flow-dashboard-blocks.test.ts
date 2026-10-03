@@ -158,6 +158,29 @@ describe("listFlowDashboardBlocks", () => {
 		expect(blocks[1]?.color).toBeNull();
 	});
 
+	it("exposes the saved dashboard appearance separately from legacy tile color", () => {
+		saveUserFlowDocument({
+			...infoDoc,
+			color: "teal",
+			destinations: [
+				{ type: "dashboard", variant: "informational", color: "blue" },
+			],
+		});
+		expect(listFlowDashboardBlocks()[0]).toMatchObject({
+			color: "teal",
+			dashboardColor: "blue",
+		});
+		saveUserFlowDocument({
+			...infoDoc,
+			destinations: [
+				{ type: "dashboard", variant: "informational", color: "neutral" },
+			],
+		});
+		expect(listFlowDashboardBlocks()[0]?.dashboardColor).toBe("neutral");
+		saveUserFlowDocument(infoDoc);
+		expect(listFlowDashboardBlocks()[0]?.dashboardColor).toBeNull();
+	});
+
 	it("refresh preserves both calendar-fetch and LLM steps in the saved definition", async () => {
 		const document: FlowDocument = {
 			...infoDoc,

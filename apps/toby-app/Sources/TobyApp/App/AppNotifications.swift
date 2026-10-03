@@ -36,6 +36,8 @@ extension Notification.Name {
 	static let personasDidChange = Notification.Name("toby.personasDidChange")
 	/// Posted when chat (or another writer) creates/updates a local skill so the skills UI can refresh.
 	static let skillsDidChange = Notification.Name("toby.skillsDidChange")
+	/// Refresh Home registration metadata after saving or deleting a custom flow.
+	static let flowDefinitionsDidChange = Notification.Name("toby.flowDefinitionsDidChange")
 	/// Posted after guided setup connects an integration so Home can refresh that card.
 	/// `object` is the dashboard block id.
 	static let dashboardBlockShouldRefresh = Notification.Name("toby.dashboardBlockShouldRefresh")

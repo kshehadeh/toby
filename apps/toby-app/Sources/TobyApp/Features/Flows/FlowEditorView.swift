@@ -905,6 +905,19 @@ private struct FlowEditorDestinationCard: View {
 						destination.dashboardVariant = "runner"
 					}
 				}
+				HStack(spacing: 10) {
+					FlowEditorFieldLabel("Home color")
+						.frame(width: 96, alignment: .leading)
+					DashboardColorPicker(selection: $destination.dashboardColor, defaultLabel: "Automatic")
+						.pickerStyle(.menu)
+						.labelsHidden()
+						.accessibilityIdentifier("flow-editor-dashboard-color")
+				}
+				Text("Default appearance on Home. Edit Home can override it on this Mac.")
+					.font(.system(size: 12))
+					.foregroundStyle(SettingsDesign.rowDescription)
+					.padding(.leading, 106)
+					.fixedSize(horizontal: false, vertical: true)
 				if !isRunner {
 					VStack(alignment: .leading, spacing: 6) {
 						HStack(spacing: 10) {

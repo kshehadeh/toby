@@ -307,7 +307,8 @@ and the responsive layout fills the shortest column first. **Runner only**
 flows appear in an **Actions**
 strip beside the cards (not as full-size cards). Each action is a colored
 tile with the flow’s icon, play control, and name. The color is the one you
-chose in the flow editor (teal if you did not pick one). Hover for a second
+chose for its dashboard output, unless Edit Home overrides it. With no Home
+color selected, it uses the flow color (teal if you did not pick one). Hover for a second
 to see the title and description. Click the tile to run it immediately —
 while a run is in progress that button is disabled and shows a spinner.
 The Actions strip is hidden when you have no runner flows (or all of them
@@ -325,9 +326,20 @@ To rearrange Home, click **Edit Home** in the toolbar. While editing:
   shows where it will land; **Continue working** can move like the other cards.
 - Use a card's hide control to move it into **Hidden cards**. Click **Show** to
   restore it, or drag an informational card back into the grid.
+- Use the palette control to choose a block color. Cards get a colored border
+  and subtle background tint in light and dark mode. **Use default** follows the
+  flow’s dashboard output color; **Neutral** removes color even if the flow has
+  a colored default. Built-in cards and Continue working also support colors.
 - Card actions and refresh controls stay disabled so a drag cannot accidentally
   run an action.
 - Click **Done**, press Escape, or leave Home when you are finished.
+
+![A Home card with a blue border and subtle light-mode tint](/img/toby-app-home-color-light.png)
+
+![A Home card with a blue border and subtle dark-mode tint](/img/toby-app-home-color-dark.png)
+
+Color overrides save immediately on this Mac and survive hiding or moving a
+block. **Reset dashboard layout** clears the overrides along with layout changes.
 
 Toby saves each completed move on this Mac and restores the order the next time
 the app opens. Runner-only flows remain in the Actions strip rather than the

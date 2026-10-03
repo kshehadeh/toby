@@ -105,7 +105,7 @@ extension AppearancePreferences {
 		)
 	}
 
-	/// Restore default card order and show all cards. Does not change onboarding.
+	/// Restore default order and visibility and clear color overrides. Does not change onboarding.
 	func resetDashboardLayout() {
 		withAnimation(DashboardSectionMotion.animation) {
 			dashboardLayout = .empty

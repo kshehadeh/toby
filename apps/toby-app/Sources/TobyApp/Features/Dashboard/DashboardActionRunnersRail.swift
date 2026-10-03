@@ -129,12 +129,19 @@ struct DashboardActionRunnerRow: View {
 		return 1
 	}
 
+	private var resolvedColor: String? {
+		appearancePreferences.dashboardLayout.resolvedColor(
+			for: block.id,
+			defaultColor: block.descriptor.dashboardColor ?? FlowColorOption.resolvedId(block.descriptor.flowColor)
+		)
+	}
+
 	private var tileColor: Color {
-		FlowColorOption.resolved(block.descriptor.flowColor).color
+		resolvedColor == "neutral" ? AppTheme.panelBackground : FlowColorOption.resolved(resolvedColor).color
 	}
 
 	private var foreground: Color {
-		Color.white.opacity(0.94)
+		resolvedColor == "neutral" ? AppTheme.primaryText : Color.white.opacity(0.94)
 	}
 
 	var body: some View {

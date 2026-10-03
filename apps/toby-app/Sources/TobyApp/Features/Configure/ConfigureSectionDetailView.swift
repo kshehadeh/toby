@@ -191,7 +191,7 @@ struct ConfigureSectionDetailView: View {
 							}
 							.accessibilityIdentifier("dashboard-reset-layout-button")
 						}
-						Text("Restore default card order and show all cards. Stored only on this Mac.")
+						Text("Restore default card order, show all cards, and clear color overrides. Stored only on this Mac.")
 							.font(.caption)
 							.foregroundStyle(.secondary)
 					}

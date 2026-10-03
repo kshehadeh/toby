@@ -10,6 +10,7 @@ import Foundation
 struct DashboardLayout: Equatable, Codable, Sendable {
 	var order: [String]
 	var hidden: [String]
+	var colorOverrides: [String: String]
 	/// When false, the Actions rail is collapsed (toolbar toggle). Independent
 	/// of per-runner hide. Default on.
 	var actionsVisible: Bool
@@ -21,23 +22,27 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 	init(
 		order: [String] = [],
 		hidden: [String] = [],
+		colorOverrides: [String: String] = [:],
 		actionsVisible: Bool = true,
 		actionsWidth: CGFloat = DashboardBlockLayout.actionsRailDefaultWidth
 	) {
 		self.order = Self.uniquing(order)
 		self.hidden = Self.uniquing(hidden)
+		self.colorOverrides = colorOverrides.filter { DashboardBlockColor.validated($0.value) != nil }
 		self.actionsVisible = actionsVisible
 		self.actionsWidth = Self.clampedActionsWidth(actionsWidth)
 	}
 
 	private enum CodingKeys: String, CodingKey {
-		case order, hidden, actionsVisible, actionsWidth
+		case order, hidden, colorOverrides, actionsVisible, actionsWidth
 	}
 
 	init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		order = Self.uniquing(try container.decodeIfPresent([String].self, forKey: .order) ?? [])
 		hidden = Self.uniquing(try container.decodeIfPresent([String].self, forKey: .hidden) ?? [])
+		colorOverrides = (try container.decodeIfPresent([String: String].self, forKey: .colorOverrides) ?? [:])
+			.filter { DashboardBlockColor.validated($0.value) != nil }
 		actionsVisible = try container.decodeIfPresent(Bool.self, forKey: .actionsVisible) ?? true
 		let width = try container.decodeIfPresent(Double.self, forKey: .actionsWidth)
 		actionsWidth = Self.clampedActionsWidth(
@@ -49,6 +54,7 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		var container = encoder.container(keyedBy: CodingKeys.self)
 		try container.encode(order, forKey: .order)
 		try container.encode(hidden, forKey: .hidden)
+		try container.encode(colorOverrides, forKey: .colorOverrides)
 		try container.encode(actionsVisible, forKey: .actionsVisible)
 		try container.encode(Double(actionsWidth), forKey: .actionsWidth)
 	}
@@ -66,9 +72,20 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		DashboardLayout(
 			order: order,
 			hidden: hidden,
+			colorOverrides: colorOverrides,
 			actionsVisible: actionsVisible,
 			actionsWidth: actionsWidth
 		)
+	}
+
+	func settingColor(_ color: String?, for id: DashboardBlockID) -> DashboardLayout {
+		var next = self
+		next.colorOverrides[id.rawValue] = DashboardBlockColor.validated(color)
+		return next
+	}
+
+	func resolvedColor(for id: DashboardBlockID, defaultColor: String?) -> String? {
+		DashboardBlockColor.validated(colorOverrides[id.rawValue]) ?? DashboardBlockColor.validated(defaultColor)
 	}
 
 	var hiddenSet: Set<String> { Set(hidden) }

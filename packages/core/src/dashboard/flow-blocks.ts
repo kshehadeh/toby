@@ -22,6 +22,7 @@ export type FlowDashboardBlock = {
 	readonly description: string | null;
 	readonly icon: string | null;
 	readonly color: string | null;
+	readonly dashboardColor: string | null;
 	readonly variant: FlowDashboardVariant;
 	/** Informational: resolved policy. Runner is always `"manual"`. */
 	readonly refresh: FlowDashboardRefresh;
@@ -85,6 +86,7 @@ export function listFlowDashboardBlocks(): readonly FlowDashboardBlock[] {
 			description: record.description,
 			icon: record.document.icon ?? null,
 			color: record.document.color ?? null,
+			dashboardColor: dest.color ?? null,
 			variant: dest.variant,
 			refresh: resolveDashboardRefresh(dest.variant, dest.refresh),
 			lastRanAt: last?.completedAt ?? last?.startedAt ?? null,

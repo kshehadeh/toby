@@ -83,6 +83,7 @@ struct FlowDashboardBlockInfo: Decodable, Identifiable, Equatable {
 	let refresh: String?
 	let lastRanAt: String?
 	let showsResultSheet: Bool?
+	var dashboardColor: String? = nil
 
 	var isRunner: Bool { variant == "runner" }
 }

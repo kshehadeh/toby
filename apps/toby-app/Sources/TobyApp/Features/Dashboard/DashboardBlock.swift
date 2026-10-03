@@ -97,6 +97,7 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 	var flowVariant: String? = nil
 	var flowDescription: String? = nil
 	var flowColor: String? = nil
+	var dashboardColor: String? = nil
 	var showsResultSheet: Bool = false
 
 	var rawId: String { id.rawValue }
@@ -173,6 +174,7 @@ struct DashboardBlockDescriptor: Identifiable, Sendable {
 			flowVariant: info.variant,
 			flowDescription: info.description,
 			flowColor: info.color,
+			dashboardColor: info.dashboardColor,
 			showsResultSheet: info.showsResultSheet ?? false
 		)
 	}

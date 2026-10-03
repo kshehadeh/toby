@@ -168,6 +168,9 @@ struct DashboardView: View {
 				// Soft load: one content path per block (server caches OK).
 				await store.updateAll(force: false)
 			}
+			.onReceive(NotificationCenter.default.publisher(for: .flowDefinitionsDidChange)) { _ in
+				Task { await store.syncFlowBlocks() }
+			}
 			.onReceive(NotificationCenter.default.publisher(for: .dashboardBlockShouldRefresh)) { note in
 				guard let raw = note.object as? String else { return }
 				Task { await store.refreshBlock(DashboardBlockID(raw)) }
@@ -293,6 +296,7 @@ struct DashboardView: View {
 					isDragging: isDragSource,
 					dropEdge: dropEdge(for: block.id),
 					onHide: { handleHide(block.id) },
+					colorSelection: colorBinding(for: block.id),
 					onMoveEarlier: moveEarlierAction(for: block.id),
 					onMoveLater: moveLaterAction(for: block.id)
 				)
@@ -326,6 +330,7 @@ struct DashboardView: View {
 				isLoading: isRecentWorkLoading,
 				onSelect: onSelectRecentWork
 			)
+			.environment(\.dashboardBlockColor, layoutSource.resolvedColor(for: id, defaultColor: nil))
 			.allowsHitTesting(!isEditing)
 			.opacity(isDragSource ? 0 : 1)
 			if isEditing {
@@ -334,6 +339,7 @@ struct DashboardView: View {
 					blockID: id,
 					isDragging: isDragSource,
 					dropEdge: dropEdge(for: id),
+					colorSelection: colorBinding(for: id),
 					onMoveEarlier: moveEarlierAction(for: id),
 					onMoveLater: moveLaterAction(for: id)
 				)
@@ -372,7 +378,8 @@ struct DashboardView: View {
 					blockID: block.id,
 					compact: true,
 					showsHandle: false,
-					onHide: { handleHide(block.id) }
+					onHide: { handleHide(block.id) },
+					colorSelection: colorBinding(for: block.id)
 				)
 				.accessibilityIdentifier("dashboard-edit-overlay-\(block.id.rawValue)")
 			}
@@ -385,6 +392,16 @@ struct DashboardView: View {
 		DashboardBlockCard(
 			block: block,
 			actionContext: actionContext
+		)
+		.environment(\.dashboardBlockColor, layoutSource.resolvedColor(for: block.id, defaultColor: block.descriptor.dashboardColor))
+	}
+
+	private func colorBinding(for id: DashboardBlockID) -> Binding<String> {
+		Binding(
+			get: { appearancePreferences.dashboardLayout.colorOverrides[id.rawValue] ?? "" },
+			set: { color in
+				appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout.settingColor(color, for: id)
+			}
 		)
 	}
 

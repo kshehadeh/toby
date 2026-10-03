@@ -166,3 +166,16 @@ user permissions, so review code before saving and testing it.
 - [Personas](./personas) — Model and instructions used by LLM steps
 - [Schedules](./schedules) — Recurring chat prompts (schedule-as-flow later)
 - [Integrations](./integrations/overview) — Local tools flows call
+
+### Default Home color
+
+In a flow's dashboard output settings, use **Home color** to choose the default
+appearance of its Home card or Actions tile. The palette includes teal, blue,
+green, orange, purple, pink, red, and gray. **Neutral** removes color;
+**Automatic** keeps the existing appearance (neutral cards, or the flow color
+for Actions tiles).
+
+Colored cards have a border in the selected color and a subtle background tint
+that adapts to light and dark mode. Save the flow to apply its default. You can
+choose a different color for that block through **Edit Home**; that override is
+saved only on this Mac. Choose **Use default** there to follow the flow again.

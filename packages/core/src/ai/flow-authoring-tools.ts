@@ -75,6 +75,7 @@ export const flowDraftSchema = z.object({
 				z.object({ type: z.literal("modal") }),
 				z.object({
 					type: z.literal("dashboard"),
+					color: z.enum(["neutral", ...FLOW_TILE_COLORS]).optional(),
 					variant: z.enum(["runner", "informational"]),
 					refresh: z.enum(["asNeeded", "manual"]).optional(),
 				}),

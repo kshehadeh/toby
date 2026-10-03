@@ -29,6 +29,7 @@ struct DashboardEditOverlay: View {
 	/// Visual reorder affordance. Off for the Actions rail (not reorderable).
 	var showsHandle: Bool = true
 	var onHide: (() -> Void)? = nil
+	var colorSelection: Binding<String>? = nil
 	var onMoveEarlier: (() -> Void)? = nil
 	var onMoveLater: (() -> Void)? = nil
 
@@ -67,8 +68,11 @@ struct DashboardEditOverlay: View {
 				}
 			}
 			.overlay(alignment: .topTrailing) {
-				if !isDragging, onHide != nil {
-					hideButton
+				if !isDragging {
+					HStack(spacing: 4) {
+						if let colorSelection { colorMenu(selection: colorSelection) }
+						if onHide != nil { hideButton }
+					}
 						.padding(controlPadding)
 				}
 			}
@@ -99,6 +103,41 @@ struct DashboardEditOverlay: View {
 			.help("Drag to reorder")
 			.accessibilityLabel("Reorder \(title)")
 			.accessibilityIdentifier("dashboard-reorder-\(blockID.rawValue)")
+	}
+
+	private func colorMenu(selection: Binding<String>) -> some View {
+		Menu {
+			colorChoice("Use default", id: "", selection: selection)
+			colorChoice("Neutral", id: "neutral", selection: selection)
+			ForEach(FlowColorOption.all) { option in
+				colorChoice(option.label, id: option.id, selection: selection)
+			}
+		} label: {
+			Image(systemName: "paintpalette")
+				.font(.system(size: compact ? 11 : 12, weight: .semibold))
+				.foregroundStyle(AppTheme.primaryText)
+				.frame(width: controlSize, height: controlSize)
+				.background(RoundedRectangle(cornerRadius: 8).fill(AppTheme.elevatedBackground))
+		}
+		.menuStyle(.borderlessButton)
+		.menuIndicator(.hidden)
+		.fixedSize()
+		.help("Choose a color for this block")
+		.accessibilityLabel("Color for \(title)")
+		.accessibilityValue(selection.wrappedValue.isEmpty ? "Use default" : selection.wrappedValue.capitalized)
+		.accessibilityIdentifier("dashboard-color-\(blockID.rawValue)")
+	}
+
+	private func colorChoice(_ label: String, id: String, selection: Binding<String>) -> some View {
+		Button {
+			selection.wrappedValue = id
+		} label: {
+			if selection.wrappedValue == id {
+				Label(label, systemImage: "checkmark")
+			} else {
+				Text(label)
+			}
+		}
 	}
 
 	private var hideButton: some View {

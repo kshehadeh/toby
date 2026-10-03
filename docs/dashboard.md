@@ -174,13 +174,14 @@ calls each block’s force update in parallel.
 
 Toby.app retains card order and visibility preferences without talking to the daemon.
 Layout is stored in `UserDefaults` key `toby.appearance.dashboardLayout`
-alongside other UI prefs (`AppearancePreferences`), not in `~/.toby` or
+alongside other UI prefs (`AppearancePreferences`), including Home color overrides, not in `~/.toby` or
 server settings.
 
 ```json
 {
   "order": ["local.recent-work", "calendar", "email", "tasks"],
   "hidden": ["tasks"],
+  "colorOverrides": {"calendar": "blue"},
   "actionsVisible": true,
   "actionsWidth": 156
 }
@@ -190,6 +191,7 @@ server settings.
 | --- | --- |
 | `order` | Last-known sequence of card ids. Empty means default grouping. |
 | `hidden` | Card ids not shown on the home grid (including custom flow cards). |
+| `colorOverrides` | Optional map of block id to palette color or `neutral`. Missing entries inherit the block default. |
 | `actionsVisible` | Whether the Actions inspector is shown (toolbar toggle). Default `true`. Independent of per-runner hide. |
 | `actionsWidth` | Preferred Actions inspector width in points (default 156, clamped 120–280). The system divider resizes the column. |
 
@@ -301,6 +303,29 @@ schedules.
 | `runner` | Compact **Actions** inspector tile (colored rounded card, flow SF Symbol, play glyph, and name). Color comes from the flow document (`color`, curated set, default teal). Hover for 1s shows the title and description in a system popover (same as the server-status button, so it can draw outside the window). Never auto-runs. The button disables with a spinner (and a subtle pulse unless Reduce Motion) while the run is in flight. Context menu includes **Open flow**. The inspector is hidden when no runners are visible. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
 
 Built-in email / tasks / calendar cards are unchanged.
+
+## Home block colors
+
+The flow editor's dashboard output has a **Home color** default stored as
+`destinations[].color`: `neutral`, `teal`, `blue`, `green`, `orange`, `purple`,
+`pink`, `red`, or `gray`. **Automatic** omits the field. The flow-block API exposes
+it as `dashboardColor`, separately from the legacy flow-level `color` for Actions
+tiles. Informational cards without a default remain neutral; runners without a
+default retain their flow-level color (teal fallback).
+
+In **Edit Home**, each block's palette control writes an immediate app-local
+`colorOverrides` entry. **Use default** removes the entry; **Neutral** explicitly
+removes the tint even when the flow chooses a color. Built-ins and Continue
+working also support overrides. Overrides survive reordering, hiding/showing,
+and app restarts; **Reset dashboard layout** clears them. Unknown color values
+are ignored. Layouts without the map decode with no overrides.
+
+Informational cards use the preset's unchanged color for the border, and an
+opaque blend over the content surface: 7% in light appearance, 12% in dark.
+Overflow fades and Show more share that background. Text keeps semantic theme
+colors and updating cards keep their intelligence outline. Actions tiles retain
+their stronger fill; Neutral uses a neutral panel and semantic foreground.
+Saving a flow refreshes Home metadata without rerunning its content.
 
 ## Key files
 

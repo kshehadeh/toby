@@ -83,6 +83,8 @@ export type FlowDestinationDashboard = {
 	readonly variant: FlowDashboardVariant;
 	/** Informational only. Omitted → `"asNeeded"`. Ignored for runner. */
 	readonly refresh?: FlowDashboardRefresh;
+	/** Home appearance default; omitted preserves the existing appearance. */
+	readonly color?: string;
 };
 
 export type FlowDestination =

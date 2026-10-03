@@ -41,6 +41,7 @@ enum DashboardIntelligenceOutlinePolicy {
 
 /// Quiet bordered content panel matching the compact Home reference.
 struct DashboardBlockChrome: ViewModifier {
+	@Environment(\.dashboardBlockColor) private var blockColor
 	var systemImage: String? = nil
 	var isExpanded: Bool = false
 
@@ -48,12 +49,12 @@ struct DashboardBlockChrome: ViewModifier {
 		let shape = AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
 		content
 			.background {
-				shape.fill(AppTheme.contentBackground)
+				shape.fill(DashboardBlockColor.background(blockColor))
 			}
 			.compositingGroup()
 			.clipShape(shape)
 			.overlay {
-				shape.stroke(AppTheme.separator, lineWidth: 1)
+				shape.stroke(DashboardBlockColor.border(blockColor), lineWidth: 1)
 			}
 			.containerShape(
 				RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)

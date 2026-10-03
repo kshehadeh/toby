@@ -54,8 +54,11 @@ quiet and readable.
   `SettingsDesign`, not fixed colors.
 - Text and hairlines are alpha over the current surface, never invented opaque
   gray shades.
-- One user-selected accent appears at a time. It is an emphasis tool, not a
-  decorative palette.
+- One user-selected accent appears at a time for app controls. Home blocks may
+  have a user-selected palette color: an unmodified preset border and a subtle
+  solid whole-card tint (7% in light appearance, 12% in dark). Keep text semantic
+  and use the same background for overflow chrome. Neutral keeps the existing
+  content surface and separator border.
 - Keep a two-layer macOS 26 hierarchy: **Liquid Glass** for navigation and
   floating controls; **solid / standard materials** for content. Do not paint
   custom fills on sidebars, toolbars, inspectors, or split-view columns — those

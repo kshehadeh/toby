@@ -310,9 +310,13 @@ code.
 
 ### Custom flow home cards
 
-A custom flow with `{ type: "dashboard", variant, refresh? }` appears on the home
+A custom flow with `{ type: "dashboard", variant, refresh?, color? }` appears on the home
 dashboard. Discovery: `listFlowDashboardBlocks()` /
-`GET /api/dashboard/flow-blocks` (includes resolved `refresh`). Card body:
+`GET /api/dashboard/flow-blocks` (includes resolved `refresh` and optional
+`dashboardColor`). Dashboard output `color` selects the default Home appearance
+from the existing eight-color palette or `neutral`; omission preserves the
+existing appearance. Edit Home can override it locally without changing the
+flow. See [Home block colors](dashboard.md#home-block-colors). Card body:
 `GET /api/dashboard/:flowId/content`.
 
 | Variant | Home UI | Soft load | Force refresh / click |
@@ -468,7 +472,7 @@ User-authored documents are validated by `validateUserFlowDocument`:
 - Tool executor inputs must be `{ const }` (no bag wiring)
 - Required tool fields must be filled when the plugin is installed
 - An LLM Prompter, if present, must be last and use `{ kind: "markdown" }`
-- Destinations are `modal`, `email` (`to`, `subject`), `slack` (`channel`), or `dashboard` (`variant`, optional informational `refresh`)
+- Destinations are `modal`, `email` (`to`, `subject`), `slack` (`channel`), or `dashboard` (`variant`, optional informational `refresh`, optional Home `color`)
 - Email/Slack destinations require that integration to be connected
 
 `runUserFlowById` extracts the declared result (or infers it from the last
@@ -482,8 +486,9 @@ column and opens inspect-only detail with node steps and
 recent runs. **New flow** or **Edit** opens a step-list editor in a sheet.
 Cancel and Save sit in the sheet toolbar. The editor covers name, curated SF
 Symbol icon, tile color, tool picker, const inputs, optional last LLM,
-destinations. The selected icon and color follow the custom flow into Flows,
-schedules, and custom home dashboard cards or action tiles. Documents without
+destinations, including the Home color default. The icon follows the flow onto
+Home. Home color overrides the flow-level tile color for Actions and supplies
+the informational card appearance; Edit Home can override it on this Mac. Documents without
 an icon or color retain the existing category-derived / generic icon fallback
 and the default teal tile. Custom flows can be edited, deleted, and
 **Run now**. Built-in flows stay read-only. A successful interactive run with a

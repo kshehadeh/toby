@@ -365,6 +365,7 @@ struct FlowDestinationSpec: Decodable, Equatable {
 	let channel: String?
 	let variant: String?
 	let refresh: String?
+	var color: String? = nil
 
 	var summary: String {
 		switch type {

@@ -123,6 +123,39 @@ describe("validateUserFlowDocument", () => {
 		).toThrow(/not a supported flow color/);
 	});
 
+	it("preserves dashboard colors independently of the flow tile color", () => {
+		for (const variant of ["informational", "runner"] as const) {
+			for (const color of ["blue", "neutral"]) {
+				const normalized = validateUserFlowDocument(
+					wifiThenMinimize({
+						color: "teal",
+						destinations: [{ type: "dashboard", variant, color }],
+					}),
+					{ tools: catalog, connectedModules: connected },
+				);
+				expect(normalized.color).toBe("teal");
+				expect(normalized.destinations).toEqual([
+					{ type: "dashboard", variant, color },
+				]);
+			}
+		}
+	});
+
+	it("rejects unknown and non-string dashboard colors", () => {
+		for (const color of ["hotpink", "", 42, null]) {
+			expect(() =>
+				validateUserFlowDocument(
+					wifiThenMinimize({
+						destinations: [
+							{ type: "dashboard", variant: "informational", color } as never,
+						],
+					}),
+					{ tools: catalog, connectedModules: connected },
+				),
+			).toThrow(/Dashboard color/);
+		}
+	});
+
 	it("rejects bag wiring on a tool input", () => {
 		const doc = wifiThenMinimize({
 			nodes: [

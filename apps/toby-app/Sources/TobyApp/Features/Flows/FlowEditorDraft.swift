@@ -257,6 +257,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 	var emailSubject: String
 	var slackChannel: String
 	var dashboardVariant: String
+	var dashboardColor: String = ""
 	var dashboardRefresh: String
 	var emailCc: [String]?
 
@@ -316,6 +317,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		emailCc = spec.cc
 		slackChannel = spec.channel ?? ""
 		dashboardVariant = spec.variant ?? "informational"
+		dashboardColor = DashboardBlockColor.validated(spec.color) ?? ""
 		dashboardRefresh = spec.refresh == "manual" ? "manual" : "asNeeded"
 	}
 
@@ -364,14 +366,17 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		case "slack":
 			return ["type": "slack", "channel": slackChannel]
 		case "dashboard":
-			if dashboardVariant == "runner" {
-				return ["type": "dashboard", "variant": "runner"]
-			}
-			return [
+			var body: [String: Any] = [
 				"type": "dashboard",
-				"variant": "informational",
-				"refresh": dashboardRefresh == "manual" ? "manual" : "asNeeded",
+				"variant": dashboardVariant == "runner" ? "runner" : "informational",
 			]
+			if let color = DashboardBlockColor.validated(dashboardColor) {
+				body["color"] = color
+			}
+			if dashboardVariant != "runner" {
+				body["refresh"] = dashboardRefresh == "manual" ? "manual" : "asNeeded"
+			}
+			return body
 		default:
 			return ["type": "modal"]
 		}

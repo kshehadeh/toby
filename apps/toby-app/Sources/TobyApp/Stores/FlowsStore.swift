@@ -215,6 +215,7 @@ final class FlowsStore {
 				flows.append(response.flow)
 				flows.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 			}
+			NotificationCenter.default.post(name: .flowDefinitionsDidChange, object: nil)
 			editor = nil
 			editorBaseline = nil
 			await selectFlow(id: response.flow.id)
@@ -236,6 +237,7 @@ final class FlowsStore {
 		do {
 			try await client.deleteFlow(id: id)
 			flows.removeAll { $0.id == id }
+			NotificationCenter.default.post(name: .flowDefinitionsDidChange, object: nil)
 			if selectedFlowId == id {
 				selectHome()
 			}

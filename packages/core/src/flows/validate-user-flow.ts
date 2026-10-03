@@ -226,12 +226,24 @@ function normalizeDestination(
 			);
 			return null;
 		}
+		const color = raw.color;
+		if (
+			color !== undefined &&
+			(typeof color !== "string" ||
+				(color !== "neutral" && !isFlowTileColor(color)))
+		) {
+			issues.push(
+				`Destination ${index + 1}: Dashboard color must be neutral or a supported palette color`,
+			);
+			return null;
+		}
+		const appearance = color === undefined ? {} : { color: color as string };
 		if (variant === "runner") {
-			return { type: "dashboard", variant };
+			return { type: "dashboard", variant, ...appearance };
 		}
 		const refresh = raw.refresh;
 		if (refresh === undefined || refresh === null || refresh === "") {
-			return { type: "dashboard", variant };
+			return { type: "dashboard", variant, ...appearance };
 		}
 		if (refresh !== "asNeeded" && refresh !== "manual") {
 			issues.push(
@@ -239,7 +251,7 @@ function normalizeDestination(
 			);
 			return null;
 		}
-		return { type: "dashboard", variant, refresh };
+		return { type: "dashboard", variant, refresh, ...appearance };
 	}
 	issues.push(
 		`Destination ${index + 1}: Unknown destination type "${raw.type}"`,

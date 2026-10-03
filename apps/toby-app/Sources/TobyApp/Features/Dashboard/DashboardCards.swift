@@ -34,6 +34,7 @@ extension EnvironmentValues {
 /// Only the “Show more” control expands a collapsed card. Body copy is
 /// non-interactive while collapsed so sub-blocks cannot grow text in place.
 struct DashboardCard<Content: View>: View {
+	@Environment(\.dashboardBlockColor) private var blockColor
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 	@Environment(\.dashboardIsEditing) private var isEditing
 
@@ -160,8 +161,8 @@ struct DashboardCard<Content: View>: View {
 		VStack(spacing: 0) {
 			LinearGradient(
 				colors: [
-					AppTheme.contentBackground.opacity(0),
-					AppTheme.contentBackground,
+					DashboardBlockColor.background(blockColor).opacity(0),
+					DashboardBlockColor.background(blockColor),
 				],
 				startPoint: .top,
 				endPoint: .bottom
@@ -180,7 +181,7 @@ struct DashboardCard<Content: View>: View {
 					.contentShape(Rectangle())
 			}
 			.buttonStyle(.plain)
-			.background(AppTheme.contentBackground)
+			.background(DashboardBlockColor.background(blockColor))
 			.accessibilityLabel("Show more")
 			.accessibilityIdentifier("dashboard-card-show-more")
 			.help("Expand this card. Move the pointer away to collapse.")
@@ -226,6 +227,7 @@ enum DashboardSummaryMarkdown {
 
 /// Static header chrome: title, optional last-run timestamp, trailing actions.
 struct CardHeader<Trailing: View>: View {
+	@Environment(\.dashboardIsEditing) private var isEditing
 	let title: String
 	let systemImage: String
 	/// Short date + HH:mm when the block flow last produced content.
@@ -244,7 +246,7 @@ struct CardHeader<Trailing: View>: View {
 				.foregroundStyle(AppTheme.primaryText)
 				.lineLimit(1)
 			Spacer(minLength: 0)
-			if let lastRanAtText {
+			if let lastRanAtText, !isEditing {
 				Text(lastRanAtText)
 					.font(.system(size: 11, weight: .medium))
 					.foregroundStyle(AppTheme.tertiaryText)
