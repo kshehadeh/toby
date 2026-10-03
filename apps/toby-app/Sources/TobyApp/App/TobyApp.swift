@@ -23,6 +23,7 @@ struct TobyApp: App {
 	@State private var nativeServer = NativeServer.shared
 	@State private var menuBarController: MenuBarController?
 	@State private var appearancePreferences = AppearancePreferences.shared
+	@State private var companion = CompanionPanelController.shared
 
 	init() {
 		// Hide system View menu items that are not useful for Toby:
@@ -79,6 +80,9 @@ struct TobyApp: App {
 				}
 				.onChange(of: appearancePreferences.showMenuBarIcon) { _, show in
 					menuBarController?.setStatusItemVisible(show)
+				}
+				.onReceive(NotificationCenter.default.publisher(for: .companionSessionDidChange)) { _ in
+					Task { await store.refreshSessions() }
 				}
 				.onReceive(NotificationCenter.default.publisher(for: .tobyHomeDidChange)) { _ in
 					// Logs store is owned at the app scene level (not RootView).
@@ -227,6 +231,12 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(after: .sidebar) {
+				Button(companion.isVisible ? "Hide Desktop Companion" : "Show Desktop Companion") {
+					companion.toggle()
+				}
+				Button("Ask Desktop Companion") { companion.ask() }
+					.keyboardShortcut("t", modifiers: [.command, .option])
+
 				Button("Command Palette") {
 					NotificationCenter.default.post(name: .openCommandPalette, object: nil)
 				}

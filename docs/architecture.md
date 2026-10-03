@@ -130,6 +130,39 @@ template mode turns opaque regions into solid color boxes.
 
 ### Native app shared data
 
+The desktop companion lives under
+`Features/Companion/`. `TobyApp` owns the shared `CompanionPanelController`,
+which presents a borderless, nonactivating portrait panel and a separate
+key-capable conversation panel. View and status-item menu actions toggle it;
+the conversation panel uses a compact height until a question is submitted,
+then expands to make room for replies and shrinks again on Start over;
+it starts hidden. The portrait uses an eye-free transparent base asset with
+independent native eye whites and pupils drawn by `CompanionEyes`. The asset
+alpha defines the interactive boundary. Pointer sampling switches mouse handling outside the visible shapes
+so transparent margins pass through to other apps. Sampling stops when hidden.
+The portrait can be dragged without becoming the main window; the bubble
+receives keyboard input and dismisses on Escape or loss of key focus.
+
+`CompanionGeometry` handles display clamping and bubble placement. The last
+portrait origin is stored in app-local UserDefaults (`toby.companion.origin`).
+`CompanionStore` owns a separate `ChatStore`, so companion turns do not change
+the main window's selected chat. Sessions are created lazily on the first send;
+follow-ups reuse that session, and Start over starts a fresh draft without
+removing persisted history. The existing daemon client, turn reducer, Markdown
+transcript, tool activity, interactive ask-user controls, and cancellation API
+are shared with main Chats. Creation/connection failures retain the draft;
+turn errors appear in the transcript. Completed turns notify the main window to
+refresh its session list. Closing or hiding the surfaces preserves the workspace
+and lets an active turn finish; Stop cancels it. A Toby home-directory change
+cancels and detaches the old workspace, preventing late replies from leaking
+into the new one. The multiline composer uses Return for newlines and
+Command-Return to send.
+
+A 30 Hz pointer sample smoothly moves bounded pupils and redraws only the
+portrait. Opening the conversation centers the eyes; Reduce Motion keeps them
+still. Cursor positions stay local and are not persisted or transmitted.
+Expression animation is a later stage.
+
 The main window uses shared `RootToolbars` builders for its native header.
 Feature record lists (chats, recordings, schedules, skills, flows, integrations,
 projects, library) live in `FeatureWorkspaceSplit` under that header — the toolbar

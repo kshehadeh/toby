@@ -139,6 +139,36 @@ In **Settings → General** you can also set system-wide shortcuts that work
 even when Toby is in the background: open the command palette, start or stop a
 recording, or start a new chat.
 
+## Desktop companion
+
+Choose **View → Show Desktop Companion**, or **Show / Hide Desktop Companion**
+in Toby’s menu bar menu, to try the floating conversation surfaces. Toby appears
+as a portrait cutout without a window frame. Drag the portrait to move it; click
+it to open **How can I help?** with a multiline question field.
+You can also choose **View → Ask Desktop Companion** or press **⌥⌘T** to open
+the composer directly with the keyboard.
+The bubble starts compact and expands when you send a question.
+
+Use **Send** or **⌘Return** to ask Toby. Return inserts a new line. Replies
+stream into the conversation, including Markdown, tool activity, and any choices
+Toby asks you to make. The companion uses your configured default persona and AI
+provider. Your first question creates a chat in **Chats**; follow-up questions
+continue that chat. **Start over** begins a new chat and keeps the previous one
+in your history. **Stop** cancels an active reply.
+
+Closing the bubble or hiding Toby preserves the conversation and lets an active
+reply finish. Reopen it to continue. If Toby cannot connect or create a chat, your
+question stays in the input box so you can retry. The companion's current
+conversation lasts until you start over, switch Toby home directories, or quit
+the app; saved chats remain available in **Chats**.
+Toby’s eyes follow the cursor while idle and center when you open the
+conversation. Cursor positions stay on your Mac and are not sent with messages.
+Enable macOS **Reduce Motion** to keep the eyes still.
+
+Escape or clicking elsewhere closes the conversation while preserving its
+draft. Right-click the portrait and choose **Hide desktop companion** to hide
+both surfaces. The companion starts hidden and remembers its last position.
+
 ## Settings
 
 Open **Settings** with the gear button or **⌘,**. Pick a section on the left.

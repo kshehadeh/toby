@@ -108,6 +108,7 @@ final class MenuBarController: NSObject {
 		menu.items = [
 			newChatItem(),
 			commandPaletteItem(),
+			companionItem(),
 			recordingItem(),
 			.separator(),
 			dashboardItem(),
@@ -173,6 +174,15 @@ final class MenuBarController: NSObject {
 		)
 		return item
 	}
+
+	private func companionItem() -> NSMenuItem {
+		let item = NSMenuItem(title: "Show / Hide Desktop Companion", action: #selector(toggleCompanion), keyEquivalent: "")
+		item.target = self
+		item.image = NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: nil)
+		return item
+	}
+
+	@objc private func toggleCompanion() { CompanionPanelController.shared.toggle() }
 
 	private func dashboardItem() -> NSMenuItem {
 		viewMenuItem(title: DetailRoute.dashboard.menuTitle, route: .dashboard, keyEquivalent: "1")

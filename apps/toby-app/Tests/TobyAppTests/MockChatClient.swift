@@ -21,6 +21,18 @@ final class MockChatClient: ChatClientable {
 	var deletedSessionIds: [String] = []
 	var cancelTurnCalls: [(sessionId: String, turnId: String)] = []
 	var streamTurnCalls = 0
+	var streamSessionIds: [String] = []
+	var streamTexts: [String] = []
+	var waitForStream = false
+	var streamGate: CheckedContinuation<Void, Never>?
+	var streamWasCancelled = false
+	var askUserPrompt: AskUserPromptPayload?
+	var askUserAnswer: String?
+
+	func resumeStream() {
+		streamGate?.resume()
+		streamGate = nil
+	}
 	var saveAttachmentsToProjectValues: [Bool] = []
 	var createSessionCalls = 0
 	var lastCreateSessionPersona: String?
@@ -115,11 +127,20 @@ final class MockChatClient: ChatClientable {
 		))?,
 	) async throws -> TurnDonePayload {
 		streamTurnCalls += 1
+		streamSessionIds.append(sessionId)
+		streamTexts.append(text)
 		saveAttachmentsToProjectValues.append(saveAttachmentsToProject)
 		if let streamTurnError { throw streamTurnError }
 		if let error { throw error }
 		for event in streamEvents {
 			onEvent(event)
+		}
+		if let askUserPrompt, let onAskUser {
+			askUserAnswer = await onAskUser(askUserPrompt).selectedLabel
+		}
+		if waitForStream {
+			await withCheckedContinuation { streamGate = $0 }
+			if streamWasCancelled { throw CancellationError() }
 		}
 		guard let turnDone else {
 			return TurnDonePayload(
@@ -136,6 +157,10 @@ final class MockChatClient: ChatClientable {
 
 	func cancelTurn(sessionId: String, turnId: String) async {
 		cancelTurnCalls.append((sessionId, turnId))
+		if waitForStream {
+			streamWasCancelled = true
+			resumeStream()
+		}
 	}
 
 	func createIssue(type: String, details: String) async throws -> CreateIssueResponse {
