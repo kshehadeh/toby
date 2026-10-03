@@ -1,7 +1,7 @@
 # Seed assessment for Toby.app. Refresh with /swift-project-assessment when Package.swift,
 # folder layout, or architectural conventions change.
 source: swift-project-assessment
-assessed_at: 2026-08-07
+assessed_at: 2026-10-03
 target: apps/toby-app
 confidence: high
 
@@ -16,13 +16,13 @@ Project:
     App owns stores at the scene root; views receive them by injection.
     Business logic and persistence live in @toby/core (daemon), not in the app.
   Deployment_Target: macOS 26
-  Swift: "6.0"
+  Swift: "6.2"
   Observation: "@Observable + @State store ownership at App/Root; @Environment for openWindow and shared prefs"
   Navigation: >
     WindowGroup main chat shell; additional Window scenes for Settings, Logs,
     Changelog, Issue Report, etc. In-window NavigationSplitView for sidebar
-    features. Settings uses custom tab strip + hierarchy sidebar (not TabView /
-    NavigationSplitView for chrome reasons). See toby-native-window.
+    features. Settings uses NavigationSplitView with a Liquid Glass sidebar and grouped
+    Form details. Catalog sections push child detail in NavigationStack. See toby-native-window.
   Persistence: >
     No SwiftData. Session/config/memory data via local daemon HTTP API.
     Appearance and some client prefs in UserDefaults (AppearancePreferences).
@@ -49,6 +49,7 @@ Project:
   Third_Party:
     - Sparkle (updates)
     - ViewInspector (Swift UI tests only)
+    - CodeEditorView / LanguageSupport (script tool editing)
 
 Repository_Conventions:
   - Feature modules under Sources/TobyApp/Features/<Name>/
@@ -109,7 +110,7 @@ Review_Guidance:
     - iOS-only APIs, SwiftData adoption pitches, VIPER/TCA mandates
     - "Move business logic into the app" — daemon/core owns harness logic
     - Suggesting compiled binary or Swift plugins
-    - Replacing Settings custom tabs with TabView (chrome regression)
+    - Replacing the Settings sidebar with custom tabs or TabView
   Validate_Against:
     - AppTheme / SettingsDesign / SettingsControls
     - toby-native-window hard rules for window chrome
