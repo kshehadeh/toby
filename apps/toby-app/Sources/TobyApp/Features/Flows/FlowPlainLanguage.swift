@@ -11,7 +11,7 @@ enum FlowStoryPhase: Equatable {
 
 	var label: String {
 		switch self {
-		case .gathers: return "Gathers"
+		case .gathers: return "Gathers And Acts"
 		case .thinks: return "Thinks"
 		case .shares: return "Shares"
 		}

@@ -170,7 +170,7 @@ struct FlowsViewTests {
 			try pane.inspect().find(text: "Asks AI to put it together")
 		}
 		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "GATHERS")
+			try pane.inspect().find(text: "GATHERS AND ACTS")
 		}
 		#expect(throws: Never.self) {
 			try pane.inspect().find(text: "THINKS")

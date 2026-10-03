@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Flow editor laid out like the flow's overview: who it is, then what it
-/// Gathers, how it Thinks and where it Shares. Every phase is optional; a
+/// Gathers And Acts, how it Thinks and where it Shares. Every phase is optional; a
 /// flow needs at least one source or an AI step to save.
 struct FlowEditorView: View {
 	@Bindable var store: FlowsStore
@@ -56,7 +56,7 @@ struct FlowEditorView: View {
 					.fixedSize(horizontal: false, vertical: true)
 			}
 
-			FlowEditorPhaseHeader(number: 1, title: "Gathers", detail: "Where Toby looks for information")
+			FlowEditorPhaseHeader(number: 1, title: FlowStoryPhase.gathers.label, detail: "Where Toby gathers information or takes action")
 				.padding(.top, 4)
 			if toolNodes.isEmpty {
 				Text("No sources. That’s fine when AI only needs your instructions, or when the flow just runs actions.")

@@ -136,7 +136,7 @@ private struct FlowOverviewHeader: View {
 }
 
 /// "How it works": every step and destination as a sentence on one card,
-/// grouped into Gathers / Thinks / Shares and joined by a hairline rail.
+/// grouped into Gathers And Acts / Thinks / Shares and joined by a hairline rail.
 private struct FlowStoryCard: View {
 	let flow: FlowListItem
 
