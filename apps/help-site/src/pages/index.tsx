@@ -7,51 +7,55 @@ import styles from "./index.module.css";
 
 const sections = [
 	{
-		title: "What Does Toby Do?",
-		description:
-			"AI support, audio transcription, chat integrations, macOS control, schedules, and personas.",
-		to: "/docs/what-does-toby-do",
+		title: "Welcome to Toby",
+		description: "What Toby is, who it's for, and what it can do for your day.",
+		to: "/docs/intro",
 	},
 	{
 		title: "Getting Started",
 		description:
-			"Install Toby, set up AI, connect integrations, and start chatting.",
+			"Install Toby, connect an AI provider and your apps, and have your first chat.",
 		to: "/docs/getting-started/install",
 	},
 	{
+		title: "Things to try",
+		description:
+			"Copy-and-paste ideas for your inbox, calendar, meetings, and weekly routines.",
+		to: "/docs/examples",
+	},
+	{
+		title: "Toby app tour",
+		description: "Find your way around Home, Chats, Projects, and Settings.",
+		to: "/docs/toby-app",
+	},
+	{
 		title: "Integrations",
-		description: "Email, Todoist, Slack, Jira, and Apple Calendar.",
+		description:
+			"Email, Apple Calendar, Reminders, Contacts, Todoist, Slack, Notion, Jira, and more.",
 		to: "/docs/integrations/overview",
 	},
 	{
-		title: "Chat surfaces",
-		description: "Use Slack from Toby, or let @mentions drive chat turns.",
-		to: "/docs/chat-surfaces/overview",
-	},
-	{
-		title: "Personas",
-		description: "Shape how Toby prioritizes and responds.",
-		to: "/docs/personas",
-	},
-	{
-		title: "Skills",
-		description: "Reusable task instructions Toby applies when relevant.",
-		to: "/docs/skills",
-	},
-	{
-		title: "Memories",
-		description: "Durable context Toby remembers across sessions.",
-		to: "/docs/memories",
+		title: "Recordings",
+		description:
+			"Record meetings and calls, then get transcripts, summaries, and action items.",
+		to: "/docs/listen",
 	},
 	{
 		title: "Schedules",
-		description: "Recurring prompts that run on a cron timetable.",
+		description:
+			"Have Toby do routine work automatically, every morning or every week.",
 		to: "/docs/schedules",
 	},
 	{
-		title: "Examples",
-		description: "Real-world workflows combining Toby features.",
-		to: "/docs/examples",
+		title: "Memories",
+		description: "Teach Toby your preferences once and it remembers them.",
+		to: "/docs/memories",
+	},
+	{
+		title: "Security & privacy",
+		description:
+			"Where your data lives, how passwords are protected, and backups.",
+		to: "/docs/security",
 	},
 ];
 
@@ -71,15 +75,14 @@ export default function Home(): React.JSX.Element {
 				<span className={styles.eyebrow}>Documentation</span>
 				<h1 className={styles.title}>Toby Documentation</h1>
 				<p className={styles.lead}>
-					Toby is a native macOS app that organizes and summarizes work across
-					Email, Todoist, Slack, Jira, and Apple Calendar. Chat with your
-					assistant, configure integrations, and manage schedules from a
-					familiar SwiftUI interface.
+					Toby is an AI assistant for your Mac. It connects to your email,
+					calendar, tasks, and other apps so you can ask for help in plain
+					English, record and summarize meetings, and put routine work on
+					autopilot.
 				</p>
 				<p className={styles.lead}>
-					New here? Read{" "}
-					<Link to="/docs/what-does-toby-do">What Does Toby Do?</Link>, then
-					install Toby below.
+					New here? Start with <Link to="/docs/intro">Welcome to Toby</Link>,
+					then install it below.
 				</p>
 				<div className={styles.actions}>
 					<DownloadTobyButton />

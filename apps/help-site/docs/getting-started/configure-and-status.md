@@ -1,70 +1,79 @@
 ---
-sidebar_position: 4
-title: Configure and connect
+sidebar_position: 3
+title: Connect your apps
 ---
 
-# Configure and connect integrations
+# Connect your apps
 
-Every integration follows the same pattern: **configure credentials → connect → verify status**.
+Toby becomes useful when it can see your email, calendar, and tasks. Each
+connection is called an **integration**. Connect only the ones you want; you
+can add more later.
 
-## 1. Open Integrations
+## Where to start
 
-Open **Toby.app → Settings → Integrations**. The catalog groups **Integrations** (first-party plugins) and **MCP servers**, each with connection status.
+If you're not sure, connect these first. They cover most of what people ask
+Toby to do:
 
-![Toby.app Integrations window](/img/toby-app-integrations-overview.png)
+| If you use… | Connect | Toby can then… |
+| ----------- | ------- | -------------- |
+| Apple Calendar (including Google or Exchange calendars added to it) | [Apple Calendar](../integrations/apple-calendar) | Show your day, find free time, create and move events |
+| Gmail, iCloud, Outlook, or another mail account | [Email](../integrations/email) | Summarize unread mail, search, draft and send replies |
+| Apple Reminders or Todoist | [Apple Reminders](../integrations/apple-reminders) or [Todoist](../integrations/todoist) | List what's due, add tasks, mark them done |
 
-Click any integration to open its detail page, where you can fill in credentials, run a setup guide, connect, and check status. Use **Add new MCP server** at the bottom of the MCP list to attach any Model Context Protocol server (stdio, HTTP, or SSE) — see [MCP servers](../integrations/mcp).
+The Apple integrations (Calendar, Reminders, Contacts, macOS) need no
+password. Toby asks macOS for permission the first time it uses them.
 
-## 2. Configure credentials
+## How to connect an integration
 
-Choose a service in **Settings → Integrations** and fill in the fields on its detail page (API keys, OAuth client IDs, and so on). Each integration detail has a **Setup Guide** button that walks you through provider steps, shows copyable values like redirect URIs and scopes, and lets you fill credentials and connect without leaving the app.
+1. Open **Settings** (the gear in the toolbar, or **⌘,**) and choose
+   **Integrations**.
 
-### Example: Email
+   ![Settings → Integrations lists every integration and whether it is connected](/img/toby-app-integrations-overview.png)
 
-![Toby.app Email integration detail](/img/toby-app-integrations-email.png)
+2. Click the integration you want.
+3. Click **Setup Guide**. It walks you through each step, with links to the
+   right pages at your provider (for example, where to create a Gmail app
+   password), and lets you fill in the details without leaving Toby.
 
-Enter your IMAP and SMTP host, port, username, and password. Click **Setup Guide** for a step-by-step wizard.
+   ![The Email setup guide, with links for common mail providers](/img/toby-app-integrations-email.png)
 
-### Example: Apple Calendar
+4. Click **Connect**. Toby checks that everything works and shows
+   **Connected**.
 
-![Toby.app Apple Calendar integration detail](/img/toby-app-integrations-calendar.png)
+   ![Apple Calendar connected and ready](/img/toby-app-integrations-calendar.png)
 
-Apple Calendar needs no credentials — just click **Connect** and grant Calendar permission to Toby.app in System Settings when prompted.
+Some services (such as Slack) open your browser so you can approve access.
 
-Credentials live in `~/.toby/credentials.json` (encrypted on macOS; Keychain holds the key). Connection flags live in `~/.toby/config.json`.
+## Check that it worked
 
-## 3. Connect
+Go back to **Settings → Integrations**. Each row shows **Connected** or **Not
+connected**. Then try a question in chat, such as "What's on my calendar
+today?"
 
-Click **Connect** on the integration detail page. Toby validates credentials and marks the integration connected.
+If something isn't working, open the integration and click **Re-connect**. To
+stop Toby from using a service, click **Disconnect**. This only removes Toby's
+access. Nothing is deleted from your account.
 
-OAuth integrations (for example Slack) open a browser or local callback during connect. API-key integrations validate credentials and connect immediately.
+## All integrations
 
-## 4. Check status
+| Integration | What Toby can do with it |
+| ----------- | ------------------------ |
+| [Email](../integrations/email) | Read, search, summarize, draft, send, archive, and file messages |
+| [Apple Calendar](../integrations/apple-calendar) | View, create, update, and delete events |
+| [Apple Reminders](../integrations/apple-reminders) | View, create, complete, and update reminders |
+| [Apple Contacts](../integrations/apple-contacts) | Look up people's email addresses and phone numbers |
+| [macOS](../integrations/macos) | Control Wi‑Fi, Bluetooth, volume, brightness, Focus, windows, and Shortcuts |
+| [Todoist](../integrations/todoist) | View, create, complete, and update tasks |
+| [Slack](../integrations/slack) | Search messages and post, or let people @mention Toby in Slack |
+| [Notion](../integrations/notion) | Search, read, and create pages |
+| [Jira](../integrations/jira) | Search issues and read details and comments |
+| [News](../integrations/news) | Get headlines and search recent news |
+| [MCP servers](../integrations/mcp) | Add tools from any Model Context Protocol server (advanced) |
 
-Return to **Settings → Integrations** to see connection status at a glance. Each integration shows whether it is connected and healthy.
+Web search and weather are built in. Turn them on under
+[Settings → Web Search](../configuration/web-search) and
+[Settings → Weather](../configuration/weather).
 
-## Disconnect
+## Next step
 
-Open the integration in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail, tasks, or calendar data at the provider.
-
-## Integration guides
-
-| Integration | Guide |
-| ----------- | ----- |
-| Email | [Email](../integrations/email) |
-| Todoist | [Todoist](../integrations/todoist) |
-| Slack | [Slack](../integrations/slack) |
-| Apple Calendar (macOS) | [Apple Calendar](../integrations/apple-calendar) |
-| Apple Reminders (macOS) | [Apple Reminders](../integrations/apple-reminders) |
-| Apple Contacts (macOS) | [Apple Contacts](../integrations/apple-contacts) |
-| macOS system controls | [macOS](../integrations/macos) |
-| Jira | [Jira](../integrations/jira) |
-| Notion | [Notion](../integrations/notion) |
-
-Web Search and Weather are **built-in settings**, not integrations. See [Web Search](../configuration/web-search) and [Weather](../configuration/weather).
-
-## Next steps
-
-- [Your first chat](./first-chat)
-- [Integrations overview](../integrations/overview)
-- [Configuration](../configuration/overview)
+[Have your first chat →](./first-chat)

@@ -5,9 +5,25 @@ title: Projects
 
 # Projects
 
-**Projects** give Toby a durable workspace for a specific body of work. A project has its own folder, instructions, project chats, generated outputs, optional persona, and project-local skills so related work stays together across sessions.
+A **project** is a dedicated space for one piece of work, such as planning a
+product launch, renovating your kitchen, or writing a weekly report. It keeps
+that work's chats, instructions, and files together, so every new chat in the
+project already knows the background.
 
-![Toby.app Projects workspace](/img/toby-app-projects.png)
+![A project's Details tab, showing its persona, summary, folder, and files](/img/toby-app-projects.png)
+
+## When to use a project
+
+Create a project when:
+
+- You keep coming back to the same topic and are tired of re-explaining it.
+- You want Toby to follow particular instructions for that work only. For
+  example, "always write for an executive audience."
+- You want the files Toby creates, such as reports, drafts, and checklists,
+  saved in one folder.
+- You run a recurring report and want its history in one place.
+
+For a quick one-off question, a regular chat is fine.
 
 ## What a project is
 

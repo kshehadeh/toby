@@ -5,9 +5,15 @@ title: Personas
 
 # Personas
 
-A **persona** is a named profile that shapes *how* Toby thinks and prioritizes: instructions, AI model, and whether those instructions **add to** or **replace** the base integration prompt.
+A **persona** is a personality for Toby. It controls *how* Toby writes and
+what it pays attention to: its tone, its priorities, and which AI model it
+uses. Toby comes with two personas, **Toby** (general help) and **Mailman**
+(inbox sorting), and you can create your own.
 
-Personas do not describe step-by-step procedures—that is what [skills](./skills) are for. Together, a persona plus relevant skills let the same task produce different outcomes depending on your lens.
+For example, a "Brief" persona could answer in three bullets or fewer, while
+a "Writer" persona uses a larger model and takes its time on long drafts.
+
+Personas don't teach Toby procedures. That's what [skills](./skills) are for.
 
 ## How personas help
 
@@ -59,16 +65,17 @@ The editor has two sections. **Persona** holds the icon, name, and instructions.
 - **Set as default** — the persona used when chat starts
 - **Delete** — remove personas you no longer need
 
-Personas are stored in `~/.toby/config.json`.
+
 
 ### Prompt mode
 
 | Mode | Behavior |
 | ---- | -------- |
-| `add` | Persona instructions are appended to the integration system prompt |
-| `replace` | Persona instructions replace the integration system prompt |
+| **Add** | Your instructions are added on top of Toby's built-in guidance for using your apps |
+| **Replace** | Your instructions replace that built-in guidance entirely |
 
-Most users start with `add` so integration-specific tool guidance stays intact.
+Use **Add** unless you have a specific reason not to. It keeps Toby working
+well with your connected apps.
 
 ## Use a persona in chat
 
@@ -101,11 +108,7 @@ Most users start with `add` so integration-specific tool guidance stays intact.
 
 ## Personas vs skills
 
-| | Persona | Skill |
-| --- | ------- | ----- |
-| Role | Lens and priorities | How to perform a task |
-| Storage | `config.json` | `~/.toby/skills/.../SKILL.md` |
-| Selection | You choose (default or persona picker) | Toby picks relevant skills per message |
-| Example | “Act like a technologist” | “Steps to organize email by project” |
-
-See [Skills](./skills), [Flows](./flows), and [Examples](./examples) for combined workflows.
+A persona changes *who* Toby is being; a [skill](./skills#skills-vs-personas)
+describes *how* to do a specific task. You choose the persona, while Toby picks
+relevant skills on its own for each message. See [Things to try](./examples)
+for workflows that combine them.

@@ -63,7 +63,7 @@ The integration is **read-only**. It does not create, update, or delete contacts
 
 - Prefer **identifiers** returned from search when asking for full details.
 - Empty search lists contacts up to a limit (default 25, max 100).
-- Apple Contacts is a **Contact List Provider**. If you connect more than one contacts source later, set a default under **Settings → Default Providers**.
+- Apple Contacts is a **Contact List Provider**. If you connect more than one contacts source later, set a default under **Settings → Providers**.
 
 ## Related
 

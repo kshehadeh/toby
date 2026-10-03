@@ -6,14 +6,17 @@ import type React from "react";
 type Props = WrapperProps<typeof CategoryType>;
 
 /**
- * Forward `customProps.icon` from `_category_.json` into a stable CSS class so
- * parent sidebar categories can show icons without ejecting the full component.
+ * Forward a category's `customProps.icon` (set in `sidebars.ts`) into a stable
+ * CSS class so parent sidebar categories can show icons without ejecting the
+ * full component.
  *
- * Example `_category_.json`:
- * ```json
+ * Example sidebar category:
+ * ```ts
  * {
- *   "label": "Getting Started",
- *   "customProps": { "icon": "rocket" }
+ *   type: "category",
+ *   label: "Getting Started",
+ *   customProps: { icon: "rocket" },
+ *   items: [...],
  * }
  * ```
  */

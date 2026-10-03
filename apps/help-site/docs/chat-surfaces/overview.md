@@ -35,7 +35,7 @@ flowchart LR
 
 1. Connect the [Slack](../integrations/slack) integration (OAuth is recommended for chat tools).
 2. In Toby.app chat, ask about channels, history, or posting—or scope with the integration picker / `slack …` prefix.
-3. Optionally set **Chat** as your [default provider](../configuration/default-providers) under **Settings → Default Providers** when multiple chat apps exist later.
+3. Optionally set **Chat** as your [default provider](../configuration/default-providers) under **Settings → Providers** when multiple chat apps exist later.
 
 Outbound tools do **not** require inbound to be on. For Slack, OAuth stores a **user** token so actions run as **you**, not as a bot (unless you use the bot-token auth path for tools).
 

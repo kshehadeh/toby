@@ -5,9 +5,22 @@ title: Flows
 
 # Flows
 
-**Flows** are automated pipelines that combine your **local tools** (integrations such as Email, tasks, and Calendar) with a **persona** and an **LLM** to produce a result without a full free-form chat turn.
+A **flow** is a fixed recipe Toby follows step by step: gather information
+from your apps, optionally have AI write it up, then deliver the result. Unlike
+a chat, a flow does the same thing the same way every time, so it suits
+routines you run often.
 
-Think of a flow as a fixed recipe: fetch data with tools, then have the model write a short summary or transform that data under the persona’s instructions and model choice. That makes flows well suited for reliable, repeatable workflows—especially the short AI blurbs on [Home](./toby-app#home-related).
+Use a flow when you want:
+
+- **A one-click button on Home.** For example, "Focus mode" turns off Wi‑Fi
+  and minimizes every window.
+- **A live card on Home.** For example, "Top Jira issues assigned to me",
+  refreshed whenever you open Toby.
+- **A result sent somewhere.** For example, a daily task digest emailed to you
+  or posted to Slack, run by a [schedule](./schedules).
+
+The built-in **Upcoming**, **Tasks**, and **Unread mail** cards on
+[Home](./toby-app#home) are flows too.
 
 ## Build a flow from a description
 
@@ -24,21 +37,6 @@ before adding it to the flow.
 Changing a flow's destination to a dashboard card preserves its existing steps
 and the data passed to its LLM prompt. Refreshing the card runs the saved flow.
 
-### Use step data in an LLM prompt
-
-Tool steps show the reference you can copy into a prompt. The LLM step's
-**Insert step output** menu inserts one for you. For example,
-`{{json bag.jiraIssues}}` includes the Jira data when a step saves its output as
-`jiraIssues`. The reference uses the saved output name, which can differ from
-the step's name. When multiple steps share a reference, the last step's data is
-used.
-
-To inspect the actual data, open a flow's **Recent runs**, select a run, and
-expand the step's **Outputs** under **Nodes**. The Jira search output includes an
-`issues` array. An LLM output saved as `summary` is displayed from
-`summary.markdown`; flow creation now checks that the requested result exists
-in the step outputs.
-
 ## What flows are for
 
 | Piece | Role |
@@ -51,7 +49,7 @@ Unlike chat, a flow does not improvise a multi-step tool loop. It runs a **defin
 
 ## Built-in flows (dashboard)
 
-Today, the flows that ship with Toby are **built-in** and power the **home dashboard** cards:
+The flows that ship with Toby are **built-in** and power the Home cards:
 
 | Dashboard block | What the built-in flow does |
 | --------------- | --------------------------- |
@@ -78,43 +76,55 @@ Built-in flows are labeled and are **read-only** in the UI.
 
 ## Create your own flow
 
-Choose **New flow** from the toolbar. A **New Flow** sheet opens with
-**Cancel** and **Save**. Nothing is created until you Save.
+Click **+** in the Flows toolbar. The **New flow** sheet walks you through
+three parts: what the flow **gathers and acts** on, what the AI **thinks**
+about it, and where the answer is **shared**. Nothing is created until you
+click **Save**.
 
-1. Give the flow a name, choose an icon from Toby's SF Symbol picker, and pick
-   a color. The icon identifies the flow throughout Flows, schedules, and Home
-   dashboard cards. The color fills Home **Actions** tiles (teal if you skip
-   it).
-2. Add **steps**. Each step is either a **tool** (one action from a connected integration or a script tool you created) or a final **LLM** step that writes markdown.
-3. For tools that need arguments (for example “Wi-Fi on/off”), fill those values when you build the flow. Steps do not pass data into later **tools** — that kind of mapping is not available yet.
+![The New flow sheet with Name, Look, and the Gathers and acts, Thinks, and Shares sections](/img/toby-app-flow-builder.png)
 
-4. Choose **what happens when it finishes**:
-   - **Show a result window** (default)
-   - **Send email** (Email must be connected)
-   - **Post to Slack** (Slack must be connected)
-   - **Dashboard** — put the flow on the home screen as a card:
-     - **Informational** — same size as the built-in cards. Shows the last
-       successful run’s output. Choose how the card updates:
-       - **As Needed** (default) — when you open Home, Toby refreshes the card
-         if the last run is older than a few minutes, the same way mail, tasks,
-         and calendar cards update. Refresh on the card or the dashboard
-         toolbar always runs it again.
-       - **Manual** — the card keeps the last run until you tap refresh on that
-         card or the dashboard toolbar.
-     - **Runner only** — a colored tile in the home dashboard **Actions**
-       strip (beside the cards). The icon, color, and name are on the tile;
-       hover for a second to see the name and description. It only runs when
-       you click it. The strip is hidden if you have no runner flows.
-5. **Save**, then **Run now**.
+1. **Name and look.** Give the flow a name and a one-line description, then
+   pick an icon and color under **Look**. The color is used for its Home button
+   (teal if you skip it).
+2. **Gathers and acts.** Click **Add a source** to add steps that read from
+   or act on your apps (tasks, calendar, mail, macOS controls, or your own
+   [script tools](#reuse-a-script-in-several-flows)). Fill in any settings a
+   step needs, such as Wi‑Fi on or off, when you add it.
+3. **Thinks.** Optionally click **Add an AI step** and describe what the AI
+   should do with what was gathered, for example "List the three most urgent
+   items in one line each."
+4. **Shares.** Choose where the result goes. **Show it in a window** is the
+   default. You can add or swap in:
+   - **Email** or **Slack** (that app must be connected)
+   - **Home**, as either:
+     - **A card** that shows the latest result. **As Needed** (default)
+       refreshes it when you open Home and the last run is more than a few
+       minutes old. **Manual** refreshes only when you click refresh.
+     - **A button** in the **Actions** strip that runs the flow when you
+       click it. Hover over a button to see its name and description.
+5. Click **Save**, then **Run now** to try it.
 
 You can combine a dashboard card with a result window (or email / Slack). A
 flow can have only one Dashboard destination. Email and Slack still send when
 you **Run now** or when a schedule fires — not when the home card refreshes.
 
-A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./chat-surfaces/overview) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
+A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./getting-started/first-chat) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
 
 To run a flow on a timetable, open **Schedules**, set **When it runs** to
 **Flow**, and pick the flow. See [Schedules](./schedules).
+
+### Home color
+
+In a flow's dashboard output settings, use **Home color** to choose the default
+appearance of its Home card or Actions tile. The palette includes teal, blue,
+green, orange, purple, pink, red, and gray. **Neutral** removes color;
+**Automatic** keeps the existing appearance (neutral cards, or the flow color
+for Actions tiles).
+
+Colored cards have a border in the selected color and a subtle background tint
+that adapts to light and dark mode. Save the flow to apply its default. You can
+choose a different color for that block through **Edit Home**; that override is
+saved only on this Mac. Choose **Use default** there to follow the flow again.
 
 ### Reuse a script in several flows
 
@@ -145,13 +155,29 @@ flows using it run. The library shows how many flows use each tool, and it
 won't delete a tool while a flow references it. Scripts run with your macOS
 user permissions, so review code before saving and testing it.
 
+## Advanced
+
+### Use step data in an AI step
+
+Tool steps show the reference you can copy into a prompt. The LLM step's
+**Insert step output** menu inserts one for you. For example,
+`{{json bag.jiraIssues}}` includes the Jira data when a step saves its output as
+`jiraIssues`. The reference uses the saved output name, which can differ from
+the step's name. When multiple steps share a reference, the last step's data is
+used.
+
+To inspect the actual data, open a flow's **Recent runs**, select a run, and
+expand the step's **Outputs** under **Nodes**. The Jira search output includes an
+`issues` array. An LLM output saved as `summary` is displayed from
+`summary.markdown`; flow creation now checks that the requested result exists
+in the step outputs.
+
 ## Flows vs chat vs schedules
 
 | | **Chat** | **Flow** | **Schedule** |
 | --- | -------- | -------- | ------------ |
 | **How it runs** | Interactive conversation with tools chosen per turn | Fixed pipeline of tool + model steps | Fires a prompt **or a flow** on a cron |
 | **Best for** | Open-ended questions and multi-step work | Repeatable summaries and automated workflows | “Do this every morning” |
-| **Today** | Fully available | Built-in dashboard flows plus custom macros you create | Recurring prompts or a selected flow |
 
 ## Tips
 
@@ -164,18 +190,5 @@ user permissions, so review code before saving and testing it.
 
 - [Toby.app](./toby-app) — Home, Flows window, and settings
 - [Personas](./personas) — Model and instructions used by LLM steps
-- [Schedules](./schedules) — Recurring chat prompts (schedule-as-flow later)
+- [Schedules](./schedules) — Run a prompt or a flow on a timetable
 - [Integrations](./integrations/overview) — Local tools flows call
-
-### Default Home color
-
-In a flow's dashboard output settings, use **Home color** to choose the default
-appearance of its Home card or Actions tile. The palette includes teal, blue,
-green, orange, purple, pink, red, and gray. **Neutral** removes color;
-**Automatic** keeps the existing appearance (neutral cards, or the flow color
-for Actions tiles).
-
-Colored cards have a border in the selected color and a subtle background tint
-that adapts to light and dark mode. Save the flow to apply its default. You can
-choose a different color for that block through **Edit Home**; that override is
-saved only on this Mac. Choose **Use default** there to follow the flow again.

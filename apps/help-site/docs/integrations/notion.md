@@ -72,7 +72,7 @@ notion create a page for today's meeting notes
 
 ## Documents provider defaults
 
-Open **Toby.app → Settings → Default Providers** and set **Documents Provider**
+Open **Toby.app → Settings → Providers** and set **Documents Provider**
 to Notion when you want document/wiki/notes prompts to prefer Notion. This is
 especially useful for schedules that save recurring notes or search a knowledge
 base.

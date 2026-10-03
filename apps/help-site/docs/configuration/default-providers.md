@@ -5,9 +5,9 @@ title: Default providers
 
 # Default providers
 
-When more than one integration can handle the same kind of work (for example **Todoist** and **Apple Reminders** for tasks), Toby needs a preference. **Default Providers** is where you set that.
+When more than one integration can handle the same kind of work (for example **Todoist** and **Apple Reminders** for tasks), Toby needs a preference. The **Providers** section of Settings is where you set that.
 
-Open **Toby.app → Settings → Default Providers**.
+Open **Toby.app → Settings → Providers**.
 
 ## Categories
 
@@ -37,7 +37,7 @@ If you only connect **one** integration per category, defaults are optional—To
 ## How to set them
 
 1. Connect the integrations you use ([Configure and connect](../getting-started/configure-and-status)).
-2. Open **Settings → Default Providers**.
+2. Open **Settings → Providers**.
 3. For each category you care about, pick an integration or **(none)**.
 
 Defaults are stored in `~/.toby/config.json` (not credentials).
@@ -55,4 +55,3 @@ Those still force exact scope for that turn.
 
 - [Configuration overview](./overview)
 - [Integrations overview](../integrations/overview) — provider categories in more detail
-- [Set up AI](../getting-started/setup-ai#default-providers-optional) — first-time mention alongside personas

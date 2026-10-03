@@ -5,39 +5,22 @@ title: Skills
 
 # Skills
 
-**Skills** are reusable instructions Toby loads when they match what you are trying to do. Each skill is a markdown file with YAML frontmatter, stored on disk under your Toby config directory.
+A **skill** teaches Toby how you like a particular task done. For example:
+"When I ask for a weekly status update, use the headings Done, In progress,
+and Blocked, and keep it under 200 words." Once the skill exists, Toby uses it
+whenever a request matches. You don't have to repeat the instructions.
 
-## What skills are
+## Create a skill
 
-A skill lives at:
+The easiest way is to ask in chat:
 
 ```text
-~/.toby/skills/<folder-name>/SKILL.md
+Create a skill for meeting follow-up emails: thank people, list decisions and
+owners, and keep it under 150 words.
 ```
 
-In Toby.app, each skill has:
-
-1. **Summary** — a short explanation of what the skill does and when Toby should use it
-2. **Instructions** — markdown with steps, rules, or domain knowledge
-
-For compatibility with the standard skill file format, Toby stores the summary
-in the frontmatter `description` key. You do not need a separate `summary` key.
-
-Example:
-
-```markdown
----
-name: organize-email-by-project
-description: Steps to triage email into project labels and archive noise.
----
-
-# Organize email by project
-
-1. Search unread messages from the last 7 days.
-2. Group by project name mentioned in the subject or body.
-3. Suggest one label per project; ask before applying changes.
-4. Archive promotional mail older than 30 days unless starred.
-```
+Toby writes the skill and saves it. You can review and edit it in **Skills**
+in the sidebar.
 
 ## How skills run
 
@@ -45,7 +28,7 @@ On each chat turn, Toby’s pretreatment step may select **relevant** skills fro
 
 You do not pick skills manually each message—Toby chooses from names and summaries in the catalog. Write a clear summary so the right skill is selected.
 
-## Add and manage skills
+## Manage skills
 
 ### Built-in flow builder
 
@@ -73,13 +56,26 @@ existing skills from the toolbar.
 
 ![Toby.app Skills window](/img/toby-app-skills.png)
 
-### Draft from chat
-
-In chat, ask Toby to create a skill. For example: “Create a skill that documents how I run weekly email cleanup.” Toby can draft a full `SKILL.md` and save it under `~/.toby/skills/`.
-
 ### Create on disk (advanced)
 
-You can also add a skill manually:
+Each skill is a Markdown file at `~/.toby/skills/<folder-name>/SKILL.md`. The
+skill's summary goes in the frontmatter `description` key:
+
+```markdown
+---
+name: organize-email-by-project
+description: Steps to triage email into project labels and archive noise.
+---
+
+# Organize email by project
+
+1. Search unread messages from the last 7 days.
+2. Group by project name mentioned in the subject or body.
+3. Suggest one label per project; ask before applying changes.
+4. Archive promotional mail older than 30 days unless starred.
+```
+
+To add a skill manually:
 
 1. Create a folder under `~/.toby/skills/<folder-name>/`.
 2. Add a `SKILL.md` file with frontmatter (`name`, plus the skill summary in `description`) and the instructional body.

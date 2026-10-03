@@ -75,7 +75,7 @@ Search defaults to **incomplete** reminders unless you ask for completed items o
 
 - Use **exact list names** from your list when filtering create/search.
 - Due and completion filters accept ISO 8601 or simple natural-language dates.
-- Apple Reminders is a **Task List Provider**. If you also use Todoist, set a default under **Settings → Default Providers** so schedules and multi-integration chat prefer the right one.
+- Apple Reminders is a **Task List Provider**. If you also use Todoist, set a default under **Settings → Providers** so schedules and multi-integration chat prefer the right one.
 
 ## Related
 

@@ -5,105 +5,64 @@ title: Set up your AI
 
 # Set up your AI
 
-Toby uses an LLM for chat, summarization, and organization. You need at least one AI provider configured before chatting.
+Toby needs an AI provider to understand your requests and write answers. Think
+of the provider as Toby's "brain": you create an account with the provider,
+and Toby uses it on your behalf. You only need **one**.
 
-**Recommended for new installs: [Vercel AI Gateway](../ai-providers/vercel-ai-gateway).** One free Vercel account and one API key unlock multi-model chat plus Toby web search and transcription catalogs.
+## Quickest path: OpenRouter (recommended)
 
-Toby also supports:
+[OpenRouter](../ai-providers/openrouter) gives you access to models from
+OpenAI, Anthropic, Google, and others through one account. You sign in from
+your browser, so there's no key to copy and paste.
 
-- **[OpenAI (direct)](../ai-providers/openai)** — a single OpenAI API key; models like `gpt-5-mini`
-- **[Chutes](../ai-providers/chutes)** — open-source TEE-backed models (DeepSeek, Qwen, GLM, Kimi) via Chutes' OpenAI-compatible endpoint
-- **[OpenRouter](../ai-providers/openrouter)** — hundreds of models from many vendors through a single OpenRouter API key
-- **Ollama** — run open-source models locally on your machine (no API key needed)
+1. On **Home**, find the setup checklist and click **Connect** next to
+   **Configure AI provider**. You can also go to
+   **Settings → AI → OpenRouter → Guided setup**.
+2. Keep **OpenRouter · Recommended** selected and click **Connect OpenRouter**.
+3. Your browser opens. Sign in or create an OpenRouter account, then approve
+   access for Toby.
+4. Return to Toby. It sends a short test message, saves the connection
+   securely, and picks a good everyday model for you.
 
-You only need **one** provider to start. See the [AI providers overview](../ai-providers/overview) for help choosing.
+When you see **Ready**, try asking: "Help me plan my day."
 
-## Recommended: guided setup
+:::tip What does it cost?
+You pay the provider for what you use, usually a fraction of a cent per
+message for everyday models. Add a few dollars of credit to start. Toby shows
+your spend under **Settings → AI → [provider] → Plan Usage**, and tells you if
+your account runs out of credit.
+:::
 
-1. On **Home**, open the onboarding checklist and click **Connect** on **Configure AI provider**.
-2. Choose a path:
-   - **Vercel AI Gateway** (recommended) — multi-model chat, free credits, plus Toby web search and transcription catalogs
-   - **OpenRouter** — hundreds of models through one key
-3. Follow the in-app wizard (signup / create key deep links, paste, **Validate & connect**).
-4. Toby validates the key, saves it securely, and sets the built-in **Toby** persona:
-   - Vercel → `vercel` / `openai/gpt-5-mini`
-   - OpenRouter → `openrouter` / `openai/gpt-5.6-luna`
+## Other options
 
-You can also start guided setup from **Settings → AI → [provider] → Guided setup**.
+![Settings → AI lists every supported provider and whether it is connected](/img/toby-app-settings-ai.png)
 
-New Vercel teams receive free AI Gateway credits (a subset of models). See [Vercel AI Gateway pricing](https://vercel.com/docs/ai-gateway/pricing).
+| Provider | Choose it if you… |
+| -------- | ----------------- |
+| [OpenRouter](../ai-providers/openrouter) | Want the easiest setup and lots of model choices (recommended) |
+| [Vercel AI Gateway](../ai-providers/vercel-ai-gateway) | Want one key that also unlocks Toby's web search and extra transcription options |
+| [OpenAI](../ai-providers/openai) | Already have an OpenAI API account |
+| [Chutes](../ai-providers/chutes) | Prefer open-source models run in secure hardware |
+| [Ollama](../ai-providers/ollama) | Want everything to run on your own Mac, with no account (needs a powerful Mac) |
 
-## Other providers: Settings
+To use one of these, open **Settings → AI**, click the provider, and paste
+your key. Each provider's page explains where to get a key. Vercel AI Gateway
+also has a **Guided setup**.
 
-Open **Toby.app → Settings**. The Settings window has sections for AI, personas, integrations, and more.
+![Vercel AI Gateway settings with a saved API key](/img/toby-app-settings-vercel.png)
 
-![Toby.app Settings window with AI section](/img/toby-app-settings-ai.png)
+## Change the model (optional)
 
-Open **AI**. The catalog lists **OpenAI**, **Vercel AI Gateway**, **Ollama**, **Chutes**, and **OpenRouter**. Click a provider to slide to its settings.
+The AI model is part of a [persona](../personas). To change it, open
+**Settings → Personas**, pick a persona (for example **Toby**), and open the
+**Model** tab:
 
-### OpenAI (direct)
+![The Model tab of a persona, with Provider and Model pickers](/img/toby-app-settings-persona.png)
 
-Click **OpenAI** under **AI**. Paste your OpenAI API key into the **API Token** field.
+Most people never need to change this. If you want to experiment, a common
+setup is a fast, inexpensive model for everyday questions and a larger model
+in a second persona for long writing.
 
-![Toby.app OpenAI configuration](/img/toby-app-settings-openai.png)
+## Next step
 
-Get an API key from [platform.openai.com](https://platform.openai.com/) — open **API keys** under your organization settings and create a new secret key. Toby stores it in `~/.toby/credentials.json` on your Mac.
-
-For recommended models, see [OpenAI (direct)](../ai-providers/openai#recommended-models).
-
-### Vercel AI Gateway (manual)
-
-If you prefer not to use the wizard, click **Vercel AI Gateway** under **AI** and paste your key into **API Key**, or use **Guided setup** on that page.
-
-![Toby.app Vercel AI Gateway configuration](/img/toby-app-settings-vercel.png)
-
-See [Vercel AI Gateway](../ai-providers/vercel-ai-gateway) for deep links, OIDC, and recommended models.
-
-### Chutes
-
-Click **Chutes** under **AI** in the Settings tree. Paste your Chutes API key into the **API Key** field.
-
-Get an API key from [chutes.ai](https://chutes.ai/) — open **Auth → Start** to create a key (starts with `cpk_`).
-
-For recommended models, see [Chutes](../ai-providers/chutes#recommended-models). The model list is fetched live from Chutes' public catalog, so you can browse models even before adding an API key.
-
-### OpenRouter
-
-Click **OpenRouter** under **AI** in the Settings tree. Paste your OpenRouter API key into the **API Key** field.
-
-Get an API key from [openrouter.ai/keys](https://openrouter.ai/keys).
-
-For recommended models, see [OpenRouter](../ai-providers/openrouter#recommended-models). The model list is fetched live from OpenRouter's public catalog, so you can browse models even before adding an API key.
-
-## Choose a persona and model
-
-Each [persona](../personas) can use its own AI provider and model. Guided Vercel setup points the built-in **Toby** persona at `vercel` / `openai/gpt-5-mini`. Without that wizard, the built-in default is OpenAI (`openai` / `gpt-5-mini`) until you change it.
-
-To change the provider or model, open **Settings → Personas** and pick **AI Provider** and **Model** from the dropdowns:
-
-![Toby.app Persona settings with provider and model selection](/img/toby-app-settings-persona.png)
-
-You can create additional personas with different providers or models — for example, a fast model for triage and a larger one for drafting. See [Personas](../personas) for details.
-
-## Default providers (optional)
-
-In the same Settings window, click **Default Providers** to pick which connected integration Toby prefers for each category when you do not specify one:
-
-| Category | Example integrations |
-| -------- | -------------------- |
-| Email | Email |
-| Calendar | Apple Calendar |
-| Tasks | Todoist |
-| Chat | Slack |
-| Contacts | Apple Contacts |
-| Documents | Notion |
-| Work Tracker | Jira |
-| News | News |
-
-These defaults help schedules and multi-integration chat pick the right tools. Full detail: [Default providers](../configuration/default-providers).
-
-## Next steps
-
-- [Configure and connect integrations](./configure-and-status)
-- [Configuration](../configuration/overview) — web search, inbound chat, transcription, and more
-- [Your first chat](./first-chat)
+[Connect your apps →](./configure-and-status)

@@ -41,7 +41,7 @@ Return to **Settings → Integrations**. Apple Calendar should show as connected
 ## Home
 
 When Apple Calendar is connected (and set as the default calendar provider under
-**Settings → Default Providers**, if you use more than one calendar integration),
+**Settings → Providers**, if you use more than one calendar integration),
 the Home **Upcoming** card shows events for the next 7 days. You can
 hide or show that card under **Settings → Home**.
 

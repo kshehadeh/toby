@@ -133,7 +133,7 @@ Defaults become important when you connect multiple integrations in the same cat
 
 Categories let Toby reason about *roles* instead of a flat list of app names:
 
-1. **Default providers** — In **Toby.app → Settings → Default Providers**, you pick which connected integration Toby should prefer per category (for example Email for email). Those choices are stored in your config and surfaced to the assistant during chat.
+1. **Default providers** — In **Toby.app → Settings → Providers**, you pick which connected integration Toby should prefer per category (for example Email for email). Those choices are stored in your config and surfaced to the assistant during chat.
 2. **Scheduled runs** — When a schedule fires, Toby inspects the prompt for category-related keywords (such as “inbox”, “calendar”, “todoist”, “slack”, “Notion”, or “wiki”). When a category is detected, Toby includes the default provider for that category if you set one; otherwise it uses heuristics (a single connected integration in that category, or all connected integrations in that category with a warning).
 3. **Multi-integration chat** — When several integrations are active in one session, the combined system prompt lists your default providers so the model reaches for the right tools (for example your chosen email provider when you ask to triage mail).
 4. **New integrations** — Plugin authors assign provider categories so Toby can register the integration in the right bucket for Settings, schedules, and routing.
@@ -142,7 +142,7 @@ Categories do **not** replace explicit scoping. You can still start a message wi
 
 ### Set your defaults
 
-Open **Toby.app → Settings → Default Providers** and choose an integration (or **(none)**) for each category. See also [Set up AI](../getting-started/setup-ai#default-providers-optional) for how defaults interact with personas and models.
+Open **Toby.app → Settings → Providers** and choose an integration (or **(none)**) for each category. See [Default providers](../configuration/default-providers) for details.
 
 If you only connect one integration per category, defaults are optional—Toby can infer that integration for schedules and chat. Defaults become important when multiple integrations share a category or when you want schedules to target a specific provider.
 

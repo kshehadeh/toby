@@ -7,7 +7,14 @@ title: Library
 
 **Library** is Toby’s catalog of files you want to keep: notes, Markdown, PDFs, and images. Toby copies each file into its data folder, writes a short description, and lets chat search or open the file later.
 
-Library is not a project folder and not a memory. Chat does not dump the whole catalog into every conversation. Ask Toby to find or add a file, or browse the list in the app.
+![The Library with three saved documents and the details of the selected one](/img/toby-app-library.png)
+
+**Use the Library for documents you'll want to ask about later:** a lease,
+a user manual, a recipe, meeting notes, a screenshot of a receipt. Then ask
+"What's the notice period in my lease?" weeks later, without digging for the
+file.
+
+Library is not a project folder and not a memory. Toby only looks in it when you ask, so it does not clutter every conversation. Ask Toby to find or add a file, or browse the list in the app.
 
 ## What you can add
 
@@ -19,7 +26,7 @@ Other types are rejected. Adding the same file twice keeps the existing item ins
 
 ## In the app
 
-Open **View → Library** (⌘0), click **Library** in the sidebar, or search for **Open Library** in the command palette (⌘K).
+Click **Library** in the sidebar (⌘0), or search for **Open Library** in the command palette (⌘K).
 
 The workspace is a searchable list. Nothing is selected until you choose a row. A details bar at the bottom shows title, description, type, size, indexing status, and dates. Use **Add** to import files, **Refresh** to reload, **Quick Look** or **Reveal** for the stored copy, and **Delete** to remove the item and its file.
 

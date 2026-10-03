@@ -108,10 +108,10 @@ const config: Config = {
 				{
 					title: "Help",
 					items: [
-						{ label: "Introduction", to: "/docs/intro" },
+						{ label: "Welcome to Toby", to: "/docs/intro" },
 						{ label: "Getting Started", to: "/docs/getting-started/install" },
 						{ label: "Integrations", to: "/docs/integrations/overview" },
-						{ label: "Examples", to: "/docs/examples" },
+						{ label: "Things to try", to: "/docs/examples" },
 					],
 				},
 				{

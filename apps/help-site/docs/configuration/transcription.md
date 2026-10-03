@@ -23,7 +23,7 @@ Open **Toby.app → Settings → Transcription**.
 
 At least one of microphone or system audio must stay on. When both are recorded,
 `combined.m4a` is dual-mono stereo (mic left, system right) rather than a summed
-mix—so headphone bleed does not turn into an echo. See [Listen mode](../listen).
+mix—so headphone bleed does not turn into an echo. See [Recordings](../listen).
 
 **Delete audio after transcription** frees disk space by removing
 `combined.m4a` and the source WAVs after a successful transcription. Audio is
@@ -104,7 +104,7 @@ Capture itself uses Toby.app’s [Native API](../api/native-api) (microphone / s
 
 Once a recording has a transcript, **Summarize** / **Re-Summarize** in the
 Recordings toolbar generates an AI summary using the persona selected here.
-See [Listen mode](../listen).
+See [Recordings](../listen).
 
 ## If transcription fails
 
@@ -114,7 +114,7 @@ See [Listen mode](../listen).
 
 ## Related
 
-- [Listen mode](../listen)
+- [Recordings](../listen)
 - [Personas](../personas)
 - [Configuration overview](./overview)
 - [OpenAI (direct)](../ai-providers/openai) — shared API token case

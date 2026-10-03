@@ -1,44 +1,34 @@
 ---
 sidebar_position: 1
-title: Configuration overview
+title: Settings overview
 ---
 
-# Configuration overview
+# Settings overview
 
-Toby’s preferences live in **Toby.app → Settings**. This section documents **settings that are not covered** in the feature guides for AI, integrations, personas, schedules, and so on.
+Open **Settings** with the gear button in the toolbar or **⌘,**, then pick a
+section on the left. Changes save as you make them.
 
-## Settings map
+![The Settings window, with sections listed on the left](/img/toby-app-settings.png)
 
-| Settings area | What it controls | Documented here? |
-| ------------- | ---------------- | ---------------- |
-| **General** | Home directory, start at login, menu bar icon, chat mode, theme, accent (app-local; not in `config.json`) | [Toby Mac App](../toby-app#settings) |
-| **Sync** | Encrypted settings/credentials snapshots via iCloud Drive or a shared folder | [Settings sync](./icloud-sync) |
-| **Home** | Summary persona; hide onboarding checklist (hide is app-local) | [Toby Mac App](../toby-app#settings) |
-| **AI** | OpenAI, Vercel AI Gateway, Ollama keys and endpoints | [AI providers](../ai-providers/overview) · [Set up AI](../getting-started/setup-ai) |
-| **Personas** | Instructions, default persona, model per persona | [Personas](../personas) |
-| **Integrations** | Credentials and connect for Email, Slack, Calendar, … | [Integrations](../integrations/overview) · [Configure and connect](../getting-started/configure-and-status) |
-| **Default Providers** | Preferred integration per category (email, tasks, …) | [Default providers](./default-providers) |
-| **Chat** (inbound) | Listen for @mentions / external chat into Toby | [Inbound chat](./inbound-chat) · [Chat surfaces](../chat-surfaces/overview) |
-| **Web Search** | Built-in `webSearch` tool (not an integration) | [Web Search](./web-search) |
-| **Weather** | Built-in `getWeather` tool (Open-Meteo; not an integration) | [Weather](./weather) |
-| **Transcription** | Provider, key, and summary persona for Listen / recordings | [Transcription](./transcription) |
-| **Library** | Small model used to summarize and caption files added to the Library | [Library](../library) |
-| **Schedules** | Recurring prompts | [Schedules](../schedules) |
-| **Skills** | Skill list and bodies | [Skills](../skills) |
+| Section | What it's for | Guide |
+| ------- | ------------- | ----- |
+| **General** | Data folder, start at login, menu bar icon, global shortcuts, chat mode, theme, accent color | [App tour](../toby-app#general) |
+| **Home** | Which cards appear on Home and which persona writes their summaries | [App tour](../toby-app#customize-home) |
+| **AI** | Connect AI providers and see your usage | [Set up your AI](../getting-started/setup-ai) · [AI providers](../ai-providers/overview) |
+| **Library** | The model used to describe files you add to the Library | [Library](../library) |
+| **Personas** | Create and edit personas, and pick each one's AI model | [Personas](../personas) |
+| **Chat** | Let Slack @mentions start chats with Toby | [Inbound chat](./inbound-chat) |
+| **Sync** | Keep settings in sync across your Macs | [Settings sync](./icloud-sync) |
+| **Integrations** | Connect email, calendar, tasks, and other apps | [Connect your apps](../getting-started/configure-and-status) · [Integrations](../integrations/overview) |
+| **Providers** | Which app Toby uses by default when you have more than one of a kind (for example two task apps) | [Default providers](./default-providers) |
+| **Transcription** | How recordings are transcribed and summarized | [Transcription](./transcription) |
+| **Web Search** | Let Toby search the web | [Web Search](./web-search) |
+| **Weather** | Let Toby check the forecast | [Weather](./weather) |
 
-Projects, recordings, library, and memories are managed outside Settings (sidebar **Projects**,
-**Library**, and **Recordings** workspaces, plus the **Memories** window from **View → Memories**).
-See [Projects](../projects), [Library](../library), [Listen mode](../listen), and [Memories](../memories).
+Toby's location for "near me" questions is a macOS permission rather than a
+setting. See [Location](./location).
 
-## Open Settings
-
-1. Open **Toby.app**.
-2. Click the **gear** in the main toolbar (next to Search), or press **⌘,**.
-3. Use the **sidebar** to open a section (**General**, Integrations, Chat, AI, Home, Transcription, and so on). **Integrations** and **AI** open a catalog; click a plugin or provider to slide to its settings. Most changes save as you edit. **General** (home directory, start at login, menu bar icon, chat mode, theme, accent) and **Home → Hide onboarding checklist** are stored only on this Mac in the app’s preferences, not in `~/.toby/config.json`.
-
-![Toby.app Settings window](/img/toby-app-settings.png)
-
-## Where data lives on disk
+## Where your data is stored
 
 By default Toby’s data root is **`~/.toby`**. In **Settings → General → Home
 directory** you can choose another folder; then every path below is under that
@@ -58,17 +48,7 @@ environment.
 | `~/.toby/native-port` | Ephemeral port for Toby.app’s [Native API](../api/native-api) |
 | Local service port | Daemon [Server API](../api/server-api) default `http://127.0.0.1:7847` (`web.port` in config when set) |
 
-Most people only need the Settings UI. Paths above matter for backups, support, and advanced automation.
+You don't need to touch these files. The paths matter for backups, support, and advanced automation.
 
 For how credentials are encrypted on Mac, what a backup includes, and restore
 safety, see **[Security](../security)**.
-
-## What this section covers
-
-- **[Web Search](./web-search)** — enable the global search tool (requires Vercel AI Gateway key)
-- **[Weather](./weather)** — enable the global weather tool (Open-Meteo; optional paid API key)
-- **[Default providers](./default-providers)** — prefer one integration when several share a category
-- **[Inbound chat](./inbound-chat)** — let Slack (or another inbound-capable plugin) drive headless chat turns
-- **[Transcription](./transcription)** — models used when Listen recordings are transcribed, plus the persona for recording summaries
-
-For connecting Email, Todoist, Slack, and other services, use [Configure and connect](../getting-started/configure-and-status) and the [Integrations](../integrations/overview) guides.

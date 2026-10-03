@@ -1,49 +1,80 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 title: Your first chat
 ---
 
 # Your first chat
 
-After you [set up AI](./setup-ai) and [connect at least one integration](./configure-and-status), open **Toby.app** and start chatting.
+Chatting with Toby works like messaging a capable assistant. Ask in your own
+words. There are no special commands to learn.
 
-## Start a new chat
+## Start a chat
 
-Click **Chat** in the sidebar, then click the **+** button in the chat toolbar to start a new session. You will see an empty conversation with a prompt input at the bottom.
+Click **Chats** in the sidebar, or press **⌘N** from anywhere in Toby. Type in
+the box and press **Return** to send (**Shift+Return** adds a new line).
 
-The **+** control is also a menu. Click the chevron to start a chat with a specific persona: **Chat with Default Persona**, **Chat with Toby**, **Chat with Mailman**, and any custom personas you have created. Choosing a named persona pins that persona on the new session; **Chat with Default Persona** (and a plain click on **+**) follows your current default.
+![A new chat, with suggested prompts under the message box](/img/toby-app-chat-empty.png)
 
-![Toby.app new chat session](/img/toby-app-chat-empty.png)
+Not sure what to ask? Click a suggestion under the message box to fill it in,
+then edit it or press **Return**.
 
-## Send a message
+## Five things to try
 
-Type your message in the input field at the bottom and press **Enter** to send. Responses stream in real time. Try a simple prompt like "How are you today?":
+Copy any of these into a new chat. Each one uses an app you connected in the
+previous step.
 
-![Toby.app chat with a simple prompt and streaming response](/img/toby-app-chat-example.png)
+1. **"What's on my calendar today, and do I have any conflicts?"**
+2. **"Summarize my unread email. What needs a reply today?"**
+3. **"What tasks are due this week? Which one should I do first?"**
+4. **"Remind me to call the dentist tomorrow at 10am."**
+5. **"Draft a reply to the latest email from Sam saying Thursday works."**
 
-When a reply includes a markdown image (`![name](https://…)`), such as a product photo in a recommendation, Toby shows the picture inline. Click the picture to open it (or the linked page) in your browser.
+Toby shows a **Working…** line while it checks your apps. Click it to see each
+step it took. When it's done, the answer appears below your message.
 
-When you ask Toby to write or generate a file, the reply includes a download chip. **Download** saves a copy to your Downloads folder; **Open** opens the file with its default app.
+![Toby answering a morning check-in with calendar, tasks, and inbox highlights](/img/toby-app-chat-example.png)
 
-You can attach a PDF (or paste a PDF URL) and ask Toby to read or summarize it. This works even when the selected model cannot inspect files: Toby extracts the document’s text into the chat. Scanned image-only PDFs are not supported.
+:::tip Ask for a draft first
+Toby acts on what you ask. It sends an email if you say "send", so be
+specific. If you'd like to review something first, ask for a **draft**.
+When a request is unclear, Toby asks a quick question and gives you buttons to
+choose from.
+:::
 
-Toby can also answer questions about its own setup. Try prompts like "Which integrations are connected?", "What tools can you use?", "How do I set up Jira?", or "What skills are installed?"
+## Have a conversation
 
-## Switch personas
+You can follow up without repeating yourself:
 
-Use the **+** menu in the chat toolbar to start a new session with a chosen persona. To change the default used by **Chat with Default Persona**, use the persona picker in the sidebar footer. See [Personas](../personas) for details.
+> **You:** What meetings do I have tomorrow?
+>
+> **Toby:** You have three: Design review at 10:00, 1:1 with Priya at 13:00,
+> and Vendor call at 15:30.
+>
+> **You:** Move the vendor call to Friday at the same time and let them know.
 
-## Record audio into chat
+## Share files and pictures
 
-On macOS, you can start a recording inside the active chat session. The recording saves, transcribes, and adds the transcript as context so you can ask for a summary or action items. It uses the same helper and permissions as [Listen mode](../listen).
+Click **+** in the message box to attach a PDF, image, or document, then ask
+about it: "Summarize this contract and list the key dates." You can also paste
+a web link and ask Toby to read it.
 
-## Projects
+When Toby creates a file for you, such as a report or a list, the reply
+includes **Download** and **Open** buttons.
 
-Open **Projects** in the sidebar to create a project or select one from the card view. From a project page you can start a scoped chat, add guidance (`AGENTS.md`), use project-local skills, and collect generated outputs. See [Projects](../projects) for details.
+## Pick a different persona
+
+A [persona](../personas) changes Toby's style and focus. For example,
+**Mailman** is tuned for sorting email. To use one, click the arrow next to
+**+** in the chat toolbar and choose **Chat with Mailman**. To change which
+persona new chats use, click the persona name at the bottom of the sidebar.
+
+## Ask Toby about Toby
+
+Toby can answer questions about its own setup: "Which apps are connected?",
+"How do I set up Jira?", or "What can you do with my calendar?"
 
 ## Next steps
 
-- [Integrations overview](../integrations/overview) — per-service setup
-- [Chat surfaces](../chat-surfaces/overview) — Slack tools and @mentions
-- [Personas](../personas) · [Skills](../skills) · [Memories](../memories) · [Schedules](../schedules)
-- [Examples](../examples)
+- [Things to try](../examples): more ideas, organized by situation
+- [Toby app tour](../toby-app): find your way around the app
+- [Memories](../memories): teach Toby your preferences

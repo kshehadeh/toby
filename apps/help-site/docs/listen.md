@@ -1,15 +1,40 @@
 ---
 sidebar_position: 9
-title: Listen mode
+title: Recordings
 ---
 
-# Listen mode
+# Recordings
 
-Toby records microphone and/or system audio on **macOS**, saves recordings under
-`~/.toby/listen/recordings/<recording-id>/`, and can transcribe them with your
-configured transcription provider.
+Toby can record meetings, calls, and voice notes, turn them into a transcript,
+and write a summary with decisions and action items. It records your
+microphone **and** the sound from other apps, so both sides of a Zoom, Teams,
+or Meet call are captured.
 
-## Record in Toby.app
+![A recording's AI summary with decisions, action items, and risks](/img/toby-app-recordings.png)
+
+## Quick start
+
+1. Click the **record** button (●) in the toolbar. You can also start from the
+   menu bar icon or a global shortcut you set in **Settings → General**.
+2. The first time, allow the **Microphone** and **Screen & System Audio
+   Recording** permissions when macOS asks.
+3. Click the button again to stop. Toby saves the recording and writes the
+   transcript.
+4. Open **Recordings** in the sidebar, select the recording, and click
+   **Summarize**.
+
+Want to dig deeper? Click the chat button in the Recordings toolbar and ask
+questions such as "What did we decide about the launch date?" or "Turn the
+action items into reminders."
+
+:::note Be considerate
+Let people know when you're recording a conversation. Recording laws differ
+by country and state.
+:::
+
+## Details
+
+### How recording works
 
 Use **Record Audio** (or equivalent recording controls) in Toby.app. Capture runs
 inside the app so Microphone and Screen/System Audio permissions stay tied to

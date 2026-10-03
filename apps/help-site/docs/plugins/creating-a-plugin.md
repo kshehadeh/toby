@@ -104,7 +104,7 @@ First-party plugins are already installed with Toby.app. For a custom plugin:
 1. Copy (or symlink) your plugin directory to
    `~/.toby/plugins/toby-plugin-<name>/`.
 2. Ensure `manifest.json` has a valid `name` and runtime entry.
-3. Restart Toby.app (or use **`/restart-server`** in chat) so discovery reloads.
+3. Restart Toby.app (or run **Restart server** from the command palette, ⌘K) so discovery reloads.
 4. Open **Settings → Integrations** — your plugin should appear by its display name.
 5. Enter credentials, click **Connect**, and try tools in chat.
 

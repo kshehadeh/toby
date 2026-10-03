@@ -20,6 +20,8 @@ Store the key in Toby, not in shell profiles or committed files.
 
 Open **Toby.app → Settings → AI → OpenAI → API Token** and paste your API key.
 
+![Settings → AI → OpenAI, with the API Token field and a link to the setup guide](/img/toby-app-settings-openai.png)
+
 Toby writes the token to `~/.toby/credentials.json`.
 
 For a persona, set **AI Provider** to `openai` and choose a model from the list (or type a supported model id if you know it is available on your account).

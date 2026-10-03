@@ -5,87 +5,81 @@ title: Schedules
 
 # Schedules
 
-**Schedules** are recurring jobs that run on a **cron** timetable. Each schedule
-runs either a **prompt** (with a persona) or a saved **flow**—for example, a
-daily inbox summary every morning at 9:00.
+A **schedule** asks Toby to do something automatically at set times, such as
+"summarize my unread email every weekday at 8am" or "draft my weekly update
+every Friday afternoon."
 
-Schedule definitions are stored in `~/.toby/chat.sqlite` alongside chat sessions. While Toby is running, a background service checks which schedules are due and runs them.
+Each time a schedule runs, Toby handles the request exactly as if you had typed
+it into a chat, using the persona (and optionally the project) you picked. A
+schedule can also run a saved [flow](./flows) instead of a request.
 
-## What a schedule includes
+## Create a schedule from chat
 
-| Field | Description |
-| ----- | ----------- |
-| Name | Label you recognize in the list |
-| When it runs | **Prompt** (chat) or **Flow** (named pipeline) |
-| Prompt | What Toby should do when the schedule fires (prompt mode) |
-| Flow | Which saved flow to run (flow mode) |
-| Persona | Which persona to use in prompt mode (defaults often to **Toby**) |
-| Cron expression | When to run (standard five-field cron) |
-| Enabled | Whether the schedule is active |
+The easiest way is to ask:
 
-Example cron: `0 9 * * *` — every day at 9:00 AM (server local time).
+```text
+Every weekday at 8am, summarize my unread email and list anything that needs a
+reply today.
+```
 
-## Add a schedule
+```text
+On the first of every month, list my overdue tasks and suggest which to drop.
+```
 
-### Schedules window
+Toby creates the schedule and confirms when it will run next.
 
-Open **Toby.app** and click **Schedules** in the sidebar.
+## Create a schedule in the app
 
-![Toby.app Schedules window](/img/toby-app-schedules.png)
+Click **Schedules** in the sidebar, then **+** in the toolbar (or
+**File → New Schedule**).
 
-The Schedules view lists your schedules in a second column. Select one
-to open its page, or click empty space in the list (or **Schedules** in the
-sidebar again) to clear the selection. The schedule page has **Details** and
-**Prompt** tabs. **Details** shows name, enabled state, when it runs, persona
-or flow, timetable, and recent runs. **Prompt** shows the prompt body, or a
-summary of the selected flow. Use toolbar **Edit** to change those fields in a
-sheet (**Save** persists, **Cancel** discards). Use **+** in the toolbar, or
-the create link when nothing is selected, to open a **New Schedule** sheet
-(nothing is created until you Save). You can also delete schedules from a
-row’s context menu or the toolbar, use **Run now** for a test, and view past
-runs.
+| Field | What to enter |
+| ----- | ------------- |
+| **Name** | A label you'll recognize, like "Morning inbox check" |
+| **When it runs** | **Prompt** to run a request, or **Flow** to run a saved flow |
+| **Persona** | Which persona handles the request |
+| **Project** | Optional. Run inside a [project](./projects) so results are saved there |
+| **Schedule** | When to run. Type it in plain English, such as "every weekday at 8am", and click **Convert** |
+| **Prompt** | What Toby should do, written just like a chat message |
+| **Enabled** | Turn the schedule on or off without deleting it |
 
-### From chat
+![A schedule's Details tab showing its persona, timing, and recent runs](/img/toby-app-schedules.png)
 
-Type **`/schedules`** to open the same manager without leaving chat.
+Select a schedule to see its details and **Recent runs**. Click a run to read
+what Toby did and what it answered.
 
-## How schedules run automatically
+## Keep Toby running
 
-Scheduled prompts only fire while Toby’s local background service is running. **Toby.app starts that service when you launch the app**, so keeping Toby open (or letting it run in the background) is enough for schedules to fire.
+Schedules only run while Toby is open (it can be in the background). To make
+sure nothing is missed, turn on **Start at login** in **Settings → General**.
 
-If something seems stuck:
+If a schedule didn't run, check that Toby is open and the status dot at the
+bottom of the sidebar is green. Click the dot and choose **Restart server** if
+it isn't.
 
-- Quit and reopen **Toby.app**, or
-- In chat, type **`/restart-server`** to restart the local service
+## Test a schedule
 
-If you start the service from the terminal, `toby daemon start` allows up to 15 seconds for startup. If it reports a timeout, check `toby daemon status` before retrying; the service may have finished starting. For startup errors, inspect `logs/toby.log` in your Toby home directory or run `toby daemon run` after stopping the service.
-
-The service polls on an interval (default about 60 seconds) for due schedules.
-
-## Manual run
-
-In the **Schedules** window, select a schedule and choose **Run now** to execute immediately without waiting for cron.
-
-## Example schedule
-
-**Name:** Morning inbox brief  
-**Prompt:** Summarize unread email from the last 24 hours and list items needing a reply today.  
-**Persona:** Toby  
-**Cron:** `0 9 * * *`  
-**Enabled:** Yes  
-
-After connecting Email and leaving Toby running, you get a daily brief at 9am.
+Select a schedule and click **Run now** (▶) in the toolbar to run it right
+away. That's the quickest way to check the prompt does what you expect.
 
 ## Tips
 
-- Connect the integrations your prompt or flow needs (Email, Todoist, etc.) before relying on a schedule.
-- Use a persona whose instructions match the job (brief vs detailed), or let the flow pick its own persona.
-- In flow mode, email and Slack destinations on the flow still send; a “show result” window does not pop up when the daemon runs.
-- Test with **Run now** before enabling an aggressive cron.
+- Connect the apps your request needs (Email, Todoist, and so on) first.
+- Ask for exactly what you want to see, such as "short bullets" or "only items
+  due this week", so the result is easy to skim.
+- To get results somewhere other than Toby, say so in the prompt: "…and email
+  the summary to me" or "…and post it to #team in Slack."
+- When a schedule runs a flow, the flow's email and Slack destinations still
+  send, but no result window pops up.
+
+## Advanced: cron expressions
+
+Under the hood, the **Schedule** field is a standard five-part cron
+expression, such as `0 8 * * 1-5` for weekdays at 8:00. You can type one
+directly instead of using **Convert**. Times use your Mac's time zone.
 
 ## Related
 
-- [Personas](./personas)
-- [Integrations](./integrations/overview)
-- [Flows](./flows) — tool + persona pipelines you can also run on a schedule
-- [Examples](./examples)
+- [Flows](./flows): recipes you can also run on a schedule
+- [Projects](./projects): keep a recurring report's history in one place
+- [Things to try](./examples)
