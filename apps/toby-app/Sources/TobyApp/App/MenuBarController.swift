@@ -176,7 +176,7 @@ final class MenuBarController: NSObject {
 	}
 
 	private func companionItem() -> NSMenuItem {
-		let item = NSMenuItem(title: "Show / Hide Desktop Companion", action: #selector(toggleCompanion), keyEquivalent: "")
+		let item = NSMenuItem(title: "Show / Hide Toby's Head", action: #selector(toggleCompanion), keyEquivalent: "")
 		item.target = self
 		item.image = NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: nil)
 		return item

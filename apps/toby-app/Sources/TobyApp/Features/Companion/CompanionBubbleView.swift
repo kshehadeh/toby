@@ -14,7 +14,7 @@ struct CompanionBubbleView: View {
 				Button("Start over", systemImage: "plus.bubble") { store.reset() }
 					.labelStyle(.iconOnly).help("Start a new chat").disabled(store.isThinking)
 				Menu {
-					Button("Hide desktop companion", action: hide)
+					Button("Hide Toby's Head", action: hide)
 				} label: { Image(systemName: "ellipsis") }
 					.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Companion options")
 				Button("Close conversation", systemImage: "xmark", action: close)

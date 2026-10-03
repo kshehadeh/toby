@@ -139,13 +139,13 @@ In **Settings → General** you can also set system-wide shortcuts that work
 even when Toby is in the background: open the command palette, start or stop a
 recording, or start a new chat.
 
-## Desktop companion
+## Toby's Head
 
-Choose **View → Show Desktop Companion**, or **Show / Hide Desktop Companion**
-in Toby’s menu bar menu, to try the floating conversation surfaces. Toby appears
+Choose **View → Show Toby's Head**, or **Show / Hide Toby's Head**
+in Toby’s menu bar menu, to show or hide the floating head. Toby appears
 as a portrait cutout without a window frame. Drag the portrait to move it; click
 it to open **How can I help?** with a multiline question field.
-You can also choose **View → Ask Desktop Companion** or press **⌥⌘T** to open
+You can also choose **View → Ask Toby's Head** or press **⌥⌘T** to open
 the composer directly with the keyboard.
 The bubble starts compact and expands when you send a question. Near the bottom
 of the screen, it automatically slides upward to keep the whole conversation
@@ -153,17 +153,17 @@ on screen without moving Toby.
 
 Use **Send** or **⌘Return** to ask Toby. Return inserts a new line. Replies
 stream into the conversation, including Markdown and any choices Toby asks you
-to make. The companion shows the conversation without skill, tool, or preparation
+to make. Toby's Head shows the conversation without skill, tool, or preparation
 details, even when Settings uses Debug mode. Errors and interactive questions
 still appear; full activity details remain available in the saved chat in Chats.
-The companion uses your configured default persona and AI
+Toby's Head uses your configured default persona and AI
 provider. Your first question creates a chat in **Chats**; follow-up questions
 continue that chat. **Start over** begins a new chat and keeps the previous one
 in your history. **Stop** cancels an active reply.
 
 Closing the bubble or hiding Toby preserves the conversation and lets an active
 reply finish. Reopen it to continue. If Toby cannot connect or create a chat, your
-question stays in the input box so you can retry. The companion's current
+question stays in the input box so you can retry. The head's current
 conversation lasts until you start over, switch Toby home directories, or quit
 the app; saved chats remain available in **Chats**.
 Toby’s eyes follow the cursor while idle and center when you open the
@@ -180,8 +180,10 @@ expressions without animated transitions. The processing eyebrow stays static,
 and talking motion is disabled.
 
 Escape or clicking elsewhere closes the conversation while preserving its
-draft. Right-click the portrait and choose **Hide desktop companion** to hide
-both surfaces. The companion starts hidden and remembers its last position.
+draft. Right-click the portrait and choose **Hide Toby's Head** to hide
+both surfaces. Toby's Head starts visible in the lower-right corner and remembers
+both its position and whether you showed or hid it between app launches. The chat
+bubble opens when you ask Toby; it does not reopen automatically at launch.
 
 ## Settings
 

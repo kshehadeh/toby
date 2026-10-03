@@ -12,9 +12,11 @@ final class CompanionPanelController: NSObject {
 	private var face: NSPanel?
 	private var bubble: CompanionConversationPanel?
 	private var pointerTimer: Timer?
-	private let originKey = "toby.companion.origin"
+	private let preferences: CompanionPreferences
+	private var hasRestoredVisibility = false
 
-	override init() {
+	init(defaults: UserDefaults = .standard) {
+		preferences = CompanionPreferences(defaults: defaults)
 		super.init()
 		observeBubbleSize()
 		NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
@@ -24,6 +26,12 @@ final class CompanionPanelController: NSObject {
 	}
 
 	func toggle() { isVisible ? hide() : show() }
+
+	func restoreVisibility() {
+		guard !hasRestoredVisibility else { return }
+		hasRestoredVisibility = true
+		if preferences.isVisible { show() }
+	}
 
 	func show() {
 		guard !isVisible else { return }
@@ -36,11 +44,10 @@ final class CompanionPanelController: NSObject {
 			panel.contentView = view
 			face = panel
 			let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1024, height: 768)
-			let saved = CommandPalettePanelPlacement.parseOrigin(UserDefaults.standard.string(forKey: originKey))
-			let origin = saved ?? NSPoint(x: screen.maxX - 140, y: screen.minY + 40)
-			panel.setFrameOrigin(origin)
+			panel.setFrame(preferences.initialFrame(in: screen, visibleFrames: NSScreen.screens.map(\.visibleFrame)), display: false)
 		}
 		isVisible = true
+		preferences.isVisible = true
 		screensChanged()
 		updatePointerBoundary()
 		face?.orderFrontRegardless()
@@ -52,6 +59,8 @@ final class CompanionPanelController: NSObject {
 	}
 
 	func hide() {
+		if let face { preferences.origin = face.frame.origin }
+		preferences.isVisible = false
 		isVisible = false
 		pointerTimer?.invalidate()
 		pointerTimer = nil
@@ -111,7 +120,7 @@ final class CompanionPanelController: NSObject {
 		let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
 			styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
 		configure(panel)
-		panel.title = "Toby desktop companion"
+		panel.title = "Toby's Head"
 		return panel
 	}
 
@@ -154,7 +163,7 @@ final class CompanionPanelController: NSObject {
 		if let screen = face.screen?.visibleFrame {
 			face.setFrame(CompanionGeometry.clamp(face.frame, to: screen), display: true)
 		}
-		UserDefaults.standard.set("\(face.frame.minX),\(face.frame.minY)", forKey: originKey)
+		preferences.origin = face.frame.origin
 		placeBubble()
 	}
 
@@ -176,6 +185,7 @@ final class CompanionPanelController: NSObject {
 		let screen = NSScreen.screens.first { $0.visibleFrame.intersects(face.frame) } ?? NSScreen.main
 		guard let screen else { return }
 		face.setFrame(CompanionGeometry.clamp(face.frame, to: screen.visibleFrame), display: true)
+		preferences.origin = face.frame.origin
 		placeBubble()
 	}
 }

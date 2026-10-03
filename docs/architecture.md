@@ -130,13 +130,14 @@ template mode turns opaque regions into solid color boxes.
 
 ### Native app shared data
 
-The desktop companion lives under
+Toby's Head (the desktop companion) lives under
 `Features/Companion/`. `TobyApp` owns the shared `CompanionPanelController`,
 which presents a borderless, nonactivating portrait panel and a separate
 key-capable conversation panel. View and status-item menu actions toggle it;
 the conversation panel uses a compact height until a question is submitted,
 then expands to make room for replies and shrinks again on Start over;
-it starts hidden. The portrait uses an eye-free transparent base asset with
+on first launch the head is visible near the lower-right corner. The portrait
+uses an eye-free transparent base asset with
 independent native eye whites and pupils drawn by `CompanionEyes`. The asset
 alpha defines the interactive boundary. Pointer sampling switches mouse handling outside the visible shapes
 so transparent margins pass through to other apps. Sampling stops when hidden.
@@ -148,6 +149,13 @@ hosting view disables automatic window sizing; the controller applies each size
 change with a clamped origin so conversation expansion slides upward as needed
 within the screen's usable area. The last
 portrait origin is stored in app-local UserDefaults (`toby.companion.origin`).
+`CompanionPreferences` also stores explicit show/hide choices in
+`toby.companion.visible`, defaulting to visible when no choice exists.
+`TobyApp` restores visibility once when the main scene first appears; subsequent
+scene appearances do not reopen a hidden head. Saved positions are restored on
+their display and clamped into a remaining display if that screen disconnects.
+Only the head's visibility and position are restored; the chat bubble stays
+closed until requested.
 `CompanionStore` owns a separate `ChatStore`, so companion turns do not change
 the main window's selected chat. Sessions are created lazily on the first send;
 follow-ups reuse that session, and Start over starts a fresh draft without

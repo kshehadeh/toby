@@ -18,7 +18,7 @@ final class CompanionPortraitView: NSView {
 		super.init(frame: frameRect)
 		setAccessibilityElement(true)
 		setAccessibilityRole(.button)
-		setAccessibilityLabel("Toby desktop companion")
+		setAccessibilityLabel("Toby's Head")
 		setAccessibilityHelp("Open the conversation. Drag to move Toby.")
 		toolTip = "Click to ask Toby · Drag to move · Right-click to hide"
 	}
@@ -89,7 +89,7 @@ final class CompanionPortraitView: NSView {
 
 	override func rightMouseDown(with event: NSEvent) {
 		let menu = NSMenu()
-		let item = NSMenuItem(title: "Hide desktop companion", action: #selector(hideCompanion), keyEquivalent: "")
+		let item = NSMenuItem(title: "Hide Toby's Head", action: #selector(hideCompanion), keyEquivalent: "")
 		item.target = self
 		menu.addItem(item)
 		NSMenu.popUpContextMenu(menu, with: event, for: self)

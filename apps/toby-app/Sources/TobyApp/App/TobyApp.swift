@@ -59,6 +59,7 @@ struct TobyApp: App {
 				.coordinateSpace(name: "TobyWindow")
 				.tobyAppearance(appearancePreferences)
 				.onAppear {
+					companion.restoreVisibility()
 					nativeServer.start()
 					requestNativePermissions()
 					if menuBarController == nil {
@@ -231,10 +232,10 @@ struct TobyApp: App {
 			}
 
 			CommandGroup(after: .sidebar) {
-				Button(companion.isVisible ? "Hide Desktop Companion" : "Show Desktop Companion") {
+				Button(companion.isVisible ? "Hide Toby's Head" : "Show Toby's Head") {
 					companion.toggle()
 				}
-				Button("Ask Desktop Companion") { companion.ask() }
+				Button("Ask Toby's Head") { companion.ask() }
 					.keyboardShortcut("t", modifiers: [.command, .option])
 
 				Button("Command Palette") {
