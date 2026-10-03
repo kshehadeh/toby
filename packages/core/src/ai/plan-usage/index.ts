@@ -7,8 +7,10 @@ export {
 	providerSupportsPlanUsage,
 } from "./fetch";
 export {
+	formatPlanUsagePeriodLine,
 	formatPlanUsageStatusLine,
 	formatPlanUsageSummary,
-	formatTotalSpentLabel,
 	formatRemainingLabel,
+	formatTotalSpentLabel,
+	periodUsageFields,
 } from "./format";

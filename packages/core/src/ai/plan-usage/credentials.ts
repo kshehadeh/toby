@@ -22,3 +22,19 @@ export function resolveVercelGatewayAuthToken(): string | undefined {
 	const oidc = process.env.VERCEL_OIDC_TOKEN?.trim();
 	return oidc && oidc.length > 0 ? oidc : undefined;
 }
+
+/** Auth token for OpenRouter key-limit APIs (same sources as chat). */
+export function resolveOpenRouterAuthToken(): string | undefined {
+	let creds: ReturnType<typeof readCredentials>;
+	try {
+		creds = readCredentials();
+	} catch {
+		creds = {};
+	}
+	const fromCreds = creds.ai?.openrouter?.apiKey?.trim();
+	if (fromCreds) {
+		return fromCreds;
+	}
+	const fromEnv = process.env.OPENROUTER_API_KEY?.trim();
+	return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}

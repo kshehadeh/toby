@@ -54,6 +54,10 @@ For any persona, set **AI Provider** to `openrouter`, then pick a model from the
 
 If the OpenRouter account runs out of credits, Toby keeps a notice on screen until you close it. The notice names **OpenRouter**, says what Toby was trying to do, and includes **Open Settings**, which opens **Settings → AI → OpenRouter**. Add credits, or switch the persona to another provider, then try again.
 
+## Plan usage
+
+**Settings → AI → OpenRouter** shows **Plan Usage** for the saved key: lifetime credits spent, and credits left when that key has a spending limit. A second line shows spend for the current UTC day, week (Monday–Sunday), and month. A figure OpenRouter did not report is shown as **—**. `$0.00` means the provider reported no spend. A key with no spending cap has no remaining balance, so credits left is a dash. Add or raise a limit on your [OpenRouter keys page](https://openrouter.ai/keys) if you want a remaining balance here.
+
 ## Transcription (speech-to-text)
 
 OpenRouter also supports [speech-to-text](https://openrouter.ai/docs/guides/overview/multimodal/stt). In Toby, open **Settings → Transcription**, choose **OpenRouter** as the provider, and pick an STT model. The model list is loaded from OpenRouter’s catalog (`output_modalities=transcription`) and reuses your OpenRouter chat API key when no dedicated transcription key is set.

@@ -32,6 +32,8 @@ You can also set **`AI_GATEWAY_API_KEY`** in your environment instead of storing
 
 For any persona, set **AI Provider** to `vercel`, then pick a model from the list or enter a **Custom model slug** (any slug your gateway account exposes).
 
+**Settings → AI → Vercel AI Gateway** shows **Plan Usage**: lifetime spend and remaining balance. A second line shows spend for today, this UTC week (Monday–Sunday), and this month when your Vercel plan includes AI Gateway reporting. Hobby and Pro trial plans do not include that report, so each period is **—**. `$0.00` means the provider reported no spend. The balance line still appears.
+
 Once your gateway API key is configured, the model picker loads the **live catalog** from Vercel AI Gateway (language models). Models the catalog tags as reasoning appear with a **· reasoning** label so you can tell them apart. If the catalog cannot be reached, Toby falls back to the curated list below.
 
 The same gateway key also powers **Listen transcription** — see [Transcription](../configuration/transcription) for STT provider setup. The transcription model list is filtered to catalog entries with `type: transcription`.
