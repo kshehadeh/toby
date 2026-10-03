@@ -151,7 +151,9 @@ The bubble starts compact and expands when you send a question.
 
 Use **Send** or **⌘Return** to ask Toby. Return inserts a new line. Replies
 stream into the conversation, including Markdown, tool activity, and any choices
-Toby asks you to make. The companion uses your configured default persona and AI
+Toby asks you to make. The companion always uses Normal chat mode, hiding debug
+skill and tool selection details even when Settings uses Debug mode.
+The companion uses your configured default persona and AI
 provider. Your first question creates a chat in **Chats**; follow-up questions
 continue that chat. **Start over** begins a new chat and keeps the previous one
 in your history. **Stop** cancels an active reply.

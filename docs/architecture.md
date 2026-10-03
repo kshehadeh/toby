@@ -150,7 +150,9 @@ the main window's selected chat. Sessions are created lazily on the first send;
 follow-ups reuse that session, and Start over starts a fresh draft without
 removing persisted history. The existing daemon client, turn reducer, Markdown
 transcript, tool activity, interactive ask-user controls, and cancellation API
-are shared with main Chats. Creation/connection failures retain the draft;
+are shared with main Chats. The companion always overrides transcript mode to
+normal, hiding debug selection notices regardless of the global chat setting.
+Creation/connection failures retain the draft;
 turn errors appear in the transcript. Completed turns notify the main window to
 refresh its session list. Closing or hiding the surfaces preserves the workspace
 and lets an active turn finish; Stop cancels it. A Toby home-directory change
