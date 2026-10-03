@@ -25,6 +25,30 @@ final class CompanionStore {
 	}
 
 	var hasConversation: Bool { isThinking || !chat.transcript.isEmpty }
+
+	/// The companion is conversation-only, even while main Chats uses Debug.
+	/// Filter before grouping so work cards cannot expose prep, skills, or tools.
+	var conversationEntries: [TranscriptEntry] {
+		chat.transcript.filter { entry in
+			switch entry {
+			case .user, .assistant, .error, .askUserQA:
+				return true
+			case .boxedStep(let step):
+				return step.variant == "assistant" || step.variant == "assistant_interim"
+			case .notice(let text, _):
+				return !TranscriptGrouping.isDebugSelectionNotice(text)
+					&& !TranscriptGrouping.isToolSelectionNotice(text)
+			case .meta, .toolCall, .toolOutput, .turnWork:
+				return false
+			}
+		}
+	}
+
+	var activityLabel: String {
+		if chat.activeAskUserPrompt != nil { return "Waiting for your choice…" }
+		return chat.isLoading ? "Thinking…" : "Connecting…"
+	}
+
 	var bubbleSize: CGSize {
 		CGSize(width: CompanionGeometry.bubbleSize.width, height: hasConversation ? 480 : (errorMessage == nil ? 224 : 320))
 	}

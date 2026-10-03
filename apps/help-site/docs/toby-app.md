@@ -150,9 +150,10 @@ the composer directly with the keyboard.
 The bubble starts compact and expands when you send a question.
 
 Use **Send** or **⌘Return** to ask Toby. Return inserts a new line. Replies
-stream into the conversation, including Markdown, tool activity, and any choices
-Toby asks you to make. The companion always uses Normal chat mode, hiding debug
-skill and tool selection details even when Settings uses Debug mode.
+stream into the conversation, including Markdown and any choices Toby asks you
+to make. The companion shows the conversation without skill, tool, or preparation
+details, even when Settings uses Debug mode. Errors and interactive questions
+still appear; full activity details remain available in the saved chat in Chats.
 The companion uses your configured default persona and AI
 provider. Your first question creates a chat in **Chats**; follow-up questions
 continue that chat. **Start over** begins a new chat and keeps the previous one

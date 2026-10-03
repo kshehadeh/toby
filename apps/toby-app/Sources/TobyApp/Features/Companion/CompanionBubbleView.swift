@@ -21,7 +21,7 @@ struct CompanionBubbleView: View {
 					.labelStyle(.iconOnly).help("Close conversation")
 			}
 			if store.hasConversation {
-				TranscriptView(entries: store.chat.transcript,
+				TranscriptView(entries: store.conversationEntries,
 					streamingAssistant: store.chat.streamingAssistant,
 					isLoading: store.chat.isLoading,
 					turnWorkDurations: store.chat.turnWorkDurations,
@@ -31,7 +31,7 @@ struct CompanionBubbleView: View {
 				if store.isThinking {
 					HStack(spacing: 8) {
 						ProgressView().controlSize(.small)
-						Text(store.chat.isLoading ? store.chat.activityLine : "Connecting…")
+						Text(store.activityLabel)
 					}.font(.caption).foregroundStyle(AppTheme.secondaryText)
 				}
 			}

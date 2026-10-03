@@ -150,8 +150,13 @@ the main window's selected chat. Sessions are created lazily on the first send;
 follow-ups reuse that session, and Start over starts a fresh draft without
 removing persisted history. The existing daemon client, turn reducer, Markdown
 transcript, tool activity, interactive ask-user controls, and cancellation API
-are shared with main Chats. The companion always overrides transcript mode to
-normal, hiding debug selection notices regardless of the global chat setting.
+are shared with main Chats. `CompanionStore.conversationEntries` filters the
+companion's rendering input to conversation content before transcript grouping:
+work steps, skill/tool selection notices, raw tool calls/results, and metadata
+never become work cards. Assistant segments, errors, cancellation notices, and
+ask-user controls remain visible. The full stored transcript is unchanged. The
+companion also forces normal mode and uses generic progress labels, so the
+global Debug preference and tool activity lines cannot expose internal details.
 Creation/connection failures retain the draft;
 turn errors appear in the transcript. Completed turns notify the main window to
 refresh its session list. Closing or hiding the surfaces preserves the workspace
