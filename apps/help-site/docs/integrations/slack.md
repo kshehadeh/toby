@@ -44,6 +44,9 @@ previous credentials intact. Closing and returning preserves setup choices,
 while token drafts are discarded. Saved tokens can be reused without copying
 again. **Cancel setup** stops a pending check or browser authorization.
 
+**Re-authorize** also opens this wizard and keeps your saved connection until
+the replacement credentials pass their checks.
+
 You may finish without the message test, but the completion screen marks inbound
 verification as incomplete. A connected Socket Mode transport alone does not
 prove that Slack sends the right events. The test waits for up to two minutes;

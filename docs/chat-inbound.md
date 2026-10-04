@@ -24,6 +24,9 @@ require `xapp`. The optional `setup validate` plugin command receives candidate
 config and options; core saves successful stages through `mergePluginConfigPatch`.
 A failed stage preserves earlier credentials. See [plugin-protocol.md](plugin-protocol.md).
 
+Slack's **Re-authorize** action opens the same staged wizard rather than
+disconnecting first, so failed or cancelled authorization preserves saved tokens.
+
 `apps/plugin-slack/src/setup.ts` owns the manifest and Slack checks. Regenerate
 the help-site download with `bun scripts/write-slack-manifest.ts`; the plugin
 manifest test compares it with the creation link. Bot `auth.test` establishes

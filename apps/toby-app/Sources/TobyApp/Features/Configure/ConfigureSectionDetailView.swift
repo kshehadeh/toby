@@ -325,7 +325,7 @@ struct ConfigureSectionDetailView: View {
 	}
 
 	private func runIntegrationAction(_ action: IntegrationAction) {
-		if section.key == "slack" && action == .connect {
+		if section.key == "slack" && (action == .connect || action == .reauthorize) {
 			slackSetupPresented = true
 			return
 		}
