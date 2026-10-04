@@ -88,6 +88,11 @@ export interface PluginIconAsset {
 /** Plugin → core messages on stdout during `inbound run` (one JSON object per line). */
 export type PluginInboundToCoreMessage =
 	| { readonly type: "ready" }
+	| {
+			readonly type: "transportState";
+			readonly state: "connected" | "reconnecting" | "disconnected";
+	  }
+	| { readonly type: "replyDelivered"; readonly externalKey: string }
 	| { readonly type: "event"; readonly event: PluginInboundChatEvent }
 	| {
 			readonly type: "personaAppendix";

@@ -11,6 +11,7 @@ struct ConfigureSectionDetailView: View {
 	@State private var guidedSetupProviderId: String?
 	@State private var emailSetupPresented = false
 	@State private var newsSetupPresented = false
+	@State private var slackSetupPresented = false
 
 	private var fields: [SettingsItem] {
 		store.detailFields(for: section)
@@ -83,6 +84,7 @@ struct ConfigureSectionDetailView: View {
 						isLoading: store.integrationStatusLoading == section.key,
 						isActionLoading: store.integrationActionLoading != nil,
 						onAction: { action in
+							if section.key == "slack" && action == .connect { slackSetupPresented = true; return }
 							Task {
 								await store.runIntegrationAction(name: section.key, action: action)
 							}
@@ -100,7 +102,7 @@ struct ConfigureSectionDetailView: View {
 							: nil,
 						onOpenSetupGuide: section.key == "news"
 							? { newsSetupPresented = true }
-							: nil,
+							: (section.key == "slack" ? { slackSetupPresented = true } : nil),
 					)
 				}
 				IntegrationSettingsMetaSections(status: store.integrationStatus[section.key])
@@ -274,6 +276,11 @@ struct ConfigureSectionDetailView: View {
 			if isAIProviderSection {
 				await store.loadAIProviderStatuses()
 			}
+		}
+		.sheet(isPresented: $slackSetupPresented) {
+			SlackSetupWizardView(onCompleted: {
+				Task { await store.loadIntegrationStatus(for: section.key); await store.loadSectionDetail(section.key) }
+			}, onDismiss: { slackSetupPresented = false })
 		}
 		.sheet(isPresented: $newsSetupPresented) {
 			NewsSetupWizardView(

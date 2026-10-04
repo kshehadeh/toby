@@ -1,6 +1,10 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import readline from "node:readline";
+import {
+	getChatInboundStatus,
+	setChatInboundStatus,
+} from "../../chat-inbound/status";
 import type {
 	ChatInboundProvider,
 	InboundChatEvent,
@@ -50,6 +54,11 @@ function toInboundChatEvent(event: PluginInboundChatEvent): InboundChatEvent {
 function createStdoutDispatcher(params: {
 	readonly onEvent: (event: InboundChatEvent) => void;
 	readonly onReady: () => void;
+	readonly onReplyDelivered: (externalKey: string) => void;
+	readonly onRuntimeError: (message: string) => void;
+	readonly onTransportState: (
+		state: "connected" | "reconnecting" | "disconnected",
+	) => void;
 	readonly onStartError: (message: string) => void;
 }): {
 	readonly handleLine: (line: string) => void;
@@ -95,6 +104,16 @@ function createStdoutDispatcher(params: {
 				return;
 			}
 
+			if (parsed.type === "transportState") {
+				params.onTransportState(parsed.state);
+				return;
+			}
+
+			if (parsed.type === "replyDelivered") {
+				params.onReplyDelivered(parsed.externalKey);
+				return;
+			}
+
 			if (parsed.type === "event") {
 				params.onEvent(toInboundChatEvent(parsed.event));
 				return;
@@ -113,6 +132,7 @@ function createStdoutDispatcher(params: {
 				if (!readySeen) {
 					params.onStartError(parsed.message);
 				} else {
+					params.onRuntimeError(parsed.message);
 					daemonLog("error", "inbound", "plugin_inbound_error", {
 						message: parsed.message,
 					});
@@ -230,8 +250,10 @@ export function createPluginChatInboundProvider(params: {
 			});
 
 			let readyResolve: (() => void) | undefined;
-			const readyPromise = new Promise<void>((resolve) => {
+			let readyReject: ((error: Error) => void) | undefined;
+			const readyPromise = new Promise<void>((resolve, reject) => {
 				readyResolve = resolve;
+				readyReject = reject;
 			});
 
 			const startTimer = setTimeout(() => {
@@ -239,18 +261,64 @@ export function createPluginChatInboundProvider(params: {
 					integration: params.integrationName,
 					timeoutMs: INBOUND_START_TIMEOUT_MS,
 				});
-				readyResolve?.();
+				readyReject?.(
+					new Error("Plugin inbound startup timed out waiting for ready"),
+				);
 			}, INBOUND_START_TIMEOUT_MS);
 
+			let stopped = false;
+			let ready = false;
+			const reportRuntimeError = (message: string) => {
+				if (
+					!stopped &&
+					getChatInboundStatus().integration === params.integrationName
+				)
+					setChatInboundStatus({ status: "error", detail: message });
+			};
 			dispatcher = createStdoutDispatcher({
-				onEvent: ctx.emit,
+				onEvent: (event) => {
+					setChatInboundStatus({
+						lastEventAt: new Date().toISOString(),
+						lastEventExternalKey: event.externalKey,
+					});
+					ctx.emit(event);
+				},
+				onReplyDelivered: (externalKey) =>
+					setChatInboundStatus({
+						lastReplyAt: new Date().toISOString(),
+						lastReplyExternalKey: externalKey,
+					}),
+				onRuntimeError: reportRuntimeError,
+				onTransportState: (state) => {
+					if (
+						!ready ||
+						stopped ||
+						getChatInboundStatus().integration !== params.integrationName
+					)
+						return;
+					setChatInboundStatus({
+						status:
+							state === "connected"
+								? "connected"
+								: state === "reconnecting"
+									? "connecting"
+									: "error",
+						detail:
+							state === "connected"
+								? null
+								: state === "reconnecting"
+									? "Reconnecting to Slack…"
+									: "Slack Socket Mode disconnected.",
+					});
+				},
 				onReady: () => {
+					ready = true;
 					clearTimeout(startTimer);
 					readyResolve?.();
 				},
 				onStartError: (message) => {
 					clearTimeout(startTimer);
-					readyResolve?.();
+					readyReject?.(new Error(message));
 					daemonLog("error", "inbound", "plugin_inbound_start_error", {
 						integration: params.integrationName,
 						message,
@@ -261,8 +329,23 @@ export function createPluginChatInboundProvider(params: {
 			rl = readline.createInterface({ input: child.stdout });
 			rl.on("line", (line) => dispatcher?.handleLine(line));
 
-			child.on("exit", (code) => {
+			child.on("error", (error) => {
 				clearTimeout(startTimer);
+				readyReject?.(error);
+			});
+			child.stdin.on("error", (error) => readyReject?.(error));
+
+			child.on("exit", (code, signal) => {
+				if (ready)
+					reportRuntimeError(
+						"Plugin inbound process exited. Reload inbound settings to reconnect.",
+					);
+				clearTimeout(startTimer);
+				readyReject?.(
+					new Error(
+						`Plugin inbound exited before ready (code=${code}, signal=${signal})`,
+					),
+				);
 				if (code !== 0 && code !== null) {
 					daemonLog("warn", "inbound", "plugin_inbound_exited", {
 						integration: params.integrationName,
@@ -298,11 +381,29 @@ export function createPluginChatInboundProvider(params: {
 			);
 
 			// Create the bridge immediately so deliverReply/createStatusReporter
-			// work even if the plugin's `ready` signal is delayed beyond the timeout.
-			// Slack Socket Mode's app.start() can take longer than 60s to resolve.
+			// work for events received while startup is still in progress.
 			bridge = createInboundBridge(child, dispatcher);
 
-			await readyPromise;
+			const onStartAbort = () => {
+				readyReject?.(new Error("Plugin inbound startup aborted"));
+			};
+			ctx.signal.addEventListener("abort", onStartAbort, { once: true });
+			if (ctx.signal.aborted) onStartAbort();
+			try {
+				await readyPromise;
+			} catch (error) {
+				child.kill();
+				rl.close();
+				bridge.dispose();
+				bridge = null;
+				child = null;
+				dispatcher = null;
+				rl = null;
+				throw error;
+			} finally {
+				clearTimeout(startTimer);
+				ctx.signal.removeEventListener("abort", onStartAbort);
+			}
 
 			daemonLog("info", "inbound", "plugin_inbound_connected", {
 				integration: params.integrationName,
@@ -311,6 +412,7 @@ export function createPluginChatInboundProvider(params: {
 			ctx.signal.addEventListener(
 				"abort",
 				() => {
+					stopped = true;
 					bridge?.write({ type: "shutdown" });
 					child?.kill();
 				},
@@ -318,6 +420,7 @@ export function createPluginChatInboundProvider(params: {
 			);
 
 			return () => {
+				stopped = true;
 				bridge?.write({ type: "shutdown" });
 				child?.kill();
 				rl?.close();

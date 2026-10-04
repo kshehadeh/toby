@@ -10,6 +10,10 @@ export type ChatInboundStatusSnapshot = {
 	readonly status: ChatInboundConnectionStatus;
 	readonly detail: string | null;
 	readonly updatedAt: string;
+	readonly lastEventAt?: string | null;
+	readonly lastReplyAt?: string | null;
+	readonly lastEventExternalKey?: string | null;
+	readonly lastReplyExternalKey?: string | null;
 	/** Provider-neutral display name of the conversation currently being processed. */
 	readonly activeConversationName: string | null;
 	/** When the current active conversation started processing (ISO 8601). */

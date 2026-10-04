@@ -175,11 +175,13 @@ describe("slack plugin", () => {
 		expect(guide.data.ok).toBe(true);
 		expect(guide.data.name).toBe("slack");
 		const steps = guide.data.steps ?? [];
-		expect(steps.map((s) => s.id)).toContain("provider");
-		const providerStep = steps.find((s) => s.id === "provider");
+		expect(steps.map((s) => s.id)).toContain("socket");
+		const providerStep = steps.find((s) => s.id === "oauth");
 		expect(providerStep?.artifacts?.some((a) => a.id === "redirectUri")).toBe(
 			true,
 		);
-		expect(providerStep?.artifacts?.some((a) => a.id === "scopes")).toBe(true);
+		const appStep = steps.find((s) => s.id === "app");
+		expect(appStep?.links?.[0]?.url).toContain("manifest_json=");
+		expect(appStep?.artifacts?.some((a) => a.id === "manifest")).toBe(true);
 	});
 });

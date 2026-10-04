@@ -17,6 +17,7 @@ import type {
 
 export type PluginClientOptions = {
 	readonly timeoutMs?: number;
+	readonly signal?: AbortSignal;
 	readonly maxBufferBytes?: number;
 };
 
@@ -198,6 +199,7 @@ function invokePluginAsync<T>(
 			if (settled) return;
 			settled = true;
 			if (timeout) clearTimeout(timeout);
+			options.signal?.removeEventListener("abort", onAbort);
 			resolve(result);
 		};
 
@@ -214,6 +216,19 @@ function invokePluginAsync<T>(
 				});
 			}, timeoutMs);
 		}
+
+		const onAbort = () => {
+			child.kill();
+			settle({
+				ok: false,
+				error: "Setup cancelled",
+				code: "cancelled",
+				stderr: "",
+				exitCode: null,
+			});
+		};
+		options.signal?.addEventListener("abort", onAbort, { once: true });
+		if (options.signal?.aborted) onAbort();
 
 		child.stdout?.on("data", (chunk: Buffer | string) => {
 			stdout += chunk.toString();
@@ -233,6 +248,9 @@ function invokePluginAsync<T>(
 			stderr += chunk.toString();
 		});
 
+		child.stdin?.on("error", () => {
+			/* Exit/spawn handlers report failure. */
+		});
 		if (input !== undefined) {
 			child.stdin?.write(input);
 		}
@@ -460,5 +478,25 @@ export function pluginEventsPollAsync(
 		["events", "poll"],
 		serializeEnvelope(envelope),
 		options,
+	);
+}
+
+/** Optional, additive guided setup validation. Does not persist plugin config. */
+export function pluginSetupValidateAsync(
+	target: PluginTargetParam,
+	config: Record<string, unknown>,
+	options: Record<string, unknown>,
+	clientOptions: PluginClientOptions = {},
+) {
+	return invokePluginAsync<{
+		ok: boolean;
+		error?: string;
+		config?: Record<string, unknown>;
+		details?: Record<string, unknown>;
+	}>(
+		target,
+		["setup", "validate"],
+		JSON.stringify({ config, options }),
+		clientOptions,
 	);
 }

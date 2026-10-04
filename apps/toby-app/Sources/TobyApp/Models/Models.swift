@@ -338,6 +338,10 @@ struct ChatInboundStatus: Decodable {
 	let activeSince: String?
 	let activeKind: String?
 	var awaitingUserSessions: [ChatInboundAwaitingSession]? = nil
+	var lastEventAt: String? = nil
+	var lastReplyAt: String? = nil
+	var lastEventExternalKey: String? = nil
+	var lastReplyExternalKey: String? = nil
 
 	var isConnected: Bool {
 		// Config must allow listening; runtime status alone can lag a restart.

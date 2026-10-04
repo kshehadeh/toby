@@ -218,7 +218,13 @@ struct SettingsWindowView: View {
 			),
 		) {
 			if let section = store.settingsSelectedSection ?? store.selectedSection {
-				IntegrationSetupWizardView(store: store, section: section)
+				if section.key == "slack" {
+                    SlackSetupWizardView(onCompleted: {
+                        Task { await store.loadIntegrationStatus(for: section.key); await store.loadSectionDetail(section.key) }
+                    }, onDismiss: { store.dismissSetupGuide() })
+                } else {
+                    IntegrationSetupWizardView(store: store, section: section)
+                }
 			}
 		}
 	}

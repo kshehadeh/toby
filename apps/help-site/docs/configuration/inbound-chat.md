@@ -33,11 +33,24 @@ Global enable is not enough. The active integration must:
 
 Slack chat tools can use user OAuth, but **@mentions** need a **bot token** and **app-level token**, Socket Mode, and the right scopes. Full steps: [Slack → Inbound @mentions](../integrations/slack#inbound-mentions).
 
+The **Set up Slack** wizard guides app creation, checks bot and Socket Mode
+credentials, enables inbound with your chosen persona, and offers a DM or @mention
+test. You can finish without the message test, with verification marked incomplete.
+
 Typical flow:
 
 1. **Settings → Chat** — enable inbound, set **Active integration** to Slack, pick a persona.
 2. **Settings → Integrations → Slack** — set Bot Token, App Token (and related fields that appear when inbound targets Slack).
 3. Ensure the Slack app has Socket Mode and event subscriptions as described in the Slack guide.
+
+## Troubleshooting startup
+
+If inbound status shows an error, check its detail in the app’s server status
+control. Slack needs both **Bot Token** (`xoxb-…`) and **App Token** (`xapp-…`);
+connecting Slack with OAuth alone does not supply the Socket Mode app token. Add
+the missing credentials under **Settings → Integrations → Slack**, then reload
+inbound settings or restart the background service. A startup failure is reported
+as an error rather than a connected listener.
 
 ## Behavior notes
 

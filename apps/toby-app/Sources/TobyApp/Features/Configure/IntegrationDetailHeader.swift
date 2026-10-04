@@ -72,7 +72,7 @@ struct IntegrationDetailHeader: View {
 			if status != nil || (section.isMcpConnection && onRemove != nil) {
 				HStack(spacing: 10) {
 					if let status {
-						SettingsActionButton(title: "Setup Guide") {
+						SettingsActionButton(title: section.key == "slack" ? "Set up Slack" : "Setup Guide") {
 							if let onOpenSetupGuide {
 								onOpenSetupGuide()
 							} else {

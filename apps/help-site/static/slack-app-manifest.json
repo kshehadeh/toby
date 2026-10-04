@@ -6,26 +6,44 @@
 		"bot_user": {
 			"display_name": "Toby",
 			"always_online": true
+		},
+		"app_home": {
+			"home_tab_enabled": false,
+			"messages_tab_enabled": true,
+			"messages_tab_read_only_enabled": false
 		}
 	},
 	"oauth_config": {
 		"redirect_urls": ["http://localhost:9878/callback"],
 		"scopes": {
 			"user": [
-				"im:read",
 				"channels:read",
-				"channels:write",
 				"channels:history",
+				"chat:write",
+				"groups:read",
+				"groups:history",
+				"im:read",
 				"im:history",
-				"im:write",
+				"mpim:read",
+				"mpim:history",
+				"users:read",
+				"users:read.email",
 				"search:read"
 			],
 			"bot": [
 				"chat:write",
 				"app_mentions:read",
+				"channels:read",
+				"channels:history",
+				"groups:read",
 				"groups:history",
+				"im:read",
 				"im:history",
-				"channels:history"
+				"im:write",
+				"mpim:read",
+				"mpim:history",
+				"users:read",
+				"users:read.email"
 			]
 		},
 		"pkce_enabled": true
@@ -36,7 +54,8 @@
 				"app_mention",
 				"message.channels",
 				"message.groups",
-				"message.im"
+				"message.im",
+				"message.mpim"
 			]
 		},
 		"interactivity": {
@@ -44,7 +63,6 @@
 		},
 		"org_deploy_enabled": false,
 		"socket_mode_enabled": true,
-		"token_rotation_enabled": false,
-		"is_mcp_enabled": false
+		"token_rotation_enabled": false
 	}
 }
