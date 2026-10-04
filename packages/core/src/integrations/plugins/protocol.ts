@@ -178,6 +178,8 @@ export type PluginInboundFromCoreMessage =
 
 export interface PluginStatusResponse {
 	readonly ok: boolean;
+	/** Rotated credentials; core persists this even if a later health probe fails. */
+	readonly config?: Record<string, unknown>;
 	readonly name?: string;
 	readonly displayName?: string;
 	readonly description?: string;

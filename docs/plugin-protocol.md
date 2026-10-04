@@ -314,6 +314,13 @@ Required fields: `ok`, `name`, `displayName`, `description`, `version`,
 Optional: `capabilities` (default `["chat"]`), `providerCategories`, `details`,
 `resources`, `setupAvailable`, `setupDescription` (see [Plugin setup](#plugin-setup)).
 
+Optional `config` carries rotated credentials. Core saves it before evaluating
+health, including when `ok: false` reports a later failed probe. Health checks and
+chat tool executions are serialized per integration in the daemon to protect
+single-use refresh tokens. Status HTTP responses never include the credential
+patch. The plugin must reuse refreshed credentials for subsequent probes within
+the same invocation.
+
 ### `connect`
 
 Validates configuration and confirms the integration can be used.

@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Top of an integration's settings form: the app's icon, name and a plain
-/// status, plus the one action that matters right now (Connect, or
-/// Re-authorize when something is wrong). Setup guide, plugin location,
+/// status, plus Connect, Re-authorize when something is wrong, or
+/// Check connection when healthy. Setup guide, plugin location,
 /// Disconnect and Remove live in `IntegrationSettingsAboutSections`.
 struct IntegrationDetailHeader: View {
 	@Bindable var store: ConfigureStore
@@ -11,6 +11,7 @@ struct IntegrationDetailHeader: View {
 	let isLoading: Bool
 	let isActionLoading: Bool
 	let onAction: (IntegrationAction) -> Void
+	var onCheckConnection: (() -> Void)? = nil
 	var onRemove: (() -> Void)? = nil
 	/// Kept for call sites; the setup guide row is in the About section.
 	var onOpenSetupGuide: (() -> Void)? = nil
@@ -94,18 +95,18 @@ struct IntegrationDetailHeader: View {
 			if !status.connected {
 				Button("Connect") { onAction(.connect) }
 					.buttonStyle(.borderedProminent)
-					.disabled(isActionLoading)
+					.disabled(isActionLoading || isLoading)
 					.accessibilityIdentifier("integration-connect-button")
 			} else if IntegrationHeaderState.needsAttention(status) {
 				Button(status.reconnectionLabel) { onAction(.reauthorize) }
 					.buttonStyle(.borderedProminent)
-					.disabled(isActionLoading)
+					.disabled(isActionLoading || isLoading)
 					.accessibilityIdentifier("integration-reauthorize-button")
 			} else {
-				Button(status.reconnectionLabel) { onAction(.reauthorize) }
+				Button("Check connection") { onCheckConnection?() }
 					.buttonStyle(.bordered)
-					.disabled(isActionLoading)
-					.accessibilityIdentifier("integration-reauthorize-button")
+					.disabled(isActionLoading || isLoading)
+					.accessibilityIdentifier("integration-check-connection-button")
 			}
 		}
 	}

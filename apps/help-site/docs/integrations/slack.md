@@ -47,6 +47,12 @@ again. **Cancel setup** stops a pending check or browser authorization.
 **Re-authorize** also opens this wizard and keeps your saved connection until
 the replacement credentials pass their checks.
 
+A healthy connection offers **Check connection**, which refreshes its status
+without signing in again. If token rotation is enabled, Toby saves replacement
+access and refresh tokens automatically during health checks and tool calls.
+Failures show Slack's error details. An `invalid_refresh_token` error means you
+need to authorize again; refreshing the status cannot recover that token.
+
 You may finish without the message test, but the completion screen marks inbound
 verification as incomplete. A connected Socket Mode transport alone does not
 prove that Slack sends the right events. The test waits for up to two minutes;

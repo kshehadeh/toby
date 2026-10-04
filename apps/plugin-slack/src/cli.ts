@@ -221,7 +221,7 @@ async function handleStatus(
 		}
 	}
 
-	if (validateTools && state.connectedAt) {
+	if (validateTools && state.connectedAt && payload.ok === true) {
 		const toolChecks = await validateSlackTools(config);
 		payload.tools = toolChecks;
 		const failedChecks = toolChecks.filter((c) => !c.ok);
@@ -229,10 +229,12 @@ async function handleStatus(
 			payload.details = `Successfully authenticated and validated ${toolChecks.length}/${toolChecks.length} tools.`;
 		} else {
 			payload.ok = failedChecks.length === 0;
-			payload.details = `Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed.`;
+			payload.details = `Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed. ${failedChecks.map((check) => `${check.tool}: ${check.details}`).join(" ")}`;
 		}
 	}
 
+	const tokenPatch = consumeTokenRefreshPatch();
+	if (tokenPatch) payload.config = tokenPatch;
 	emitJson(payload);
 }
 
@@ -433,7 +435,11 @@ async function handleToolsExecute(body: JsonRecord): Promise<never> {
 		}
 		emitJson(response);
 	} catch (error) {
-		emitJson({ ok: false, error: toErrorMessage(error) });
+		emitJson({
+			ok: false,
+			error: toErrorMessage(error),
+			config: consumeTokenRefreshPatch(),
+		});
 	}
 }
 

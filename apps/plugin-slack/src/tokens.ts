@@ -10,6 +10,10 @@ const SLACK_OAUTH_ACCESS_URL = "https://slack.com/api/oauth.v2.access";
 type JsonRecord = Record<string, unknown>;
 
 let lastTokenPatch: JsonRecord | undefined;
+const pendingRefreshes = new WeakMap<
+	JsonRecord,
+	Promise<{ accessToken: string; configPatch: JsonRecord }>
+>();
 
 export function consumeTokenRefreshPatch(): JsonRecord | undefined {
 	const patch = lastTokenPatch;
@@ -68,8 +72,7 @@ export function mergeOAuthTokens(
 		redirectUri,
 		teamId: tokens.teamId ?? getConfigField(config, "teamId") ?? "",
 		teamName: tokens.teamName ?? getConfigField(config, "teamName") ?? "",
-		oauthExpiresAt:
-			tokens.expiresAt ?? getConfigField(config, "oauthExpiresAt") ?? "",
+		oauthExpiresAt: tokens.expiresAt ?? "",
 		oauthUserToken:
 			tokens.tokenType === "user"
 				? tokens.accessToken
@@ -79,12 +82,12 @@ export function mergeOAuthTokens(
 				? tokens.accessToken
 				: (getConfigField(config, "oauthBotToken") ?? ""),
 		oauthUserRefreshToken:
-			tokens.tokenType === "user" && tokens.refreshToken
-				? tokens.refreshToken
+			tokens.tokenType === "user"
+				? (tokens.refreshToken ?? "")
 				: (getConfigField(config, "oauthUserRefreshToken") ?? ""),
 		oauthBotRefreshToken:
-			tokens.tokenType === "bot" && tokens.refreshToken
-				? tokens.refreshToken
+			tokens.tokenType === "bot"
+				? (tokens.refreshToken ?? "")
 				: (getConfigField(config, "oauthBotRefreshToken") ?? ""),
 	};
 
@@ -92,6 +95,20 @@ export function mergeOAuthTokens(
 }
 
 export async function refreshSlackOAuthAccessToken(
+	config: JsonRecord,
+): Promise<{ accessToken: string; configPatch: JsonRecord }> {
+	const pending = pendingRefreshes.get(config);
+	if (pending) return pending;
+	const operation = performSlackOAuthRefresh(config);
+	pendingRefreshes.set(config, operation);
+	try {
+		return await operation;
+	} finally {
+		pendingRefreshes.delete(config);
+	}
+}
+
+async function performSlackOAuthRefresh(
 	config: JsonRecord,
 ): Promise<{ accessToken: string; configPatch: JsonRecord }> {
 	const authMethod = getSlackAuthMethod(config);
@@ -121,6 +138,7 @@ export async function refreshSlackOAuthAccessToken(
 
 	const res = await fetch(SLACK_OAUTH_ACCESS_URL, {
 		method: "POST",
+		signal: AbortSignal.timeout(15_000),
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({
 			client_id: clientId,
@@ -187,5 +205,6 @@ export async function refreshSlackOAuthAccessToken(
 	});
 
 	lastTokenPatch = configPatch;
+	Object.assign(config, configPatch);
 	return { accessToken, configPatch };
 }

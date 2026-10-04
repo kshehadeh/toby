@@ -84,6 +84,7 @@ struct ConfigureSectionDetailView: View {
 						isLoading: store.integrationStatusLoading == section.key,
 						isActionLoading: store.integrationActionLoading != nil,
 						onAction: runIntegrationAction,
+						onCheckConnection: { Task { await store.loadIntegrationStatus(for: section.key) } },
 						onRemove: removeConnectionAction,
 						onOpenSetupGuide: openSetupGuideAction,
 					)

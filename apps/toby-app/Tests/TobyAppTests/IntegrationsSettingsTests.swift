@@ -449,6 +449,30 @@ struct IntegrationsSettingsTests {
 		#expect(IntegrationHeaderState.issue(for: status) == "Plugin reported unhealthy status")
 	}
 
+	@Test("healthy connections check status without reauthorizing")
+	func healthyHeaderChecksConnection() throws {
+		let store = ConfigureStore()
+		let section = sectionItem(label: "Slack", key: "slack")
+		let status = IntegrationStatus(
+			name: "slack", displayName: "Slack", description: nil,
+			connected: true, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil,
+			health: IntegrationHealth(ok: true, details: "Healthy", tools: nil),
+			authMethods: [IntegrationAuthMethod(id: "oauth", label: "OAuth", isDefault: true)]
+		)
+		var checked = false
+		var authorized = false
+		let view = IntegrationDetailHeader(
+			store: store, section: section, status: status,
+			isLoading: false, isActionLoading: false,
+			onAction: { _ in authorized = true }, onCheckConnection: { checked = true }
+		)
+		try view.inspect().find(button: "Check connection").tap()
+		#expect(checked)
+		#expect(!authorized)
+		#expect((try? view.inspect().find(button: "Re-authorize")) == nil)
+	}
+
 	@Test("form layout puts method fields under Sign in and inbound fields under Mentions")
 	func formLayoutSplitsSections() {
 		func field(_ key: String, group: String? = nil, methods: [String]? = nil, inbound: Bool? = nil) -> SettingsItem {

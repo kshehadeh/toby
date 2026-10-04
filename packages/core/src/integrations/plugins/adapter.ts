@@ -37,6 +37,7 @@ import {
 	pluginToolsExecuteAsync,
 	pluginToolsList,
 } from "./client";
+import { withPluginCredentialLock } from "./credential-lock";
 import { pluginIconUrl } from "./icons";
 import { createPluginChatInboundProvider } from "./inbound-adapter";
 import { jsonSchemaToZod } from "./json-schema";
@@ -187,6 +188,7 @@ export function isPluginConnectedFromStatus(
 
 	const result = pluginStatus(target, buildPluginEnvelope(name));
 	forwardPluginStderr(name, result.stderr);
+	if (result.ok) mergePluginConfigPatch(name, result.data.config);
 	return result.ok && pluginStatusReportsConnected(result.data);
 }
 
@@ -201,6 +203,7 @@ async function isPluginConnectedFromStatusAsync(
 
 	const result = await pluginStatusAsync(target, buildPluginEnvelope(name));
 	forwardPluginStderr(name, result.stderr);
+	if (result.ok) mergePluginConfigPatch(name, result.data.config);
 	return result.ok && pluginStatusReportsConnected(result.data);
 }
 
@@ -675,90 +678,96 @@ export function createPluginIntegrationModule(
 		},
 
 		async testConnection(options?: TestConnectionOptions) {
-			const connected = await lifecycle.isConnected();
-			if (!connected) {
-				const creds = readCredentials();
-				return {
-					ok: false,
-					details: `${metadata.displayName} is not connected. ${pluginConnectHint(name, target, creds)}`,
-				};
-			}
-
-			const envelope: PluginConfigEnvelope = {
-				...buildPluginEnvelope(name),
-				validateTools: options?.validateTools,
-			};
-			const statusResult = await pluginStatusAsync(target, envelope);
-			forwardPluginStderr(name, statusResult.stderr);
-			if (!statusResult.ok) {
-				return {
-					ok: false,
-					details: `Plugin status failed: ${statusResult.error}`,
-				};
-			}
-			if (!statusResult.data.ok) {
-				return {
-					ok: false,
-					details:
-						statusResult.data.error ?? "Plugin reported unhealthy status",
-				};
-			}
-
-			if (!options?.validateTools) {
-				return {
-					ok: true,
-					details:
-						statusResult.data.details ?? `${metadata.displayName} is healthy.`,
-				};
-			}
-
-			const toolChecks: IntegrationToolHealth[] = (
-				statusResult.data.tools ?? []
-			).map((t) => ({
-				tool: t.tool,
-				ok: t.ok,
-				details: t.details ?? "",
-			}));
-
-			if (toolChecks.length === 0) {
-				const toolsResult = pluginToolsList(target);
-				if (!toolsResult.ok) {
+			return withPluginCredentialLock(name, async () => {
+				const connected = await lifecycle.isConnected();
+				if (!connected) {
+					const creds = readCredentials();
 					return {
-						ok: true,
-						details: `Connected, but tool list failed: ${toolsResult.error}`,
-					};
-				}
-				if (!toolsResult.data.ok || !toolsResult.data.tools) {
-					return {
-						ok: true,
-						details: "Connected, but plugin returned no tools.",
+						ok: false,
+						details: `${metadata.displayName} is not connected. ${pluginConnectHint(name, target, creds)}`,
 					};
 				}
 
-				return {
-					ok: true,
-					details: `Connected with ${toolsResult.data.tools.length} tool(s) available.`,
-					tools: toolsResult.data.tools.map((t) => ({
-						tool: t.name,
-						ok: true,
-						details: t.readOnly
-							? "Read-only tool available."
-							: "Mutating tool available.",
-					})),
+				const envelope: PluginConfigEnvelope = {
+					...buildPluginEnvelope(name),
+					validateTools: options?.validateTools,
 				};
-			}
+				const statusResult = await pluginStatusAsync(target, envelope);
+				forwardPluginStderr(name, statusResult.stderr);
+				if (!statusResult.ok) {
+					return {
+						ok: false,
+						details: `Plugin status failed: ${statusResult.error}`,
+					};
+				}
+				mergePluginConfigPatch(name, statusResult.data.config);
+				if (!statusResult.data.ok) {
+					return {
+						ok: false,
+						details:
+							statusResult.data.error ??
+							statusResult.data.details ??
+							"Plugin reported unhealthy status",
+					};
+				}
 
-			const failedChecks = toolChecks.filter((c) => !c.ok);
-			return {
-				ok: failedChecks.length === 0,
-				details:
-					failedChecks.length === 0
-						? (statusResult.data.details ??
-							`Successfully authenticated and validated ${toolChecks.length}/${toolChecks.length} tools.`)
-						: (statusResult.data.details ??
-							`Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed.`),
-				tools: toolChecks,
-			};
+				if (!options?.validateTools) {
+					return {
+						ok: true,
+						details:
+							statusResult.data.details ??
+							`${metadata.displayName} is healthy.`,
+					};
+				}
+
+				const toolChecks: IntegrationToolHealth[] = (
+					statusResult.data.tools ?? []
+				).map((t) => ({
+					tool: t.tool,
+					ok: t.ok,
+					details: t.details ?? "",
+				}));
+
+				if (toolChecks.length === 0) {
+					const toolsResult = pluginToolsList(target);
+					if (!toolsResult.ok) {
+						return {
+							ok: true,
+							details: `Connected, but tool list failed: ${toolsResult.error}`,
+						};
+					}
+					if (!toolsResult.data.ok || !toolsResult.data.tools) {
+						return {
+							ok: true,
+							details: "Connected, but plugin returned no tools.",
+						};
+					}
+
+					return {
+						ok: true,
+						details: `Connected with ${toolsResult.data.tools.length} tool(s) available.`,
+						tools: toolsResult.data.tools.map((t) => ({
+							tool: t.name,
+							ok: true,
+							details: t.readOnly
+								? "Read-only tool available."
+								: "Mutating tool available.",
+						})),
+					};
+				}
+
+				const failedChecks = toolChecks.filter((c) => !c.ok);
+				return {
+					ok: failedChecks.length === 0,
+					details:
+						failedChecks.length === 0
+							? (statusResult.data.details ??
+								`Successfully authenticated and validated ${toolChecks.length}/${toolChecks.length} tools.`)
+							: (statusResult.data.details ??
+								`Connected, but ${failedChecks.length}/${toolChecks.length} tool checks failed.`),
+					tools: toolChecks,
+				};
+			});
 		},
 
 		async disconnect(): Promise<void> {
@@ -902,44 +911,47 @@ export function createPluginIntegrationModule(
 				description: definition.description,
 				inputSchema,
 				execute: async (input) => {
-					const envelope = buildPluginEnvelope(name);
-					const dataDir = ensurePluginDataDir(name);
-					const execResult = await pluginToolsExecuteAsync(target, {
-						tool: definition.name,
-						input: input as Record<string, unknown>,
-						config: envelope.config,
-						state: envelope.state,
-						dryRun: params.dryRun,
-						paths: { dataDir },
+					return withPluginCredentialLock(name, async () => {
+						const envelope = buildPluginEnvelope(name);
+						const dataDir = ensurePluginDataDir(name);
+						const execResult = await pluginToolsExecuteAsync(target, {
+							tool: definition.name,
+							input: input as Record<string, unknown>,
+							config: envelope.config,
+							state: envelope.state,
+							dryRun: params.dryRun,
+							paths: { dataDir },
+						});
+
+						forwardPluginStderr(name, execResult.stderr);
+
+						if (!execResult.ok) {
+							daemonLog("error", "plugin", "plugin_tool_exec_failed", {
+								plugin: name,
+								tool: definition.name,
+								error: execResult.error,
+								code: execResult.code,
+							});
+							return { error: execResult.error };
+						}
+						mergePluginConfigPatch(name, execResult.data.config);
+						if (!execResult.data.ok) {
+							daemonLog("error", "plugin", "plugin_tool_exec_error", {
+								plugin: name,
+								tool: definition.name,
+								error: execResult.data.error ?? "Tool execution failed",
+							});
+							return {
+								error: execResult.data.error ?? "Tool execution failed",
+							};
+						}
+
+						if (execResult.data.appliedActions?.length) {
+							appliedActions.push(...execResult.data.appliedActions);
+						}
+
+						return execResult.data.result ?? { ok: true };
 					});
-
-					forwardPluginStderr(name, execResult.stderr);
-
-					if (!execResult.ok) {
-						daemonLog("error", "plugin", "plugin_tool_exec_failed", {
-							plugin: name,
-							tool: definition.name,
-							error: execResult.error,
-							code: execResult.code,
-						});
-						return { error: execResult.error };
-					}
-					if (!execResult.data.ok) {
-						daemonLog("error", "plugin", "plugin_tool_exec_error", {
-							plugin: name,
-							tool: definition.name,
-							error: execResult.data.error ?? "Tool execution failed",
-						});
-						return { error: execResult.data.error ?? "Tool execution failed" };
-					}
-
-					mergePluginConfigPatch(name, execResult.data.config);
-
-					if (execResult.data.appliedActions?.length) {
-						appliedActions.push(...execResult.data.appliedActions);
-					}
-
-					return execResult.data.result ?? { ok: true };
 				},
 			});
 		}
