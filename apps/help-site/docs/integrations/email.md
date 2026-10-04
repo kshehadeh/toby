@@ -38,18 +38,21 @@ Many providers (Gmail, Yahoo, iCloud, Fastmail, and others) require an **App Pas
 
 ## Configure
 
-Open **Toby.app → Settings → Integrations → Email** and enter your IMAP and SMTP credentials:
+Open **Toby.app → Settings → Integrations → Email** and fill in the **Incoming mail (IMAP)**, **Outgoing mail (SMTP)** and **Sender** sections:
 
-| Field | Description |
-| ----- | ----------- |
-| IMAP Host | IMAP server hostname (e.g. `imap.gmail.com`) |
-| IMAP Port | IMAP server port (default `993`) |
-| IMAP Username | Your email address or IMAP login |
-| IMAP Password | Account password or App Password (stored masked) |
-| SMTP Host | SMTP server hostname (e.g. `smtp.gmail.com`) |
-| SMTP Port | SMTP server port (default `465`) |
-| SMTP Username | Your email address or SMTP login |
-| SMTP Password | Account password or App Password (stored masked) |
+| Section | Field | Description |
+| ------- | ----- | ----------- |
+| Incoming mail (IMAP) | Server | IMAP server hostname (e.g. `imap.gmail.com`) |
+| Incoming mail (IMAP) | Port | IMAP server port (default `993`) |
+| Incoming mail (IMAP) | Use TLS | On for port 993 |
+| Incoming mail (IMAP) | Username | Your email address or IMAP login |
+| Incoming mail (IMAP) | Password | Account password or App Password (shown as **Saved** once stored) |
+| Outgoing mail (SMTP) | Server | SMTP server hostname (e.g. `smtp.gmail.com`) |
+| Outgoing mail (SMTP) | Port | SMTP server port (`587` for STARTTLS, `465` for TLS) |
+| Outgoing mail (SMTP) | Use TLS | On for port 465, off for STARTTLS on 587 |
+| Outgoing mail (SMTP) | Username | Your email address or SMTP login |
+| Outgoing mail (SMTP) | Password | Account password or App Password |
+| Sender | Email address, Name | What recipients see on messages Toby sends |
 
 Save the configuration.
 

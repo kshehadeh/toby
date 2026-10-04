@@ -83,29 +83,11 @@ struct ConfigureSectionDetailView: View {
 						status: store.integrationStatus[section.key],
 						isLoading: store.integrationStatusLoading == section.key,
 						isActionLoading: store.integrationActionLoading != nil,
-						onAction: { action in
-							if section.key == "slack" && action == .connect { slackSetupPresented = true; return }
-							Task {
-								await store.runIntegrationAction(name: section.key, action: action)
-							}
-						},
-						onRemove: section.isMcpConnection
-							? {
-								store.pendingDelete = ConfigureStore.PendingDelete(
-									action: "remove-connection",
-									body: ["id": section.key],
-									title: "Remove MCP server?",
-									message: "This disconnects \(section.label) and deletes its saved configuration.",
-									confirmLabel: "Remove"
-								)
-							}
-							: nil,
-						onOpenSetupGuide: section.key == "news"
-							? { newsSetupPresented = true }
-							: (section.key == "slack" ? { slackSetupPresented = true } : nil),
+						onAction: runIntegrationAction,
+						onRemove: removeConnectionAction,
+						onOpenSetupGuide: openSetupGuideAction,
 					)
 				}
-				IntegrationSettingsMetaSections(status: store.integrationStatus[section.key])
 			}
 
 			if isAIProviderSection {
@@ -135,7 +117,12 @@ struct ConfigureSectionDetailView: View {
 						.foregroundStyle(.secondary)
 				}
 			} else {
-				if !rowFields.isEmpty {
+				if isIntegrationSection {
+					IntegrationSettingsFieldSections(store: store, section: section, fields: rowFields)
+						.id(
+							"\(section.key)-auth-\(store.resolvedAuthMethod(for: section))-in-\(store.isInboundEnabled(for: section))"
+						)
+				} else if !rowFields.isEmpty {
 					Section {
 						ForEach(rowFields) { field in
 							ConfigureFieldRowView(
@@ -261,6 +248,18 @@ struct ConfigureSectionDetailView: View {
 				}
 			}
 
+			if isIntegrationSection {
+				IntegrationSettingsAboutSections(
+					store: store,
+					section: section,
+					status: store.integrationStatus[section.key],
+					isActionLoading: store.integrationActionLoading != nil,
+					onAction: runIntegrationAction,
+					onRemove: removeConnectionAction,
+					onOpenSetupGuide: openSetupGuideAction
+				)
+			}
+
 			if let errorMessage = store.errorMessage, !store.settingsSections.isEmpty {
 				Section {
 					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
@@ -322,6 +321,37 @@ struct ConfigureSectionDetailView: View {
 				},
 				onDismiss: { guidedSetupProviderId = nil }
 			)
+		}
+	}
+
+	private func runIntegrationAction(_ action: IntegrationAction) {
+		if section.key == "slack" && action == .connect {
+			slackSetupPresented = true
+			return
+		}
+		Task {
+			await store.runIntegrationAction(name: section.key, action: action)
+		}
+	}
+
+	private var removeConnectionAction: (() -> Void)? {
+		guard section.isMcpConnection else { return nil }
+		return {
+			store.pendingDelete = ConfigureStore.PendingDelete(
+				action: "remove-connection",
+				body: ["id": section.key],
+				title: "Remove MCP server?",
+				message: "This disconnects \(section.label) and deletes its saved configuration.",
+				confirmLabel: "Remove"
+			)
+		}
+	}
+
+	private var openSetupGuideAction: (() -> Void)? {
+		switch section.key {
+		case "news": return { newsSetupPresented = true }
+		case "slack": return { slackSetupPresented = true }
+		default: return nil
 		}
 	}
 

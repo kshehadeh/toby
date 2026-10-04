@@ -91,7 +91,7 @@ async function handleStatus(
 		resources: ["issues", "projects"],
 		authMethods: [
 			{ id: "oauth", label: "OAuth (recommended)", isDefault: true },
-			{ id: "api_token", label: "Email + API token" },
+			{ id: "api_token", label: "Email and API token" },
 		],
 		chatModelPrep: buildChatModelPrep(),
 		chatReadiness: buildChatReadiness(config, state),
@@ -210,39 +210,40 @@ function handleConfigShape(): never {
 		fields: [
 			{
 				key: "clientId",
-				label: "OAuth Client ID",
+				label: "Client ID",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["oauth"],
 				description:
-					"Atlassian OAuth 2.0 (3LO) app Client ID from developer.atlassian.com/console",
+					"From your Atlassian OAuth 2.0 (3LO) app at developer.atlassian.com/console.",
 			},
 			{
 				key: "clientSecret",
-				label: "OAuth Client Secret",
+				label: "Client secret",
 				type: "string",
 				required: false,
 				masked: true,
 				showForAuthMethods: ["oauth"],
-				description:
-					"Atlassian OAuth 2.0 (3LO) app Secret from developer.atlassian.com/console",
+				description: "From the same app's Settings page.",
 			},
 			{
 				key: "redirectUri",
-				label: "OAuth Redirect URI (optional)",
+				label: "Redirect URL",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["oauth"],
-				description: "Defaults to http://localhost:9879/callback",
+				placeholder: "http://localhost:9879/callback",
+				description: "Optional. Leave it empty to use the default.",
 			},
 			{
 				key: "domain",
-				label: "Atlassian Domain",
+				label: "Atlassian site",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["api_token"],
+				placeholder: "acme.atlassian.net",
 				description:
-					"Your Atlassian site domain (e.g. 'acme' for acme.atlassian.net)",
+					"Your site name or address, like acme or acme.atlassian.net.",
 			},
 			{
 				key: "email",
@@ -250,17 +251,18 @@ function handleConfigShape(): never {
 				type: "string",
 				required: false,
 				showForAuthMethods: ["api_token"],
-				description: "Atlassian account email",
+				placeholder: "you@company.com",
+				description: "The email you sign in to Atlassian with.",
 			},
 			{
 				key: "apiToken",
-				label: "API Token",
+				label: "API token",
 				type: "string",
 				required: false,
 				masked: true,
 				showForAuthMethods: ["api_token"],
 				description:
-					"Atlassian API token (create at https://id.atlassian.com/manage-profile/security/api-tokens)",
+					"Create one at id.atlassian.com/manage-profile/security/api-tokens.",
 			},
 		],
 	});

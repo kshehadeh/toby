@@ -124,7 +124,7 @@ describe("notion plugin", () => {
 			(d) => d.key === "notion.defaultParentPageId",
 		);
 		expect(apiKey?.masked).toBe(true);
-		expect(defaultParent?.label).toBe("Default Parent Page ID");
+		expect(defaultParent?.label).toBe("Default parent page");
 	});
 
 	it("treats configured token as connected without connectedAt state", async () => {

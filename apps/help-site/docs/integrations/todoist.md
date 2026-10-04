@@ -55,7 +55,7 @@ Open **Toby.app → Settings → Integrations → Todoist** and enter:
 
 | Field | Description |
 | ----- | ----------- |
-| API Key | Your Todoist personal API token from the Developer tab |
+| API token | Your Todoist personal API token from **Settings → Integrations → Developer** |
 
 Save the configuration.
 

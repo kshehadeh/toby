@@ -200,7 +200,7 @@ async function handleStatus(
 		resources: ["channels", "messages", "users"],
 		authMethods: [
 			{ id: "oauth", label: "OAuth (recommended)", isDefault: true },
-			{ id: "bot_token", label: "Manual bot token" },
+			{ id: "bot_token", label: "Bot token" },
 		],
 		chatModelPrep: buildChatModelPrep(),
 		chatReadiness: buildChatReadiness(config, state),
@@ -311,48 +311,67 @@ function handleConfigShape(): never {
 		fields: [
 			{
 				key: "clientId",
-				label: "OAuth Client ID",
+				label: "Client ID",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["oauth"],
+				description:
+					"From your Slack app's Basic Information page, under App Credentials.",
 			},
 			{
 				key: "clientSecret",
-				label: "OAuth Client Secret",
+				label: "Client secret",
 				type: "string",
 				required: false,
 				masked: true,
 				showForAuthMethods: ["oauth"],
+				placeholder: "Optional",
+				description: "Not needed to sign in. Kept for older setups.",
 			},
 			{
 				key: "redirectUri",
-				label: "OAuth Redirect URI (optional)",
+				label: "Redirect URL",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["oauth"],
+				placeholder: "http://localhost:9878/callback",
+				description:
+					"Optional. Must match a redirect URL registered on your Slack app.",
 			},
 			{
 				key: "botToken",
-				label: "Bot Token (xoxb-...) — required for daemon/inbound",
+				label: "Bot token",
 				type: "string",
 				required: false,
 				masked: true,
 				showForAuthMethods: ["bot_token"],
 				showForInbound: true,
+				group: "Mentions",
+				placeholder: "xoxb-…",
+				description:
+					"Bot User OAuth Token from your Slack app's OAuth & Permissions page.",
 			},
 			{
 				key: "appToken",
-				label:
-					"App Token (xapp-...) — Socket Mode (inbound; pair with bot token)",
+				label: "App token",
 				type: "string",
 				required: false,
 				masked: true,
+				showForInbound: true,
+				group: "Mentions",
+				placeholder: "xapp-…",
+				description:
+					"App-level token with connections:write, from Basic Information > App-Level Tokens. Mentions use it for Socket Mode.",
 			},
 			{
 				key: "botUserId",
-				label: "Bot User ID (optional; from auth.test)",
+				label: "Bot user ID",
 				type: "string",
 				required: false,
+				showForInbound: true,
+				group: "Mentions",
+				placeholder: "Found automatically",
+				description: "Optional. Toby looks it up when this is empty.",
 			},
 		],
 	});

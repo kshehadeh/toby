@@ -504,6 +504,13 @@ every credential field with that metadata; Toby.app hides fields that do not
 match the currently selected auth method (and still shows `showForInbound`
 fields when inbound is on).
 
+Fields may also set `description` (one sentence shown under the field),
+`placeholder` (hint inside an empty field) and `group` (section title).
+Toby.app lays the form out as "Sign in" (the method picker plus the selected
+method's fields), one section per `group`, and "Mentions" (the inbound toggle
+plus `showForInbound` fields). Keep `label` short and move details into
+`description` and `placeholder`.
+
 ### Config normalization (`config get`)
 
 Return normalized values from the stdin envelope, including inferred fields

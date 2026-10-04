@@ -809,6 +809,8 @@ export function createPluginIntegrationModule(
 				showForAuthMethods: field.showForAuthMethods,
 				showForInbound: field.showForInbound,
 				group: field.group,
+				...(field.description ? { description: field.description } : {}),
+				...(field.placeholder ? { placeholder: field.placeholder } : {}),
 			};
 			if (field.type === "select" && field.options?.length) {
 				return {

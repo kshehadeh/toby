@@ -35,6 +35,8 @@ export interface PluginConfigField {
 	readonly minLength?: number;
 	readonly maxLength?: number;
 	readonly description?: string;
+	/** Hint shown inside an empty field (e.g. "xoxb-…" or "Optional"). */
+	readonly placeholder?: string;
 	readonly showForAuthMethods?: readonly string[];
 	readonly showForInbound?: boolean;
 	/** Optional group label for visual grouping in the configure UI. */

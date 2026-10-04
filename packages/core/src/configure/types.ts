@@ -49,6 +49,8 @@ export interface SettingsItem {
 	group?: string;
 	/** Short description shown on parent section cards (e.g. AI provider cards). */
 	description?: string;
+	/** Hint shown inside an empty credential field. */
+	placeholder?: string;
 	/** External documentation URL shown as a link on parent section cards. */
 	docUrl?: string;
 	/**

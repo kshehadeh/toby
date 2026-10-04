@@ -196,7 +196,7 @@ Environment overrides:
 Inbound uses **Socket Mode** with a **bot token** (`xoxb-...`) and **app token** (`xapp-...`). The user token from `toby connect slack` (OAuth) is for user-scoped Slack tools and does not power inbound.
 
 1. Slack app: **Socket Mode** on; bot scopes including `app_mentions:read`, `chat:write`, and channel/history scopes; events `app_mention` + `message`.
-2. `toby configure`: **Bot Token**, **App Token**, optional **Bot User ID** (visible when daemon inbound targets Slack, even if Auth Method is OAuth).
+2. Toby.app **Settings → Integrations → Slack → Mentions**: turn on **Reply when someone @mentions Toby**, then set **Bot token**, **App token** and optional **Bot user ID** (shown while mentions are on, even when sign-in uses OAuth).
 3. Enable `chatInbound` / `integrations.slack.inboundEnabled`, `toby connect slack` if using OAuth for chat, then `toby daemon start`.
 
 **Which credential when:** see the tables in [help-site Slack integration](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference) and [inbound section](../apps/help-site/docs/integrations/slack.md#inbound-mentions-daemon).
