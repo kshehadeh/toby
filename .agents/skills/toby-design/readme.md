@@ -106,7 +106,7 @@ length.
 
 **Selection and hover.** Selected list rows take a `surface-selected` fill and promote their text from secondary to primary; a selected primary sidebar destination takes the stronger grey pill (`surface-selected-strong`). Glyphs in browser rows turn accent when selected. Hover adds at most a light wash; there is no press-scale, darkening or ripple, since macOS controls handle their own press states.
 
-**Layout rules.** The window is a floating sidebar panel beside a detail area under the toolbar. Home is a greeting, a two-column grid of cards capped at 940px, and an Actions inspector column (about 156px) of colored flow tiles. Chats and every other workspace (Projects, Library, Skills, Schedules, Flows, Recordings, Script Tools) are a list column on the settings canvas beside a detail pane: build their rows from `SidebarRow` (the FeatureBrowserRow pattern), their loading and empty states from `FeatureBrowserList` / `FeatureBrowserPlaceholder`, and their detail panes from segmented tabs over an inset panel holding `DetailSection` blocks and a `DetailMetadata` grid. In a chat, float the glass `InputDock` over the transcript, pinned to the bottom, and reserve padding equal to its height. Cap settings content at 640px, left-aligned.
+**Layout rules.** The window is a floating sidebar panel beside a detail area under the toolbar. Home is a greeting, a two-column grid of cards capped at 940px, and an Actions inspector column (about 156px) of colored flow tiles. Chats and every other workspace (Projects, Library, Skills, Schedules, Flows, Recordings, Script Tools) are a list column on the settings canvas beside a detail pane: build their rows from `SidebarRow` (the FeatureBrowserRow pattern), their loading and empty states from `FeatureBrowserList` / `FeatureBrowserPlaceholder`, and their detail panes from segmented tabs over an inset panel holding `DetailSection` blocks and a `DetailMetadata` grid. In a chat, float the glass `InputDock` over the transcript, pinned to the bottom, and reserve padding equal to its height. Cap settings content at 640px, left-aligned. An integration's settings page is a grouped Form: `IntegrationHeader` (icon, name, plain status, one action), then **Sign in** (a segmented `MethodPicker` plus that method's fields), one `SettingsGroup` per plugin field group, **Mentions** (the inbound toggle and its fields), the `ToolList`, **About**, and destructive Disconnect/Remove rows last. Saved secrets render as `SecretField` (Saved plus Change…), never a field of dots.
 
 **Imagery vibe.** Keep imagery neutral and cool-grey; the only warmth is the accent. Persona portraits are flat line illustrations on light backgrounds, shown with 4px rounded corners. No photography, grain or duotone.
 
@@ -128,7 +128,7 @@ length.
 | --- | --- |
 | `styles.css` | The single entry point: `@import`s only. |
 | `tokens/` | `colors.css` (light/dark base, system colors, glass stand-in), `accents.css` (8 presets + legacy destination hues), `semantic.css` (aliases to use in product work), `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `layout.css`, `web.css` (help site), `fonts.css`, `primitives.css` (the web helper classes the specimens use: `.toby-glass`, card-section dividers, pulse and spinner animations). |
-| `components/` | React specimens grouped `core` / `forms` / `feedback` / `navigation` / `chat` / `dashboard` / `detail`, plus `glyphs.jsx` (small inline stand-ins for the SF Symbols the components draw). |
+| `components/` | React specimens grouped `core` / `forms` / `feedback` / `navigation` / `chat` / `dashboard` / `detail` / `settings`, plus `glyphs.jsx` (small inline stand-ins for the SF Symbols the components draw). |
 | `_ds_bundle.js` | All components as one classic script on `window.TobyDesignSystem_28de33`, built from `components/**` with esbuild (IIFE, `react` / `react-dom` read from `window`). Rebuild it whenever a `.jsx` changes. |
 | `ui_kits/toby-app/` | Click-through macOS 26 window: Home, Chats, Flows. See its README. |
 | `ui_kits/help-site/` | Recreation of the documentation site (home, integrations, architecture). |
@@ -152,6 +152,9 @@ Grouped by concern; each has a `.jsx`, a `.d.ts` props contract, a
 - **dashboard**: `DashboardCard`, `CardSection`, `FlowRunnerCard` (Actions rail
   tile), `OnboardingTile`
 - **detail**: `DetailSection`, `DetailMetadata`
+- **settings**: `IntegrationHeader`, `SettingsGroup`, `SettingsFormRow`,
+  `SecretField`, `MethodPicker`, `ToolList` (the grouped-Form integration
+  page; see the Integration settings card)
 
 The inventory mirrors what the app actually defines (`UI/Primitives`,
 `UI/SettingsControls`, and the reusable row/card types inside `Features/`).

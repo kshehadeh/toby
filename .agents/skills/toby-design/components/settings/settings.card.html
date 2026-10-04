@@ -1,0 +1,53 @@
+<!-- @dsCard group="Components" viewport="720x1240" name="Integration settings" subtitle="Header, sign in, mentions, tools, about" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Integration settings</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-content);font-family:var(--font-system);color:var(--text-body)}.lbl{font-size:10px;color:var(--text-faint);margin-bottom:8px}#root{padding:28px 40px;max-width:680px}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const I = ({n,s=14}) => <i data-lucide={n} style={{width:s,height:s,display:'inline-flex'}}></i>;
+const { IntegrationHeader, SettingsGroup, SettingsFormRow, SecretField, MethodPicker, ToolList, Toggle, Button } = window.TobyDesignSystem_28de33;
+const tools = [
+  { name: 'Post to channel', description: 'Post a new message to a Slack channel, private channel, or DM.', writes: true, icon: <I n="send"/> },
+  { name: 'Reply to post', description: 'Reply in a Slack thread.', writes: true, icon: <I n="reply"/> },
+  { name: 'Search messages', description: 'Search Slack message history across the workspace.', icon: <I n="search"/> },
+  { name: 'Search channels', description: 'Search Slack channels (public, private the bot is in).', icon: <I n="search"/> },
+  { name: 'Search users', description: 'Search workspace members by display name, username, or email.', icon: <I n="search"/> },
+];
+function Page(){
+  const [method,setMethod]=React.useState('oauth');
+  const [mentions,setMentions]=React.useState(true);
+  React.useEffect(()=>{lucide.createIcons();});
+  return <div style={{display:'flex',flexDirection:'column',gap:26}}>
+    <IntegrationHeader name="Slack" iconSrc="../../assets/icons/integrations/slack.png" status="attention"
+      signedInWith={method==='oauth'?'Signed in with OAuth':'Signed in with a bot token'} issue="Plugin reported unhealthy status"/>
+    <SettingsGroup title="Sign in" footer="The client ID comes from your Slack app's Basic Information page.">
+      <MethodPicker value={method} onChange={setMethod} options={[{value:'oauth',label:'OAuth (recommended)'},{value:'bot_token',label:'Bot token'}]}/>
+      {method==='oauth' ? <SettingsFormRow label="Client ID"><span style={{fontSize:13}}>73749016326.111509</span></SettingsFormRow> : null}
+      {method==='oauth' ? <SecretField label="Client secret" saved/> : <SecretField label="Bot token" saved/>}
+    </SettingsGroup>
+    <SettingsGroup title="Mentions" footer={mentions ? "Mentions use Slack's Socket Mode, so they need a bot token and an app token." : null}>
+      <SettingsFormRow label="Reply when someone @mentions Toby" description="Toby listens in the background and answers in the same thread.">
+        <Toggle checked={mentions} onChange={setMentions} label="Reply when someone @mentions Toby"/>
+      </SettingsFormRow>
+      {mentions && method==='oauth' ? <SecretField label="Bot token" saved/> : null}
+      {mentions ? <SecretField label="App token" saved/> : null}
+      {mentions ? <SettingsFormRow label="Bot user ID"><span style={{fontSize:13,color:'var(--text-faint)'}}>Found automatically</span></SettingsFormRow> : null}
+    </SettingsGroup>
+    <ToolList integration="Slack" tools={tools}/>
+    <SettingsGroup title="About">
+      <SettingsFormRow label="Setup guide"><Button>Open</Button></SettingsFormRow>
+      <SettingsFormRow label="Plugin"><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text-row-description)'}}>~/dev/toby/dist/toby-plugin-slack</span><Button>Show in Finder</Button></SettingsFormRow>
+    </SettingsGroup>
+    <SettingsGroup>
+      <button type="button" style={{height:40,padding:'0 14px',border:'none',background:'transparent',textAlign:'left',fontFamily:'var(--font-system)',fontSize:13,color:'var(--status-danger)'}}>Disconnect Slack</button>
+    </SettingsGroup>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Page/>);
+</script></body></html>

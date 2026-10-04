@@ -13,7 +13,8 @@ prototype task.
    concise implementation contract.
 2. Read only the detailed reference that matches the task:
    - [`references/component-recipes.md`](references/component-recipes.md) for
-     primitives, forms, navigation, feedback, chat, and dashboard components.
+     primitives, forms, navigation, feedback, chat, dashboard, and integration
+     settings components.
    - [`references/screen-patterns.md`](references/screen-patterns.md) for an
      app surface, layout, async state, or selection flow.
    - [`references/swiftui-workflow.md`](references/swiftui-workflow.md) before
