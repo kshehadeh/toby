@@ -1,4 +1,4 @@
-import { App } from "@slack/bolt";
+import { App, SocketModeReceiver } from "@slack/bolt";
 import {
 	getSlackInboundCredentials,
 	postSlackMessage,
@@ -33,6 +33,11 @@ type JsonRecord = Record<string, unknown>;
 /** Plugin → core messages on stdout during \`inbound run\`. */
 export type PluginInboundToCoreMessage =
 	| { readonly type: "ready" }
+	| {
+			readonly type: "transportState";
+			readonly state: "connected" | "reconnecting" | "disconnected";
+	  }
+	| { readonly type: "replyDelivered"; readonly externalKey: string }
 	| { readonly type: "event"; readonly event: PluginInboundChatEvent }
 	| {
 			readonly type: "personaAppendix";
@@ -151,11 +156,17 @@ export async function runInbound(): Promise<void> {
 
 		logStderr("Starting Slack Socket Mode inbound transport...");
 
-		app = new App({
-			token: botToken,
-			appToken,
-			socketMode: true,
-		});
+		const receiver = new SocketModeReceiver({ appToken });
+		for (const state of [
+			"connected",
+			"reconnecting",
+			"disconnected",
+		] as const) {
+			receiver.client.on(state, () => {
+				if (!shuttingDown) emitToCore({ type: "transportState", state });
+			});
+		}
+		app = new App({ token: botToken, receiver });
 
 		const emitMention = async (params: {
 			teamId: string;
@@ -333,13 +344,24 @@ export async function runInbound(): Promise<void> {
 			const meta = metadataFromConversation(message.conversation);
 			awaitingAskUser.delete(message.conversation.externalKey);
 			if (!message.dryRun) {
-				await postSlackMessage({
-					config,
-					channel: meta.channelId,
-					text: message.text,
-					threadTs: slackReplyThreadTs(meta),
-					token: resolveSlackPostToken(config),
-				});
+				try {
+					await postSlackMessage({
+						config,
+						channel: meta.channelId,
+						text: message.text,
+						threadTs: slackReplyThreadTs(meta),
+						token: resolveSlackPostToken(config),
+					});
+					emitToCore({
+						type: "replyDelivered",
+						externalKey: message.conversation.externalKey,
+					});
+				} catch (error) {
+					emitToCore({
+						type: "error",
+						message: `Slack reply failed: ${error instanceof Error ? error.message : String(error)}`,
+					});
+				}
 			}
 			continue;
 		}

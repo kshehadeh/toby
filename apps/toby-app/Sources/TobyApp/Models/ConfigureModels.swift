@@ -37,6 +37,8 @@ struct SettingsItem: Decodable, Identifiable {
 	var docUrl: String? = nil
 	var showForAuthMethods: [String]? = nil
 	var showForInbound: Bool? = nil
+	/// Hint shown inside an empty credential field, such as a token prefix.
+	var placeholder: String? = nil
 
 	var displayLabel: String {
 		key == "defaults" ? "Providers" : label

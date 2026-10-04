@@ -137,7 +137,7 @@ function readPluginState(name: string): Record<string, unknown> {
 	return { ...block };
 }
 
-function buildEnvelope(name: string): PluginConfigEnvelope {
+export function buildPluginEnvelope(name: string): PluginConfigEnvelope {
 	const creds = readCredentials();
 	return {
 		config: readPluginConfig(creds, name),
@@ -185,7 +185,7 @@ export function isPluginConnectedFromStatus(
 		return true;
 	}
 
-	const result = pluginStatus(target, buildEnvelope(name));
+	const result = pluginStatus(target, buildPluginEnvelope(name));
 	forwardPluginStderr(name, result.stderr);
 	return result.ok && pluginStatusReportsConnected(result.data);
 }
@@ -199,7 +199,7 @@ async function isPluginConnectedFromStatusAsync(
 		return true;
 	}
 
-	const result = await pluginStatusAsync(target, buildEnvelope(name));
+	const result = await pluginStatusAsync(target, buildPluginEnvelope(name));
 	forwardPluginStderr(name, result.stderr);
 	return result.ok && pluginStatusReportsConnected(result.data);
 }
@@ -547,7 +547,7 @@ function buildPluginDashboardHook(
 				);
 			}
 
-			const envelope = buildEnvelope(name);
+			const envelope = buildPluginEnvelope(name);
 			const dataDir = ensurePluginDataDir(name);
 			const execResult = await pluginToolsExecuteAsync(target, {
 				tool: toolName,
@@ -607,7 +607,7 @@ export function createPluginIntegrationModule(
 		inboundTransport: metadata.inboundTransport,
 
 		async connect(): Promise<void> {
-			const envelope = buildEnvelope(name);
+			const envelope = buildPluginEnvelope(name);
 			const config = readConfig();
 			if (config.integrations[name]?.connectedAt) {
 				console.log(
@@ -647,7 +647,7 @@ export function createPluginIntegrationModule(
 			};
 			writeConfig(config);
 
-			const syncEnvelope = buildEnvelope(name);
+			const syncEnvelope = buildPluginEnvelope(name);
 			const sync = pluginConfigSet(target, syncEnvelope);
 			forwardPluginStderr(name, sync.stderr);
 			if (!sync.ok) {
@@ -685,7 +685,7 @@ export function createPluginIntegrationModule(
 			}
 
 			const envelope: PluginConfigEnvelope = {
-				...buildEnvelope(name),
+				...buildPluginEnvelope(name),
 				validateTools: options?.validateTools,
 			};
 			const statusResult = await pluginStatusAsync(target, envelope);
@@ -768,7 +768,7 @@ export function createPluginIntegrationModule(
 				return;
 			}
 
-			const envelope = buildEnvelope(name);
+			const envelope = buildPluginEnvelope(name);
 			const result = pluginDisconnect(target, envelope);
 			forwardPluginStderr(name, result.stderr);
 			if (!result.ok) {
@@ -809,6 +809,8 @@ export function createPluginIntegrationModule(
 				showForAuthMethods: field.showForAuthMethods,
 				showForInbound: field.showForInbound,
 				group: field.group,
+				...(field.description ? { description: field.description } : {}),
+				...(field.placeholder ? { placeholder: field.placeholder } : {}),
 			};
 			if (field.type === "select" && field.options?.length) {
 				return {
@@ -900,7 +902,7 @@ export function createPluginIntegrationModule(
 				description: definition.description,
 				inputSchema,
 				execute: async (input) => {
-					const envelope = buildEnvelope(name);
+					const envelope = buildPluginEnvelope(name);
 					const dataDir = ensurePluginDataDir(name);
 					const execResult = await pluginToolsExecuteAsync(target, {
 						tool: definition.name,
@@ -1013,7 +1015,7 @@ export function createPluginIntegrationModule(
 						target,
 						integrationName: name,
 						buildEnvelope: () => {
-							const envelope = buildEnvelope(name);
+							const envelope = buildPluginEnvelope(name);
 							return {
 								config: envelope.config ?? {},
 								state: envelope.state ?? {},

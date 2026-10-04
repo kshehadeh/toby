@@ -14,6 +14,40 @@ This document describes the **provider-agnostic inbound architecture**: how exte
 | Plugin adapter | `packages/core/src/integrations/plugins/inbound-adapter.ts` | Spawns plugin `inbound run` (NDJSON) and implements `ChatInboundProvider` |
 | Provider transport | Plugin package (e.g. `apps/plugin-slack/`) | Socket Mode / platform SDK, event normalization, deliver reply/askUser |
 
+## Slack guided setup
+
+**Settings → Integrations → Slack → Set up Slack** opens the native
+`SlackSetupWizardView` / `SlackSetupStore` flow. It uses a prefilled manifest link
+from the plugin guide, staged bot/app token validation, optional user PKCE,
+persona selection, and explicit inbound enablement. Tools-only setup does not
+require `xapp`. The optional `setup validate` plugin command receives candidate
+config and options; core saves successful stages through `mergePluginConfigPatch`.
+A failed stage preserves earlier credentials. See [plugin-protocol.md](plugin-protocol.md).
+
+Slack's **Re-authorize** action opens the same staged wizard rather than
+disconnecting first, so failed or cancelled authorization preserves saved tokens.
+
+`apps/plugin-slack/src/setup.ts` owns the manifest and Slack checks. Regenerate
+the help-site download with `bun scripts/write-slack-manifest.ts`; the plugin
+manifest test compares it with the creation link. Bot `auth.test` establishes
+identity; `apps.connections.open` checks app token access without exposing its
+private URL. Neither API check proves event subscription delivery.
+
+The wizard polls daemon status for a new event and a successfully posted reply
+in the same external conversation. `lastEventAt`, `lastReplyAt`,
+`lastEventExternalKey`, and `lastReplyExternalKey` are transient runtime fields,
+reset for new listeners. The plugin emits optional `replyDelivered` only after
+`chat.postMessage` succeeds; older plugins without it cannot complete this test.
+Finishing without a message test is explicitly marked unverified.
+
+## Startup failures
+
+The plugin adapter waits for `ready` before reporting connected. A plugin startup
+error, process launch failure, exit before `ready`, or 60-second startup timeout
+rejects startup and is exposed as inbound status `error` with its detail through
+`/api/daemon/status`. Failed startup processes are cleaned up. Correct the
+configuration and reload inbound settings (or restart the daemon) to retry.
+
 ## Session model
 
 Inbound does **not** merge conversations by topic or time. It maps a stable **external conversation identity** to exactly one Toby `chat_sessions` row.

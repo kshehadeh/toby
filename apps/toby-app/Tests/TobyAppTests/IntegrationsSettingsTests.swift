@@ -326,7 +326,10 @@ struct IntegrationsSettingsTests {
 			onAction: { _ in }
 		)
 		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Connected · Authentication valid")
+			try view.inspect().find(text: "Connected")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Needs attention")
 		}
 		#expect(
 			(try? view.inspect().find(
@@ -392,8 +395,8 @@ struct IntegrationsSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Connect") }
 	}
 
-	@Test("integration header reveals the plugin folder")
-	func integrationHeaderRevealsPluginFolder() throws {
+	@Test("about section reveals the plugin folder")
+	func aboutSectionRevealsPluginFolder() throws {
 		let store = ConfigureStore()
 		let section = SettingsItem(
 			label: "Gmail", kind: .section, key: "gmail", navKey: "gmail", children: [],
@@ -405,28 +408,88 @@ struct IntegrationsSettingsTests {
 			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
 			setupDescription: nil, health: nil, authMethods: nil
 		)
-		let view = IntegrationDetailHeader(
+		let view = IntegrationSettingsAboutSections(
 			store: store,
 			section: section,
 			status: status,
-			isLoading: false,
 			isActionLoading: false,
 			onAction: { _ in }
 		)
-		let button = try view.inspect().find(button: "Plugin: /Users/toby/plugins/gmail")
+		let button = try view.inspect().find(button: "Show in Finder")
 		#expect(try button.accessibilityLabel().string() == "Show plugin folder in Finder")
+		#expect(throws: Never.self) { try view.inspect().find(button: "Disconnect Gmail") }
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "integration-setup-guide-button")
+		}
 	}
 
-	@Test("integration meta sections omit the plugin location section")
-	func integrationMetaSectionsOmitPluginLocation() throws {
-		let status = IntegrationStatus(
-			name: "gmail", displayName: "Gmail", description: nil,
-			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
-			setupDescription: nil, health: nil, authMethods: nil
+	@Test("unhealthy connection asks to re-authorize and shows the plugin's details")
+	func unhealthyHeaderAsksToReauthorize() throws {
+		let store = ConfigureStore()
+		let section = SettingsItem(
+			label: "Slack", kind: .section, key: "slack", navKey: "slack", children: [],
+			masked: nil, multiline: nil, options: nil, selectChoices: nil,
+			currentValue: nil, selectedValues: nil, readOnly: nil
 		)
-		let view = IntegrationSettingsMetaSections(status: status)
-		#expect((try? view.inspect().find(text: "Location")) == nil)
-		#expect((try? view.inspect().find(RevealPathButton.self)) == nil)
+		let status = IntegrationStatus(
+			name: "slack", displayName: "Slack", description: nil,
+			connected: true, pluginPath: nil, supportsSetup: false,
+			setupDescription: nil,
+			health: IntegrationHealth(ok: false, details: "Plugin reported unhealthy status", tools: nil),
+			authMethods: [IntegrationAuthMethod(id: "oauth", label: "OAuth (recommended)", isDefault: true)]
+		)
+		let view = IntegrationDetailHeader(
+			store: store, section: section, status: status,
+			isLoading: false, isActionLoading: false, onAction: { _ in }
+		)
+		#expect(throws: Never.self) { try view.inspect().find(text: "Needs attention") }
+		#expect(throws: Never.self) { try view.inspect().find(button: "Re-authorize") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Plugin reported unhealthy status") }
+		#expect(IntegrationHeaderState.methodName("OAuth (recommended)") == "OAuth")
+		#expect(IntegrationHeaderState.issue(for: status) == "Plugin reported unhealthy status")
+	}
+
+	@Test("form layout puts method fields under Sign in and inbound fields under Mentions")
+	func formLayoutSplitsSections() {
+		func field(_ key: String, group: String? = nil, methods: [String]? = nil, inbound: Bool? = nil) -> SettingsItem {
+			var item = SettingsItem(
+				label: key, kind: .value, key: key, navKey: key, children: nil,
+				masked: nil, multiline: nil, options: nil, selectChoices: nil,
+				currentValue: nil, selectedValues: nil, readOnly: nil
+			)
+			item.group = group
+			item.showForAuthMethods = methods
+			item.showForInbound = inbound
+			return item
+		}
+		let fields = [
+			field("slack.authMethod"),
+			field("slack.clientId", methods: ["oauth"]),
+			field("slack.botToken", group: "Mentions", methods: ["bot_token"], inbound: true),
+			field("slack.appToken", group: "Mentions", inbound: true),
+			field("slack.inboundEnabled"),
+		]
+		let oauth = IntegrationFormLayout(sectionKey: "slack", fields: fields, selectedAuthMethod: "oauth")
+		#expect(oauth.authField?.key == "slack.authMethod")
+		#expect(oauth.methodFields.map(\.key) == ["slack.clientId"])
+		#expect(oauth.inboundFields.map(\.key) == ["slack.botToken", "slack.appToken"])
+		#expect(oauth.groups.isEmpty)
+
+		let bot = IntegrationFormLayout(sectionKey: "slack", fields: fields, selectedAuthMethod: "bot_token")
+		#expect(bot.methodFields.map(\.key) == ["slack.botToken"])
+		#expect(bot.inboundFields.map(\.key) == ["slack.appToken"])
+
+		let email = IntegrationFormLayout(
+			sectionKey: "email",
+			fields: [
+				field("email.imapHost", group: "Incoming mail (IMAP)"),
+				field("email.smtpHost", group: "Outgoing mail (SMTP)"),
+				field("email.misc"),
+			],
+			selectedAuthMethod: ""
+		)
+		#expect(email.authField == nil)
+		#expect(email.groups.map(\.title) == ["Incoming mail (IMAP)", "Outgoing mail (SMTP)", "Settings"])
 	}
 
 	@Test("plugin nav key seeds settings selection for a deep link")
@@ -520,9 +583,10 @@ struct IntegrationsSettingsTests {
 			]
 		)
 		let view = IntegrationSettingsToolsAndGuideSections(store: store, section: section)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Tools (1)") }
-		let stack = try view.inspect().find(ViewType.VStack.self)
-		#expect(try stack.alignment() == .leading)
+		#expect(throws: Never.self) { try view.inspect().find(text: "What Toby can do in Gmail") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Search Mail") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "1 tool · read only") }
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Makes changes") }
 	}
 
 	@Test("setup guide steps stay out of the integration form")
@@ -640,16 +704,15 @@ struct IntegrationsSettingsTests {
 			masked: nil, multiline: nil, options: nil, selectChoices: nil,
 			currentValue: nil, selectedValues: nil, readOnly: nil
 		)
-		let view = IntegrationDetailHeader(
+		let view = IntegrationSettingsAboutSections(
 			store: store,
 			section: section,
 			status: nil,
-			isLoading: true,
 			isActionLoading: true,
 			onAction: { _ in },
 			onRemove: {}
 		)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Remove") }
+		#expect(throws: Never.self) { try view.inspect().find(button: "Remove Jira…") }
 	}
 
 	@Test("MCP remove is available when status never loaded")
@@ -662,7 +725,7 @@ struct IntegrationsSettingsTests {
 			currentValue: nil, selectedValues: nil, readOnly: nil
 		)
 		let view = ConfigureSectionDetailView(store: store, section: section)
-		try view.inspect().find(button: "Remove").tap()
+		try view.inspect().find(button: "Remove Jira…").tap()
 		#expect(store.pendingDelete?.action == "remove-connection")
 		#expect(store.pendingDelete?.body["id"] == "mcp_jira")
 	}
@@ -680,16 +743,15 @@ struct IntegrationsSettingsTests {
 			connected: true, pluginPath: nil, supportsSetup: false,
 			setupDescription: nil, health: nil, authMethods: nil
 		)
-		let view = IntegrationDetailHeader(
+		let view = IntegrationSettingsAboutSections(
 			store: store,
 			section: section,
 			status: status,
-			isLoading: false,
 			isActionLoading: false,
 			onAction: { _ in },
 			onRemove: {}
 		)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Remove") }
+		#expect(throws: Never.self) { try view.inspect().find(button: "Remove GitHub…") }
 	}
 
 	@Test("MCP remove stages a remove-connection confirmation")
@@ -707,7 +769,7 @@ struct IntegrationsSettingsTests {
 			setupDescription: nil, health: nil, authMethods: nil
 		)
 		let view = ConfigureSectionDetailView(store: store, section: section)
-		try view.inspect().find(button: "Remove").tap()
+		try view.inspect().find(button: "Remove GitHub…").tap()
 		#expect(store.pendingDelete?.action == "remove-connection")
 		#expect(store.pendingDelete?.body["id"] == "mcp_github")
 		#expect(store.pendingDelete?.confirmLabel == "Remove")
@@ -727,19 +789,6 @@ struct IntegrationsSettingsTests {
 		let alert = try view.inspect().find(ViewType.Alert.self)
 		#expect(try alert.title().string() == "Remove MCP server?")
 		#expect(try alert.message().text().string().contains("GitHub"))
-	}
-
-	@Test("integration meta sections omit the duplicate status row")
-	func integrationMetaSectionsOmitStatusRow() throws {
-		let status = IntegrationStatus(
-			name: "gmail", displayName: "Gmail", description: nil,
-			connected: true, pluginPath: "/Users/toby/plugins/gmail", supportsSetup: false,
-			setupDescription: nil, health: nil, authMethods: nil
-		)
-		let view = IntegrationSettingsMetaSections(status: status)
-		#expect((try? view.inspect().find(text: "Location")) == nil)
-		#expect((try? view.inspect().find(text: "Connection")) == nil)
-		#expect((try? view.inspect().find(text: "Status")) == nil)
 	}
 
 	@Test("plugin form text field uses the field label instead of Enter value")
@@ -770,6 +819,25 @@ struct IntegrationsSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(ViewType.TextField.self) }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Display name") }
 		#expect((try? view.inspect().find(text: "Enter value")) == nil)
+	}
+
+	@Test("replacement secret drafts retain the saved field presentation")
+	func replacementSecretRetainsSavedPresentation() throws {
+		let store = ConfigureStore()
+		store.savedValues["slack.botToken"] = ConfigureConstants.redactedSecret
+		store.draft["slack.botToken"] = "replacement-draft"
+		let field = SettingsItem(
+			label: "Bot token", kind: .value, key: "slack.botToken", navKey: "slack.botToken",
+			children: nil, masked: true, multiline: nil, options: nil,
+			selectChoices: nil, currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let view = ConfigureFieldRowView(
+			store: store, field: field, sectionLabel: "Slack",
+			showsDivider: false, usesFormChrome: true
+		)
+		let row = try view.inspect().find(SettingsSecretFieldRow.self).actualView()
+		#expect(row.hasSavedValue)
+		#expect(row.text == "replacement-draft")
 	}
 
 	@Test("empty integration config omits the no-options tip")

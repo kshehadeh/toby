@@ -36,6 +36,14 @@ struct ConfigureFieldRowView: View {
 				}
 			}
 			.toggleStyle(.switch)
+		} else if field.masked == true, field.readOnly != true {
+			SettingsSecretFieldRow(
+				label: field.label,
+				placeholder: field.placeholder,
+				hasSavedValue: hasSavedSecret,
+				text: maskedDraftBinding
+			)
+			formDescription
 		} else if usesNativeFormTextField {
 			formTextField
 			formDescription
@@ -63,6 +71,8 @@ struct ConfigureFieldRowView: View {
 	private var formTextField: some View {
 		if field.masked == true {
 			SecureField(field.label, text: maskedDraftBinding, prompt: Text(maskedPlaceholder))
+		} else if let placeholder = field.placeholder, !placeholder.isEmpty {
+			TextField(field.label, text: draftBinding, prompt: Text(placeholder))
 		} else {
 			TextField(field.label, text: draftBinding)
 		}
@@ -126,17 +136,19 @@ struct ConfigureFieldRowView: View {
 		}
 	}
 
+	private var hasSavedSecret: Bool {
+		store.savedValues[field.key] == ConfigureConstants.redactedSecret
+	}
+
 	private var fieldDescription: String? {
-		if field.masked == true,
+		// Form rows show a saved secret as "Saved" + Change…; the inline card
+		// row has no such control, so it keeps the sentence.
+		if !usesFormChrome,
+			field.masked == true,
 			store.value(for: field.key) == ConfigureConstants.redactedSecret,
 			store.draft[field.key] == nil
 		{
 			return "A value is saved. Enter a new value to replace it."
-		}
-		if field.kind == .select, ConfigureTreeHelpers.isBooleanSelectField(field) {
-			return booleanBinding.wrappedValue
-				? "This setting is currently enabled."
-				: "This setting is currently disabled."
 		}
 		// Server-provided field copy (e.g. dashboard persona guidance).
 		if let description = field.description, !description.isEmpty {

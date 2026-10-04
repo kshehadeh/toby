@@ -56,6 +56,10 @@ export async function startChatInboundListeners(
 	setChatInboundStatus({
 		integration: active.module.name,
 		status: "connecting",
+		lastEventAt: null,
+		lastReplyAt: null,
+		lastEventExternalKey: null,
+		lastReplyExternalKey: null,
 		detail: null,
 	});
 	daemonLog("info", "inbound", "inbound_connecting", {

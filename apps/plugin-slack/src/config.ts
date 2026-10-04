@@ -59,10 +59,7 @@ export function hasSlackAccessToken(config: JsonRecord): boolean {
 }
 
 export function hasSlackOAuthClientCreds(config: JsonRecord): boolean {
-	return Boolean(
-		getConfigField(config, "clientId") &&
-			getConfigField(config, "clientSecret"),
-	);
+	return Boolean(getConfigField(config, "clientId"));
 }
 
 export function isConnected(config: JsonRecord, state: JsonRecord): boolean {

@@ -399,12 +399,15 @@ keys as `<name>.<key>`.
 | Field property | Meaning |
 | -------------- | ------- |
 | `key` | Local field id (Toby prefixes with integration name) |
-| `label` | UI label |
+| `label` | UI label. Keep it short ("Bot token", "API key"); put details in `description` and `placeholder`. |
 | `type` | `string`, `number`, `boolean`, or `select` |
 | `required`, `masked`, `multiline` | Optional UI behavior |
 | `options` | Required for `select` type |
 | `default`, `pattern`, `minLength`, `maxLength`, `description` | Optional validation and help text |
 | `showForAuthMethods` | Optional list of auth method ids—show field only for those methods. Toby.app filters live as the user switches auth method. |
+| `placeholder` | Optional hint shown inside the empty field, such as `xoxb-…` or `Optional` |
+| `group` | Optional section title. Toby.app shows each group as its own settings section (for example "Incoming mail (IMAP)"); the selected auth method's fields always appear under "Sign in". |
+| `showForInbound` | Show the field while "Reply when someone @mentions Toby" is on. Toby.app lists these under "Mentions". |
 
 ---
 

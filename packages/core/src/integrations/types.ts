@@ -95,6 +95,10 @@ export interface CredentialFieldDescriptor {
 	readonly multiline?: boolean;
 	/** Optional group label for visual grouping in the configure UI. */
 	readonly group?: string;
+	/** One sentence shown under the field in the configure UI. */
+	readonly description?: string;
+	/** Hint shown inside an empty field. */
+	readonly placeholder?: string;
 }
 
 interface IntegrationAuthMethodDescriptor {

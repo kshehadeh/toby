@@ -34,6 +34,7 @@ Human- and flow-oriented docs for this repository.
 | [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |
 | [image-generation-plan.md](image-generation-plan.md) | Unimplemented plan: capability-gated `generateImage` tool + prompt-dock indicator. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract; external session keys; Slack thread/DM mapping. |
+| [slack-setup-plan.md](slack-setup-plan.md) | Proposed native setup wizard and Slack app provisioning options. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |
 | [memory.md](memory.md) | Durable user memory subsystem (`memory.sqlite`). |
 | [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary and releases. |

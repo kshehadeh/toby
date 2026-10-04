@@ -54,17 +54,25 @@ describe("notion plugin", () => {
 	let tempDir: string;
 	let pluginDir: string;
 	let previousTobyDir: string | undefined;
+	let previousPluginsDir: string | undefined;
 
 	beforeEach(() => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-notion-plugin-"));
 		pluginDir = path.join(tempDir, "toby-home", "plugins");
 		previousTobyDir = process.env.TOBY_DIR;
+		previousPluginsDir = process.env.TOBY_PLUGINS_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+		process.env.TOBY_PLUGINS_DIR = pluginDir;
 		resetPluginModuleCache();
 		copyNotionPlugin(pluginDir);
 	});
 
 	afterEach(() => {
+		if (previousPluginsDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+		} else {
+			process.env.TOBY_PLUGINS_DIR = previousPluginsDir;
+		}
 		if (previousTobyDir === undefined) {
 			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
@@ -124,7 +132,7 @@ describe("notion plugin", () => {
 			(d) => d.key === "notion.defaultParentPageId",
 		);
 		expect(apiKey?.masked).toBe(true);
-		expect(defaultParent?.label).toBe("Default Parent Page ID");
+		expect(defaultParent?.label).toBe("Default parent page");
 	});
 
 	it("treats configured token as connected without connectedAt state", async () => {

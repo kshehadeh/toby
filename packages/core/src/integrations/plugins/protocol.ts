@@ -35,6 +35,8 @@ export interface PluginConfigField {
 	readonly minLength?: number;
 	readonly maxLength?: number;
 	readonly description?: string;
+	/** Hint shown inside an empty field (e.g. "xoxb-…" or "Optional"). */
+	readonly placeholder?: string;
 	readonly showForAuthMethods?: readonly string[];
 	readonly showForInbound?: boolean;
 	/** Optional group label for visual grouping in the configure UI. */
@@ -88,6 +90,11 @@ export interface PluginIconAsset {
 /** Plugin → core messages on stdout during `inbound run` (one JSON object per line). */
 export type PluginInboundToCoreMessage =
 	| { readonly type: "ready" }
+	| {
+			readonly type: "transportState";
+			readonly state: "connected" | "reconnecting" | "disconnected";
+	  }
+	| { readonly type: "replyDelivered"; readonly externalKey: string }
 	| { readonly type: "event"; readonly event: PluginInboundChatEvent }
 	| {
 			readonly type: "personaAppendix";

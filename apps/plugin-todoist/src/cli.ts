@@ -223,10 +223,13 @@ function handleConfigShape(): never {
 		fields: [
 			{
 				key: "apiKey",
-				label: "API Key",
+				label: "API token",
 				type: "string",
 				required: true,
 				masked: true,
+				group: "Sign in",
+				description:
+					"Find it in Todoist under Settings > Integrations > Developer.",
 			},
 		],
 	});

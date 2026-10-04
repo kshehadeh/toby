@@ -160,8 +160,9 @@ function handleConfigShape(): never {
 				type: "string",
 				required: false,
 				masked: true,
+				placeholder: "Optional",
 				description:
-					"Optional. Free key from https://open-platform.theguardian.com/access/ for world news.",
+					"A free key from open-platform.theguardian.com/access adds Guardian world news.",
 			},
 			{
 				key: "defaultSection",

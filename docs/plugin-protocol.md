@@ -197,6 +197,7 @@ Examples:
 | `tools list` | *(none)* | `{ ok, tools? }` | Chat tool catalog |
 | `tools execute` | [tool request](#tools-execute) | `{ ok, result?, appliedActions?, config?, error? }` | Chat tool runs |
 | `setup` | optional [config envelope](#config-envelope-stdin) | [setup response](#setup) | One-time plugin setup (`toby plugins setup`) |
+| `setup validate` | `{ config, options }` | `{ ok, error?, config?, details? }` | Optional staged credential check/authorization for native guided setup |
 | `setup guide` | optional [config envelope](#config-envelope-stdin) | [setup guide response](#setup-guide) | Onboarding wizard content for the native app |
 | `discover` | `{ "email": "name@example.com" }` | [discover response](#discover) | Optional. Look up integration settings from an email address |
 
@@ -502,6 +503,13 @@ fields (Toby namespaces keys as `<name>.<key>`). The configure tree includes
 every credential field with that metadata; Toby.app hides fields that do not
 match the currently selected auth method (and still shows `showForInbound`
 fields when inbound is on).
+
+Fields may also set `description` (one sentence shown under the field),
+`placeholder` (hint inside an empty field) and `group` (section title).
+Toby.app lays the form out as "Sign in" (the method picker plus the selected
+method's fields), one section per `group`, and "Mentions" (the inbound toggle
+plus `showForInbound` fields). Keep `label` short and move details into
+`description` and `placeholder`.
 
 ### Config normalization (`config get`)
 
@@ -852,3 +860,35 @@ install command. Run `toby plugins list` to confirm discovery.
 6. Return `appliedActions` strings for side effects.
 7. Install with `toby plugins install <path>`, or copy the binary into `~/.toby/plugins/`.
 8. Optional: implement `setup` and set `status.setupAvailable` when one-time setup is needed.
+
+### Guided setup validation
+
+The additive optional `setup validate` command validates candidate credentials
+without accessing Toby user files. `options` is plugin-defined; Slack supports
+`stage: "bot" | "oauth"` and `inbound: boolean`. Bot validation checks identity
+and, when requested, app-token Socket Mode access. OAuth opens a state-checked,
+loopback PKCE callback with a 90-second authorization timeout. Plugins return
+`ok: false` for user errors, or `ok: true` with a credential `config` patch and
+non-secret `details`. No validation command should log credentials or private
+WebSocket URLs. Core persists a successful patch; it never returns it to the UI.
+
+Native HTTP endpoints:
+
+- `GET /api/integrations/:name/setup-state`: configured field names and workspace
+  label, plus active inbound integration and persona; no token values.
+- `POST /api/integrations/:name/setup-connect`: `{ fields, stage, inbound }`.
+  Declared fields only; masked placeholders are rejected. Candidate fields
+  overlay saved config. The asynchronous plugin check has a bounded timeout,
+  with one setup operation per integration. Success persists credentials and
+  connection state, invalidates settings cache, and reloads inbound.
+- `POST /api/integrations/:name/setup-cancel`: cancels that integration's active
+  setup subprocess. Cancellation or failed validation does not save draft fields.
+
+The optional inbound stdout message `{ "type": "replyDelivered", "externalKey":
+"…" }` reports successful final reply posting for setup verification. A core
+stdin write alone does not establish reply delivery.
+
+Slack also emits optional `transportState` (`connected`, `reconnecting`, or
+`disconnected`) after SDK lifecycle changes. Core applies these only after
+startup readiness and before shutdown, so reconnects do not remain falsely
+connected in daemon status.

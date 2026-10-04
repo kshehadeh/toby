@@ -73,6 +73,11 @@ import {
 	handleFlowsList,
 } from "./handlers/flows";
 import {
+	handleIntegrationGuidedSetup,
+	handleIntegrationSetupCancel,
+	handleIntegrationSetupState,
+} from "./handlers/integration-guided-setup";
+import {
 	handleIntegrationConnect,
 	handleIntegrationDisconnect,
 	handleIntegrationDiscover,
@@ -704,6 +709,26 @@ export async function handleWebRequest(
 				req,
 			);
 		}
+		const setupCancelMatch =
+			/^\/api\/integrations\/([^/]+)\/setup-cancel$/.exec(pathname);
+		if (setupCancelMatch && req.method === "POST")
+			return handleIntegrationSetupCancel(
+				decodeURIComponent(setupCancelMatch[1]),
+			);
+		const guidedIntegrationMatch =
+			/^\/api\/integrations\/([^/]+)\/setup-connect$/.exec(pathname);
+		if (guidedIntegrationMatch && req.method === "POST")
+			return handleIntegrationGuidedSetup(
+				decodeURIComponent(guidedIntegrationMatch[1]),
+				req,
+			);
+		const setupStateMatch = /^\/api\/integrations\/([^/]+)\/setup-state$/.exec(
+			pathname,
+		);
+		if (setupStateMatch && req.method === "GET")
+			return handleIntegrationSetupState(
+				decodeURIComponent(setupStateMatch[1]),
+			);
 		const integrationSetupGuideMatch =
 			/^\/api\/integrations\/([^/]+)\/setup-guide$/.exec(pathname);
 		if (integrationSetupGuideMatch && req.method === "GET") {

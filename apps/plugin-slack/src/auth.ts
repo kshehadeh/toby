@@ -5,7 +5,7 @@ import { parseSlackOAuthExpiry } from "./tokens";
 
 interface SlackOAuthClientCredentials {
 	readonly clientId: string;
-	readonly clientSecret: string;
+	readonly clientSecret?: string;
 	readonly redirectUri?: string;
 }
 
@@ -51,6 +51,7 @@ export function createSlackPkceChallenge(): {
 
 export async function runSlackOAuthFlow(
 	credentials: SlackOAuthClientCredentials,
+	openBrowser: (url: string) => Promise<unknown> = open,
 ): Promise<SlackOAuthTokens> {
 	const redirectUri = credentials.redirectUri?.trim() || DEFAULT_REDIRECT_URI;
 	const redirect = parseRedirectUri(redirectUri);
@@ -62,10 +63,19 @@ export async function runSlackOAuthFlow(
 	authUrl.searchParams.set("code_challenge", codeChallenge);
 	authUrl.searchParams.set("code_challenge_method", "S256");
 
-	const code = await captureAuthCode(authUrl.toString(), redirect, redirectUri);
+	const state = crypto.randomBytes(32).toString("hex");
+	authUrl.searchParams.set("state", state);
+	const code = await captureAuthCode(
+		authUrl.toString(),
+		redirect,
+		redirectUri,
+		state,
+		openBrowser,
+	);
 
 	const tokenRes = await fetch("https://slack.com/api/oauth.v2.access", {
 		method: "POST",
+		signal: AbortSignal.timeout(15_000),
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({
 			client_id: credentials.clientId,
@@ -140,8 +150,14 @@ function captureAuthCode(
 	authUrl: string,
 	redirect: { port: number; path: string },
 	redirectUri: string,
+	expectedState: string,
+	openBrowser: (url: string) => Promise<unknown>,
 ): Promise<string> {
 	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => {
+			server.close();
+			reject(new Error("Slack sign-in timed out. Try connecting again."));
+		}, 90_000);
 		const server = http.createServer((req, res) => {
 			const url = new URL(req.url ?? "", `http://localhost:${redirect.port}`);
 			if (url.pathname !== redirect.path) {
@@ -150,6 +166,11 @@ function captureAuthCode(
 				return;
 			}
 
+			if (url.searchParams.get("state") !== expectedState) {
+				res.writeHead(400);
+				res.end("Invalid OAuth state");
+				return;
+			}
 			const code = url.searchParams.get("code");
 			const error = url.searchParams.get("error");
 			if (error) {
@@ -174,7 +195,8 @@ function captureAuthCode(
 			resolve(code);
 		});
 
-		server.listen(redirect.port, () => {
+		server.on("close", () => clearTimeout(timer));
+		server.listen(redirect.port, "127.0.0.1", () => {
 			logStderr("Opening browser for Slack authorization...");
 			logStderr(
 				`Ensure your Slack app has PKCE enabled, user scopes configured, and this redirect URI registered: ${redirectUri}`,
@@ -182,7 +204,7 @@ function captureAuthCode(
 			logStderr(
 				"Note: localhost OAuth uses user scopes only (Slack does not allow bot scopes on non-web redirects).",
 			);
-			open(authUrl).catch(() => {
+			openBrowser(authUrl).catch(() => {
 				logStderr(
 					`Could not open browser. Visit this URL manually:\n${authUrl}`,
 				);
@@ -190,6 +212,7 @@ function captureAuthCode(
 		});
 
 		server.on("error", (err) => {
+			clearTimeout(timer);
 			reject(new Error(`Local server error: ${err.message}`));
 		});
 	});

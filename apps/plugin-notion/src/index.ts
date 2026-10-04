@@ -139,20 +139,22 @@ function handleConfigShape(): never {
 		fields: [
 			{
 				key: "apiKey",
-				label: "Notion API Key",
+				label: "API key",
 				type: "string",
 				required: true,
 				masked: true,
+				group: "Sign in",
 				description:
-					"Personal access token or internal connection token from Notion.",
+					"An internal integration token from your Notion integrations page.",
 			},
 			{
 				key: "defaultParentPageId",
-				label: "Default Parent Page ID",
+				label: "Default parent page",
 				type: "string",
 				required: false,
-				description:
-					"Optional Notion page id used when creating pages without an explicit parentPageId.",
+				group: "Pages",
+				placeholder: "Optional page ID",
+				description: "Where new pages go when Toby isn't told a parent page.",
 			},
 		],
 	});

@@ -224,6 +224,8 @@ export function buildSettingsTree(
 				masked: d.masked,
 				multiline: d.multiline,
 				group: d.group,
+				...(d.description ? { description: d.description } : {}),
+				...(d.placeholder ? { placeholder: d.placeholder } : {}),
 				...(d.showForAuthMethods && d.showForAuthMethods.length > 0
 					? { showForAuthMethods: [...d.showForAuthMethods] }
 					: {}),
@@ -236,7 +238,9 @@ export function buildSettingsTree(
 			const inboundItems: SettingsItem[] = mod.chatInbound
 				? [
 						{
-							label: "Daemon: listen for @mentions",
+							label: "Reply when someone @mentions Toby",
+							description:
+								"Toby listens in the background and answers in the same thread.",
 							kind: "select" as const,
 							key: `${mod.name}.inboundEnabled`,
 							options: ["false", "true"],

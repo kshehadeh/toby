@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Top of an integration's settings form: the app's icon, name and a plain
+/// status, plus the one action that matters right now (Connect, or
+/// Re-authorize when something is wrong). Setup guide, plugin location,
+/// Disconnect and Remove live in `IntegrationSettingsAboutSections`.
 struct IntegrationDetailHeader: View {
 	@Bindable var store: ConfigureStore
 	let section: SettingsItem
@@ -8,13 +12,8 @@ struct IntegrationDetailHeader: View {
 	let isActionLoading: Bool
 	let onAction: (IntegrationAction) -> Void
 	var onRemove: (() -> Void)? = nil
-	/// When set, Setup Guide opens this flow instead of the generic guide sheet.
+	/// Kept for call sites; the setup guide row is in the About section.
 	var onOpenSetupGuide: (() -> Void)? = nil
-	@State private var isPluginPathHovered = false
-
-	private var isRemoving: Bool {
-		store.integrationActionLoading == "\(section.key).remove"
-	}
 
 	private var iconUrl: URL? {
 		guard let iconUrl = section.iconUrl else { return nil }
@@ -22,118 +21,92 @@ struct IntegrationDetailHeader: View {
 	}
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 14) {
+		VStack(alignment: .leading, spacing: 0) {
 			HStack(spacing: 14) {
-				RoundedRectangle(cornerRadius: 12)
-					.fill(AppTheme.accent.opacity(0.18))
-					.frame(width: 48, height: 48)
-					.overlay {
-						titleIcon
-					}
-				VStack(alignment: .leading, spacing: 4) {
+				iconTile
+				VStack(alignment: .leading, spacing: 5) {
 					Text(section.label)
-						.font(.title3.weight(.semibold))
+						.font(.system(size: 17, weight: .semibold))
 						.foregroundStyle(AppTheme.primaryText)
 					statusLine
 				}
+				Spacer(minLength: 12)
+				primaryAction
 			}
+			.padding(.vertical, 4)
 
-			if let status {
-				if let pluginPath = status.pluginPath, !pluginPath.isEmpty {
-					Button {
-						RevealInFinder.reveal(path: pluginPath)
-					} label: {
-						Text("Plugin: \(pluginPath)")
-							.font(.caption)
-							.foregroundStyle(
-								isPluginPathHovered ? AppTheme.accent : AppTheme.tertiaryText
-							)
-							.multilineTextAlignment(.leading)
+			if let issue = IntegrationHeaderState.issue(for: status) {
+				Divider()
+					.padding(.top, 12)
+				HStack(alignment: .firstTextBaseline, spacing: 10) {
+					Image(systemName: "exclamationmark.triangle.fill")
+						.symbolRenderingMode(.multicolor)
+						.font(.system(size: 13))
+						.accessibilityHidden(true)
+					VStack(alignment: .leading, spacing: 2) {
+						Text("Toby can’t reach \(section.label) right now.")
+							.font(.system(size: 13, weight: .medium))
+							.foregroundStyle(AppTheme.primaryText)
+						Text(issue)
+							.font(.system(size: 12))
+							.foregroundStyle(AppTheme.secondaryText)
 							.fixedSize(horizontal: false, vertical: true)
-							.frame(maxWidth: .infinity, alignment: .leading)
-					}
-					.buttonStyle(.plain)
-					.onHover { isPluginPathHovered = $0 }
-					.help("Show in Finder")
-					.accessibilityLabel("Show plugin folder in Finder")
-					.accessibilityValue(pluginPath)
-				}
-
-				if status.connected,
-					let health = status.health,
-					!health.ok,
-					let details = health.details,
-					!details.isEmpty
-				{
-					InlineStatusMessage(message: details, tone: .error)
-				}
-			}
-
-			if status != nil || (section.isMcpConnection && onRemove != nil) {
-				HStack(spacing: 10) {
-					if let status {
-						SettingsActionButton(title: "Setup Guide") {
-							if let onOpenSetupGuide {
-								onOpenSetupGuide()
-							} else {
-								Task {
-									await store.presentSetupGuide(for: section.key)
-								}
-							}
-						}
-						.disabled(isActionLoading)
-						.accessibilityIdentifier(
-							section.key == "news" && onOpenSetupGuide != nil
-								? "news-setup-guide-button"
-								: "integration-setup-guide-button"
-						)
-						if !status.connected {
-							SettingsActionButton(title: "Connect") {
-								onAction(.connect)
-							}
-							.disabled(isActionLoading)
-						}
-						if status.connected {
-							SettingsActionButton(title: "Disconnect") {
-								onAction(.disconnect)
-							}
-							.disabled(isActionLoading)
-							SettingsActionButton(title: status.reconnectionLabel) {
-								onAction(.reauthorize)
-							}
-							.disabled(isActionLoading)
-						}
-						if status.supportsSetup {
-							SettingsActionButton(title: "Run Setup") {
-								onAction(.setup)
-							}
-							.disabled(isActionLoading)
-						}
-					}
-					if section.isMcpConnection, let onRemove {
-						SettingsActionButton(title: "Remove") {
-							onRemove()
-						}
-						.disabled(isRemoving)
+							.textSelection(.enabled)
 					}
 				}
-				.padding(.top, 4)
+				.padding(.top, 10)
+				.accessibilityElement(children: .combine)
+				.accessibilityIdentifier("integration-health-issue")
 			}
 		}
+	}
+
+	private var iconTile: some View {
+		RoundedRectangle(cornerRadius: 12, style: .continuous)
+			.fill(Color.white)
+			.frame(width: 48, height: 48)
+			.overlay {
+				RoundedRectangle(cornerRadius: 12, style: .continuous)
+					.strokeBorder(AppTheme.separator, lineWidth: 1)
+			}
+			.overlay { titleIcon }
+			.accessibilityHidden(true)
 	}
 
 	@ViewBuilder
 	private var titleIcon: some View {
 		if let iconUrl {
 			SidebarIconView(url: iconUrl, fallbackSystemName: "puzzlepiece.extension", isSelected: true)
-				.frame(width: 34, height: 34)
+				.frame(width: 30, height: 30)
 		} else if let icon = section.icon, !icon.isEmpty {
 			Text(icon)
 				.font(.system(size: 26))
 		} else {
 			Image(systemName: "puzzlepiece.extension")
-				.font(.system(size: 22, weight: .medium))
-				.foregroundStyle(AppTheme.accent)
+				.font(.system(size: 20, weight: .medium))
+				.foregroundStyle(Color.gray)
+		}
+	}
+
+	@ViewBuilder
+	private var primaryAction: some View {
+		if let status {
+			if !status.connected {
+				Button("Connect") { onAction(.connect) }
+					.buttonStyle(.borderedProminent)
+					.disabled(isActionLoading)
+					.accessibilityIdentifier("integration-connect-button")
+			} else if IntegrationHeaderState.needsAttention(status) {
+				Button(status.reconnectionLabel) { onAction(.reauthorize) }
+					.buttonStyle(.borderedProminent)
+					.disabled(isActionLoading)
+					.accessibilityIdentifier("integration-reauthorize-button")
+			} else {
+				Button(status.reconnectionLabel) { onAction(.reauthorize) }
+					.buttonStyle(.bordered)
+					.disabled(isActionLoading)
+					.accessibilityIdentifier("integration-reauthorize-button")
+			}
 		}
 	}
 
@@ -142,45 +115,75 @@ struct IntegrationDetailHeader: View {
 		if isLoading {
 			HStack(spacing: 6) {
 				ProgressView()
-					.scaleEffect(0.7)
+					.controlSize(.mini)
 				Text("Checking status…")
-					.font(.subheadline)
+					.font(.system(size: 12))
 					.foregroundStyle(AppTheme.secondaryText)
 			}
 		} else if let status {
-			HStack(spacing: 6) {
-				Circle()
-					.fill(status.connected ? (healthOk ? Color.green : Color.red) : AppTheme.tertiaryText)
-					.frame(width: 6, height: 6)
-				Text(statusText)
-					.font(.subheadline)
-					.foregroundStyle(AppTheme.secondaryText)
+			HStack(spacing: 8) {
+				if IntegrationHeaderState.needsAttention(status) {
+					Text("Needs attention")
+						.font(.system(size: 11, weight: .semibold))
+						.foregroundStyle(AppTheme.statusErrorForeground)
+						.padding(.horizontal, 8)
+						.padding(.vertical, 2)
+						.background(Capsule().fill(AppTheme.statusErrorBackground))
+				} else {
+					HStack(spacing: 6) {
+						Circle()
+							.fill(status.connected ? Color.green : AppTheme.tertiaryText)
+							.frame(width: 7, height: 7)
+							.accessibilityHidden(true)
+						Text(status.connected ? "Connected" : "Not connected")
+							.font(.system(size: 12))
+							.foregroundStyle(AppTheme.secondaryText)
+					}
+				}
+				if status.connected, let method = signedInWith(status) {
+					Text(method)
+						.font(.system(size: 12))
+						.foregroundStyle(AppTheme.secondaryText)
+				}
 			}
 		} else {
 			HStack(spacing: 6) {
 				Circle()
 					.fill(AppTheme.tertiaryText)
-					.frame(width: 6, height: 6)
+					.frame(width: 7, height: 7)
 				Text("Status unavailable")
-					.font(.subheadline)
+					.font(.system(size: 12))
 					.foregroundStyle(AppTheme.secondaryText)
 			}
 		}
 	}
 
-	private var healthOk: Bool {
-		guard let status else { return false }
-		return status.connected && (status.health?.ok ?? false)
+	private func signedInWith(_ status: IntegrationStatus) -> String? {
+		guard let methods = status.authMethods, !methods.isEmpty else { return nil }
+		let selected = store.resolvedAuthMethod(for: section)
+		guard let method = methods.first(where: { $0.id == selected }) else { return nil }
+		return "Signed in with \(IntegrationHeaderState.methodName(method.label))"
+	}
+}
+
+/// Pure rules behind the header, kept separate so tests can check them.
+enum IntegrationHeaderState {
+	static func needsAttention(_ status: IntegrationStatus) -> Bool {
+		status.connected && status.health?.ok == false
 	}
 
-	private var statusText: String {
-		guard let status else { return "Status unavailable" }
-		if status.connected {
-			if let health = status.health, !(health.ok) {
-				return "Connected · Authentication invalid"
-			}
-			return "Connected · Authentication valid"
-		}
-		return "Not connected"
+	/// The plugin's own explanation (or a hint to reconnect), shown only while
+	/// connected but unhealthy.
+	static func issue(for status: IntegrationStatus?) -> String? {
+		guard let status, needsAttention(status) else { return nil }
+		let details = status.health?.details?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		return details.isEmpty ? "\(status.reconnectionLabel) to sign in again." : details
+	}
+
+	/// "OAuth (recommended)" → "OAuth"; used for picker segments and status.
+	static func methodName(_ label: String) -> String {
+		label
+			.replacingOccurrences(of: "(recommended)", with: "", options: .caseInsensitive)
+			.trimmingCharacters(in: .whitespacesAndNewlines)
 	}
 }

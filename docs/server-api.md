@@ -149,6 +149,9 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/schedules/runs/:id` | Schedule run detail / transcript. |
 | `GET` | `/api/integrations/:name/status` | Integration health / connection status (also aliases MCP connection ids). |
 | `GET` | `/api/integrations/:name/setup-guide` | Onboarding wizard steps for an integration. |
+| `GET` | `/api/integrations/:name/setup-state` | Guided setup progress: configured field names, workspace label, active inbound integration and persona; no tokens. |
+| `POST` | `/api/integrations/:name/setup-connect` | Validate and save a successful plugin setup stage from `{ fields, stage, inbound }`; see [plugin protocol](plugin-protocol.md#guided-setup-validation). |
+| `POST` | `/api/integrations/:name/setup-cancel` | Cancel pending guided setup for an integration without saving drafts. |
 | `POST` | `/api/integrations/:name/discover` | Look up integration settings from `{ "email": "name@example.com" }`. Email implements this; other integrations return 400. |
 | `GET` | `/api/connections` | List first-class connections (plugins + MCP servers). |
 | `POST` | `/api/connections` | Create an MCP connection (and connect unless `connect: false`). |

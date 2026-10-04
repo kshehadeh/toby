@@ -32,9 +32,10 @@ Open **Toby.app → Settings → Integrations → Jira** and enter:
 
 | Field | Description |
 | ----- | ----------- |
-| Atlassian Domain | Your Jira site domain, for example `your-company.atlassian.net` |
+| Method | Choose **Email and API token** under **Sign in** |
+| Atlassian site | Your Jira site, for example `your-company` or `your-company.atlassian.net` |
 | Email | The Atlassian account email for the API token |
-| API Token | The Atlassian API token |
+| API token | The Atlassian API token |
 
 Save the configuration.
 

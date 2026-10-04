@@ -3,6 +3,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+	getChatInboundStatus,
+	setChatInboundStatus,
+} from "@toby/core/chat-inbound/status";
+import {
 	readConfig,
 	readCredentials,
 	writeConfig,
@@ -343,6 +347,45 @@ describe("web API routes", () => {
 		});
 	});
 
+	it("exposes matching conversation IDs for inbound verification", async () => {
+		const previous = getChatInboundStatus();
+		const config = readConfig();
+		config.chatInbound = { enabled: true, integration: "slack" };
+		writeConfig(config);
+		const verification = {
+			lastEventAt: "2026-10-04T12:00:00.000Z",
+			lastReplyAt: "2026-10-04T12:00:01.000Z",
+			lastEventExternalKey: "slack:test-conversation",
+			lastReplyExternalKey: "slack:test-conversation",
+		};
+		try {
+			setChatInboundStatus({
+				integration: "slack",
+				status: "connected",
+				...verification,
+			});
+			const res = await handleWebRequest(
+				new Request("http://127.0.0.1/api/daemon/status"),
+				null,
+			);
+			expect((await res.json()).chatInbound).toMatchObject(verification);
+			config.chatInbound.enabled = false;
+			writeConfig(config);
+			const disabled = await handleWebRequest(
+				new Request("http://127.0.0.1/api/daemon/status"),
+				null,
+			);
+			expect((await disabled.json()).chatInbound).toMatchObject({
+				lastEventAt: null,
+				lastReplyAt: null,
+				lastEventExternalKey: null,
+				lastReplyExternalKey: null,
+			});
+		} finally {
+			setChatInboundStatus(previous);
+		}
+	});
+
 	it("handles GET /api/plugins", async () => {
 		const res = await handleWebRequest(
 			new Request("http://127.0.0.1/api/plugins"),
@@ -573,7 +616,8 @@ describe("web API routes", () => {
 		expect(body.displayName).toBe("Slack");
 		expect(body.steps.length).toBeGreaterThan(0);
 		expect(body.steps.map((s) => s.id)).toContain("overview");
-		expect(body.steps.map((s) => s.id)).toContain("credentials");
+		expect(body.steps.map((s) => s.id)).toContain("bot");
+		expect(body.steps.map((s) => s.id)).toContain("socket");
 	}, 30000);
 
 	it("returns 404 for an unknown integration setup guide", async () => {

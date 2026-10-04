@@ -57,6 +57,14 @@ export function handleDaemonStatus(): Response {
 			detail,
 			disabledReason,
 			updatedAt: runtime.updatedAt,
+			lastEventAt: disabledReason ? null : (runtime.lastEventAt ?? null),
+			lastReplyAt: disabledReason ? null : (runtime.lastReplyAt ?? null),
+			lastEventExternalKey: disabledReason
+				? null
+				: (runtime.lastEventExternalKey ?? null),
+			lastReplyExternalKey: disabledReason
+				? null
+				: (runtime.lastReplyExternalKey ?? null),
 			activeConversationName,
 			activeSince,
 			activeKind,

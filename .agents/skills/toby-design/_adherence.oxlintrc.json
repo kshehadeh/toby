@@ -23,6 +23,7 @@
               "components/feedback/**",
               "components/forms/**",
               "components/navigation/**",
+              "components/settings/**",
               "ui_kits/toby-app/**"
             ],
             "message": "Import design-system components from 'index.js', not component internals."
@@ -34,11 +35,11 @@
       "warn",
       {
         "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
-        "message": "Raw hex color — use a design-system color token via var()."
+        "message": "Raw hex color \u2014 use a design-system color token via var()."
       },
       {
         "selector": "Literal[value=/\\b\\d+px\\b/]",
-        "message": "Raw px value — use a design-system spacing token via var()."
+        "message": "Raw px value \u2014 use a design-system spacing token via var()."
       },
       {
         "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:SF Pro Text|SF Pro|New York|Inter))/i]",
@@ -187,6 +188,34 @@
       {
         "selector": "JSXOpeningElement[name.name='WorkStepRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|running|failed|expanded|steps|onToggle|key|ref|className|style|children)$/]",
         "message": "<WorkStepRow> doesn't accept that prop. Declared props: label, running, failed, expanded, steps, onToggle."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IntegrationHeader'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|iconSrc|status|signedInWith|actionLabel|onAction|issue|key|ref|className|style|children)$/]",
+        "message": "<IntegrationHeader> doesn't accept that prop. Declared props: name, iconSrc, status, signedInWith, actionLabel, onAction, issue."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MethodPicker'] > JSXAttribute > JSXIdentifier[name!=/^(?:options|value|onChange|label|key|ref|className|style|children)$/]",
+        "message": "<MethodPicker> doesn't accept that prop. Declared props: options, value, onChange, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SecretField'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|saved|placeholder|value|onChange|key|ref|className|style|children)$/]",
+        "message": "<SecretField> doesn't accept that prop. Declared props: label, saved, placeholder, value, onChange."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SettingsGroup'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|footer|children|key|ref|className|style|children)$/]",
+        "message": "<SettingsGroup> doesn't accept that prop. Declared props: title, footer, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SettingsFormRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|description|children|key|ref|className|style|children)$/]",
+        "message": "<SettingsFormRow> doesn't accept that prop. Declared props: label, description, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToolList'] > JSXAttribute > JSXIdentifier[name!=/^(?:integration|tools|collapsedCount|key|ref|className|style|children)$/]",
+        "message": "<ToolList> doesn't accept that prop. Declared props: integration, tools, collapsedCount."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IntegrationHeader'] > JSXAttribute[name.name='status'] > Literal[value!=/^(?:connected|disconnected|attention|checking)$/]",
+        "message": "<IntegrationHeader> status must be one of 'connected' | 'disconnected' | 'attention' | 'checking'."
       }
     ]
   },

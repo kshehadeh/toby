@@ -32,8 +32,8 @@ Open **Toby.app → Settings → Integrations → Notion** and enter:
 
 | Field | Description |
 | ----- | ----------- |
-| Notion API Key | Personal access token or internal connection token |
-| Default Parent Page ID | Optional parent page used when creating pages without an explicit `parentPageId` |
+| API key | Internal integration token from your Notion integrations page |
+| Default parent page | Optional page ID used when creating pages without an explicit `parentPageId` |
 
 Save the configuration.
 

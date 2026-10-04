@@ -33,6 +33,12 @@ import { emitError, emitJson, parseEnvelope, readStdin } from "./protocol";
 import { consumeTokenRefreshPatch, mergeOAuthTokens } from "./tokens";
 import { TOOL_DEFINITIONS, executeTool } from "./tools";
 
+import {
+	buildSlackManifest,
+	slackAppCreationUrl,
+	validateSlackSetup,
+} from "./setup";
+
 type JsonRecord = Record<string, unknown>;
 
 const PLUGIN_VERSION = "1.0.0";
@@ -194,7 +200,7 @@ async function handleStatus(
 		resources: ["channels", "messages", "users"],
 		authMethods: [
 			{ id: "oauth", label: "OAuth (recommended)", isDefault: true },
-			{ id: "bot_token", label: "Manual bot token" },
+			{ id: "bot_token", label: "Bot token" },
 		],
 		chatModelPrep: buildChatModelPrep(),
 		chatReadiness: buildChatReadiness(config, state),
@@ -237,11 +243,11 @@ async function handleConnect(config: JsonRecord): Promise<never> {
 		const clientId = String(config.clientId ?? "").trim();
 		const clientSecret = String(config.clientSecret ?? "").trim();
 		const redirectUri = String(config.redirectUri ?? "").trim() || undefined;
-		if (!clientId || !clientSecret) {
+		if (!clientId) {
 			emitJson({
 				ok: false,
 				reason:
-					"Slack OAuth requires clientId and clientSecret. Set them in `toby configure`.",
+					"Slack OAuth requires a Client ID. Set them in `toby configure`.",
 			});
 		}
 
@@ -305,48 +311,67 @@ function handleConfigShape(): never {
 		fields: [
 			{
 				key: "clientId",
-				label: "OAuth Client ID",
+				label: "Client ID",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["oauth"],
+				description:
+					"From your Slack app's Basic Information page, under App Credentials.",
 			},
 			{
 				key: "clientSecret",
-				label: "OAuth Client Secret",
+				label: "Client secret",
 				type: "string",
 				required: false,
 				masked: true,
 				showForAuthMethods: ["oauth"],
+				placeholder: "Optional",
+				description: "Not needed to sign in. Kept for older setups.",
 			},
 			{
 				key: "redirectUri",
-				label: "OAuth Redirect URI (optional)",
+				label: "Redirect URL",
 				type: "string",
 				required: false,
 				showForAuthMethods: ["oauth"],
+				placeholder: "http://localhost:9878/callback",
+				description:
+					"Optional. Must match a redirect URL registered on your Slack app.",
 			},
 			{
 				key: "botToken",
-				label: "Bot Token (xoxb-...) — required for daemon/inbound",
+				label: "Bot token",
 				type: "string",
 				required: false,
 				masked: true,
 				showForAuthMethods: ["bot_token"],
 				showForInbound: true,
+				group: "Mentions",
+				placeholder: "xoxb-…",
+				description:
+					"Bot User OAuth Token from your Slack app's OAuth & Permissions page.",
 			},
 			{
 				key: "appToken",
-				label:
-					"App Token (xapp-...) — Socket Mode (inbound; pair with bot token)",
+				label: "App token",
 				type: "string",
 				required: false,
 				masked: true,
+				showForInbound: true,
+				group: "Mentions",
+				placeholder: "xapp-…",
+				description:
+					"App-level token with connections:write, from Basic Information > App-Level Tokens. Mentions use it for Socket Mode.",
 			},
 			{
 				key: "botUserId",
-				label: "Bot User ID (optional; from auth.test)",
+				label: "Bot user ID",
 				type: "string",
 				required: false,
+				showForInbound: true,
+				group: "Mentions",
+				placeholder: "Found automatically",
+				description: "Optional. Toby looks it up when this is empty.",
 			},
 		],
 	});
@@ -421,53 +446,57 @@ function handleSetupGuide(): never {
 		steps: [
 			{
 				id: "overview",
-				title: "What Slack can do in Toby",
+				title: "Connect Slack",
 				description:
-					"Connect Toby to a Slack workspace so you can post messages, reply in threads, search channels and users, and receive @mention messages in Toby via Socket Mode.",
+					"Connect a bot for sending messages, and optionally enable DMs and @mentions. User OAuth adds message search.",
 			},
 			{
-				id: "provider",
-				title: "Create a Slack app",
+				id: "app",
+				title: "Create a Toby Slack app",
 				description:
-					"Open the Slack API site and create a new app from scratch. Choose your workspace, then go to OAuth & Permissions to add the redirect URL and user scopes. Install the app to your workspace before returning to Toby.",
+					"Choose a workspace and review the preconfigured app. If you already have an app, keep it and check its scopes and events.",
 				links: [
+					{ label: "Create Toby app", url: slackAppCreationUrl() },
+					{ label: "Manage existing apps", url: "https://api.slack.com/apps" },
+				],
+				artifacts: [
 					{
-						label: "Create Slack app",
-						url: "https://api.slack.com/apps",
+						id: "manifest",
+						label: "App manifest",
+						value: JSON.stringify(buildSlackManifest(), null, 2),
 					},
 				],
+			},
+			{
+				id: "bot",
+				title: "Install and copy the bot token",
+				description:
+					"OAuth & Permissions → Install to Workspace. Approve access, then copy Bot User OAuth Token (xoxb-…).",
+			},
+			{
+				id: "socket",
+				title: "Add the Socket Mode token",
+				description:
+					"Basic Information → App-Level Tokens → Generate Token and Scopes. Add connections:write, generate, and copy the xapp-… token. Ensure Socket Mode is enabled.",
+			},
+			{
+				id: "oauth",
+				title: "Authorize search",
+				description:
+					"Copy the Client ID from Basic Information. Enable PKCE and add the redirect URL under OAuth & Permissions. Toby opens your browser for user authorization; no client secret is needed.",
 				artifacts: [
 					{
 						id: "redirectUri",
 						label: "Redirect URI",
 						value: DEFAULT_REDIRECT_URI,
-						hint: "Add this to OAuth & Permissions → Redirect URLs.",
-					},
-					{
-						id: "scopes",
-						label: "User scopes",
-						value: OAUTH_USER_SCOPES,
-						hint: "Add these under OAuth & Permissions → User Scopes.",
 					},
 				],
 			},
 			{
-				id: "credentials",
-				title: "Add OAuth credentials",
+				id: "verify",
+				title: "Try a message",
 				description:
-					"Copy the Client ID and Client Secret from the Basic Information page into the fields below. Keep them secret.",
-			},
-			{
-				id: "auth",
-				title: "Authorize Toby",
-				description:
-					"Click Connect. Toby will open your browser to sign in with Slack and return an access token automatically.",
-			},
-			{
-				id: "validate",
-				title: "Validate",
-				description:
-					"Toby will run a health check to confirm the Slack API is reachable and tools are available.",
+					"Once inbound is connected, send a DM to Toby or invite the app to a channel and @mention it. A received event and delivered reply verify the complete connection.",
 			},
 		],
 	});
@@ -526,6 +555,18 @@ async function main(): Promise<void> {
 			emitError("Invalid JSON on stdin", "invalid_input", 2);
 		}
 		await handleToolsExecute(body);
+	}
+
+	if (command === "setup" && subcommand === "validate") {
+		const { config } = parseEnvelope(stdin);
+		const body = JSON.parse(stdin) as JsonRecord;
+		try {
+			emitJson(
+				await validateSlackSetup(config, (body.options ?? {}) as JsonRecord),
+			);
+		} catch (error) {
+			emitJson({ ok: false, error: toErrorMessage(error) });
+		}
 	}
 
 	if (command === "setup" && subcommand === "guide") {

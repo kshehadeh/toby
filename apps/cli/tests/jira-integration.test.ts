@@ -202,4 +202,27 @@ describe("jira integration module (plugin registry)", () => {
 		expect(byKey["jira.email"]?.showForAuthMethods).toEqual(["api_token"]);
 		expect(byKey["jira.apiToken"]?.showForAuthMethods).toEqual(["api_token"]);
 	});
+
+	it("configure tree carries plugin descriptions and placeholders", () => {
+		const root = buildSettingsTree(
+			[],
+			[],
+			{ "jira.authMethod": "api_token" },
+			undefined,
+			{ daemonRunning: true },
+		);
+		const integrations = root.children?.find((c) => c.key === "integrations");
+		const jira = integrations?.children?.find((c) => c.key === "jira");
+		const byKey = Object.fromEntries(
+			(jira?.children ?? []).map((f) => [f.key, f]),
+		);
+		expect(byKey["jira.domain"]?.label).toBe("Atlassian site");
+		expect(byKey["jira.domain"]?.placeholder).toBe("acme.atlassian.net");
+		expect(byKey["jira.email"]?.description).toBe(
+			"The email you sign in to Atlassian with.",
+		);
+		expect(
+			byKey["jira.authMethod"]?.selectChoices?.map((c) => c.label),
+		).toEqual(["OAuth (recommended)", "Email and API token"]);
+	});
 });
