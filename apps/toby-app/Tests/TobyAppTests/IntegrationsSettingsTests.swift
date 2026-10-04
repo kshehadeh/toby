@@ -821,6 +821,25 @@ struct IntegrationsSettingsTests {
 		#expect((try? view.inspect().find(text: "Enter value")) == nil)
 	}
 
+	@Test("replacement secret drafts retain the saved field presentation")
+	func replacementSecretRetainsSavedPresentation() throws {
+		let store = ConfigureStore()
+		store.savedValues["slack.botToken"] = ConfigureConstants.redactedSecret
+		store.draft["slack.botToken"] = "replacement-draft"
+		let field = SettingsItem(
+			label: "Bot token", kind: .value, key: "slack.botToken", navKey: "slack.botToken",
+			children: nil, masked: true, multiline: nil, options: nil,
+			selectChoices: nil, currentValue: nil, selectedValues: nil, readOnly: nil
+		)
+		let view = ConfigureFieldRowView(
+			store: store, field: field, sectionLabel: "Slack",
+			showsDivider: false, usesFormChrome: true
+		)
+		let row = try view.inspect().find(SettingsSecretFieldRow.self).actualView()
+		#expect(row.hasSavedValue)
+		#expect(row.text == "replacement-draft")
+	}
+
 	@Test("empty integration config omits the no-options tip")
 	func emptyIntegrationConfigOmitsNoOptionsTip() throws {
 		let store = ConfigureStore()

@@ -137,7 +137,7 @@ struct ConfigureFieldRowView: View {
 	}
 
 	private var hasSavedSecret: Bool {
-		store.value(for: field.key) == ConfigureConstants.redactedSecret
+		store.savedValues[field.key] == ConfigureConstants.redactedSecret
 	}
 
 	private var fieldDescription: String? {
