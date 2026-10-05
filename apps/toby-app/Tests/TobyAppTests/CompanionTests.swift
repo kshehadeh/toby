@@ -54,7 +54,7 @@ struct CompanionTests {
 	func conversationExpansion() {
 		let screen = NSRect(x: -1440, y: 80, width: 1440, height: 820)
 		let face = NSRect(x: -120, y: 100, width: 112, height: 112)
-		let compactSize = NSSize(width: 372, height: 224)
+		let compactSize = CompanionStore().bubbleSize
 		let expandedSize = NSSize(width: 372, height: 480)
 		let panel = NSPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
 		panel.isReleasedWhenClosed = false

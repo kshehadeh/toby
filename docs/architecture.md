@@ -151,8 +151,9 @@ a one-time UserDefaults migration seeds it for existing installs, preserves
 custom bindings, and skips it if another Toby action already uses that combination.
 Clearing it stays disabled across relaunches.
 
-`CompanionGeometry` handles display clamping and bubble placement. The bubble's
-hosting view disables automatic window sizing; the controller applies each size
+`CompanionGeometry` handles display clamping and bubble placement. The empty
+composer bubble is 372 × 184 points, keeping the header and input closely framed.
+Its hosting view disables automatic window sizing; the controller applies each size
 change with a clamped origin so conversation expansion slides upward as needed
 within the screen's usable area. The last
 portrait origin is stored in app-local UserDefaults (`toby.companion.origin`).

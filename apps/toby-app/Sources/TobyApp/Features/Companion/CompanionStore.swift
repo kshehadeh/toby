@@ -62,7 +62,7 @@ final class CompanionStore {
 	}
 
 	var bubbleSize: CGSize {
-		CGSize(width: CompanionGeometry.bubbleSize.width, height: hasConversation ? 480 : (errorMessage == nil ? 224 : 320))
+		CGSize(width: CompanionGeometry.bubbleSize.width, height: hasConversation ? 480 : (errorMessage == nil ? 184 : 320))
 	}
 	var canSubmit: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isThinking }
 	var canStop: Bool { chat.isLoading }

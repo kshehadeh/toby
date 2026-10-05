@@ -152,7 +152,8 @@ the composer directly with the keyboard while Toby is active. The global
 **⌃⌥Space** shortcut works from other apps, shows the head if hidden, opens its
 chat bubble, and focuses the question field. Press it again to refocus the
 current conversation. Configure it in **Settings → General**.
-The bubble starts compact and expands when you send a question. Near the bottom
+The bubble starts compact, with a small inset around the header and question
+field, and expands when you send a question. Near the bottom
 of the screen, it automatically slides upward to keep the whole conversation
 on screen without moving Toby.
 
