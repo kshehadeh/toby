@@ -18,8 +18,7 @@ struct TranscriptRow: View {
 		case .error(let text):
 			NoticeRow(text: text, tone: "error")
 		case .boxedStep(let payload):
-			// Final and interim assistant segments both render as conversation rows
-			// (interim only reaches here in normal transcript mode).
+			// Final and interim assistant segments both render as conversation rows.
 			if payload.variant == "assistant" || payload.variant == "assistant_interim" {
 				AssistantMessageRow(
 					messageBody: payload.body,

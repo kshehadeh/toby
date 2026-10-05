@@ -19,24 +19,6 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
 	}
 }
 
-// MARK: - Chat transcript mode
-
-/// How much pipeline detail the chat transcript shows.
-/// Normal is conversation-only; debug includes tools, prep, and selection notices.
-enum ChatTranscriptMode: String, CaseIterable, Identifiable, Sendable {
-	case normal
-	case debug
-
-	var id: String { rawValue }
-
-	var displayName: String {
-		switch self {
-		case .normal: "Normal"
-		case .debug: "Debug"
-		}
-	}
-}
-
 // MARK: - Theme resolution (mode → concrete light/dark)
 
 /// Resolves the user's appearance mode to a concrete light/dark scheme.
@@ -155,8 +137,6 @@ enum AppearanceDefaultsKey {
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
 	static let showMenuBarIcon = "toby.general.showMenuBarIcon"
-	/// Chat transcript verbosity (Settings → General). Default normal.
-	static let chatTranscriptMode = "toby.general.chatTranscriptMode"
 	/// Last top-level tab visited in the Settings window. Defaults to General.
 	static let settingsLastTab = "toby.general.settingsLastTab"
 	/// System-wide shortcuts for global hotkey actions (JSON-encoded
@@ -184,7 +164,6 @@ final class AppearancePreferences {
 	static let dashboardLayoutDefaultsKey = AppearanceDefaultsKey.dashboardLayout
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
-	static let chatTranscriptModeDefaultsKey = AppearanceDefaultsKey.chatTranscriptMode
 	static let globalShortcutsDefaultsKey = AppearanceDefaultsKey.globalShortcuts
 	static let tobyDirDefaultsKey = AppearanceDefaultsKey.tobyDir
 
@@ -286,14 +265,6 @@ final class AppearancePreferences {
 				name: Self.showMenuBarIconDidChange,
 				object: showMenuBarIcon
 			)
-		}
-	}
-
-	/// How much pipeline detail to show in the chat transcript. Default is normal.
-	var chatTranscriptMode: ChatTranscriptMode {
-		didSet {
-			guard chatTranscriptMode != oldValue else { return }
-			defaults.set(chatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
 		}
 	}
 
@@ -409,7 +380,6 @@ final class AppearancePreferences {
 		showDashboardCalendar: Bool? = nil,
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
-		chatTranscriptMode: ChatTranscriptMode? = nil,
 		globalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut]? = nil,
 		tobyDirOverride: String? = nil,
 		defaults: UserDefaults = .standard,
@@ -485,18 +455,6 @@ final class AppearancePreferences {
 			resolvedShowMenuBarIcon = true
 		}
 
-		// Default normal when unset.
-		let resolvedChatTranscriptMode: ChatTranscriptMode
-		if let chatTranscriptMode {
-			resolvedChatTranscriptMode = chatTranscriptMode
-		} else if let raw = defaults.string(forKey: Self.chatTranscriptModeDefaultsKey),
-			let stored = ChatTranscriptMode(rawValue: raw)
-		{
-			resolvedChatTranscriptMode = stored
-		} else {
-			resolvedChatTranscriptMode = .normal
-		}
-
 		// Seed the companion default once, including upgrades with existing shortcuts.
 		var resolvedGlobalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut] = [:]
 		if let globalShortcuts {
@@ -539,7 +497,6 @@ final class AppearancePreferences {
 		self.dashboardLayout = resolvedLayout
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
-		self.chatTranscriptMode = resolvedChatTranscriptMode
 		self.globalShortcuts = resolvedGlobalShortcuts
 		self.tobyDirOverride = resolvedTobyDirOverride
 		self.resolvedColorScheme = Self.resolveColorScheme(for: resolvedMode)
@@ -562,9 +519,6 @@ final class AppearancePreferences {
 		}
 		if showMenuBarIcon != nil {
 			defaults.set(resolvedShowMenuBarIcon, forKey: Self.showMenuBarIconDefaultsKey)
-		}
-		if chatTranscriptMode != nil {
-			defaults.set(resolvedChatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
 		}
 		if globalShortcuts != nil || initializeCompanionShortcut, let data = try? JSONEncoder().encode(resolvedGlobalShortcuts),
 			let value = String(data: data, encoding: .utf8)

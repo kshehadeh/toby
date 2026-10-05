@@ -29,7 +29,7 @@ previous step.
 4. **"Remind me to call the dentist tomorrow at 10am."**
 5. **"Draft a reply to the latest email from Sam saying Thursday works."**
 
-Toby shows a **Working…** line while it checks your apps. Click it to see each
+Toby shows a collapsed **Working…** section while it checks your apps. Click it to see each
 step it took. When it's done, the answer appears below your message.
 
 ![Toby answering a morning check-in with calendar, tasks, and inbox highlights](/img/toby-app-chat-example.png)

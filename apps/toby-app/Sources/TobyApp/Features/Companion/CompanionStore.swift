@@ -36,7 +36,7 @@ final class CompanionStore {
 			case .boxedStep(let step):
 				return step.variant == "assistant" || step.variant == "assistant_interim"
 			case .notice(let text, _):
-				return !TranscriptGrouping.isDebugSelectionNotice(text)
+				return !TranscriptGrouping.isSelectionNotice(text)
 					&& !TranscriptGrouping.isToolSelectionNotice(text)
 			case .meta, .toolCall, .toolOutput, .turnWork:
 				return false

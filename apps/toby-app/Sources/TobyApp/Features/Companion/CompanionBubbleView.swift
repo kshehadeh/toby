@@ -26,8 +26,7 @@ struct CompanionBubbleView: View {
 					isLoading: store.chat.isLoading,
 					turnWorkDurations: store.chat.turnWorkDurations,
 					activeWorkStartDate: store.chat.activeWorkStartDate,
-					askUserStore: store.chat,
-					transcriptModeOverride: .normal)
+					askUserStore: store.chat)
 				if store.isThinking {
 					HStack(spacing: 8) {
 						ProgressView().controlSize(.small)

@@ -12,16 +12,9 @@ struct TranscriptView: View {
 	/// When set and `store.activeAskUserPrompt` is non-nil, the interactive prompt
 	/// is rendered as the last transcript control (not a modal overlay).
 	var askUserStore: ChatStore?
-	/// Overrides the General → Chat mode preference (mainly for previews/tests).
-	var transcriptModeOverride: ChatTranscriptMode?
 	private let bottomAnchorID = "transcript-bottom-anchor"
 	private let askUserAnchorID = "transcript-ask-user-anchor"
-
-	/// App-local chat mode (Settings → General). Uses the shared preferences
-	/// singleton so ViewInspector tests need no environment injection.
-	@State private var appearancePreferences = AppearancePreferences.shared
 	@State private var expandedWorkGroups: Set<String> = []
-	@State private var collapsedWhileActive: Set<String> = []
 	/// Grouped rows when `cachedGroupingKey` matches the current inputs.
 	@State private var cachedDisplayItems: [TranscriptDisplayItem] = []
 	@State private var cachedGroupingKey: TranscriptGroupingKey?
@@ -35,10 +28,6 @@ struct TranscriptView: View {
 	/// Content growth (new turns, streaming) must not clear this.
 	@State private var isFollowingBottom = true
 
-	private var transcriptMode: ChatTranscriptMode {
-		transcriptModeOverride ?? appearancePreferences.chatTranscriptMode
-	}
-
 	private var hasActiveAskUser: Bool {
 		askUserStore?.activeAskUserPrompt != nil
 	}
@@ -47,7 +36,6 @@ struct TranscriptView: View {
 		TranscriptGroupingKey(
 			entries: entries,
 			isLoading: isLoading,
-			mode: transcriptMode,
 		)
 	}
 
@@ -60,14 +48,8 @@ struct TranscriptView: View {
 		return TranscriptGrouping.groupedItems(
 			from: entries,
 			isLoading: isLoading,
-			mode: transcriptMode,
 		)
 	}
-
-	/// Both modes render the expandable work log so users can open the "Working"
-	/// section and see the steps that ran. Normal mode still hides the skill/tool
-	/// selection notices (see `TranscriptGrouping.isVisible`).
-	private let showsWorkDetails = true
 
 	/// Cap how many transcript rows we materialize in the lazy path.
 	private static let defaultVisibleItems = 60
@@ -79,9 +61,6 @@ struct TranscriptView: View {
 
 	private func isWorkGroupExpanded(_ group: TranscriptWorkGroup) -> Bool {
 		if group.entries.isEmpty { return false }
-		if group.isActive || group.errorText != nil {
-			return !collapsedWhileActive.contains(group.id)
-		}
 		return expandedWorkGroups.contains(group.id)
 	}
 
@@ -136,18 +115,6 @@ struct TranscriptView: View {
 						isFollowingBottom = true
 						DispatchQueue.main.async {
 							scrollToBottom(proxy: proxy, policy: .immediate)
-						}
-					}
-				}
-			}
-			.onChange(of: isLoading) { wasLoading, loading in
-				if wasLoading, !loading {
-					withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-						collapsedWhileActive.removeAll()
-						for item in displayItems {
-							if case .workGroup(let group) = item, group.errorText == nil {
-								expandedWorkGroups.remove(group.id)
-							}
 						}
 					}
 				}
@@ -218,8 +185,7 @@ struct TranscriptView: View {
 				duration: duration(for: group),
 				activeWorkStartDate: group.isActive ? activeWorkStartDate : nil,
 				isExpanded: isWorkGroupExpanded(group),
-				onToggle: { toggleWorkGroup(group) },
-				showsWorkDetails: showsWorkDetails,
+				onToggle: { toggleWorkGroup(group) }
 			)
 			.id(group.id)
 		}
@@ -243,7 +209,6 @@ struct TranscriptView: View {
 		cachedDisplayItems = TranscriptGrouping.groupedItems(
 			from: entries,
 			isLoading: isLoading,
-			mode: transcriptMode,
 		)
 		cachedGroupingKey = key
 	}
@@ -262,14 +227,6 @@ struct TranscriptView: View {
 	private func toggleWorkGroup(_ group: TranscriptWorkGroup) {
 		// Cheap expandability check — do not parse work steps until expanded.
 		if group.entries.isEmpty { return }
-		if group.isActive || group.errorText != nil {
-			if collapsedWhileActive.contains(group.id) {
-				collapsedWhileActive.remove(group.id)
-			} else {
-				collapsedWhileActive.insert(group.id)
-			}
-			return
-		}
 		if expandedWorkGroups.contains(group.id) {
 			expandedWorkGroups.remove(group.id)
 		} else {
@@ -327,9 +284,8 @@ struct TranscriptGroupingKey: Equatable {
 	let lastId: String?
 	let stampHash: Int
 	let isLoading: Bool
-	let mode: ChatTranscriptMode
 
-	init(entries: [TranscriptEntry], isLoading: Bool, mode: ChatTranscriptMode) {
+	init(entries: [TranscriptEntry], isLoading: Bool) {
 		count = entries.count
 		// Prefer stable boxed-step ids over hashing full user/assistant text.
 		firstId = entries.first.map(Self.stableId(for:))
@@ -350,7 +306,6 @@ struct TranscriptGroupingKey: Equatable {
 		}
 		stampHash = hash
 		self.isLoading = isLoading
-		self.mode = mode
 	}
 
 	private static func stableId(for entry: TranscriptEntry) -> String {
@@ -385,14 +340,12 @@ struct TranscriptPinIdentity: Equatable {
 	let firstId: String?
 	let lastId: String?
 	let isLoading: Bool
-	let mode: ChatTranscriptMode
 
 	init(from key: TranscriptGroupingKey) {
 		count = key.count
 		firstId = key.firstId
 		lastId = key.lastId
 		isLoading = key.isLoading
-		mode = key.mode
 	}
 }
 

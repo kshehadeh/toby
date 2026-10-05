@@ -76,6 +76,10 @@ Where you talk to Toby. Press **⌘N** for a new chat, or use the arrow next to
 **+** to start one with a specific persona. See
 [Your first chat](./getting-started/first-chat).
 
+The **Working…** section starts collapsed. Click it to see work steps and selected
+tools, then click again to collapse it. Your choice stays in place when work
+finishes or fails; completed work shows **Worked for** with its duration.
+
 ## Projects
 
 A project keeps the chats, instructions, and files for one piece of work
@@ -160,7 +164,7 @@ on screen without moving Toby.
 Use **Send** or **⌘Return** to ask Toby. Return inserts a new line. Replies
 stream into the conversation, including Markdown and any choices Toby asks you
 to make. Toby's Head shows the conversation without skill, tool, or preparation
-details, even when Settings uses Debug mode. Errors and interactive questions
+details. Errors and interactive questions
 still appear; full activity details remain available in the saved chat in Chats.
 Toby's Head uses your configured default persona and AI
 provider. Your first question creates a chat in **Chats**; follow-up questions
@@ -206,7 +210,6 @@ These preferences apply to this Mac only.
 | **Start at login** | Open Toby automatically when you log in | Off |
 | **Show menu bar icon** | Quick access to chat, recording, and windows from the menu bar | On |
 | **Global shortcuts** | System-wide shortcuts for the command palette, recording, and new chat | Not set |
-| **Chat mode** | **Normal** shows the conversation plus a collapsible *Worked for* summary of each step. **Debug** adds technical detail for troubleshooting. | Normal |
 | **Theme** | System, Light, or Dark | System |
 | **Accent color** | Color for buttons and highlights | Orange |
 

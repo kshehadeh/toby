@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Client-local General settings: home directory, startup, menu bar, chat mode, theme, and accent.
+/// Client-local General settings: home directory, startup, menu bar, theme, and accent.
 struct AppearanceSettingsView: View {
 	@Bindable var preferences: AppearancePreferences
 	/// Applies a home-directory switch (soft reset). `nil` restores default `~/.toby`.
@@ -16,7 +16,6 @@ struct AppearanceSettingsView: View {
 		Form {
 			homeDirectorySection
 			startupSection
-			chatModeSection
 			themeSection
 			accentSection
 		}
@@ -198,25 +197,6 @@ struct AppearanceSettingsView: View {
 						.foregroundStyle(.secondary)
 				}
 			}
-		}
-	}
-
-	private var chatModeSection: some View {
-		Section {
-			Picker("Chat mode", selection: $preferences.chatTranscriptMode) {
-				ForEach(ChatTranscriptMode.allCases) { mode in
-					Text(mode.displayName).tag(mode)
-				}
-			}
-			.pickerStyle(.segmented)
-			.labelsHidden()
-			.accessibilityIdentifier("general-chat-mode-picker")
-		} header: {
-			Text("Chat mode")
-		} footer: {
-			Text(
-				"Normal shows the conversation and an expandable Working log of the steps that ran. Debug also reveals skill and tool selection and other pipeline detail."
-			)
 		}
 	}
 

@@ -37,10 +37,8 @@ struct CompanionConversationTests {
 		let view = CompanionBubbleView(store: store, close: {}, hide: {})
 		let transcript = try view.inspect().find(TranscriptView.self).actualView()
 		#expect(transcript.entries == [question, answer])
-		for mode in [ChatTranscriptMode.normal, .debug] {
-			let groups = TranscriptGrouping.groupedItems(from: transcript.entries, isLoading: true, mode: mode)
-			#expect(groups.allSatisfy { if case .workGroup = $0 { return false }; return true })
-		}
+		let groups = TranscriptGrouping.groupedItems(from: transcript.entries, isLoading: true)
+		#expect(groups.allSatisfy { if case .workGroup = $0 { return false }; return true })
 	}
 
 	@Test("Errors, cancelled turns, answered choices, and assistant segments stay visible")

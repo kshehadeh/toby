@@ -100,9 +100,13 @@ API). Implementation: `AppearancePreferences` /
 | `toby.general.tobyDir` | *(unset → `~/.toby`)* | Home directory | Absolute path of the Toby data root (`TOBY_DIR`). Stored only on this Mac; switching soft-resets stores, restarts the daemon, and reloads UI data. Precedence: process `TOBY_DIR` env → this preference → `~/.toby`. See `ConfigReader` / `ChatStore.switchTobyHome`. |
 | `toby.general.launchAtLogin` | **false** | Start at login | Register Toby as a login item via `SMAppService.mainApp` |
 | `toby.general.showMenuBarIcon` | **true** | Show menu bar icon | Show/hide the menu bar status item (`MenuBarController`) |
-| `toby.general.chatTranscriptMode` | **normal** | Chat mode | Transcript verbosity: both modes show the expandable activity card for work steps and selected tools; `debug` additionally shows skill-selection and other pipeline notices. Tool-selection notices are consumed by the card rather than rendered separately. Applied in `TranscriptGrouping` / `TranscriptView` / `WorkedForRow` |
 | `toby.appearance.mode` | system | Theme | Theme (`system` / `light` / `dark`) |
 | `toby.appearance.accent` | orange | Accent color | Accent color preset |
+
+Chat activity uses a single expandable work log (`TranscriptGrouping` /
+`TranscriptView` / `WorkedForRow`). Work sections start collapsed, including
+active and failed work, and keep the user’s expansion choice through completion.
+The previous normal/debug transcript preference is no longer read.
 
 App-local dashboard layout prefs are edited under **Settings → Home**
 alongside the daemon-backed summary persona:
@@ -120,9 +124,9 @@ bar** visibility is applied by `MenuBarController`. While recording or
 processing, a colored overlay is added on top of the template menu-bar extra
 (`NSStatusBarButton` subview) and the Dock tile (`NSDockTile.contentView`);
 the app icon itself is not replaced via `applicationIconImage`. The Dock overlay
-still updates when the status item is hidden. **Chat mode** only changes what
-Toby.app renders in the transcript; the daemon still emits the same pipeline
-events either way. Semantic colors live in `AppTheme` / `SettingsDesign` as
+still updates when the status item is hidden. Expanding chat work details only
+changes what Toby.app renders; the daemon always emits the same pipeline
+events. Semantic colors live in `AppTheme` / `SettingsDesign` as
 dynamic `NSColor` pairs. Only true monochrome alpha-glyphs (AI provider marks,
 macOS plugin glyph) render as templates so they tint with text color. Filled art
 (Toby logo, Apple Reminders, brand multicolor plugin icons) stays original —
@@ -174,8 +178,8 @@ companion's rendering input to conversation content before transcript grouping:
 work steps, skill/tool selection notices, raw tool calls/results, and metadata
 never become work cards. Assistant segments, errors, cancellation notices, and
 ask-user controls remain visible. The full stored transcript is unchanged. The
-companion also forces normal mode and uses generic progress labels, so the
-global Debug preference and tool activity lines cannot expose internal details.
+companion uses generic progress labels to keep tool activity details in the
+saved chat.
 Creation/connection failures retain the draft;
 turn errors appear in the transcript. Completed turns notify the main window to
 refresh its session list. Closing or hiding the surfaces preserves the workspace

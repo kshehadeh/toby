@@ -12,7 +12,7 @@ section on the left. Changes save as you make them.
 
 | Section | What it's for | Guide |
 | ------- | ------------- | ----- |
-| **General** | Data folder, start at login, menu bar icon, global shortcuts, chat mode, theme, accent color | [App tour](../toby-app#general) |
+| **General** | Data folder, start at login, menu bar icon, global shortcuts, theme, accent color | [App tour](../toby-app#general) |
 | **Home** | Which cards appear on Home and which persona writes their summaries | [App tour](../toby-app#customize-home) |
 | **AI** | Connect AI providers and see your usage | [Set up your AI](../getting-started/setup-ai) · [AI providers](../ai-providers/overview) |
 | **Library** | The model used to describe files you add to the Library | [Library](../library) |

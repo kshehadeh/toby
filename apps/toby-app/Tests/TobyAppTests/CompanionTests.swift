@@ -145,13 +145,12 @@ struct CompanionTests {
 		_ = try inspected.find(viewWithAccessibilityIdentifier: "companion-composer").textEditor()
 	}
 
-	@Test("Companion forces normal transcript mode instead of the global preference")
-	func normalTranscriptMode() throws {
+	@Test("Companion renders conversation entries")
+	func conversationTranscript() throws {
 		let store = CompanionStore()
 		store.chat.transcript = [.user(text: "Question"), .assistant(text: "Answer")]
 		let view = CompanionBubbleView(store: store, close: {}, hide: {})
 		let transcript = try view.inspect().find(TranscriptView.self).actualView()
-		#expect(transcript.transcriptModeOverride == .normal)
 		#expect(transcript.entries == store.chat.transcript)
 	}
 }

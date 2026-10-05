@@ -7,6 +7,25 @@ import ViewInspector
 @Suite("WorkedForRow")
 struct WorkedForRowTests {
 
+	@Test("transcript work starts collapsed while running, completed, or failed",
+		arguments: ["running", "completed", "failed"])
+	func transcriptWorkStartsCollapsed(status: String) throws {
+		let entries: [TranscriptEntry] = [
+			.user(text: "Search the web"),
+			.boxedStep(activityPayload()),
+		] + (status == "failed" ? [.error(text: "Search failed")] : [])
+		let view = TranscriptView(entries: entries, streamingAssistant: nil,
+			isLoading: status == "running")
+		let row = try view.inspect().find(WorkedForRow.self).actualView()
+
+		#expect(!row.isExpanded)
+		#expect(row.group.isActive == (status == "running"))
+		#expect((row.group.errorText != nil) == (status == "failed"))
+		#expect(throws: (any Error).self) {
+			try row.inspect().find(text: "Search the web")
+		}
+	}
+
 	@Test("completed work uses minimum display duration when duration is unavailable")
 	func minimumWorkLabelWhenDurationIsMissing() {
 		#expect(workedSummaryLabel(duration: nil) == "Worked for 0.1s")

@@ -15,8 +15,8 @@ enum TranscriptGrouping {
 		return false
 	}
 
-	/// Pretreatment selection notices (skills / tools) — debug transcript only.
-	static func isDebugSelectionNotice(_ text: String) -> Bool {
+	/// Pretreatment selection notices (skills / tools) hidden from conversation rows.
+	static func isSelectionNotice(_ text: String) -> Bool {
 		let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 		if trimmed.hasPrefix("Skills:") {
 			return true
@@ -76,17 +76,16 @@ enum TranscriptGrouping {
 
 	static func isVisible(
 		_ entry: TranscriptEntry,
-		mode: ChatTranscriptMode = .normal,
 	) -> Bool {
 		switch entry {
 		case .meta, .turnWork, .toolCall, .toolOutput:
 			return false
 		case .notice(let text, _):
-			// Tool names now live in the activity card footer in every mode.
+			// Tool names live in the activity card footer.
 			if isToolSelectionNotice(text) {
 				return false
 			}
-			if mode == .normal, isDebugSelectionNotice(text) {
+			if isSelectionNotice(text) {
 				return false
 			}
 			return true
@@ -94,8 +93,8 @@ enum TranscriptGrouping {
 			if payload.variant == "assistant" {
 				return true
 			}
-			// Assistant content remains a conversation row in every transcript
-			// mode; activity metadata must not own message rendering.
+			// Assistant content remains a conversation row; activity metadata
+			// must not own message rendering.
 			if payload.variant == "assistant_interim" {
 				return true
 			}
@@ -106,7 +105,7 @@ enum TranscriptGrouping {
 			if payload.variant == "lifecycle", isHiddenLifecycleHeader(payload.header) {
 				return false
 			}
-			return mode == .debug
+			return false
 		default:
 			return true
 		}
@@ -114,7 +113,6 @@ enum TranscriptGrouping {
 
 	static func isWorkEntry(
 		_ entry: TranscriptEntry,
-		mode: ChatTranscriptMode = .normal,
 	) -> Bool {
 		switch entry {
 		case .boxedStep(let payload):
@@ -132,7 +130,6 @@ enum TranscriptGrouping {
 	static func groupedItems(
 		from entries: [TranscriptEntry],
 		isLoading: Bool,
-		mode: ChatTranscriptMode = .normal,
 	) -> [TranscriptDisplayItem] {
 		var items: [TranscriptDisplayItem] = []
 		var workBuffer: [TranscriptEntry] = []
@@ -173,7 +170,7 @@ enum TranscriptGrouping {
 				continue
 			}
 
-			if isWorkEntry(entry, mode: mode) {
+			if isWorkEntry(entry) {
 				workBuffer.append(entry)
 				continue
 			}
@@ -193,7 +190,7 @@ enum TranscriptGrouping {
 				continue
 			}
 
-			guard isVisible(entry, mode: mode) else { continue }
+			guard isVisible(entry) else { continue }
 
 			flushWork(isActive: false)
 			items.append(.entry(entry, sourceIndex: index))
