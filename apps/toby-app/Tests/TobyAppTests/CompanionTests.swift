@@ -7,6 +7,24 @@ import ViewInspector
 @MainActor
 @Suite("Desktop companion surfaces")
 struct CompanionTests {
+	@Test("Global shortcut shows a hidden head and refocuses the existing conversation")
+	func globalShortcutPresentation() {
+		let defaults = UserDefaults(suiteName: "toby.tests.companion.shortcut.\(UUID().uuidString)")!
+		let controller = CompanionPanelController(defaults: defaults)
+		defer { controller.hide() }
+		controller.hide()
+		controller.store.draft = "Keep this question"
+		let initial = controller.store.presentationID
+		NotificationCenter.default.post(name: .askCompanion, object: nil)
+		#expect(controller.isVisible)
+		#expect(controller.store.presentationID != initial)
+		let presented = controller.store.presentationID
+		controller.ask()
+		#expect(controller.isVisible)
+		#expect(controller.store.presentationID != presented)
+		#expect(controller.store.draft == "Keep this question")
+	}
+
 	@Test("Animation base portrait renders visible pixels with transparent margins")
 	func portraitDrawing() throws {
 		_ = try #require(CompanionPortraitArtwork.image)

@@ -151,29 +151,53 @@ struct AppearanceSettingsView: View {
 			.toggleStyle(.switch)
 			.accessibilityIdentifier("general-show-menu-bar-icon-toggle")
 
-			LabeledContent("Command palette shortcut") {
+			LabeledContent {
+				GlobalShortcutRecorder(preferences: preferences, action: .askCompanion)
+					.accessibilityIdentifier("general-shortcut-ask-companion")
+			} label: {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Ask Toby’s Head shortcut")
+					Text(GlobalHotkeyAction.askCompanion.description)
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+			}
+
+			LabeledContent {
 				GlobalShortcutRecorder(preferences: preferences, action: .commandPalette)
 					.accessibilityIdentifier("general-shortcut-command-palette")
+			} label: {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Command palette shortcut")
+					Text("Summon Toby's command palette from anywhere, like Spotlight.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
 			}
-			Text("Summon Toby's command palette from anywhere, like Spotlight.")
-				.font(.caption)
-				.foregroundStyle(.secondary)
 
-			LabeledContent("Start/stop recording shortcut") {
+			LabeledContent {
 				GlobalShortcutRecorder(preferences: preferences, action: .toggleRecording)
 					.accessibilityIdentifier("general-shortcut-toggle-recording")
+			} label: {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Start/stop recording shortcut")
+					Text("Start or stop an audio recording without switching to Toby.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
 			}
-			Text("Start or stop an audio recording without switching to Toby.")
-				.font(.caption)
-				.foregroundStyle(.secondary)
 
-			LabeledContent("New chat shortcut") {
+			LabeledContent {
 				GlobalShortcutRecorder(preferences: preferences, action: .newChat)
 					.accessibilityIdentifier("general-shortcut-new-chat")
+			} label: {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("New chat shortcut")
+					Text("Bring Toby to the front and start a fresh chat session.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
 			}
-			Text("Bring Toby to the front and start a fresh chat session.")
-				.font(.caption)
-				.foregroundStyle(.secondary)
 		}
 	}
 

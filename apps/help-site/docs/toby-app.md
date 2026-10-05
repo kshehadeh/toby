@@ -137,7 +137,9 @@ with…** and Toby opens a new chat with that request.
 
 In **Settings → General** you can also set system-wide shortcuts that work
 even when Toby is in the background: open the command palette, start or stop a
-recording, or start a new chat.
+recording, start a new chat, or ask Toby's Head. **Ask Toby’s Head** defaults to
+**⌃⌥Space** (Control–Option–Space). Use **Record…** to record another combination,
+or **Clear** to disable it.
 
 ## Toby's Head
 
@@ -146,7 +148,10 @@ in Toby’s menu bar menu, to show or hide the floating head. Toby appears
 as a portrait cutout without a window frame. Drag the portrait to move it; click
 it to open **How can I help?** with a multiline question field.
 You can also choose **View → Ask Toby's Head** or press **⌥⌘T** to open
-the composer directly with the keyboard.
+the composer directly with the keyboard while Toby is active. The global
+**⌃⌥Space** shortcut works from other apps, shows the head if hidden, opens its
+chat bubble, and focuses the question field. Press it again to refocus the
+current conversation. Configure it in **Settings → General**.
 The bubble starts compact and expands when you send a question. Near the bottom
 of the screen, it automatically slides upward to keep the whole conversation
 on screen without moving Toby.

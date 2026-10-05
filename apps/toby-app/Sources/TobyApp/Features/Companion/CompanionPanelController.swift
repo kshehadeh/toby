@@ -19,6 +19,8 @@ final class CompanionPanelController: NSObject {
 		preferences = CompanionPreferences(defaults: defaults)
 		super.init()
 		observeBubbleSize()
+		NotificationCenter.default.addObserver(self, selector: #selector(askFromShortcut),
+			name: .askCompanion, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
 			name: NSApplication.didChangeScreenParametersNotification, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(homeChanged),
@@ -71,10 +73,15 @@ final class CompanionPanelController: NSObject {
 
 	func closeConversation() { bubble?.orderOut(nil) }
 
+	@objc private func askFromShortcut() { ask() }
+
 	func ask() {
 		show()
 		if bubble?.isVisible != true { toggleConversation() }
-		else { bubble?.makeKeyAndOrderFront(nil) }
+		else {
+			bubble?.makeKeyAndOrderFront(nil)
+			store.presentationID = UUID()
+		}
 	}
 
 	private func toggleConversation() {

@@ -7,14 +7,40 @@ import ViewInspector
 @MainActor
 @Suite("GlobalKeyboardShortcut")
 struct GlobalKeyboardShortcutTests {
-	@Test("defaults to empty shortcuts when unset")
-	func defaultsToEmptyWhenUnset() {
+	@Test("defaults to the companion shortcut when unset")
+	func defaultsToCompanionWhenUnset() {
 		let suite = UserDefaults(suiteName: "toby.tests.shortcut.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(prefs.shortcut(for: .commandPalette) == nil)
 		#expect(prefs.shortcut(for: .toggleRecording) == nil)
 		#expect(prefs.shortcut(for: .newChat) == nil)
-		#expect(prefs.globalShortcuts.isEmpty)
+		#expect(prefs.globalShortcuts == [.askCompanion: GlobalHotkeyAction.companionDefaultShortcut])
+	}
+
+	@Test("companion shortcut customization and clearing survive relaunch")
+	func companionPersistence() {
+		let suite = UserDefaults(suiteName: "toby.tests.shortcut.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let custom = GlobalKeyboardShortcut(keyCode: UInt32(kVK_ANSI_T), modifiers: UInt32(cmdKey | optionKey), displayText: "⌥⌘T")
+		prefs.setShortcut(custom, for: .askCompanion)
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(reloaded.shortcut(for: .askCompanion) == custom)
+		reloaded.setShortcut(nil, for: .askCompanion)
+		#expect(AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false).shortcut(for: .askCompanion) == nil)
+	}
+
+	@Test("upgrades preserve existing shortcuts and avoid a conflicting companion default")
+	func upgradeShortcuts() throws {
+		for conflict in [false, true] {
+			let suite = UserDefaults(suiteName: "toby.tests.shortcut.\(UUID().uuidString)")!
+			let existing = conflict ? GlobalHotkeyAction.companionDefaultShortcut : GlobalKeyboardShortcut(
+				keyCode: UInt32(kVK_ANSI_K), modifiers: UInt32(cmdKey), displayText: "⌘K")
+			let stored: [GlobalHotkeyAction: GlobalKeyboardShortcut] = [.commandPalette: existing]
+			suite.set(String(data: try JSONEncoder().encode(stored), encoding: .utf8), forKey: AppearancePreferences.globalShortcutsDefaultsKey)
+			let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+			#expect(prefs.shortcut(for: .commandPalette) == existing)
+			#expect(prefs.shortcut(for: .askCompanion) == (conflict ? nil : GlobalHotkeyAction.companionDefaultShortcut))
+		}
 	}
 
 	@Test("persists and reloads a shortcut")
@@ -66,7 +92,7 @@ struct GlobalKeyboardShortcutTests {
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		// A shortcut with no modifiers should be filtered out.
 		#expect(prefs.shortcut(for: .commandPalette) == nil)
-		#expect(prefs.globalShortcuts.isEmpty)
+		#expect(prefs.globalShortcuts == [.askCompanion: GlobalHotkeyAction.companionDefaultShortcut])
 	}
 
 	@Test("multiple actions can be set simultaneously")
@@ -91,7 +117,7 @@ struct GlobalKeyboardShortcutTests {
 		#expect(prefs.shortcut(for: .commandPalette) == paletteShortcut)
 		#expect(prefs.shortcut(for: .toggleRecording) == recordingShortcut)
 		#expect(prefs.shortcut(for: .newChat) == chatShortcut)
-		#expect(prefs.globalShortcuts.count == 3)
+		#expect(prefs.globalShortcuts.count == 4)
 
 		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(reloaded.shortcut(for: .commandPalette) == paletteShortcut)
@@ -159,6 +185,8 @@ struct GlobalKeyboardShortcutTests {
 		#expect(GlobalHotkeyAction.commandPalette.hotkeyId == 1)
 		#expect(GlobalHotkeyAction.toggleRecording.hotkeyId == 2)
 		#expect(GlobalHotkeyAction.newChat.hotkeyId == 3)
+		#expect(GlobalHotkeyAction.askCompanion.hotkeyId == 4)
+		#expect(GlobalHotkeyAction.askCompanion.notificationName == .askCompanion)
 
 		// All IDs are unique.
 		let ids = GlobalHotkeyAction.allCases.map(\.hotkeyId)
@@ -171,11 +199,12 @@ struct GlobalKeyboardShortcutTests {
 		}
 	}
 
-	@Test("General settings shows all three shortcut recorders")
+	@Test("General settings shows all four shortcut recorders")
 	func generalSettingsShowsAllRecorders() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.shortcut.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		let view = AppearanceSettingsView(preferences: prefs)
+		_ = try view.inspect().find(viewWithAccessibilityIdentifier: "general-shortcut-ask-companion")
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Command palette shortcut")
 		}
@@ -202,6 +231,23 @@ struct GlobalKeyboardShortcutTests {
 			try view.inspect().find(
 				viewWithAccessibilityIdentifier: "general-shortcut-new-chat"
 			)
+		}
+	}
+
+	@Test("Shortcut hints share the label stack with their titles")
+	func shortcutHintsStayInTheirRows() throws {
+		let suite = UserDefaults(suiteName: "toby.tests.shortcut.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let inspected = try AppearanceSettingsView(preferences: prefs).inspect()
+		let rows: [(String, GlobalHotkeyAction)] = [
+			("Ask Toby’s Head shortcut", .askCompanion),
+			("Command palette shortcut", .commandPalette),
+			("Start/stop recording shortcut", .toggleRecording),
+			("New chat shortcut", .newChat),
+		]
+		for (title, action) in rows {
+			let label = try inspected.find(text: title).parent().vStack()
+			#expect(try label.text(1).string() == action.description)
 		}
 	}
 

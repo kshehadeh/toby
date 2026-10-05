@@ -143,6 +143,13 @@ alpha defines the interactive boundary. Pointer sampling switches mouse handling
 so transparent margins pass through to other apps. Sampling stops when hidden.
 The portrait can be dragged without becoming the main window; the bubble
 receives keyboard input and dismisses on Escape or loss of key focus.
+The global `askCompanion` action (Carbon ID 4) posts `.askCompanion` directly to
+its controller, showing the head and bubble and renewing `presentationID` to
+focus the composer, including when the conversation is already visible.
+Settings → General records or clears this shortcut. Its default is ⌃⌥Space;
+a one-time UserDefaults migration seeds it for existing installs, preserves
+custom bindings, and skips it if another Toby action already uses that combination.
+Clearing it stays disabled across relaunches.
 
 `CompanionGeometry` handles display clamping and bubble placement. The bubble's
 hosting view disables automatic window sizing; the controller applies each size

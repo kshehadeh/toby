@@ -160,8 +160,8 @@ enum AppearanceDefaultsKey {
 	/// Last top-level tab visited in the Settings window. Defaults to General.
 	static let settingsLastTab = "toby.general.settingsLastTab"
 	/// System-wide shortcuts for global hotkey actions (JSON-encoded
-	/// `[GlobalHotkeyAction: GlobalKeyboardShortcut]`). Empty until the user
-	/// records shortcuts in Settings → General.
+	/// `[GlobalHotkeyAction: GlobalKeyboardShortcut]`). The companion has a default;
+	/// other actions are unset until recorded in Settings → General.
 	static let globalShortcuts = "toby.general.globalShortcuts"
 	/// Absolute path override for the Toby data directory (Settings → General).
 	/// Empty / missing means default `~/.toby` (or `TOBY_DIR` when set externally).
@@ -340,8 +340,8 @@ final class AppearancePreferences {
 	/// can re-register without holding a direct reference to prefs.
 	static let globalShortcutsDidChange = Notification.Name("toby.globalShortcutsDidChange")
 
-	/// System-wide keyboard shortcuts keyed by action. Empty until the user
-	/// records shortcuts in Settings → General. Persisted as a JSON string.
+	/// System-wide keyboard shortcuts keyed by action. The companion has a default;
+	/// other actions are unset until recorded in Settings → General. Persisted as a JSON string.
 	var globalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut] {
 		didSet {
 			guard globalShortcuts != oldValue else { return }
@@ -497,7 +497,7 @@ final class AppearancePreferences {
 			resolvedChatTranscriptMode = .normal
 		}
 
-		// Empty until the user records shortcuts.
+		// Seed the companion default once, including upgrades with existing shortcuts.
 		var resolvedGlobalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut] = [:]
 		if let globalShortcuts {
 			resolvedGlobalShortcuts = globalShortcuts
@@ -508,6 +508,18 @@ final class AppearancePreferences {
 			)
 		{
 			resolvedGlobalShortcuts = stored.filter { $0.value.hasRequiredModifiers }
+		}
+
+		let companionShortcutInitializedKey = "toby.globalShortcuts.companionDefaultInitialized"
+		let initializeCompanionShortcut = !defaults.bool(forKey: companionShortcutInitializedKey)
+		if globalShortcuts == nil, initializeCompanionShortcut,
+			resolvedGlobalShortcuts[.askCompanion] == nil
+		{
+			let shortcut = GlobalHotkeyAction.companionDefaultShortcut
+			let alreadyUsed = resolvedGlobalShortcuts.values.contains {
+				$0.keyCode == shortcut.keyCode && $0.modifiers == shortcut.modifiers
+			}
+			if !alreadyUsed { resolvedGlobalShortcuts[.askCompanion] = shortcut }
 		}
 
 		let resolvedTobyDirOverride: String?
@@ -554,11 +566,12 @@ final class AppearancePreferences {
 		if chatTranscriptMode != nil {
 			defaults.set(resolvedChatTranscriptMode.rawValue, forKey: Self.chatTranscriptModeDefaultsKey)
 		}
-		if globalShortcuts != nil, let data = try? JSONEncoder().encode(resolvedGlobalShortcuts),
+		if globalShortcuts != nil || initializeCompanionShortcut, let data = try? JSONEncoder().encode(resolvedGlobalShortcuts),
 			let value = String(data: data, encoding: .utf8)
 		{
 			defaults.set(value, forKey: Self.globalShortcutsDefaultsKey)
 		}
+		defaults.set(true, forKey: companionShortcutInitializedKey)
 		if tobyDirOverride != nil {
 			if let path = resolvedTobyDirOverride {
 				defaults.set(path, forKey: Self.tobyDirDefaultsKey)
