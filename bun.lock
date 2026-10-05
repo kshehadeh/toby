@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "@toby/cli",
-      "version": "0.184.3",
+      "version": "0.185.0",
       "bin": {
         "toby": "./dist/cli.js",
       },
