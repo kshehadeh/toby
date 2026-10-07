@@ -69,9 +69,16 @@
 	color: var(--toby-accent, #f97316);
 }
 
-.betaListBadge {
-	display: inline-block;
+.badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem;
 	margin: 1.25rem 0 0;
+}
+
+.badges a {
+	display: inline-block;
 	line-height: 0;
 	text-decoration: none !important;
 }
