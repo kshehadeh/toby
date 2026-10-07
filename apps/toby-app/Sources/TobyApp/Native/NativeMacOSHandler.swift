@@ -885,6 +885,60 @@ enum NativeMacOSHandler {
 		return json(["ok": true, "data": ["hiddenCount": hiddenNames.count, "hiddenApps": hiddenNames]])
 	}
 
+	// MARK: - Running applications and normal quit
+
+	static func appsRunning(body: Data?) -> Data {
+		let includeBackground = boolValue(body, key: "includeBackground") ?? false
+		let needle = (stringValue(body, key: "appName") ?? "")
+			.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+		let apps = NSWorkspace.shared.runningApplications.filter { app in
+			!app.isTerminated && (includeBackground || app.activationPolicy == .regular)
+				&& (needle.isEmpty || (app.localizedName ?? "").lowercased().contains(needle)
+					|| (app.bundleIdentifier ?? "").lowercased().contains(needle))
+		}.sorted { $0.processIdentifier < $1.processIdentifier }
+		return json(["ok": true, "data": ["apps": apps.map(applicationInfo), "count": apps.count]])
+	}
+
+	static func appQuit(body: Data?) -> Data {
+		guard let name = stringValue(body, key: "appName")?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+			return json(["ok": false, "error": "appName is required."])
+		}
+		let needle = name.lowercased()
+		let matches = NSWorkspace.shared.runningApplications.filter {
+			!$0.isTerminated && (($0.localizedName ?? "").lowercased() == needle
+				|| ($0.bundleIdentifier ?? "").lowercased() == needle)
+		}
+		guard !matches.isEmpty else {
+			return json(["ok": false, "error": "No running application exactly matched \"\(name)\"."])
+		}
+		guard matches.count == 1, let app = matches.first else {
+			return json(["ok": false, "error": "Multiple running applications matched. Use a unique bundle ID."])
+		}
+		guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+			return json(["ok": false, "error": "Toby cannot quit itself through its native API. Quit Toby from the app menu."])
+		}
+		let info = applicationInfo(app)
+		guard app.terminate() else {
+			return json(["ok": false, "error": "Could not send the quit request. The application may have already exited."])
+		}
+		return json(["ok": true, "data": ["quitRequested": true, "app": info,
+			"message": "Normal quit requested. The app may remain running while it shows a save prompt or if quitting is cancelled."]])
+	}
+
+	private static func applicationInfo(_ app: NSRunningApplication) -> [String: Any] {
+		var info: [String: Any] = [
+			"processIdentifier": Int(app.processIdentifier),
+			"isActive": app.isActive, "isHidden": app.isHidden,
+			"activationPolicy": app.activationPolicy == .regular ? "regular" : (app.activationPolicy == .accessory ? "accessory" : "prohibited"),
+		]
+		info["name"] = app.localizedName
+		info["bundleIdentifier"] = app.bundleIdentifier
+		info["bundlePath"] = app.bundleURL?.path
+		info["executablePath"] = app.executableURL?.path
+		info["launchDate"] = app.launchDate.map { ISO8601DateFormatter().string(from: $0) }
+		return info
+	}
+
 	// MARK: - Helpers
 
 	private static func ensureAccessibility() -> Bool {

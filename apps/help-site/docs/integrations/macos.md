@@ -67,10 +67,24 @@ Return to **Settings → Integrations**. macOS should show as connected and heal
 | Low Power Mode status | `macLowPowerModeStatus` | system power settings |
 | Low Power Mode set | `macLowPowerModeSet` | system power settings |
 | Run Shortcut | `macShortcutRun` | Shortcuts |
+| Quit an application normally | `macAppQuit` | AppKit |
+| Running application information | `macAppsRunning` | AppKit |
 | System information | `macSystemInfo` | system info |
 | Notifications | `macNotificationsPeek` | **Not supported** |
 
 Mutating calls respect **dry run** when the chat session has dry-run enabled.
+
+## Running and quitting apps
+
+Ask Toby which apps are running, or ask about a particular app. Toby can show
+app names, bundle IDs, process IDs, locations, launch times, and whether an app
+is active or hidden. The default list includes regular apps; ask to include
+background apps to see menu bar and other background applications too.
+
+Ask Toby to quit an app by its exact name or bundle ID. Toby requests a normal
+quit, so the app may show a save prompt or cancel quitting. A successful request
+does not mean the app has exited. Toby does not force quit apps and cannot quit
+itself through this tool. No extra macOS permission is needed for either tool.
 
 ## Example chat prompts
 
@@ -86,6 +100,10 @@ Mutating calls respect **dry run** when the chat session has dry-run enabled.
 - "Read my clipboard."
 - "Copy this to my clipboard: Hello world."
 - "Show system info."
+- "Which applications are running?"
+- "Show information about Safari."
+- "List running apps, including background apps."
+- "Quit Safari."
 - "Run my Focus on shortcut."
 
 ## Permissions

@@ -277,6 +277,43 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		inputSchema: { type: "object", properties: {} },
 	},
 	{
+		name: "macAppQuit",
+		displayName: "Quit application",
+		description:
+			"macOS only. Request a normal quit of one running application by exact name or bundle ID (case-insensitive). May show save prompts; success means the request was sent, not that the app exited. Never force quits. No extra permission required.",
+		inputSchema: {
+			type: "object",
+			properties: {
+				appName: prop(
+					"string",
+					"Exact app name or bundle ID to quit (e.g. Safari or com.apple.Safari).",
+				),
+			},
+			required: ["appName"],
+		},
+	},
+	{
+		name: "macAppsRunning",
+		displayName: "Running applications",
+		description:
+			"macOS only. List running applications with names, bundle IDs, process IDs, bundle/executable paths, launch times, and active/hidden status. Lists regular GUI apps by default; optionally include background apps or filter by name/bundle ID substring. No extra permission required. This is an application list, not a list of all OS processes.",
+		readOnly: true,
+		inputSchema: {
+			type: "object",
+			properties: {
+				appName: prop(
+					"string",
+					"Optional case-insensitive name or bundle ID substring filter.",
+				),
+				includeBackground: prop(
+					"boolean",
+					"Include background and accessory applications (default false).",
+				),
+			},
+		},
+	},
+
+	{
 		name: "macWindowHideApp",
 		displayName: "Hide app windows",
 		description:
@@ -1085,6 +1122,44 @@ export function executeTool(
 				},
 				appliedActions: [`Unminimized ${count} window(s).`],
 			};
+		}
+
+		case "macAppQuit": {
+			const appName = strValue(input, "appName")?.trim();
+			if (!appName) throw new ToolFailure("appName is required.");
+			if (dryRun)
+				return {
+					result: {
+						dryRun: true,
+						message: `[DRY RUN] Would request a normal quit of "${appName}".`,
+					},
+					appliedActions: [],
+				};
+			requireNative();
+			const r = nativeRequest("macos/app-quit", { appName });
+			if (!r.ok)
+				return {
+					result: { ok: false, error: r.error ?? "Failed" },
+					appliedActions: [],
+				};
+			return {
+				result: { ...r.data, ok: true },
+				appliedActions: [`Requested a normal quit of "${appName}".`],
+			};
+		}
+
+		case "macAppsRunning": {
+			requireNative();
+			const r = nativeRequest("macos/apps-running", {
+				appName: strValue(input, "appName")?.trim() ?? "",
+				includeBackground: boolValue(input, "includeBackground") ?? false,
+			});
+			if (!r.ok)
+				return {
+					result: { ok: false, error: r.error ?? "Failed" },
+					appliedActions: [],
+				};
+			return { result: { ...r.data, ok: true }, appliedActions: [] };
 		}
 
 		case "macWindowHideApp": {

@@ -14,6 +14,8 @@ Focus rule: When the user asks to turn on/off Do Not Disturb or Focus mode, call
 
 Notification rule: When the user asks Toby to display/send/show a local macOS system notification, call **macNotificationShow** with a title, description, and optional CTA button labels. Use **macNotificationsPeek** only for reading existing Notification Center items, which is unsupported.
 
+Applications rule: Use **macAppsRunning** to list running apps or inspect a named app. Set \`includeBackground: true\` for menu bar/background apps. Use **macAppQuit** to quit a named app by exact name or bundle ID; use the list to resolve unclear names. A successful quit result only confirms the request was sent: apps can show save prompts or cancel quitting. Never report that an app exited unless a later list confirms it.
+
 Windows rule: For requests to hide, show, minimize, or unminimize windows on this Mac, use **macWindowsHideAll** / **macWindowsShowAll** / **macWindowsMinimizeAll** / **macWindowsUnminimizeAll** for global actions, and **macWindowHideApp** / **macWindowMinimizeApp** / **macWindowUnminimizeApp** when the user names a specific app. Hide/show work without extra permission; the minimize/unminimize tools require the macOS Accessibility permission and will return a clear hint if it is not granted yet.`,
 		buildMultiUserContent: `## Local macOS
 Use mac tools for system changes on **this Mac** (Darwin only).

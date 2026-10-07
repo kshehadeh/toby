@@ -102,11 +102,33 @@ The macOS integration has no configurable fields. System control is handled by n
 | `macWindowsShowAll` | AppKit `NSRunningApplication.unhide()` |
 | `macWindowsMinimizeAll` | `AXUIElement` + `kAXMinimizedAttribute` across all GUI apps |
 | `macWindowsUnminimizeAll` | `AXUIElement` + `kAXMinimizedAttribute` restore across all GUI apps |
+| `macAppQuit` | AppKit `NSRunningApplication.terminate()` — normal quit request by exact app name or bundle ID |
+| `macAppsRunning` | AppKit running applications with optional `appName` substring filter and `includeBackground` |
 | `macWindowHideApp` | AppKit hide, matched by localized name / bundle id substring |
 | `macWindowMinimizeApp` | `AXUIElement` minimize for a specific app |
 | `macWindowUnminimizeApp` | `AXUIElement` unminimize for a specific app |
 
 Mutating calls respect **dry run** modes from chat turns when enabled.
+
+### Application tools
+
+`macAppQuit` requires `appName`: an exact, case-insensitive localized app name
+or bundle identifier. It refuses missing, unmatched, ambiguous targets and Toby
+itself. It sends a normal quit request, never force quits, and reports
+`quitRequested: true` when the request is sent. Apps may still show save prompts
+or cancel quitting; this does not confirm that the process exited.
+
+`macAppsRunning` is read-only and can run in dry-run turns. It returns `apps`
+and `count`. Each entry includes `processIdentifier`, `isActive`, `isHidden`,
+and `activationPolicy`; name, bundle identifier, bundle/executable paths and
+ISO 8601 launch date are included when available. By default it lists regular
+GUI apps. Set `includeBackground: true` for accessory/background applications;
+this is not a list of every OS process. Optional `appName` filters names and
+bundle IDs by case-insensitive substring.
+
+Both tools need no additional macOS permission. Native POST routes are
+`/api/native/macos/app-quit` and `/api/native/macos/apps-running` with the same
+input fields as the tools.
 
 ## Permissions and prompts
 

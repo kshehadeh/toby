@@ -271,6 +271,10 @@ final class NativeServer {
 			return wrapHandlerData(NativeMacOSHandler.systemInfo())
 		case "/api/native/macos/notification-show":
 			return wrapHandlerData(await NativeMacOSHandler.notificationShow(body: request.body))
+		case "/api/native/macos/app-quit":
+			return wrapHandlerData(NativeMacOSHandler.appQuit(body: request.body))
+		case "/api/native/macos/apps-running":
+			return wrapHandlerData(NativeMacOSHandler.appsRunning(body: request.body))
 		case "/api/native/macos/minimize-all":
 			return wrapHandlerData(NativeMacOSHandler.minimizeAll())
 		case "/api/native/macos/unminimize-all":
