@@ -124,7 +124,12 @@ and `activationPolicy`; name, bundle identifier, bundle/executable paths and
 ISO 8601 launch date are included when available. By default it lists regular
 GUI apps. Set `includeBackground: true` for accessory/background applications;
 this is not a list of every OS process. Optional `appName` filters names and
-bundle IDs by case-insensitive substring.
+bundle IDs by case-insensitive substring. Each app also includes
+`secondsSinceLastFocus`: `0` while active, elapsed seconds since it last lost
+focus, or `null` if Toby has not observed it with focus. Toby tracks AppKit
+activation/deactivation notifications from native server startup, in memory;
+history resets when Toby restarts and does not cover earlier activity. The same
+field is included in the app information returned by `macAppQuit`.
 
 Both tools need no additional macOS permission. Native POST routes are
 `/api/native/macos/app-quit` and `/api/native/macos/apps-running` with the same

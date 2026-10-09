@@ -81,6 +81,12 @@ app names, bundle IDs, process IDs, locations, launch times, and whether an app
 is active or hidden. The default list includes regular apps; ask to include
 background apps to see menu bar and other background applications too.
 
+Toby can also tell you how long it has been since an app last had focus. The
+currently active app reports zero seconds; other apps report the time since
+they lost focus. Focus history starts when Toby launches and resets when Toby
+restarts. Apps Toby has not observed with focus report an unknown time, which
+does not mean they have never been used.
+
 Ask Toby to quit an app by its exact name or bundle ID. Toby requests a normal
 quit, so the app may show a save prompt or cancel quitting. A successful request
 does not mean the app has exited. Toby does not force quit apps and cannot quit

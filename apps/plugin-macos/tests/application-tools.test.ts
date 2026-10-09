@@ -58,10 +58,19 @@ describe("application tools", () => {
 
 	it("allows read-only discovery in dry run and forwards filters and app details", () => {
 		spyOn(native, "isNativeAvailable").mockReturnValue(true);
-		const apps = [{ name: "Safari", processIdentifier: 123, isHidden: true }];
+		const apps = [
+			{
+				name: "Safari",
+				processIdentifier: 123,
+				isHidden: true,
+				secondsSinceLastFocus: 90,
+			},
+			{ name: "Finder", processIdentifier: 124, secondsSinceLastFocus: null },
+			{ name: "Toby", processIdentifier: 125, secondsSinceLastFocus: 0 },
+		];
 		const request = spyOn(native, "nativeRequest").mockReturnValue({
 			ok: true,
-			data: { apps, count: 1 },
+			data: { apps, count: apps.length },
 		});
 		const result = executeTool(
 			"macAppsRunning",

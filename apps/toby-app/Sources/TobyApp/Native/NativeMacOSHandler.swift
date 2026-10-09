@@ -887,6 +887,7 @@ enum NativeMacOSHandler {
 
 	// MARK: - Running applications and normal quit
 
+	@MainActor
 	static func appsRunning(body: Data?) -> Data {
 		let includeBackground = boolValue(body, key: "includeBackground") ?? false
 		let needle = (stringValue(body, key: "appName") ?? "")
@@ -899,6 +900,7 @@ enum NativeMacOSHandler {
 		return json(["ok": true, "data": ["apps": apps.map(applicationInfo), "count": apps.count]])
 	}
 
+	@MainActor
 	static func appQuit(body: Data?) -> Data {
 		guard let name = stringValue(body, key: "appName")?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
 			return json(["ok": false, "error": "appName is required."])
@@ -925,6 +927,7 @@ enum NativeMacOSHandler {
 			"message": "Normal quit requested. The app may remain running while it shows a save prompt or if quitting is cancelled."]])
 	}
 
+	@MainActor
 	private static func applicationInfo(_ app: NSRunningApplication) -> [String: Any] {
 		var info: [String: Any] = [
 			"processIdentifier": Int(app.processIdentifier),
@@ -936,6 +939,7 @@ enum NativeMacOSHandler {
 		info["bundlePath"] = app.bundleURL?.path
 		info["executablePath"] = app.executableURL?.path
 		info["launchDate"] = app.launchDate.map { ISO8601DateFormatter().string(from: $0) }
+		info["secondsSinceLastFocus"] = NativeAppFocusTracker.shared.secondsSinceFocus(app).map { $0 as Any } ?? NSNull()
 		return info
 	}
 

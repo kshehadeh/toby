@@ -45,6 +45,37 @@ struct NativeApplicationTests {
 			#expect(app["processIdentifier"] as? Int != nil)
 			#expect(app["isHidden"] as? Bool != nil)
 			#expect(app["isActive"] as? Bool != nil)
+			#expect(app["secondsSinceLastFocus"] != nil)
+			if app["isActive"] as? Bool == true {
+				#expect(app["secondsSinceLastFocus"] as? Double == 0)
+			}
 		}
+	}
+
+	@Test("focus history distinguishes unknown, active, and previously focused apps")
+	func focusTiming() {
+		var history = AppFocusHistory()
+		let date = Date(timeIntervalSince1970: 1_000)
+		let app = AppFocusHistory.Process(identifier: 123, launchDate: date)
+		#expect(history.secondsSinceFocus(app, isActive: false, now: date) == nil)
+		#expect(history.secondsSinceFocus(app, isActive: true, now: date) == 0)
+		history.record(app, at: date)
+		#expect(history.secondsSinceFocus(app, isActive: false, now: date.addingTimeInterval(90)) == 90)
+		// Losing focus updates the timestamp even after a long interval with focus.
+		history.record(app, at: date.addingTimeInterval(100))
+		#expect(history.secondsSinceFocus(app, isActive: false, now: date.addingTimeInterval(110)) == 10)
+		#expect(history.secondsSinceFocus(app, isActive: false, now: date) == 0)
+	}
+
+	@Test("focus history does not transfer to a relaunched process and clears on termination")
+	func focusLifecycle() {
+		var history = AppFocusHistory()
+		let date = Date(timeIntervalSince1970: 1_000)
+		let app = AppFocusHistory.Process(identifier: 123, launchDate: date)
+		history.record(app, at: date)
+		let relaunched = AppFocusHistory.Process(identifier: 123, launchDate: date.addingTimeInterval(1))
+		#expect(history.secondsSinceFocus(relaunched, isActive: false, now: date) == nil)
+		history.remove(app)
+		#expect(history.secondsSinceFocus(app, isActive: false, now: date) == nil)
 	}
 }

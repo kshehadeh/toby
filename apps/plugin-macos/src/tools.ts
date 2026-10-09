@@ -296,7 +296,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		name: "macAppsRunning",
 		displayName: "Running applications",
 		description:
-			"macOS only. List running applications with names, bundle IDs, process IDs, bundle/executable paths, launch times, and active/hidden status. Lists regular GUI apps by default; optionally include background apps or filter by name/bundle ID substring. No extra permission required. This is an application list, not a list of all OS processes.",
+			"macOS only. List running applications with names, bundle IDs, process IDs, bundle/executable paths, launch times, active/hidden status, and secondsSinceLastFocus (0 while active; seconds since losing focus otherwise; null if not observed since Toby started). Focus history resets when Toby restarts. Lists regular GUI apps by default; optionally include background apps or filter by name/bundle ID substring. No extra permission required. This is an application list, not a list of all OS processes.",
 		readOnly: true,
 		inputSchema: {
 			type: "object",

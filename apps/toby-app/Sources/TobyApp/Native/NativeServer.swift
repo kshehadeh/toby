@@ -98,6 +98,7 @@ final class NativeServer {
 
 	func start() {
 		guard listener == nil else { return }
+		NativeAppFocusTracker.shared.start()
 
 		let params = NWParameters.tcp
 		params.allowLocalEndpointReuse = true
