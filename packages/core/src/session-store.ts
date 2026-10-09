@@ -4,6 +4,7 @@ import type { AIContextWindowInfo } from "./ai/context-window";
 import type { UserIntentSpec } from "./ai/pretreatment";
 import { bufferToVector, vectorToBuffer } from "./ai/vector";
 import type { ChatSessionSettings } from "./api/chat-api";
+import { AUTOMATION_SCHEMA } from "./automations/schema";
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 import { ensureTobyDir, getChatDbPath } from "./config/index";
 import {
@@ -77,6 +78,7 @@ export function getDb(): SqliteDb {
 }
 
 function ensureSchema(db: SqliteDb): void {
+	db.exec(AUTOMATION_SCHEMA);
 	db.exec(`
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id TEXT PRIMARY KEY,

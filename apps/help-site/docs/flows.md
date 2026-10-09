@@ -192,3 +192,9 @@ in the step outputs.
 - [Personas](./personas) — Model and instructions used by LLM steps
 - [Schedules](./schedules) — Run a prompt or a flow on a timetable
 - [Integrations](./integrations/overview) — Local tools flows call
+
+## Run on a macOS event
+
+Use [Event automations](automations.md) to run a saved custom flow when you
+return after inactivity or your Mac wakes. Toby.app must remain running to
+observe these events. Time-based schedules continue to work as before.

@@ -665,3 +665,11 @@ daemon tick; email/Slack still send. Output is stored on the schedule run.
 - [chat-pipeline.md](chat-pipeline.md) — interactive chat turn nodes  
 - [plugin-protocol.md](plugin-protocol.md) — `tools list` / `tools execute`  
 - [integrations.md](integrations.md) — `IntegrationModule` and discovery  
+
+## Event automations
+
+Saved custom flows can also run on macOS idle/return and system-wake events.
+The daemon matches and claims events while Toby.app observes native APIs.
+Existing schedules keep their current execution path. See
+[event automations](automations.md) for conditions, native app requirements,
+transport, restart behavior, and API contracts.

@@ -699,6 +699,20 @@ struct TobyClient {
 		return asStream ? .streamError(fallback) : .serverError(fallback)
 	}
 
+	func automationRequest<T: Decodable>(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> T {
+		let components = URLComponents(string: baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/automations" + path)
+		guard let url = components?.url else { throw TobyClientError.invalidResponse }
+		var request = URLRequest(url: url)
+		request.httpMethod = method
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		request.timeoutInterval = 10
+		if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(T.self, from: data)
+	}
+
 	private func validate(response: URLResponse, data: Data) throws {
 		guard let http = response as? HTTPURLResponse else {
 			throw TobyClientError.invalidResponse

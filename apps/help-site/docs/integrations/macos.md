@@ -141,3 +141,9 @@ Select macOS in **Settings → Integrations** and click **Disconnect**. This cle
 - [Apple Contacts](apple-contacts)
 - [Toby.app](../toby-app)
 - [Configure and connect](../getting-started/configure-and-status)
+
+## Event-triggered workflows
+
+[Event automations](../automations.md) can run saved flows when input resumes
+after inactivity or the Mac wakes. Configure them in **Automations**; Toby.app
+must remain running to observe the events.

@@ -6,6 +6,7 @@ import Foundation
 /// Keep string raw values stable — external posters (menu bar, native handlers)
 /// and tests depend on them.
 extension Notification.Name {
+	static let openAutomationRun = Notification.Name("openAutomationRun")
 	static let askCompanion = Notification.Name("askCompanion")
 	static let openCommandPalette = Notification.Name("openCommandPalette")
 	static let openIssueReport = Notification.Name("openIssueReport")

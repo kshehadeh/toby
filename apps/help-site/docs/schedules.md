@@ -83,3 +83,9 @@ directly instead of using **Convert**. Times use your Mac's time zone.
 - [Flows](./flows): recipes you can also run on a schedule
 - [Projects](./projects): keep a recurring report's history in one place
 - [Things to try](./examples)
+
+## Run on a macOS event
+
+Use [Event automations](automations.md) to run a saved custom flow when you
+return after inactivity or your Mac wakes. Toby.app must remain running to
+observe these events. Time-based schedules continue to work as before.

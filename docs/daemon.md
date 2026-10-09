@@ -288,3 +288,11 @@ SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use 
 - [chat-pipeline.md](chat-pipeline.md) — node pipeline, pretreatment, tools, caching (shared with Toby.app and inbound)
 - [integrations.md](integrations.md) — `chatInbound` on `IntegrationModule`
 - [create-integration.md](create-integration.md#inbound-chat) — adding a new inbound provider
+
+## Event automations
+
+Saved custom flows can also run on macOS idle/return and system-wake events.
+The daemon matches and claims events while Toby.app observes native APIs.
+Existing schedules keep their current execution path. See
+[event automations](automations.md) for conditions, native app requirements,
+transport, restart behavior, and API contracts.

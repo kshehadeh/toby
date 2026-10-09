@@ -19,6 +19,7 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var appearancePreferences: AppearancePreferences = .shared
+    @State private var automationsStore = AutomationsStore()
     @State private var permissionsStore = PermissionsStore()
     @State private var history = NavigationHistory()
     @State private var isIssueReportPresented = false
@@ -47,6 +48,12 @@ struct RootView: View {
     var body: some View {
         contentWithBackup
             .modifier(rootNotificationRouter)
+            .onReceive(NotificationCenter.default.publisher(for: .openAutomationRun)) { notification in
+                guard let id = notification.object as? String else { return }
+                bringMainWindowToFront()
+                navigateToRoute(.automations)
+                Task { await automationsStore.load(); await automationsStore.openRun(id) }
+            }
             .onChange(of: history.current) { _, _ in
                 leaveProjectSessionIfMainChatVisible()
             }
@@ -480,6 +487,8 @@ struct RootView: View {
             ProjectsView(projectsStore: projectsStore, chatStore: store)
         case .library:
             LibraryView(store: libraryStore)
+        case .automations:
+            AutomationsView(store: automationsStore, onOpenFlow: openDashboardFlow)
         case .schedules:
             SchedulesView(store: schedulesStore, onOpenFlow: openDashboardFlow)
         case .recordings:
@@ -499,6 +508,16 @@ struct RootView: View {
 
     @ToolbarContentBuilder
     private var rootToolbar: some ToolbarContent {
+        if history.current == .automations {
+            RootToolbars.common(commonToolbarModel, header: RootHeaderTitle(title: rootNavigationTitle))
+            AutomationToolbar(store: automationsStore)
+        } else {
+            workspaceToolbar
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var workspaceToolbar: some ToolbarContent {
         switch history.current {
             case .dashboard:
 
@@ -585,7 +604,7 @@ struct RootView: View {
                                             }
                                         )
 
-            case .schedules:
+            case .schedules, .automations:
 
                                         RootToolbars.schedules(
                                             common: commonToolbarModel,
@@ -732,6 +751,8 @@ struct RootView: View {
             )
         case .library:
             RootToolbars.routeTitle(.library, selectedItemName: libraryStore.inspectedItem?.title)
+        case .automations:
+            RootToolbars.routeTitle(.automations, selectedItemName: automationsStore.selected?.name)
         case .schedules:
             RootToolbars.routeTitle(
                 .schedules,
@@ -772,6 +793,8 @@ struct RootView: View {
                 recording: recordingsStore.selectedRecording,
                 selectedCount: recordingsStore.selectedRecordings.count
             )
+        case .automations:
+            automationsStore.sourceMessage
         case .schedules:
             scheduleNavigationSubtitle
         case .skills:
@@ -1053,6 +1076,8 @@ struct RootView: View {
             Task { await projectsStore.selectHome() }
         case .library:
             libraryStore.selectHome()
+        case .automations:
+            automationsStore.selectedId = nil
         case .schedules:
             schedulesStore.selectHome()
         case .flows:
@@ -1229,6 +1254,7 @@ struct RootView: View {
         configureStore.resetForHomeSwitch()
         recordingsStore.resetForHomeSwitch()
         schedulesStore.resetForHomeSwitch()
+        automationsStore.resetForHomeSwitch()
         projectsStore.resetForHomeSwitch()
         skillsStore.resetForHomeSwitch()
         memoriesStore.resetForHomeSwitch()

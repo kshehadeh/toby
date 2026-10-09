@@ -1371,3 +1371,11 @@ Errors:
 
 - `400` for missing or invalid fields.
 - `404` for unknown actions.
+
+## Event automations
+
+Saved custom flows can also run on macOS idle/return and system-wake events.
+The daemon matches and claims events while Toby.app observes native APIs.
+Existing schedules keep their current execution path. See
+[event automations](automations.md) for conditions, native app requirements,
+transport, restart behavior, and API contracts.

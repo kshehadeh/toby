@@ -28,6 +28,8 @@ Human- and flow-oriented docs for this repository.
 | [chat-pipeline.md](chat-pipeline.md) | Chat turn nodes, events, pretreatment, tool-result cache. |
 | [personas.md](personas.md) | Built-in personas (Toby, Mailman), locked fields, resolve/list hydration. |
 | [flows.md](flows.md) | Named flow pipelines: SQLite definitions, built-in seed, Tool Executor, LLM Prompter, dashboard flows. |
+| [automations.md](automations.md) | Event automations: idle/return and wake triggers, flow execution, limits, native observation, and API. |
+| [event-automations-plan.md](event-automations-plan.md) | Event automation rollout plan: implemented idle/return and wake, with folder watching next. |
 | [daemon.md](daemon.md) | Background daemon: schedules, inbound, unified log (`logs/toby.log`). |
 | [server-api.md](server-api.md) | Local daemon HTTP API: routes, SSE chat turns, configure. |
 | [dashboard.md](dashboard.md) | Home dashboard cards: block shell, soft vs force refresh (`?fresh=1`), standard tools + flow AI blurbs, cache. |

@@ -163,3 +163,11 @@ tail -f ~/.toby/logs/toby.log
 - **Notification Center** is not exposed through a stable public API, so Toby does not list notifications.
 
 See also [`integrations.md`](integrations.md) and [`plugin-protocol.md`](plugin-protocol.md).
+
+## Event automations
+
+Saved custom flows can also run on macOS idle/return and system-wake events.
+The daemon matches and claims events while Toby.app observes native APIs.
+Existing schedules keep their current execution path. See
+[event automations](automations.md) for conditions, native app requirements,
+transport, restart behavior, and API contracts.

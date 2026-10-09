@@ -34,6 +34,7 @@ import {
 	parseSkillFrontmatterAndBody,
 	resolveSkillsByNames,
 } from "../skills/index";
+import { createAutomationAuthoringTools } from "./automation-authoring-tools";
 import { formatChatModelError } from "./chat";
 import { getCurrentDateTimeInfo } from "./current-datetime";
 import { enableToolsPromptSection } from "./enable-tools-tool";
@@ -1513,6 +1514,7 @@ export function createGlobalChatTools(
 	return {
 		...reflectTools,
 		...createFlowAuthoringTools(ctx),
+		...createAutomationAuthoringTools(ctx),
 		...projectAttachmentTools,
 		...createListenChatTools(),
 		...createWebFetchTools(),

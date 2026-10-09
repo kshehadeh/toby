@@ -3,6 +3,7 @@ import path from "node:path";
 import { getDaemonIdentity } from "../daemon/status";
 import { resolvePersonaImageFile } from "../personas/index";
 import { handleOpenRouterOAuth } from "./handlers/ai-provider-oauth";
+import { handleAutomations } from "./handlers/automations";
 import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
@@ -263,6 +264,11 @@ export async function handleWebRequest(
 			// Aggregator list payload (internal / debug; not used by home cards).
 			return handleDashboardCategory(rest, url);
 		}
+		if (
+			pathname === "/api/automations" ||
+			pathname.startsWith("/api/automations/")
+		)
+			return handleAutomations(req, pathname);
 		if (pathname === "/api/flows" && req.method === "GET") {
 			return handleFlowsList();
 		}

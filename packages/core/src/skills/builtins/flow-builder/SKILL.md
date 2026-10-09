@@ -71,3 +71,23 @@ Report the saved name, ordered steps, result destination, and any setup still
 needed. Tell the user where to find it in Flows and, if configured, Home Actions.
 Never claim the flow was run: creation validates and saves only. Adding email
 or Slack delivery must reflect the user's requested destination and recipients.
+
+## Event automations
+
+When the user wants a saved flow to run after inactivity or system wake, inspect
+`listAutomationCatalog` after saving or selecting the custom flow. Use
+`createAutomation` to bind `macos.userReturned` (minimum idle seconds) or
+`macos.didWake` to that flow. Conditions support weekdays (Sunday = 0), an IANA
+timezone, and a 24-hour time window. Configure cooldown and once-per-day limits.
+
+The app must remain running to observe events. Idle means no input, not proof
+that the user is absent. Wake does not mean the screen is unlocked. Missed
+events are not replayed; interrupted runs are not automatically retried.
+Creation does not execute the flow. Enable only when the user has requested
+automatic execution and the selected flow's actions/delivery targets are clear;
+otherwise save disabled. Use `updateAutomation` with the current revision to
+change an existing definition. Never create duplicates after a successful save.
+
+Initial inputs and event mappings can supply context to LLM prompt templates,
+including `{{json bag.automation}}`. Existing tool steps still require constants;
+do not promise event-driven tool parameters or branching.

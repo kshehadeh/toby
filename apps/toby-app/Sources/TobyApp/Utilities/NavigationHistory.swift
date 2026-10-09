@@ -6,6 +6,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	case projects
 	case library
 	case schedules
+	case automations
 	case flows
 	case recordings
 	case skills
@@ -20,6 +21,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .projects: return "Projects"
 		case .library: return "Library"
 		case .skills: return "Skills"
+		case .automations: return "Automations"
 		case .schedules: return "Schedules"
 		case .flows: return "Flows"
 		case .recordings: return "Recordings"
@@ -34,6 +36,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .projects: return "folder"
 		case .library: return "books.vertical"
 		case .skills: return "graduationcap"
+		case .automations: return "bolt"
 		case .schedules: return "calendar"
 		case .flows: return "arrow.triangle.branch"
 		case .recordings: return "waveform"
@@ -43,7 +46,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	/// Primary destinations, in sidebar order.
 	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .projects, .library, .recordings]
 	/// Automation section, in sidebar order.
-	static let sidebarAutomation: [DetailRoute] = [.schedules, .flows]
+	static let sidebarAutomation: [DetailRoute] = [.automations, .schedules, .flows]
 	/// Tools section, in sidebar order.
 	static let sidebarTools: [DetailRoute] = [.skills]
 
@@ -60,6 +63,8 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 			return "Browse saved documents, PDFs, and images that Toby has copied and indexed for chat."
 		case .skills:
 			return "Browse installed skills, inspect their instructions, edit them, or add new reusable workflows."
+		case .automations:
+			return "Run saved flows when you return after idle or your Mac wakes."
 		case .schedules:
 			return "Create and monitor recurring prompts that run on a schedule through Toby's background daemon."
 		case .flows:

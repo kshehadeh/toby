@@ -295,3 +295,11 @@ Plugins use a `NativeHelperClient` that:
 - `apps/plugin-applecontacts/src/native-client.ts` — Apple Contacts plugin TypeScript client that forwards to Toby.app's native API
 - `apps/plugin-applereminders/src/native-client.ts` — Apple Reminders plugin TypeScript client that forwards to Toby.app's native API
 - `apps/plugin-macos/src/native-client.ts` — macOS plugin TypeScript client that forwards to Toby.app's native API
+
+## Event automations
+
+Saved custom flows can also run on macOS idle/return and system-wake events.
+The daemon matches and claims events while Toby.app observes native APIs.
+Existing schedules keep their current execution path. See
+[event automations](automations.md) for conditions, native app requirements,
+transport, restart behavior, and API contracts.

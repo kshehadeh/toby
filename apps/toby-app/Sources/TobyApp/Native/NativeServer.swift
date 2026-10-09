@@ -5,6 +5,7 @@ private struct NativeHTTPRequest: Sendable {
 	let method: String
 	let path: String
 	let body: Data?
+	let browserRequest: Bool
 }
 
 private final class NativeHTTPRequestReader: @unchecked Sendable {
@@ -75,7 +76,7 @@ private final class NativeHTTPRequestReader: @unchecked Sendable {
 			}
 
 			let body = contentLength > 0 ? Data(bodySoFar.prefix(contentLength)) : nil
-			onRequest(NativeHTTPRequest(method: method, path: path, body: body))
+			onRequest(NativeHTTPRequest(method: method, path: path, body: body, browserRequest: headerLines.contains { $0.lowercased().hasPrefix("origin:") || $0.lowercased().hasPrefix("sec-fetch-site:") }))
 		}
 	}
 }
@@ -102,6 +103,7 @@ final class NativeServer {
 
 		let params = NWParameters.tcp
 		params.allowLocalEndpointReuse = true
+		params.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
 
 		let newListener: NWListener
 		do {
@@ -139,6 +141,7 @@ final class NativeServer {
 	}
 
 	func stop() {
+		NativeAutomationEventSource.shared.reset()
 		listener?.cancel()
 		listener = nil
 		deletePortFile()
@@ -184,6 +187,13 @@ final class NativeServer {
 
 	private func route(request: NativeHTTPRequest) async -> Data {
 		let path = request.path
+		if path.hasPrefix("/api/native/automations/") {
+			guard !request.browserRequest else { return httpResponse(json: ["ok": false, "error": "Native clients only"], status: 403) }
+			if path == "/api/native/automations/completion-notification", request.method == "POST" {
+				return wrapHandlerData(await NativeMacOSHandler.automationCompletionNotification(body: request.body))
+			}
+			return httpResponse(json: NativeAutomationEventSource.shared.handle(method: request.method, path: path, body: request.body))
+		}
 
 		guard path.hasPrefix("/api/native/") else {
 			return httpResponse(json: ["ok": false, "error": "Not found"], status: 404)
