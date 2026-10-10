@@ -16,6 +16,12 @@ toby plugins doctor
 
 Run **`toby connect macos`** once on your Mac. Connection stores `integrations.macos.connectedAt` in **`~/.toby/config.json`**. Disconnect with **`toby disconnect macos`**.
 
+Chat readiness also checks Toby.app's native health endpoint. Single-integration
+and combined chats both use the plugin-v1 `singleSessionRules` and
+`multiUserContentTemplate` fields to prepare macOS context. A context-preparation
+failure can appear as “context unavailable” even when native health and the
+connection flag are valid; it is distinct from a disconnected native bridge.
+
 ## Plugin setup
 
 The plugin ships signed **Toby Focus On** and **Toby Focus Off** shortcuts for

@@ -28,6 +28,11 @@ Open **Toby.app → Settings → Integrations → macOS** and click **Connect**.
 
 Toby probes native system APIs and stores a connected flag in `~/.toby/config.json`.
 
+If chat says **macOS context unavailable** while Settings shows it connected,
+that can indicate a chat preparation error even when the native connection is
+healthy. Update Toby and start a new chat. In development, rebuild the macOS
+plugin and restart the daemon so it reloads the plugin's chat templates.
+
 ## Optional setup (bundled shortcuts)
 
 The macOS plugin can install signed **Toby Focus On** and **Toby Focus Off**

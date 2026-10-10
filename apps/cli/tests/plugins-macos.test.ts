@@ -47,12 +47,15 @@ describe("macos plugin", () => {
 	let tempDir: string;
 	let pluginDir: string;
 	let previousTobyDir: string | undefined;
+	let previousPluginsDir: string | undefined;
 
 	beforeEach(() => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-macos-plugin-"));
 		pluginDir = path.join(tempDir, "toby-home", "plugins");
 		previousTobyDir = process.env.TOBY_DIR;
+		previousPluginsDir = process.env.TOBY_PLUGINS_DIR;
 		process.env.TOBY_DIR = path.join(tempDir, "toby-home");
+		process.env.TOBY_PLUGINS_DIR = pluginDir;
 		resetPluginModuleCache();
 		copyMacOSPlugin(pluginDir);
 	});
@@ -62,6 +65,11 @@ describe("macos plugin", () => {
 			Reflect.deleteProperty(process.env, "TOBY_DIR");
 		} else {
 			process.env.TOBY_DIR = previousTobyDir;
+		}
+		if (previousPluginsDir === undefined) {
+			Reflect.deleteProperty(process.env, "TOBY_PLUGINS_DIR");
+		} else {
+			process.env.TOBY_PLUGINS_DIR = previousPluginsDir;
 		}
 		resetPluginModuleCache();
 		fs.rmSync(tempDir, { recursive: true, force: true });
@@ -141,6 +149,28 @@ describe("macos plugin", () => {
 		expect(module.resources).toEqual(
 			expect.arrayContaining(["wifi", "clipboard"]),
 		);
+	});
+	it("prepares both single and combined chat context through the adapter", async () => {
+		const metadata = loadPluginMetadata(findMacOSPlugin());
+		if ("error" in metadata) throw new Error(metadata.error);
+		const module = createPluginIntegrationModule(metadata);
+		const prep = module.chatModelPrep;
+		if (!prep) throw new Error("macOS chat preparation is missing");
+		const prompt = "List the running applications on this Mac.";
+		const messages = await prep.buildSingleSessionMessages(
+			{
+				name: "Test",
+				instructions: "",
+				promptMode: "add",
+				ai: { provider: "ollama", model: "test" },
+			},
+			prompt,
+		);
+		expect(messages[0]?.content).toContain("macAppsRunning");
+		expect(messages.at(-1)?.content).toContain(prompt);
+		const combined = await prep.buildMultiUserContent(prompt);
+		expect(combined).toContain("Local macOS");
+		expect(combined).toContain(prompt);
 	});
 
 	it("discovers macos via integration registry when plugin is installed", () => {

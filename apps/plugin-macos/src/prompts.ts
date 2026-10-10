@@ -3,9 +3,15 @@ import { isConnected } from "./protocol";
 
 type JsonRecord = Record<string, unknown>;
 
-export function buildChatModelPrep(): JsonRecord {
-	return {
-		systemPromptSection: `### Local macOS
+type ChatModelPrep = {
+	readonly systemPromptSection: string;
+	readonly singleSessionRules: string;
+	readonly singleSessionUserTemplate: string;
+	readonly multiUserContentTemplate: string;
+};
+
+export function buildChatModelPrep(): ChatModelPrep {
+	const systemPromptSection = `### Local macOS
 Use mac* tools — Wi‑Fi scan & power, Bluetooth, battery info, audio list/switch/volume/mute, display brightness, clipboard read/write, pmset Low Power probes, Focus/Do Not Disturb, Shortcut runner, system notification display, unsupported notifications ack.
 
 Audio rule: **macAudioListOutputs** returns both outputs and inputs. When the user asks to switch/change/set the output device, use **macAudioSwitchOutput** once the target is known. Use **macAudioListOutputs** only to discover exact names; do not stop after listing if there is a clear output match.
@@ -16,9 +22,15 @@ Notification rule: When the user asks Toby to display/send/show a local macOS sy
 
 Applications rule: Use **macAppsRunning** to list running apps or inspect a named app. Set \`includeBackground: true\` for menu bar/background apps. The returned \`secondsSinceLastFocus\` is 0 while active, elapsed seconds since losing focus otherwise, or null when unknown. History only covers the current Toby session; never interpret null as never used. Use **macAppQuit** to quit a named app by exact name or bundle ID; use the list to resolve unclear names. A successful quit result only confirms the request was sent: apps can show save prompts or cancel quitting. Never report that an app exited unless a later list confirms it.
 
-Windows rule: For requests to hide, show, minimize, or unminimize windows on this Mac, use **macWindowsHideAll** / **macWindowsShowAll** / **macWindowsMinimizeAll** / **macWindowsUnminimizeAll** for global actions, and **macWindowHideApp** / **macWindowMinimizeApp** / **macWindowUnminimizeApp** when the user names a specific app. Hide/show work without extra permission; the minimize/unminimize tools require the macOS Accessibility permission and will return a clear hint if it is not granted yet.`,
-		buildMultiUserContent: `## Local macOS
+Windows rule: For requests to hide, show, minimize, or unminimize windows on this Mac, use **macWindowsHideAll** / **macWindowsShowAll** / **macWindowsMinimizeAll** / **macWindowsUnminimizeAll** for global actions, and **macWindowHideApp** / **macWindowMinimizeApp** / **macWindowUnminimizeApp** when the user names a specific app. Hide/show work without extra permission; the minimize/unminimize tools require the macOS Accessibility permission and will return a clear hint if it is not granted yet.`;
+	return {
+		systemPromptSection,
+		singleSessionRules: systemPromptSection,
+		singleSessionUserTemplate: "{{userPrompt}}",
+		multiUserContentTemplate: `## Local macOS
 Use mac tools for system changes on **this Mac** (Darwin only).
+
+User request: {{userPrompt}}
 `,
 	};
 }
