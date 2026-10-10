@@ -47,6 +47,8 @@ export interface PluginToolDefinition {
 	readonly name: string;
 	readonly description: string;
 	readonly readOnly?: boolean;
+	/** Resolve `source` in the current turn and supply scoped source/output files. */
+	readonly fileAccess?: boolean;
 	readonly inputSchema: Record<string, unknown>;
 	/** Human-readable label for UI display (e.g. "Fetch inbox overview"). */
 	readonly displayName?: string;
@@ -311,7 +313,17 @@ export interface PluginToolsListResponse {
 	readonly code?: string;
 }
 
+export type PluginFileContext = {
+	readonly source: {
+		readonly filename: string;
+		readonly path?: string;
+		readonly dataBase64?: string;
+	};
+	readonly outputDir: string;
+};
+
 export interface PluginToolExecuteRequest extends PluginConfigEnvelope {
+	readonly files?: PluginFileContext;
 	readonly tool: string;
 	readonly input: Record<string, unknown>;
 	readonly dryRun?: boolean;

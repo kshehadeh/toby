@@ -35,6 +35,8 @@ Human- and flow-oriented docs for this repository.
 | [dashboard.md](dashboard.md) | Home dashboard cards: block shell, soft vs force refresh (`?fresh=1`), standard tools + flow AI blurbs, cache. |
 | [dashboard-standard-tools-plan.md](dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |
 | [image-generation-plan.md](image-generation-plan.md) | Unimplemented plan: capability-gated `generateImage` tool + prompt-dock indicator. |
+| [image-manipulation-plan.md](image-manipulation-plan.md) | Proposed Images integration: local crop, resize, colour adjustment, conversion, and compression. |
+| [image-manipulation.md](image-manipulation.md) | Bundled Images integration: local editing, file context, tool semantics, and packaging. |
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract; external session keys; Slack thread/DM mapping. |
 | [slack-setup-plan.md](slack-setup-plan.md) | Proposed native setup wizard and Slack app provisioning options. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |

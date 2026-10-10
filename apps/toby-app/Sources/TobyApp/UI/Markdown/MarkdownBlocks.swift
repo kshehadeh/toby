@@ -39,6 +39,8 @@ struct MarkdownFileLink: Equatable {
 		"csv", "tsv", "log", "xml", "html", "rst",
 	]
 
+	static let imageFileExtensions: Set<String> = ["jpg", "jpeg", "png", "webp"]
+
 	static func isFileDestination(_ raw: String) -> Bool {
 		let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 		guard !trimmed.isEmpty else { return false }
@@ -47,7 +49,7 @@ struct MarkdownFileLink: Equatable {
 		if lower.hasPrefix("javascript:") || lower.hasPrefix("mailto:") || lower.hasPrefix("data:") {
 			return false
 		}
-		guard let ext = fileExtension(from: trimmed), textFileExtensions.contains(ext) else {
+		guard let ext = fileExtension(from: trimmed), textFileExtensions.union(imageFileExtensions).contains(ext) else {
 			return false
 		}
 		if lower.hasPrefix("file:") { return true }

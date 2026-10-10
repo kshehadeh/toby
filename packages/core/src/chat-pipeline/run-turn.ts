@@ -12,6 +12,7 @@ import {
 import { createGlobalChatTools } from "../ai/global-chat-tools";
 import type { Persona } from "../config/index";
 import { getIntegrationModule } from "../integrations/index";
+import { bindPluginFileContext } from "../integrations/plugins/file-context";
 import type { IntegrationModule } from "../integrations/types";
 import { createLibraryTools } from "../library/tools";
 import { log, logWithSession } from "../logging/chat-log";
@@ -251,7 +252,13 @@ function mergeAuxiliaryChatTools(
 	readonly mergedTools: Record<string, Tool>;
 	readonly toolIntegrationLabels: Record<string, string>;
 } {
-	const mergedTools: Record<string, Tool> = { ...integration.tools };
+	const mergedTools: Record<string, Tool> = bindPluginFileContext(
+		integration.tools,
+		{
+			attachments: options.attachments,
+			project: options.project,
+		},
+	);
 	const toolIntegrationLabels: Record<string, string> = {
 		...integration.toolIntegrationLabels,
 	};

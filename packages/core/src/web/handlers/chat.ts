@@ -1,7 +1,7 @@
 import type { AskUserToolResult } from "../../ai/ask-user-tool";
+import { resolveChatInputCapability } from "../../ai/chat-input-capabilities";
 import { resolveContextWindowInfo } from "../../ai/context-window";
 import { gatewayFundsErrorBody } from "../../ai/gateway-funds";
-import { resolveChatAttachmentCapability } from "../../ai/model-capabilities";
 import {
 	formatPersonaAiLabel,
 	hasAnyConfiguredAIProvider,
@@ -117,7 +117,7 @@ export async function handleChatStatusDetail(): Promise<Response> {
 			providerId: persona.ai.provider,
 			model: persona.ai.model,
 		}),
-		attachmentCapability: resolveChatAttachmentCapability(persona),
+		attachmentCapability: resolveChatInputCapability(persona),
 		personaImageUrl,
 		connectedIntegrations: modules.map((m) => m.displayName),
 		personaCount: listPersonas().length,

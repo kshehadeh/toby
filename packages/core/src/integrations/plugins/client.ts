@@ -387,6 +387,7 @@ function serializeToolExecuteRequest(
 	if (request.paths?.dataDir) {
 		payload.paths = { dataDir: request.paths.dataDir };
 	}
+	if (request.files) payload.files = request.files;
 	return JSON.stringify(payload);
 }
 

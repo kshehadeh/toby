@@ -441,6 +441,20 @@ Each tool requires `name`, `description`, and `inputSchema` (JSON Schema draft
 
 Optional: `readOnly` (boolean, default `false`).
 
+Optional: `fileAccess` (boolean, default `false`). File tools take a `source`
+string: `attachment:<exact current-turn filename>`, a project-relative path in
+project chat, or an absolute local file path elsewhere. Core resolves the source
+and adds `files: { source: { filename, path? , dataBase64? }, outputDir }` to
+`tools execute`. The envelope supplies one source representation; attachment
+bytes are never model arguments. Outputs use the active project's outputs or
+Toby's generated-files directory by default. This is opt-in; other plugins are unchanged.
+
+Image file tools can request `outputLocation: "source"` to resolve the output
+directory beside a local source. Attachments reject this location; project
+source and output paths remain within the project boundary. The plugin still
+receives the resolved output directory through the existing `files` envelope.
+See [Images](image-manipulation.md) for the reference implementation.
+
 ### `tools execute`
 
 Runs one tool.

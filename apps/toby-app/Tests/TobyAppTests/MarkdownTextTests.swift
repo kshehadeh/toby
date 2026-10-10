@@ -190,6 +190,23 @@ struct MarkdownTextTests {
 		#expect(file.destination.hasPrefix("file://"))
 	}
 
+	@Test("image downloads in a bullet list use file controls and resolve encoded filenames")
+	func parsesImageDownloadLinks() throws {
+		let blocks = MarkdownText.parseBlocks("- [Photo.jpeg](file:///Users/example/Downloads/Photo%20with%20spaces.jpeg)\n- [Other.jpg](file:///tmp/other.jpg)\n- [PNG](file:///tmp/other.png)\n- [WebP](file:///tmp/other.webp)")
+		#expect(blocks.count == 4)
+		let file = try #require(firstFileLink(in: blocks))
+		#expect(file.filename == "Photo with spaces.jpeg")
+		#expect(file.resolvedFileURL()?.path == "/Users/example/Downloads/Photo with spaces.jpeg")
+		for block in blocks {
+			guard case .fileLink = block else { Issue.record("Expected image file controls"); continue }
+		}
+		#expect(!MarkdownFileLink.isFileDestination("https://example.com/photo.jpg"))
+		#expect(!MarkdownFileLink.isFileDestination("../photo.jpg"))
+		let view = MarkdownText(text: "[Photo](file:///tmp/Photo.jpeg)", font: .body, foregroundStyle: .primary, usesProseTypography: true)
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "markdown-file-link-open") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "markdown-file-link-download") }
+	}
+
 	@Test("parses an absolute path download link")
 	func parsesAbsolutePathDownloadLink() throws {
 		let blocks = MarkdownText.parseBlocks(

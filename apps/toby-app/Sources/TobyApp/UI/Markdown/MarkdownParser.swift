@@ -292,6 +292,8 @@ enum MarkdownParser {
 
 	private static func parseFileLink(in text: String, at open: String.Index) -> FileMatch? {
 		guard text[open] == "[" else { return nil }
+		// Image syntax must not become a file action when its URL is unsupported.
+		if open > text.startIndex, text[text.index(before: open)] == "!" { return nil }
 		let labelStart = text.index(after: open)
 		guard labelStart < text.endIndex, text[labelStart] != "!" else { return nil }
 		guard let labelClose = text[labelStart...].firstIndex(of: "]") else { return nil }

@@ -119,7 +119,7 @@ jobs:
 
           # Sign standalone binaries in dist/
           codesign --force --options runtime --timestamp --sign "$identity" dist/toby
-          codesign --force --options runtime --timestamp --sign "$identity" dist/bun
+          codesign --force --options runtime --timestamp --entitlements scripts/bun-runtime.entitlements --sign "$identity" dist/bun
 
           # Sign executables bundled inside Toby.app/Contents/Resources/
           # codesign --deep does NOT traverse Contents/Resources/ (non-standard
@@ -127,11 +127,17 @@ jobs:
           APP_RESOURCES="dist/Toby.app/Contents/Resources"
           for bin in \
             "$APP_RESOURCES/toby" \
-            "$APP_RESOURCES/bun" \
             "$APP_RESOURCES/toby-listener"; do
             [[ -f "$bin" ]] || continue
             codesign --force --options runtime --timestamp --sign "$identity" "$bin"
           done
+          codesign --force --options runtime --timestamp --entitlements scripts/bun-runtime.entitlements --sign "$identity" "$APP_RESOURCES/bun"
+
+          # Image processing ships native Sharp/libvips modules in Resources.
+          # Sign these explicitly before signing the enclosing app.
+          while IFS= read -r -d '' module; do
+            codesign --force --options runtime --timestamp --sign "$identity" "$module"
+          done < <(find "$APP_RESOURCES/toby-plugin-images" -type f \( -name '*.node' -o -name '*.dylib' \) -print0)
 
           # Sparkle is copied manually by scripts/build-app.sh. Sign nested
           # executables before signing the framework and app bundle.

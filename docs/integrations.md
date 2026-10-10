@@ -1,5 +1,9 @@
 # Integrations
 
+The bundled [Images integration](image-manipulation.md) adds local image
+inspection, crop/resize, colour adjustments, conversion, and compression.
+Connect it without credentials to enable its chat tools.
+
 Integrations are **installable TypeScript plugins** discovered at runtime and
 adapted into `IntegrationModule` instances. The harness registry in
 [`packages/core/src/integrations/index.ts`](../packages/core/src/integrations/index.ts)

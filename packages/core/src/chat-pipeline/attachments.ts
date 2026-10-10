@@ -1,4 +1,5 @@
 import type { FilePart, ModelMessage } from "ai";
+import { canProcessImageAttachment } from "../ai/chat-input-capabilities";
 import {
 	CHAT_ATTACHMENT_MAX_BYTES_PER_FILE,
 	CHAT_ATTACHMENT_MAX_FILES,
@@ -62,7 +63,12 @@ export function validateChatAttachments(
 	if (
 		!capability.supported &&
 		!options.allowUnsupportedModel &&
-		!extractableOnly
+		!extractableOnly &&
+		!attachments.every(
+			(attachment) =>
+				isExtractableChatAttachmentMediaType(attachment.mediaType) ||
+				canProcessImageAttachment(attachment.mediaType),
+		)
 	) {
 		throw new Error(
 			capability.reason ?? "The selected model does not support attachments.",

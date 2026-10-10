@@ -21,6 +21,7 @@ const requiredDirs = [
 	"toby-plugin-applecalendar",
 	"toby-plugin-applereminders",
 	"toby-plugin-news",
+	"toby-plugin-images",
 ];
 
 const missing = [];

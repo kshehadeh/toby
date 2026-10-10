@@ -38,6 +38,7 @@ import {
 	pluginToolsList,
 } from "./client";
 import { withPluginCredentialLock } from "./credential-lock";
+import { resolvePluginFileContext } from "./file-context";
 import { pluginIconUrl } from "./icons";
 import { createPluginChatInboundProvider } from "./inbound-adapter";
 import { jsonSchemaToZod } from "./json-schema";
@@ -441,7 +442,9 @@ function loadReadOnlyToolNames(
 		}
 	}
 	registerPluginToolLabels(tools);
-	return tools.filter((t) => t.readOnly).map((t) => t.name);
+	// File references can resolve to different bytes on each turn; never cache
+	// these read-only results using only the model's arguments.
+	return tools.filter((t) => t.readOnly && !t.fileAccess).map((t) => t.name);
 }
 
 async function resolvePluginChatReadiness(
@@ -914,6 +917,16 @@ export function createPluginIntegrationModule(
 					return withPluginCredentialLock(name, async () => {
 						const envelope = buildPluginEnvelope(name);
 						const dataDir = ensurePluginDataDir(name);
+						let files: ReturnType<typeof resolvePluginFileContext> | undefined;
+						try {
+							files = definition.fileAccess
+								? resolvePluginFileContext(input as Record<string, unknown>)
+								: undefined;
+						} catch (error) {
+							return {
+								error: error instanceof Error ? error.message : String(error),
+							};
+						}
 						const execResult = await pluginToolsExecuteAsync(target, {
 							tool: definition.name,
 							input: input as Record<string, unknown>,
@@ -921,6 +934,7 @@ export function createPluginIntegrationModule(
 							state: envelope.state,
 							dryRun: params.dryRun,
 							paths: { dataDir },
+							files,
 						});
 
 						forwardPluginStderr(name, execResult.stderr);

@@ -1,0 +1,12 @@
+{
+	"name": "images",
+	"displayName": "Images",
+	"description": "Crop, resize, adjust colours, convert, and compress images locally",
+	"version": "1.0.0",
+	"protocolVersion": "1",
+	"icon": "🖼️",
+	"runtime": { "type": "bun", "entry": "src/index.ts" },
+	"capabilities": ["chat"],
+	"providerCategories": [],
+	"resources": ["images", "files"]
+}
