@@ -87,6 +87,16 @@ private struct AutomationDetailView: View {
       VStack(alignment: .leading, spacing: 20) {
         Text(item.name).font(.title2.bold())
         Text(item.triggerLabel).foregroundStyle(AppTheme.secondaryText)
+        if item.trigger.type == "macos.fileChanges" {
+          DetailMetadataRow(
+            label: "Changes", value: item.trigger.kinds?.joined(separator: ", ") ?? "new")
+          DetailMetadataRow(
+            label: "File types",
+            value: item.trigger.extensions?.joined(separator: ", ").isEmpty == false
+              ? (item.trigger.extensions ?? []).joined(separator: ", ") : "All")
+          DetailMetadataRow(
+            label: "Subfolders", value: item.trigger.recursive == true ? "Included" : "Excluded")
+        }
         DetailMetadataRow(label: "Status", value: item.enabled ? store.sourceMessage : "Disabled")
         DetailMetadataRow(label: "Timezone", value: item.conditions.timezone)
         DetailMetadataRow(
@@ -144,8 +154,15 @@ struct AutomationRunSheet: View {
           Text(run.definition.name).font(.title2.bold())
           DetailMetadataRow(label: "Status", value: run.status.capitalized)
           DetailMetadataRow(
-            label: "Event", value: run.event.type == "macos.didWake" ? "Mac woke" : "User returned")
+            label: "Event",
+            value: run.event.type == "macos.fileChanges"
+              ? "Folder changes" : run.event.type == "macos.didWake" ? "Mac woke" : "User returned")
           DetailMetadataRow(label: "Occurred", value: run.event.occurredAt)
+          if run.event.type == "macos.fileChanges" {
+            Text(run.event.payload.prettyPrinted(maxLength: 100000)).font(
+              .system(.caption, design: .monospaced)
+            ).textSelection(.enabled)
+          }
           if let reason = run.reason {
             Text(reason.replacingOccurrences(of: "_", with: " ")).textSelection(.enabled)
           }

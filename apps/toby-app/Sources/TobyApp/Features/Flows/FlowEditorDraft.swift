@@ -97,6 +97,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 	var toolName: String
 	var userToolId: String?
 	var constInputs: [String: String]
+	var automationInputs: [String: String] = [:]
 	var systemPrompt: String
 	var userPrompt: String
 	var standardTool: String?
@@ -167,6 +168,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		var inputs: [String: String] = [:]
 		if let storedInputs = stored.inputs {
 			for (key, source) in storedInputs {
+				if source.from == "automation" { automationInputs[key] = source.path ?? "" }
 				if let value = source.constValue {
 					inputs[key] = value.editorString
 				}
@@ -211,7 +213,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		}
 		var inputs: [String: Any] = [:]
 		let originalInputs = body["inputs"] as? [String: Any]
-		for (key, raw) in constInputs {
+		for (key, raw) in constInputs where automationInputs[key] == nil {
 			if originalInputStrings[key] == raw, let source = originalInputs?[key] {
 				inputs[key] = source
 				continue
@@ -220,6 +222,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 			if trimmed.isEmpty { continue }
 			inputs[key] = ["const": FlowEditorNode.jsonConst(trimmed)]
 		}
+		for (key, path) in automationInputs { inputs[key] = ["from":"automation", "path":path] }
 		if let userToolId { body["tool"] = ["userToolId": userToolId] }
 		else if let standardTool { body["tool"] = ["standardTool": standardTool] }
 		else { body["tool"] = ["moduleName": moduleName, "toolName": toolName] }

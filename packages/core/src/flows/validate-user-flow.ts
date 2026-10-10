@@ -89,6 +89,18 @@ function constIsPresent(value: unknown): boolean {
 	return true;
 }
 
+function isEventSource(source: FlowInputSource): boolean {
+	return (
+		isRecord(source) &&
+		!("const" in source) &&
+		source.from === "automation" &&
+		(source.path === undefined ||
+			!source.path
+				.split(".")
+				.some((p) => ["__proto__", "constructor", "prototype"].includes(p)))
+	);
+}
+
 function validateToolNode(
 	node: StoredToolExecutorNode,
 	options: ValidateUserFlowOptions,
@@ -96,9 +108,9 @@ function validateToolNode(
 ): void {
 	const inputs = node.inputs ?? {};
 	for (const [name, source] of Object.entries(inputs)) {
-		if (!isConstSource(source)) {
+		if (!isConstSource(source) && !isEventSource(source)) {
 			issues.push(
-				`Node "${node.id}" input "${name}" must be an author-time constant (runtime bag wiring is not allowed)`,
+				`Node "${node.id}" input "${name}" must be a constant or an automation context reference`,
 			);
 		}
 	}
@@ -118,7 +130,11 @@ function validateToolNode(
 	const required = catalogTool.inputSchema.required ?? [];
 	for (const field of required) {
 		const source = inputs[field];
-		if (!source || !isConstSource(source) || !constIsPresent(source.const)) {
+		if (
+			!source ||
+			(!isEventSource(source) &&
+				(!isConstSource(source) || !constIsPresent(source.const)))
+		) {
 			issues.push(
 				`Node "${node.id}" is missing required input "${field}" for ${catalogTool.moduleName}.${catalogTool.toolName}`,
 			);

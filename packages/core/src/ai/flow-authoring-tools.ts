@@ -20,7 +20,15 @@ import { type UserTool, listUserTools } from "../user-tools/store";
 
 const outputs = z.record(z.string(), z.string()).optional();
 const inputs = z
-	.record(z.string(), z.object({ const: z.unknown() }))
+	.record(
+		z.string(),
+		z.union([
+			z.object({ const: z.unknown() }).strict(),
+			z
+				.object({ from: z.literal("automation"), path: z.string().optional() })
+				.strict(),
+		]),
+	)
 	.optional();
 
 export const flowDraftSchema = z.object({
@@ -133,7 +141,7 @@ export function createFlowAuthoringTools(ctx: {
 		}),
 		createFlow: tool({
 			description:
-				"Validate and save a new custom Toby flow when the user asks to build/create one. Inspect listFlowAuthoringCatalog first. Tool inputs are fixed constants; an optional markdown LLM step must be last. Home Actions use a dashboard runner destination. Saving does not run tools, scripts, or deliveries. Does not update existing flows.",
+				"Validate and save a new custom Toby flow when the user asks to build/create one. Inspect listFlowAuthoringCatalog first. Tool inputs use constants or automation context references (from: automation, path: event.payload.changes); an optional markdown LLM step must be last. Home Actions use a dashboard runner destination. Saving does not run tools, scripts, or deliveries. Does not update existing flows.",
 			inputSchema: flowDraftSchema,
 			execute: async (draft) => {
 				try {

@@ -29,8 +29,9 @@ calendar events.” The built-in **flow-builder** skill checks available tools,
 collects any required details, and saves a custom flow. Open **Flows** to review
 or run it. Home actions also appear in the **Actions** rail.
 
-Saving does not run the flow. Tool arguments must be fixed when you build it,
-and an optional LLM step runs last. For a new AppleScript or TypeScript step,
+Saving does not run the flow. Tool arguments use fixed values or automation event
+inputs, and an optional LLM step runs last. Choose **Automation event** for a
+parameter that takes file changes; see [Event automations](automations.md). For a new AppleScript or TypeScript step,
 Toby can draft the code and guide you through saving it in **Script Tools**
 before adding it to the flow.
 

@@ -189,7 +189,14 @@ final class NativeServer {
 		let path = request.path
 		if path.hasPrefix("/api/native/automations/") {
 			guard !request.browserRequest else { return httpResponse(json: ["ok": false, "error": "Native clients only"], status: 403) }
-			if path == "/api/native/automations/completion-notification", request.method == "POST" {
+			if path == "/api/native/automations/folder-assessment", request.method == "POST" {
+                guard let body = request.body, let watch = try? JSONDecoder().decode(NativeFolderWatch.self, from: body) else { return httpResponse(json: ["ok":false,"error":"Invalid folder"] ) }
+                do {
+                  let scan = try await Task.detached(priority: .utility) { try await NativeFolderScanService.shared.scan(watch, assessment: true) }.value
+                  return httpResponse(json: ["ok":true,"data":["matchingFiles":scan.files.count,"visitedEntries":scan.visited,"limited":scan.limited,"warning":scan.limited || scan.files.count >= 10000]])
+                } catch { return httpResponse(json: ["ok":false,"error":error.localizedDescription]) }
+            }
+            if path == "/api/native/automations/completion-notification", request.method == "POST" {
 				return wrapHandlerData(await NativeMacOSHandler.automationCompletionNotification(body: request.body))
 			}
 			return httpResponse(json: NativeAutomationEventSource.shared.handle(method: request.method, path: path, body: request.body))

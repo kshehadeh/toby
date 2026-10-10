@@ -125,13 +125,11 @@ export async function runAutomationSupervisor(
 				pruneAutomationHistory();
 				lastPrunedAt = Date.now();
 			}
-			const types = [
-				...new Set(
-					listAutomations()
-						.filter((a) => a.enabled)
-						.map((a) => a.trigger.type),
-				),
-			].sort();
+			const enabled = listAutomations().filter((a) => a.enabled);
+			const watches = enabled
+				.filter((a) => a.trigger.type === "macos.fileChanges")
+				.map((a) => ({ id: `${a.id}:${a.revision}`, ...a.trigger }));
+			const types = [...new Set(enabled.map((a) => a.trigger.type))].sort();
 			try {
 				if (!types.length) {
 					if (activeTypes)
@@ -147,7 +145,7 @@ export async function runAutomationSupervisor(
 					const subscription = await native(
 						"subscriptions",
 						"PUT",
-						{ owner, types },
+						{ owner, types, watches },
 						signal,
 					);
 					const sessionId = String(subscription.sessionId);
@@ -182,13 +180,18 @@ export async function runAutomationSupervisor(
 						ingestAutomationBatch(batch.events, next);
 						cursor = next;
 					}
+					const folderErrors = subscription.folderErrors as
+						| Record<string, string>
+						| undefined;
 					const unavailable =
-						subscription.idleAvailable === false &&
-						types.includes("macos.userReturned");
+						(folderErrors && Object.keys(folderErrors).length > 0) ||
+						(subscription.idleAvailable === false &&
+							types.includes("macos.userReturned"));
 					sourceStatus = {
 						state: unavailable ? "unavailable" : "observing",
 						message: unavailable
-							? "Idle input timing unavailable"
+							? (folderErrors && Object.values(folderErrors)[0]) ||
+								"Idle input timing unavailable"
 							: "Observing macOS events",
 						lastPollAt: new Date().toISOString(),
 					};

@@ -11,13 +11,13 @@ using their current tables, executor, IDs, and CLI/API contracts.
 | --- | --- | --- |
 | `macos.userReturned` | `minimumIdleSeconds`, 10–604800; default 1800 | Physical input resumes after a continuously observed idle interval. Sampling is every five seconds. Idle does not establish absence. |
 | `macos.didWake` | None | NSWorkspace system-wake event; not display wake, login, or unlock. |
+| `macos.fileChanges` | Absolute folder, recursive flag, extensions, excluded paths, kinds (`new`, `changed`, `deleted`), settlingSeconds (2–60), allowLargeFolder | Settled batches from FSEvents plus snapshot reconciliation. |
 
 The native source uses `CGEventSource.secondsSinceLastEventType` with HID system
 state and `NSWorkspace` notifications. It records durations and timestamps,
 never input content. A new source initializes a baseline without emitting a
 return or backfilling time before observation. Inactive user sessions and
-unavailable input readings reset that baseline. A known sleep interval can
-contribute to inactivity; wake and resumed input remain separate events.
+unavailable input readings reset that baseline. Sleep resets the input baseline; wake and resumed input remain separate events.
 
 Toby.app must remain running. Closing its window is fine. Quitting the app
 makes the daemon show **Waiting for Toby.app**; the supervisor does not launch
@@ -46,12 +46,14 @@ Optional completion notifications open the saved automation result. Notification
 permission or delivery failure does not turn a successful flow into failure.
 
 `action.inputs` and `action.eventInputMappings` populate initial flow context.
-Mapping values are `id`, `type`, `occurredAt`, or `payload.idleSeconds` (return
-only). The reserved `automation` context contains automation ID, run ID, and
+Mapping values are `id`, `type`, `occurredAt`, `payload.idleSeconds` (return
+only), `payload.changes`, or `payload.folder` (files only). The reserved `automation` context contains automation ID, run ID, and
 source event; user inputs and flow outputs cannot replace it. LLM templates
 can read `{{json bag.automation}}` or other initial keys. Custom tool steps
-still require author-time constants; this feature does not add tool input
-wiring or branching.
+can use `{from:"automation", path:"event.payload.changes"}` for a whole file
+batch, or a dot-path such as `event.payload.changes.0.path`. Tool-to-tool and
+model-to-tool input wiring remain unsupported. Missing event context fails a
+manual run with an explicit missing-input error.
 
 ## Storage and execution
 
@@ -68,8 +70,9 @@ IDs include a source-session UUID; cursor gaps and source-session changes
 establish a fresh baseline. Changing the Toby home resets native subscriptions
 and source identity.
 
-Dispatch has two worker slots, one pending/running claim per automation, and a
-100-claim pending limit. Events expire after two minutes, checked on receipt
+Dispatch has two worker slots and a 100-claim pending limit. Idle/wake
+automations have one pending/running claim. File automations can queue batches
+while busy, with only one running batch per automation. Events expire after two minutes, checked on receipt
 and dequeue. Skips record conditions, cooldown, daily limit, busy, capacity,
 staleness, or missing-flow errors. Core revalidates the selected flow before
 execution and links its normal `flow_runs` history.
@@ -99,9 +102,10 @@ There is no browser event-ingestion endpoint.
 
 Native bridge paths under `/api/native/automations/`:
 
-- `PUT subscriptions`: `{owner: <UUID>, types: [...]}`; returns session and baseline sequence.
+- `PUT subscriptions`: `{owner: <UUID>, types: [...], watches: [...]}`; returns session and baseline sequence.
 - `GET status`: observation state and idle availability.
 - `GET events?sessionId=...&after=...&limit=...`: bounded batch with sequence and explicit gap.
+- `POST folder-assessment`: watch configuration with `id`; matching count, visited entries, limited/warning flags. Inspection only.
 - `POST completion-notification`: best-effort notification opening a saved run.
 
 The native listener binds to IPv4 loopback. Automation endpoints also reject
@@ -117,7 +121,7 @@ edit, enable/disable, rule preview, and deletion. Recent runs open result sheets
 and the linked flow-step trace. Conditions and initial-input JSON are editable
 in the sheet. Missing source status and errors remain visible.
 
-Chat tools `listAutomationCatalog`, `createAutomation`, and `updateAutomation`
+Chat tools `listAutomationCatalog`, `inspectAutomationFolder`, `createAutomation`, and `updateAutomation`
 extend the built-in flow-builder skill. Creation/updates do not execute a flow;
 tools respect dry run and record applied actions. The skill instructs the model
 to enable only when automatic execution and delivery targets were requested.
@@ -126,5 +130,39 @@ Implementation: `packages/core/src/automations/`,
 `web/handlers/automations.ts`, `ai/automation-authoring-tools.ts`,
 `apps/toby-app/.../Native/NativeAutomationEventSource.swift`, and
 `Features/Automations/`. See [flows](flows.md), [daemon](daemon.md), and
-[the implementation plan](event-automations-plan.md). Folder watching and broader
-trigger types remain deferred.
+[the implementation plan](event-automations-plan.md). Broader trigger types remain deferred.
+
+## Folder observation and warnings
+
+Each enabled file definition subscribes a watch keyed by `id:revision`. Old
+configuration events cannot execute a revised rule. New watches scan an initial
+baseline without replay; downtime and inaccessible-root recovery also establish
+fresh baselines. A replaced root/volume identity never produces mass deletion.
+
+FSEvents invalidates snapshots. After the configured quiet interval, serialized
+utility-actor scans reconcile regular files using path, size, modification time,
+and file identity. Atomic replacement at the same path is changed; rename/move
+is deleted at the old path and new at the new path. Removed items carry their
+last known size/time, not contents. This is observed filesystem change detection,
+not a byte-by-byte content comparison. Transient files that disappear before
+settling may produce no event. Quiet time does not guarantee a download finished.
+
+Hidden files, symbolic links, and package descendants are skipped. Extension
+filters are case-insensitive; empty means all regular files. Exclusions accept
+absolute paths or paths relative to the root and prune subfolders. Each settled
+batch is split into at most 500 changes per event. Event payload is
+`{watchId, folder, changes:[{kind,path,relativePath,size,modifiedAt}]}`.
+
+Folder inspection runs asynchronously with a cancel action. At 10,000 matching
+files, or an incomplete/slow scan, the editor warns and requires **Use folder
+anyway**. Acknowledgment is stored in `allowLargeFolder`; the native source also
+refuses large unacknowledged watches created through chat/API. Actual observation
+scans pause on more than 100,000 visited entries or ten seconds; incomplete scans
+never replace a baseline. Narrow the root, recursion, or exclusions when paused.
+Inspection counts respect filters but traversal costs can still be high with
+few matches. The editor recommends excluding flow output locations.
+
+The editor defaults new file rules to zero cooldown; API/chat authors should set
+it explicitly. Cooldown and daily limits intentionally skip otherwise matching
+batches. Queued work retains the existing two-minute freshness check and bounded
+capacity; skipped batches are visible in run history, without automatic replay.

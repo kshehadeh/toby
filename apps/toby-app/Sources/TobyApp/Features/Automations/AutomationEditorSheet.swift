@@ -5,7 +5,7 @@ struct AutomationEditorSheet: View {
   var body: some View {
     EditorSheet(
       title: store.editor?.existingId == nil ? "New Automation" : "Edit Automation",
-      isSaving: store.isSaving, canSave: store.editor?.canSave ?? false, isDirty: store.isDirty,
+      isSaving: store.isSaving, canSave: store.canSaveEditor, isDirty: store.isDirty,
       errorMessage: store.editorError, size: .wide, accessibilityIdentifier: "automation-editor",
       onCancel: { store.cancelEditor() }, onSave: { Task { await store.save() } }
     ) {
@@ -15,11 +15,15 @@ struct AutomationEditorSheet: View {
           Picker("When", selection: field(\.triggerType)) {
             Text("Return after idle").tag("macos.userReturned")
             Text("Mac wakes").tag("macos.didWake")
+            Text("Files in a folder").tag("macos.fileChanges")
           }
           if store.editor?.triggerType == "macos.userReturned" {
             Stepper(
               "Idle for at least \(store.editor?.idleMinutes ?? 30) minutes",
               value: field(\.idleMinutes), in: 1...10080)
+          }
+          if store.editor?.triggerType == "macos.fileChanges" {
+            AutomationFolderSection(store: store)
           }
           Text(
             "Toby observes events while the app is running. Return timing is sampled every five seconds. No input content is recorded."
@@ -75,12 +79,14 @@ struct AutomationEditorSheet: View {
           Toggle("Notify when completed", isOn: field(\.notifyOnCompletion))
           DisclosureGroup("Flow input values") {
             Text(
-              "Constants and event mappings are initial context for flow prompts. Tool steps still use fixed inputs."
+              "Constants and event mappings supply flow context. Tools can use automation context references."
             ).font(.caption).foregroundStyle(.secondary)
             Text("Constants (JSON object)").font(.caption)
             TextEditor(text: field(\.inputsJSON)).font(.system(.body, design: .monospaced)).frame(
               height: 80)
-            Text("Event mappings: input name → id, type, occurredAt, or payload.idleSeconds").font(
+            Text(
+              "Event mappings: input name → id, type, occurredAt, payload.idleSeconds, payload.changes, or payload.folder"
+            ).font(
               .caption)
             TextEditor(text: field(\.mappingsJSON)).font(.system(.body, design: .monospaced)).frame(
               height: 80)
@@ -93,6 +99,9 @@ struct AutomationEditorSheet: View {
           ).font(.caption).foregroundStyle(.secondary)
         }
       }.formStyle(.grouped)
+        .onChange(of: store.editor?.triggerType) { _, value in
+          if value == "macos.fileChanges" { store.editor?.cooldownMinutes = 0 }
+        }
     }
   }
   private func field<Value>(_ path: WritableKeyPath<AutomationEditorDraft, Value>) -> Binding<Value>

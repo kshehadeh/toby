@@ -67,9 +67,23 @@ export async function handleAutomations(
 					observationSessionId: session,
 					sequence: 1,
 					payload:
-						a.trigger.type === "macos.userReturned"
-							? { idleSeconds: a.trigger.minimumIdleSeconds }
-							: {},
+						a.trigger.type === "macos.fileChanges"
+							? {
+									watchId: `${a.id}:${a.revision}`,
+									folder: a.trigger.folder,
+									changes: [
+										{
+											kind: a.trigger.kinds[0],
+											path: `${a.trigger.folder}/example.txt`,
+											relativePath: "example.txt",
+											size: 100,
+											modifiedAt: new Date().toISOString(),
+										},
+									],
+								}
+							: a.trigger.type === "macos.userReturned"
+								? { idleSeconds: a.trigger.minimumIdleSeconds }
+								: {},
 				},
 			);
 			return jsonResponse(previewAutomation(a, event));

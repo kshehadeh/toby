@@ -17,12 +17,30 @@ final class AutomationsStore {
   var previewMessage: String?
   var selectedRun: AutomationRunItem?
   var pendingDelete: AutomationItem?
+  private var assessmentGeneration = 0
+  var isAssessingFolder = false
+  var folderAssessment: NativeFolderScan?
+  var folderAssessmentKey: String?
+  var folderAssessmentError: String?
+  @ObservationIgnored private var folderScanTask: Task<NativeFolderScan, Error>?
+  var canSaveEditor: Bool {
+    (editor?.canSave ?? false) && !isAssessingFolder
+      && (editor?.triggerType != "macos.fileChanges"
+        || (folderAssessment != nil && folderAssessmentKey == editor?.folderWatch.assessmentKey
+          && folderAssessmentError == nil
+          && (!(folderAssessment?.limited ?? false) && (folderAssessment?.files.count ?? 0) < 10000
+            || editor?.allowLargeFolder == true)))
+  }
   private var generation = 0
   private let client: TobyClient
   init(client: TobyClient = TobyClient()) { self.client = client }
   var selected: AutomationItem? { items.first { $0.id == selectedId } }
   var isDirty: Bool { editor != baseline }
   func resetForHomeSwitch() {
+    cancelFolderAssessment()
+    folderAssessment = nil
+    folderAssessmentKey = nil
+    folderAssessmentError = nil
     generation += 1
     items = []
     flows = []
@@ -59,17 +77,23 @@ final class AutomationsStore {
     } catch { if current == generation { self.error = error.localizedDescription } }
   }
   func startEditor(_ item: AutomationItem? = nil) {
+    folderAssessment = nil
+    folderAssessmentKey = nil
+    folderAssessmentError = nil
     editor = AutomationEditorDraft(item: item)
     baseline = editor
     editorError = nil
   }
   func cancelEditor() {
+    cancelFolderAssessment()
+    folderAssessment = nil
+    folderAssessmentKey = nil
     editor = nil
     baseline = nil
     editorError = nil
   }
   func save() async {
-    guard let draft = editor else { return }
+    guard canSaveEditor, let draft = editor else { return }
     let current = generation
     isSaving = true
     defer { if current == generation { isSaving = false } }
@@ -83,6 +107,53 @@ final class AutomationsStore {
       cancelEditor()
       await load()
     } catch { if current == generation { editorError = error.localizedDescription } }
+  }
+  func cancelFolderAssessment() {
+    assessmentGeneration += 1
+    folderScanTask?.cancel()
+    folderScanTask = nil
+    isAssessingFolder = false
+  }
+  func assessFolder() async {
+    cancelFolderAssessment()
+    folderAssessment = nil
+    folderAssessmentKey = nil
+    folderAssessmentError = nil
+    guard let draft = editor, draft.triggerType == "macos.fileChanges", !draft.folder.isEmpty else {
+      return
+    }
+    let assessmentToken = assessmentGeneration
+    let watch = draft.folderWatch
+    let current = generation
+    isAssessingFolder = true
+    let task = Task.detached(priority: .utility) {
+      try await NativeFolderScanService.shared.scan(watch, assessment: true)
+    }
+    folderScanTask = task
+    do {
+      let result = try await withTaskCancellationHandler {
+        try await task.value
+      } onCancel: {
+        task.cancel()
+      }
+      guard !Task.isCancelled, current == generation, assessmentToken == assessmentGeneration,
+        editor?.folderWatch.assessmentKey == watch.assessmentKey
+      else { return }
+      folderAssessment = result
+      folderAssessmentKey = watch.assessmentKey
+    } catch {
+      if !Task.isCancelled, current == generation, assessmentToken == assessmentGeneration,
+        editor?.folderWatch.assessmentKey == watch.assessmentKey
+      {
+        folderAssessmentError = error.localizedDescription
+      }
+    }
+    if current == generation, assessmentToken == assessmentGeneration,
+      editor?.folderWatch.assessmentKey == watch.assessmentKey
+    {
+      isAssessingFolder = false
+      folderScanTask = nil
+    }
   }
   func setEnabled(_ item: AutomationItem, enabled: Bool) async {
     let current = generation

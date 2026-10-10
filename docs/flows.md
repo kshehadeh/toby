@@ -30,7 +30,7 @@ The shipped `flow-builder` skill guides natural-language requests into custom
 flows. Chat tools `listFlowAuthoringCatalog` and `createFlow` inspect available
 steps and save a validated definition respectively. Creation uses generated
 `flow.<uuid>` IDs and the existing user-flow store/validator, with no execution
-or delivery. The tools support fixed tool inputs, an optional final markdown
+or delivery. The tools support fixed tool inputs or automation-event references, an optional final markdown
 LLM step, result pointers, personas, and destinations. They do not update
 existing flows or create Script Tools. A Home action uses
 `{ "type": "dashboard", "variant": "runner" }` alongside an optional modal.
@@ -266,10 +266,11 @@ Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`,
 
 Missing bag keys or paths throw `FlowNodeError` and fail the run.
 
-User-authored flows may only use `{ const }` on **tool** inputs. LLM prompts
-may still interpolate bag values (`{{json bag.<key>}}`). That is the v1
-policy: author-time constants for tools, no structured bind into the next
-tool’s arguments.
+User-authored tool inputs accept `{ const }` or `{ from: "automation", path: "event.payload.changes" }`. The native editor offers Fixed value / Automation event
+for each parameter and preserves references when editing. LLM prompts may
+interpolate bag values (`{{json bag.<key>}}`). Tool-to-tool and model-to-tool
+wiring remain unsupported. Manual runs without automation context fail before
+the affected tool executes. Paths containing prototype traversal keys are rejected.
 
 ### Outputs
 

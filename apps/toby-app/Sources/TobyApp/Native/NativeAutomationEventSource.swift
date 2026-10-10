@@ -29,6 +29,14 @@ struct NativeIdleEpisode {
   }
 }
 
+struct NativeAutomationPayload: Codable {
+  var idleSeconds: Double?
+  var watchId: String?
+  var folder: String?
+  var changes: [NativeFileChange]?
+  subscript(_ key: String) -> Double? { key == "idleSeconds" ? idleSeconds : nil }
+}
+
 struct NativeAutomationEvent: Codable {
   let version = 1
   let id: String
@@ -37,7 +45,7 @@ struct NativeAutomationEvent: Codable {
   let occurredAt: String
   let observationSessionId: String
   let sequence: Int
-  let payload: [String: Double]
+  let payload: NativeAutomationPayload
 }
 
 @MainActor
@@ -48,6 +56,8 @@ final class NativeAutomationEventSource: NSObject {
   private(set) var events: [NativeAutomationEvent] = []
   private var types: Set<String> = []
   private var owner: String?
+  private var folderWatchers: [String: NativeFolderWatcher] = [:]
+  private var folderErrors: [String: String] = [:]
   private var leaseUntil: Date?
   private var timer: Timer?
   private var idle = NativeIdleEpisode()
@@ -63,6 +73,9 @@ final class NativeAutomationEventSource: NSObject {
   }
 
   func reset() {
+    for watcher in folderWatchers.values { watcher.stop() }
+    folderWatchers = [:]
+    folderErrors = [:]
     timer?.invalidate()
     timer = nil
     NSWorkspace.shared.notificationCenter.removeObserver(self)
@@ -78,11 +91,14 @@ final class NativeAutomationEventSource: NSObject {
     lastObservationAt = nil
   }
 
-  func subscribe(owner newOwner: String, types requested: Set<String>) -> [String: Any] {
+  func subscribe(
+    owner newOwner: String, types requested: Set<String>, watches: [NativeFolderWatch] = []
+  ) -> [String: Any] {
     if owner != newOwner || types != requested { reset() }
     owner = newOwner
     types = requested
     leaseUntil = now().addingTimeInterval(30)
+    configureFolders(watches)
     if !types.isEmpty && timer == nil {
       let center = NSWorkspace.shared.notificationCenter
       for name in [
@@ -104,6 +120,7 @@ final class NativeAutomationEventSource: NSObject {
     [
       "sessionId": sessionId, "sequence": sequence, "idleAvailable": idleAvailable,
       "observing": !types.isEmpty,
+      "folderErrors": folderErrors,
       "lastObservationAt": lastObservationAt.map { ISO8601DateFormatter().string(from: $0) as Any }
         ?? NSNull(),
     ]
@@ -122,7 +139,7 @@ final class NativeAutomationEventSource: NSObject {
     if let duration = idle.sample(idleSeconds: value, now: date),
       types.contains("macos.userReturned")
     {
-      emit("macos.userReturned", payload: ["idleSeconds": duration])
+      emit("macos.userReturned", payload: .init(idleSeconds: duration))
     }
     prune()
   }
@@ -133,7 +150,7 @@ final class NativeAutomationEventSource: NSObject {
     if isSleeping { leaseUntil = now().addingTimeInterval(30) }
     isSleeping = false
     idle.reset()
-    if types.contains("macos.didWake") { emit("macos.didWake", payload: [:]) }
+    if types.contains("macos.didWake") { emit("macos.didWake", payload: .init()) }
   }
 
   @objc private func workspaceChanged(_ notification: Notification) {
@@ -152,7 +169,30 @@ final class NativeAutomationEventSource: NSObject {
     }
   }
 
-  private func emit(_ type: String, payload: [String: Double]) {
+  private func configureFolders(_ requested: [NativeFolderWatch]) {
+    let active = types.contains("macos.fileChanges") ? requested : []
+    let wanted = Set(active.map(\.id))
+    for id in Array(folderWatchers.keys) where !wanted.contains(id) {
+      folderWatchers.removeValue(forKey: id)?.stop()
+      folderErrors.removeValue(forKey: id)
+    }
+    for watch in active {
+      if folderWatchers[watch.id]?.watch == watch { continue }
+      folderWatchers.removeValue(forKey: watch.id)?.stop()
+      folderErrors[watch.id] = "Scanning folder baseline"
+      let watcher = NativeFolderWatcher(
+        watch: watch,
+        onChanges: { [weak self] changes in
+          guard let self, let leaseUntil, now() <= leaseUntil, !isSleeping else { return }
+          emit(
+            "macos.fileChanges",
+            payload: .init(watchId: watch.id, folder: watch.root.path, changes: changes))
+        }, onStatus: { [weak self] error in self?.folderErrors[watch.id] = error })
+      folderWatchers[watch.id] = watcher
+      watcher.start()
+    }
+  }
+  private func emit(_ type: String, payload: NativeAutomationPayload) {
     sequence += 1
     events.append(
       .init(
@@ -188,9 +228,20 @@ final class NativeAutomationEventSource: NSObject {
       let body, let value = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
       let owner = value["owner"] as? String, UUID(uuidString: owner) != nil,
       let names = value["types"] as? [String],
-      names.allSatisfy({ ["macos.userReturned", "macos.didWake"].contains($0) })
+      names.allSatisfy({
+        ["macos.userReturned", "macos.didWake", "macos.fileChanges"].contains($0)
+      })
     {
-      return ["ok": true, "data": subscribe(owner: owner, types: Set(names))]
+      let rawWatches = value["watches"] ?? []
+      guard let data = try? JSONSerialization.data(withJSONObject: rawWatches),
+        let watches = try? JSONDecoder().decode([NativeFolderWatch].self, from: data),
+        watches.count <= 100,
+        watches.allSatisfy({
+          $0.folder.hasPrefix("/") && (2...60).contains($0.settlingSeconds) && !$0.kinds.isEmpty
+            && $0.kinds.allSatisfy(["new", "changed", "deleted"].contains)
+        })
+      else { return ["ok": false, "error": "Invalid folder watches"] }
+      return ["ok": true, "data": subscribe(owner: owner, types: Set(names), watches: watches)]
     }
     if resource == "/api/native/automations/events", method == "GET" {
       let query = components?.queryItems ?? []

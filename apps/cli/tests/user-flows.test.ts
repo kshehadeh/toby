@@ -181,7 +181,7 @@ describe("validateUserFlowDocument", () => {
 		} catch (error) {
 			expect(error).toBeInstanceOf(UserFlowValidationError);
 			expect((error as UserFlowValidationError).issues.join(" ")).toMatch(
-				/author-time constant/,
+				/constant or an automation context reference/,
 			);
 		}
 	});

@@ -23,6 +23,7 @@ import {
 	automationDraftSchema,
 } from "@toby/core/automations/types";
 import { saveUserFlowDocument } from "@toby/core/flows/definition-store";
+import { validateUserFlowDocument } from "@toby/core/flows/validate-user-flow";
 import { closeChatDbForTests, getDb } from "@toby/core/session-store";
 import { saveUserTool } from "@toby/core/user-tools/store";
 import { handleAutomations } from "@toby/core/web/handlers/automations";
@@ -95,6 +96,157 @@ afterEach(() => {
 });
 
 describe("event automations", () => {
+	it("routes file batches only to the matching watch revision and serializes queued work", () => {
+		const folderDraft = {
+			...draft(),
+			trigger: {
+				type: "macos.fileChanges",
+				folder: "/tmp/inbox",
+				kinds: ["new", "changed", "deleted"],
+			},
+			action: {
+				...draft().action,
+				eventInputMappings: { files: "payload.changes" },
+			},
+			policy: { cooldownSeconds: 0, oncePerDay: false },
+		};
+		const a = saveAutomation(folderDraft);
+		const b = saveAutomation({ ...folderDraft, name: "Other folder" });
+		const current = new Date();
+		const session = randomUUID();
+		const fileEvent = (n: number) => ({
+			...event(n, current, session),
+			type: "macos.fileChanges",
+			payload: {
+				watchId: `${a.id}:${a.revision}`,
+				folder: "/tmp/inbox",
+				changes: [
+					{
+						kind: "new",
+						path: "/tmp/inbox/one.txt",
+						relativePath: "one.txt",
+						size: 1,
+						modifiedAt: current.toISOString(),
+					},
+				],
+			},
+		});
+		ingestAutomationBatch(
+			[fileEvent(1)],
+			{ sessionId: session, sequence: 1 },
+			current,
+		);
+		const first = claimPendingAutomation(current);
+		if (!first) throw new Error("Expected first batch");
+		ingestAutomationBatch(
+			[fileEvent(2)],
+			{ sessionId: session, sequence: 2 },
+			current,
+		);
+		expect(listAutomationRuns(b.id)).toHaveLength(0);
+		expect(
+			listAutomationRuns(a.id).filter((r) => r.status === "pending"),
+		).toHaveLength(1);
+		expect(claimPendingAutomation(current)).toBeNull();
+		finishAutomationRun(first.id, "success", null);
+		expect(claimPendingAutomation(current)?.event.sequence).toBe(2);
+		const updated = saveAutomation(
+			{ ...folderDraft, name: "Updated" },
+			a.id,
+			a.revision,
+		);
+		ingestAutomationBatch(
+			[fileEvent(3)],
+			{ sessionId: session, sequence: 3 },
+			current,
+		);
+		expect(listAutomationRuns(updated.id)).toHaveLength(2);
+	});
+	it("executes a validated tool flow with file-event inputs", async () => {
+		const script = saveUserTool({
+			name: "Inspect changes",
+			description: "Verify batch context",
+			language: "typescript",
+			inputNames: ["changes"],
+			outputKind: "text",
+			source:
+				'export default async ({changes}) => { if (changes[0].kind !== "deleted" || changes[0].path !== "/tmp/inbox/deleted.txt") throw new Error("Missing event inputs"); return "Removal recorded"; };',
+		});
+		const document = validateUserFlowDocument(
+			{
+				id: "flow.files",
+				name: "Files",
+				nodes: [
+					{
+						id: "inspect",
+						type: "tool_executor",
+						tool: { userToolId: script.id },
+						inputs: {
+							changes: { from: "automation", path: "event.payload.changes" },
+						},
+						outputs: { text: "result" },
+					},
+				],
+				result: { from: "text" },
+			},
+			{ tools: [], connectedModules: [] },
+		);
+		saveUserFlowDocument(document);
+		const a = saveAutomation({
+			...draft(),
+			trigger: {
+				type: "macos.fileChanges",
+				folder: "/tmp/inbox",
+				kinds: ["deleted"],
+			},
+			action: { type: "flow", flowId: "flow.files" },
+			policy: { cooldownSeconds: 0, oncePerDay: false },
+		});
+		const current = new Date();
+		const e = {
+			...event(1, current),
+			type: "macos.fileChanges",
+			payload: {
+				watchId: `${a.id}:${a.revision}`,
+				folder: "/tmp/inbox",
+				changes: [
+					{
+						kind: "deleted",
+						path: "/tmp/inbox/deleted.txt",
+						relativePath: "deleted.txt",
+						size: 3,
+						modifiedAt: current.toISOString(),
+					},
+				],
+			},
+		};
+		ingestAutomationBatch(
+			[e],
+			{ sessionId: e.observationSessionId, sequence: 1 },
+			current,
+		);
+		expect(await executeAutomationWorker(new AbortController().signal)).toBe(
+			true,
+		);
+		expect(listAutomationRuns(a.id)[0].status).toBe("success");
+		expect(listAutomationRuns(a.id)[0].output).toBe("Removal recorded");
+		expect(() =>
+			validateUserFlowDocument(
+				{
+					...document,
+					nodes: [
+						{
+							...document.nodes[0],
+							inputs: {
+								changes: { from: "automation", path: "__proto__.key" },
+							},
+						},
+					],
+				},
+				{ tools: [], connectedModules: [] },
+			),
+		).toThrow();
+	});
 	it("validates triggers, timezone, windows and reserved input names", () => {
 		expect(() =>
 			automationDraftSchema.parse({

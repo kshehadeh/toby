@@ -29,6 +29,11 @@ export function matchReason(
 ): string | null {
 	if (!a.enabled) return "disabled";
 	if (a.trigger.type !== e.type) return "trigger_mismatch";
+	if (
+		e.type === "macos.fileChanges" &&
+		e.payload.watchId !== `${a.id}:${a.revision}`
+	)
+		return "watch_mismatch";
 	const age = now.getTime() - Date.parse(e.occurredAt);
 	if (age > 120000 || age < -5000) return "stale_event";
 	if (

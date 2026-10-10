@@ -501,16 +501,11 @@ private struct FlowEditorToolCard: View {
 					let required = Set(catalogTool.requiredFields)
 					let keys = (catalogTool.requiredFields + properties.keys.sorted()).uniqued()
 					ForEach(keys, id: \.self) { key in
-						FlowEditorInputRow(
-							key: key,
-							property: properties[key],
-							isRequired: required.contains(key),
-							value: stringBinding(for: key)
-						)
+						inputRow(key: key, property: properties[key], isRequired: required.contains(key))
 					}
 				} else if let scriptTool {
 					ForEach(scriptTool.inputNames, id: \.self) { key in
-						FlowEditorInputRow(key: key, property: nil, isRequired: false, value: stringBinding(for: key))
+						inputRow(key: key, property: nil, isRequired: true)
 					}
 				} else if node.userToolId == nil, node.standardTool == nil {
 					Text("\(node.moduleName).\(node.toolName)")
@@ -525,6 +520,41 @@ private struct FlowEditorToolCard: View {
 		.padding(.vertical, 14)
 		.flowEditorCard()
 		.accessibilityIdentifier("flow-editor-step-\(node.id)")
+	}
+
+	@ViewBuilder
+	private func inputRow(key: String, property: FlowInputProperty?, isRequired: Bool) -> some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Picker(
+				"Source for \(FlowEditorText.inputLabel(key))",
+				selection: Binding(
+					get: { node.automationInputs[key] != nil },
+					set: {
+						if $0 {
+							node.automationInputs[key] = "event.payload.changes"
+						} else {
+							node.automationInputs.removeValue(forKey: key)
+						}
+					}
+				)
+			) {
+				Text("Fixed value").tag(false)
+				Text("Automation event").tag(true)
+			}.pickerStyle(.menu).controlSize(.small)
+			if node.automationInputs[key] != nil {
+				TextField(
+					"Path in automation context",
+					text: Binding(
+						get: { node.automationInputs[key] ?? "" },
+						set: { node.automationInputs[key] = $0 }
+					)
+				).textFieldStyle(.roundedBorder)
+				Text("Use event.payload.changes for a batch, or event.payload.changes.0.path for its first file. Manual runs need automation context.")
+					.font(.caption).foregroundStyle(AppTheme.secondaryText)
+			} else {
+				FlowEditorInputRow(key: key, property: property, isRequired: isRequired, value: stringBinding(for: key))
+			}
+		}
 	}
 
 	private func stringBinding(for key: String) -> Binding<String> {

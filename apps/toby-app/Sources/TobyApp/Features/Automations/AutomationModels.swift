@@ -4,6 +4,13 @@ struct AutomationItem: Decodable, Identifiable {
   struct Trigger: Decodable {
     let type: String
     let minimumIdleSeconds: Int?
+    let folder: String?
+    let recursive: Bool?
+    let extensions: [String]?
+    let excludedPaths: [String]?
+    let kinds: [String]?
+    let settlingSeconds: Int?
+    let allowLargeFolder: Bool?
   }
   struct TimeWindow: Decodable {
     let start: String
@@ -33,7 +40,8 @@ struct AutomationItem: Decodable, Identifiable {
   let policy: Policy
   let notifyOnCompletion: Bool
   var triggerLabel: String {
-    trigger.type == "macos.didWake"
+    if trigger.type == "macos.fileChanges" { return "Files in \(trigger.folder ?? "folder")" }
+    return trigger.type == "macos.didWake"
       ? "When the Mac wakes"
       : "Return after \((trigger.minimumIdleSeconds ?? 1800) / 60) minutes idle"
   }
@@ -70,6 +78,13 @@ struct AutomationEditorDraft: Identifiable, Equatable {
   private var originalIdleSeconds: Int?
   private var originalCooldownSeconds: Int?
   var idleMinutes = 30
+  var folder = ""
+  var recursive = false
+  var extensions = ""
+  var excludedPaths = ""
+  var changeKinds: Set<String> = ["new"]
+  var settlingSeconds = 5
+  var allowLargeFolder = false
   var timezone = TimeZone.current.identifier
   var weekdays: Set<Int> = []
   var useTimeWindow = false
@@ -84,6 +99,7 @@ struct AutomationEditorDraft: Identifiable, Equatable {
   var canSave: Bool {
     !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !flowId.isEmpty
       && idleMinutes > 0 && cooldownMinutes >= 0
+      && (triggerType != "macos.fileChanges" || (!folder.isEmpty && !changeKinds.isEmpty))
   }
   init(item: AutomationItem? = nil) {
     guard let item else { return }
@@ -92,6 +108,13 @@ struct AutomationEditorDraft: Identifiable, Equatable {
     name = item.name
     enabled = item.enabled
     triggerType = item.trigger.type
+    folder = item.trigger.folder ?? ""
+    recursive = item.trigger.recursive ?? false
+    extensions = item.trigger.extensions?.joined(separator: ", ") ?? ""
+    excludedPaths = item.trigger.excludedPaths?.joined(separator: "\n") ?? ""
+    changeKinds = Set(item.trigger.kinds ?? ["new"])
+    settlingSeconds = item.trigger.settlingSeconds ?? 5
+    allowLargeFolder = item.trigger.allowLargeFolder ?? false
     originalIdleSeconds = item.trigger.minimumIdleSeconds
     idleMinutes = Int(ceil(Double(item.trigger.minimumIdleSeconds ?? 1800) / 60))
     timezone = item.conditions.timezone
@@ -112,6 +135,26 @@ struct AutomationEditorDraft: Identifiable, Equatable {
       mappingsJSON = text
     }
   }
+  var folderWatch: NativeFolderWatch {
+    NativeFolderWatch(
+      id: existingId ?? "assessment", folder: folder, recursive: recursive,
+      extensions: extensions.split(separator: ",").map {
+        $0.trimmingCharacters(in: .whitespaces).lowercased().trimmingCharacters(
+          in: CharacterSet(charactersIn: "."))
+      }.filter { !$0.isEmpty },
+      excludedPaths: excludedPaths.split(separator: "\n").map {
+        String($0).trimmingCharacters(in: .whitespaces)
+      }.filter { !$0.isEmpty }, kinds: changeKinds.sorted(), settlingSeconds: settlingSeconds,
+      allowLargeFolder: allowLargeFolder)
+  }
+  var folderTriggerBody: [String: Any] {
+    let w = folderWatch
+    return [
+      "type": "macos.fileChanges", "folder": folder, "recursive": recursive,
+      "extensions": w.extensions, "excludedPaths": w.excludedPaths, "kinds": w.kinds,
+      "settlingSeconds": settlingSeconds, "allowLargeFolder": allowLargeFolder,
+    ]
+  }
   func body() throws -> [String: Any] {
     func object(_ text: String) throws -> [String: Any] {
       guard let data = text.data(using: .utf8),
@@ -126,6 +169,7 @@ struct AutomationEditorDraft: Identifiable, Equatable {
           Int(ceil(Double($0) / 60)) == idleMinutes ? $0 : idleMinutes * 60
         } ?? idleMinutes * 60
     }
+    if triggerType == "macos.fileChanges" { trigger = folderTriggerBody }
     var conditions: [String: Any] = ["timezone": timezone]
     if !weekdays.isEmpty { conditions["weekdays"] = weekdays.sorted() }
     if useTimeWindow { conditions["timeWindow"] = ["start": startTime, "end": endTime] }

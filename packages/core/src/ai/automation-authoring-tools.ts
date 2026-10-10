@@ -6,14 +6,30 @@ import {
 	saveAutomation,
 	validateAutomationDraft,
 } from "../automations/store";
-import { automationCatalog, automationDraftSchema } from "../automations/types";
+import {
+	automationCatalog,
+	automationDraftSchema,
+	folderTriggerSchema,
+} from "../automations/types";
 import { listFlowRecords } from "../flows/definition-store";
+import { nativeAppRequest } from "../native-app/client";
 
 export function createAutomationAuthoringTools(ctx: {
 	dryRun: boolean;
 	appliedActions: string[];
 }): Record<string, Tool> {
 	return {
+		inspectAutomationFolder: tool({
+			description:
+				"Inspect a folder using the intended file filters before creating a folder automation. A warning means the user should choose narrower filters or explicitly accept the large folder. Does not observe files or execute a flow.",
+			inputSchema: folderTriggerSchema,
+			execute: async (trigger) =>
+				nativeAppRequest("automations/folder-assessment", {
+					body: { id: "assessment", ...trigger },
+					launch: false,
+					timeoutMs: 15000,
+				}),
+		}),
 		listAutomationCatalog: tool({
 			description:
 				"Inspect supported macOS event triggers, saved automations, and custom flows. Native triggers require Toby.app to be running. Does not execute work.",
@@ -32,7 +48,7 @@ export function createAutomationAuthoringTools(ctx: {
 		}),
 		createAutomation: tool({
 			description:
-				"Save a flow automation for return after idle or Mac wake. Inspect listAutomationCatalog first. Enable only when the user has requested automatic execution of the selected flow and its delivery targets. Creation never runs the flow.",
+				"Save a flow automation for return after idle, Mac wake, or batched folder changes. Inspect listAutomationCatalog first. Enable only when the user has requested automatic execution of the selected flow and its delivery targets. For folders, inspectAutomationFolder first, set cooldownSeconds to 0 to process each settled batch, and use allowLargeFolder only after the user accepts the warning. Creation never runs the flow.",
 			inputSchema: automationDraftSchema,
 			execute: async (draft) => {
 				try {

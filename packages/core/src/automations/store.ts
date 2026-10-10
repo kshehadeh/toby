@@ -35,12 +35,19 @@ export function validateAutomationDraft(value: unknown) {
 	if (draft.enabled || getFlowRecord(draft.action.flowId))
 		validateAutomationFlow(draft.action.flowId);
 	if (
-		draft.trigger.type === "macos.didWake" &&
+		draft.trigger.type !== "macos.userReturned" &&
 		Object.values(draft.action.eventInputMappings).includes(
 			"payload.idleSeconds",
 		)
 	)
-		throw new Error("Wake events have no idleSeconds field");
+		throw new Error("This trigger has no idleSeconds field");
+	if (
+		draft.trigger.type !== "macos.fileChanges" &&
+		Object.values(draft.action.eventInputMappings).some(
+			(p) => p === "payload.changes" || p === "payload.folder",
+		)
+	)
+		throw new Error("This trigger has no file fields");
 	return draft;
 }
 export function saveAutomation(
@@ -163,7 +170,11 @@ export function ingestAutomationBatch(
 				$now: now.toISOString(),
 			});
 			for (const a of listAutomations().filter(
-				(a) => a.enabled && a.trigger.type === e.type,
+				(a) =>
+					a.enabled &&
+					a.trigger.type === e.type &&
+					(e.type !== "macos.fileChanges" ||
+						e.payload.watchId === `${a.id}:${a.revision}`),
 			)) {
 				let reason = matchReason(a, e, now, state(a.id));
 				try {
@@ -174,6 +185,7 @@ export function ingestAutomationBatch(
 				}
 				if (
 					!reason &&
+					e.type !== "macos.fileChanges" &&
 					db
 						.query(
 							"SELECT id FROM automation_runs WHERE automation_id=$id AND status IN ('pending','running') LIMIT 1",
@@ -226,7 +238,7 @@ export function claimPendingAutomation(now = new Date()): AutomationRun | null {
 	return db.transaction(() => {
 		const row = db
 			.query(
-				"SELECT * FROM automation_runs WHERE status='pending' ORDER BY created_at LIMIT 1",
+				"SELECT * FROM automation_runs AS pending WHERE status='pending' AND NOT EXISTS (SELECT 1 FROM automation_runs AS active WHERE active.automation_id=pending.automation_id AND active.status='running') ORDER BY created_at LIMIT 1",
 			)
 			.get();
 		if (!row) return null;

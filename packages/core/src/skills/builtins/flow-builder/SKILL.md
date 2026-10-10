@@ -27,7 +27,7 @@ action. An informational dashboard destination is a card, not an action tile.
 Current custom-flow constraints:
 
 - A `tool_executor` calls one plugin tool or an existing Script Tool. Every
-  tool input must be an author-time constant: `{ "const": value }`. There is
+  tool input must be a constant (`{ "const": value }`) or an automation context reference (`{ "from": "automation", "path": "event.payload.changes" }`). There is
   no tool-to-tool or model-to-tool runtime input mapping.
 - At most one `llm_prompter` is allowed, and it must be last. It returns a
   markdown object, with no tool-calling loop. Use it for summaries or
@@ -88,6 +88,15 @@ automatic execution and the selected flow's actions/delivery targets are clear;
 otherwise save disabled. Use `updateAutomation` with the current revision to
 change an existing definition. Never create duplicates after a successful save.
 
-Initial inputs and event mappings can supply context to LLM prompt templates,
-including `{{json bag.automation}}`. Existing tool steps still require constants;
-do not promise event-driven tool parameters or branching.
+Initial inputs and event mappings supply context to LLM prompt templates, including
+`{{json bag.automation}}`. Tools can read automation context references;
+do not promise tool-to-tool wiring, model-to-tool wiring, or branching.
+
+For file automations, inspectAutomationFolder first. Select folder, recursion,
+extensions, exclusions, change kinds, and quiet interval. Ask the user to narrow
+a warned folder or explicitly accept it before allowLargeFolder=true. Use zero
+cooldown unless skipping later batches is intended. Map the whole
+event.payload.changes array to a tool that accepts a batch; using changes.0.path
+processes only the first item. Deleted files have metadata but may have no contents.
+Exclude generated output folders to prevent loops. Events missed during downtime
+or skipped for capacity/freshness are not automatically replayed.
