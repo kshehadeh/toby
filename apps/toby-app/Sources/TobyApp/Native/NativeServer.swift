@@ -285,6 +285,9 @@ final class NativeServer {
 			return wrapHandlerData(NativeMacOSHandler.clipboardRead())
 		case "/api/native/macos/clipboard-write":
 			return wrapHandlerData(NativeMacOSHandler.clipboardWrite(body: request.body))
+		case "/api/native/macos/files-list":
+			return wrapHandlerData(await NativeFilesHandler.list(body: request.body))
+
 		case "/api/native/macos/system-info":
 			return wrapHandlerData(NativeMacOSHandler.systemInfo())
 		case "/api/native/macos/notification-show":

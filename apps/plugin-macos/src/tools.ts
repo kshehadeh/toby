@@ -20,6 +20,41 @@ function prop(type: string, description: string): JsonRecord {
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
 	{
+		name: "macFilesList",
+		displayName: "List local files",
+		description:
+			"List a folder on this Mac, including Downloads. Returns filenames, absolute paths, sizes and modification dates, with optional image or filename filtering. Direct children only; hidden files excluded. Does not read file contents. Uses Toby.app's macOS folder permissions.",
+		readOnly: true,
+		inputSchema: {
+			type: "object",
+			properties: {
+				folder: prop(
+					"string",
+					"downloads (default), desktop, documents, home, or an absolute path including ~/",
+				),
+				kind: {
+					type: "string",
+					enum: ["all", "images", "files", "folders"],
+					description: "Filter entries; default all.",
+				},
+				nameContains: prop("string", "Case-insensitive filename substring."),
+				limit: {
+					type: "integer",
+					minimum: 1,
+					maximum: 200,
+					description: "Page size; default 100.",
+				},
+				offset: {
+					type: "integer",
+					minimum: 0,
+					maximum: 1000000,
+					description:
+						"Pagination offset; default 0. Use nextOffset for another page.",
+				},
+			},
+		},
+	},
+	{
 		name: "macBatteryStatus",
 		displayName: "Battery status",
 		description:
@@ -1146,6 +1181,26 @@ export function executeTool(
 				result: { ...r.data, ok: true },
 				appliedActions: [`Requested a normal quit of "${appName}".`],
 			};
+		}
+
+		case "macFilesList": {
+			if (dryRun)
+				return {
+					result: { dryRun: true, message: "Would list local files." },
+					appliedActions: [],
+				};
+			requireNative();
+			const r = nativeRequest("macos/files-list", input);
+			if (!r.ok)
+				return {
+					result: {
+						ok: false,
+						error: r.error ?? "Failed to list folder",
+						needsPermission: r.needsPermission ?? false,
+					},
+					appliedActions: [],
+				};
+			return { result: { ...r.data, ok: true }, appliedActions: [] };
 		}
 
 		case "macAppsRunning": {

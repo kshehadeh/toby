@@ -37,6 +37,13 @@ Toby.app must be running for macOS system tools to function. The plugin
 auto-launches Toby.app in the background if it is not already running when a
 tool is invoked.
 
+## Local files
+
+`macFilesList` discovers local files through Toby.app, including an image-only
+filter for Downloads. It returns paginated filenames and metadata, not file
+contents. Protected-folder permissions belong to Toby.app; see the
+[macOS integration documentation](../../docs/macos-integration.md#local-file-discovery).
+
 ## Notes
 
 - macOS-only.

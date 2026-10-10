@@ -33,6 +33,20 @@ that can indicate a chat preparation error even when the native connection is
 healthy. Update Toby and start a new chat. In development, rebuild the macOS
 plugin and restart the daemon so it reloads the plugin's chat templates.
 
+## Find local files
+
+Ask “Show me the image files in Downloads” or “Find files with invoice in the
+name in Documents.” Toby can list a folder, filter image files or filenames,
+and fetch additional pages of results. Listings include filenames, paths,
+sizes, and modification dates. They cover the selected folder's direct
+children and omit hidden files. Listing images shows file details; image
+previews and reading file contents are separate operations.
+
+macOS may ask you to allow Toby to access Downloads, Desktop, or Documents.
+If access is denied, enable the relevant folder under **System Settings →
+Privacy & Security → Files and Folders → Toby**, then retry. Development builds
+appear as **Toby (Dev)**. The permission belongs to Toby.app.
+
 ## Optional setup (bundled shortcuts)
 
 The macOS plugin can install signed **Toby Focus On** and **Toby Focus Off**
@@ -74,6 +88,7 @@ Return to **Settings → Integrations**. macOS should show as connected and heal
 | Run Shortcut | `macShortcutRun` | Shortcuts |
 | Quit an application normally | `macAppQuit` | AppKit |
 | Running application information | `macAppsRunning` | AppKit |
+| Local folder and image-file listing | `macFilesList` | Toby.app folder permissions |
 | System information | `macSystemInfo` | system info |
 | Notifications | `macNotificationsPeek` | **Not supported** |
 

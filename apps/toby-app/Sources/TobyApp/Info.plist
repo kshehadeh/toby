@@ -14,6 +14,12 @@
 	<string>dev.karim.toby.app</string>
 	<key>CFBundleName</key>
 	<string>Toby</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Toby lists files in Downloads when you ask it to find local files.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Toby lists files on your Desktop when you ask it to find local files.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Toby lists files in Documents when you ask it to find local files.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Toby reads your contacts when you use Apple Contacts integration.</string>
 	<key>NSCalendarsUsageDescription</key>

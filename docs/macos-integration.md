@@ -22,6 +22,24 @@ and combined chats both use the plugin-v1 `singleSessionRules` and
 failure can appear as “context unavailable” even when native health and the
 connection flag are valid; it is distinct from a disconnected native bridge.
 
+## Local file discovery
+
+`macFilesList` lists direct children of a folder through Toby.app's native
+`POST /api/native/macos/files-list` endpoint. `folder` accepts `downloads`
+(default), `desktop`, `documents`, `home`, or an absolute path including `~/`.
+`kind` filters `all`, `images`, `files`, or `folders`; `nameContains` matches
+filenames case-insensitively. Hidden files are excluded and symlinks are not
+followed for image/file/folder filtering. Image classification uses filename
+extensions via UniformTypeIdentifiers, without decoding contents.
+
+Results include absolute paths, sizes, modification dates, `totalMatches`,
+`hasMore`, and `nextOffset`. `limit` defaults to 100 (maximum 200); `offset`
+defaults to zero. Listing runs off the main actor. Permission failures preserve
+`needsPermission` and direct the user to Toby's Files and Folders settings.
+The tool discovers names and metadata; it does not read contents or render
+previews. Returned paths can be used by the Images plugin outside project chats;
+project chats retain their project-directory boundary.
+
 ## Plugin setup
 
 The plugin ships signed **Toby Focus On** and **Toby Focus Off** shortcuts for
@@ -102,6 +120,7 @@ The macOS integration has no configurable fields. System control is handled by n
 | `macLowPowerModeStatus` | `pmset` read |
 | `macLowPowerModeSet` | `pmset` write — often needs privileges |
 | `macShortcutRun` | `/usr/bin/shortcuts run "<name>"` |
+| `macFilesList` | Foundation folder listing + UniformTypeIdentifiers image filtering through Toby.app |
 | `macSystemInfo` | sysctl/ProcessInfo/sw_vers |
 | `macNotificationsPeek` | **Explicitly unsupported** — Notification Center has no stable API |
 | `macWindowsHideAll` | AppKit `NSRunningApplication.hide()` for every other regular app |

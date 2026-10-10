@@ -263,6 +263,12 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>__TOBY_SPARKLE_PUBLIC_KEY__</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Toby lists files in Downloads when you ask it to find local files.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Toby lists files on your Desktop when you ask it to find local files.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Toby lists files in Documents when you ask it to find local files.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Toby reads your contacts when you use Apple Contacts integration.</string>
 	<key>NSCalendarsUsageDescription</key>
