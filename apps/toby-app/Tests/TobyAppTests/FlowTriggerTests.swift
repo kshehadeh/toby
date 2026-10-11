@@ -150,4 +150,68 @@ struct FlowTriggerTests {
         #expect(try !unlocked.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-card-choice").isDisabled())
     }
 
+    @Test("triggers describe themselves in plain words")
+    func plainSummaries() {
+        var files = FlowTriggerSpec.manual()
+        files.changeSource("macos.fileChanges")
+        files.source.folder = "/Users/me/Downloads"
+        files.source.extensions = ["png", ".JPG"]
+        files.source.runPerFile = true
+        #expect(files.plainSummary == "New .png and .jpg files in Downloads, one run each")
+        files.source.kinds = ["new", "changed", "deleted"]
+        files.source.extensions = []
+        files.source.runPerFile = false
+        #expect(files.plainSummary == "Files in Downloads")
+        #expect(FlowTriggerSpec.scheduleSummary(cron: "0 9 * * 1-5") == "Weekdays at 9:00 AM")
+        #expect(FlowTriggerSpec.scheduleSummary(cron: "30 17 * * *") == "Every day at 5:30 PM")
+        #expect(FlowTriggerSpec.scheduleSummary(cron: "15 * * * *") == "Every hour at :15")
+        #expect(FlowTriggerSpec.scheduleSummary(cron: "0 0 * * 1") == "Mondays at 12:00 AM")
+        #expect(FlowTriggerSpec.scheduleSummary(cron: "*/5 * * * *") == nil)
+        var idle = FlowTriggerSpec.manual()
+        idle.changeSource("macos.userReturned")
+        #expect(idle.plainSummary == "When you’re back after 30 min away")
+    }
+
+    @Test("limits read as one line and frequency maps onto the policy")
+    func limitsSummary() {
+        var trigger = FlowTriggerSpec.manual()
+        #expect(trigger.limitsSummary == nil)
+        trigger.changeSource("macos.fileChanges")
+        trigger.policy = .init(cooldownSeconds: 0, oncePerDay: false)
+        #expect(trigger.limitsSummary == "Any day, any time · waits 5 sec for quiet")
+        trigger.conditions.weekdays = [1, 2, 3, 4, 5]
+        trigger.conditions.timeWindow = .init(start: "08:00", end: "12:00")
+        trigger.frequency = .oncePerDay
+        #expect(trigger.policy == .init(cooldownSeconds: 0, oncePerDay: true))
+        #expect(trigger.limitsSummary == "Weekdays, 08:00 to 12:00 · once a day · waits 5 sec for quiet")
+        trigger.frequency = .spaced
+        #expect(trigger.policy == .init(cooldownSeconds: 300, oncePerDay: false))
+        trigger.conditions.weekdays = [1, 3]
+        #expect(trigger.daysSummary == "Mon, Wed")
+        #expect(trigger.limitsSummary?.contains("at most every 5 min") == true)
+        trigger.frequency = .everyTime
+        #expect(trigger.policy == .init(cooldownSeconds: 0, oncePerDay: false))
+    }
+
+    @Test("unnamed triggers keep a name that says what they do")
+    func defaultNames() {
+        var trigger = FlowTriggerSpec.manual()
+        trigger.name = "New trigger"
+        #expect(!trigger.hasCustomName)
+        let before = trigger
+        trigger.changeSource("macos.fileChanges")
+        trigger.source.folder = "/tmp/inbox"
+        trigger.syncDefaultName(from: before)
+        #expect(trigger.name == "New files in inbox")
+        let named = trigger
+        trigger.source.runPerFile = true
+        trigger.syncDefaultName(from: named)
+        #expect(trigger.name == "New files in inbox, one run each")
+        trigger.name = "Screenshots"
+        let custom = trigger
+        trigger.source.runPerFile = false
+        trigger.syncDefaultName(from: custom)
+        #expect(trigger.name == "Screenshots")
+        #expect(trigger.hasCustomName)
+    }
 }

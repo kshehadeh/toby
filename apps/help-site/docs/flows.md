@@ -29,22 +29,22 @@ calendar events.” The built-in **flow-builder** skill checks available tools,
 collects any required details, and saves a custom flow. Open **Flows** to review
 or run it. Home actions also appear in the **Actions** rail.
 
-Saving does not run the flow. Tool arguments can use **Fixed value**, **Trigger event**, or **Previous step output**. After adding an AI step, use **Add an action** in the **Acts** section to run a tool with its answer. For a notification, keep the title fixed and set the description to the AI output with field path `markdown`. Choose **Trigger event** for a parameter that takes file changes; see [Event automations](automations.md). For a new AppleScript or TypeScript step,
+Saving does not run the flow. Each step shows the settings it needs; optional settings you haven’t filled in sit under **More options**. To use a value from the trigger or an earlier step instead of typing one, click the link button beside a field and pick it, for example **The new file** from a file trigger or **AI answer** from the AI step. **Use a field from it…** picks a named field such as `title`. After adding an AI step, use **Add an action** in the **Acts** section to run a tool with its answer. For a notification, keep the title typed and link the description to **AI answer**. For file triggers, see [Event automations](automations.md). Click a step’s title to collapse it to a one-line summary. For a new AppleScript or TypeScript step,
 Toby can draft the code and guide you through saving it in **Script Tools**
 before adding it to the flow.
 
-Actions normally run every time the flow reaches them. Enable **Run only when** to run an action only when a previous output field is boolean `true`. A `false` value skips the action; a missing field or another type stops the flow before it calls the tool. Skipped actions appear in run history with their reason.
+Actions normally run every time the flow reaches them. Choose **Only run when…** from an action’s **•••** menu to run it only when a previous output field is boolean `true`. A `false` value skips the action; a missing field or another type stops the flow before it calls the tool. Skipped actions appear in run history with their reason.
 
 ### Notify only when a meeting is coming
 
 1. Add the calendar **Upcoming events summary** source. Its output includes a `generatedAt` timestamp for the current time.
 2. In the AI step, choose **Answer format → Named fields**. Add `shouldNotify` (Boolean), `title` (Text), and `description` (Text).
 3. Ask AI to compare meeting start times against `generatedAt` and set `shouldNotify` to true only for meetings starting in the next ten minutes, ignore all-day and ongoing events, and write the notification title and body. It must fill every field even when no notification is needed.
-4. Add **Show notification** in **Acts**. Set title and description to **Previous step output**, select the AI output, and enter field paths `title` and `description`.
-5. Enable **Run only when**, select that same AI output, and enter field path `shouldNotify`.
+4. Add **Show notification** in **Acts**. Link title and description to **AI answer** with the link button, then choose **Use a field from it…** and enter `title` and `description`.
+5. Choose **Only run when…** from the action’s **•••** menu, select that same AI output, and enter `shouldNotify`.
 6. Save the flow and schedule it at `25,55 * * * *` for :25 and :55 each hour.
 
-Completion notifications are optional per trigger. Leave **Notify when finished** off for quiet checks.
+Completion notifications are optional per trigger. Leave **Notify me when it finishes** off for quiet checks.
 
 Named fields support text, boolean, and number values. Names must start with a letter and use letters, numbers, and underscores; each field needs a unique name. All fields are required. Toby validates AI output before it reaches an action.
 
@@ -113,7 +113,7 @@ If that output was removed, the flow uses the new final step’s result automati
 3. **Thinks.** Optionally click **Add an AI step** and describe what the AI
    should do with what was gathered, for example "List the three most urgent
    items in one line each."
-4. **Acts.** After adding AI, optionally add an action that uses its output. Enable **Run only when** for an action that depends on a boolean decision.
+4. **Acts.** After adding AI, optionally add an action that uses its output. Choose **Only run when…** in its **•••** menu when it depends on a boolean decision.
 5. **Shares.** Choose where the result goes. **Show it in a window** is the
    default. You can add or swap in:
    - **Email** or **Slack** (that app must be connected)

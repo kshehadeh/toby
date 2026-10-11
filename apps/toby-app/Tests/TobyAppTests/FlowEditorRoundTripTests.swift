@@ -205,7 +205,7 @@ struct FlowEditorRoundTripTests {
 		#expect(throws: Never.self) { try aiControls.inspect().find(text: "AI must return every field. Use a boolean field to decide whether a later action runs.") }
 		let conditions = FlowEditorConditionControls(node: .constant(draft.nodes[1]), previousOutputs: draft.promptOutputs(before: "notify"))
 		#expect(throws: Never.self) { try conditions.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-condition-notify") }
-		#expect(throws: Never.self) { try conditions.inspect().find(text: "Runs when the value is true; skips when false. A missing value or another type stops the flow.") }
+		#expect(throws: Never.self) { try conditions.inspect().find(text: "Skips this step when the value is false. A missing value stops the flow.") }
 		draft.nodes[1].when = nil
 		let edited = try #require(draft.jsonBody()["nodes"] as? [[String: Any]])
 		#expect(edited[1]["when"] == nil)

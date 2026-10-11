@@ -59,36 +59,74 @@ struct FlowEditorOutputControls: View {
 	}
 }
 
+/// "Only runs when <output> <field> is true", shown once a step has a
+/// condition. Adding and removing it lives in the step's ••• menu.
 struct FlowEditorConditionControls: View {
 	@Binding var node: FlowEditorNode
 	let previousOutputs: [FlowPromptOutput]
 
+	/// The first earlier output with a yes/no field, else the latest output.
+	static func defaultCondition(_ previousOutputs: [FlowPromptOutput]) -> FlowEditorOutputInput? {
+		guard let output = previousOutputs.first(where: { $0.booleanPath != nil }) ?? previousOutputs.last else { return nil }
+		return FlowEditorOutputInput(from: output.key, path: output.booleanPath)
+	}
+
 	var body: some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Toggle("Run only when", isOn: Binding(
-				get: { node.when != nil },
-				set: { enabled in
-					let output = previousOutputs.first(where: { $0.booleanPath != nil }) ?? previousOutputs.last
-					node.when = enabled ? FlowEditorOutputInput(from: output?.key ?? "", path: output?.booleanPath) : nil
+		if let condition = node.when {
+			VStack(alignment: .leading, spacing: 6) {
+				HStack(spacing: 8) {
+					Image(systemName: "arrow.triangle.branch")
+						.font(.system(size: 11, weight: .medium))
+						.foregroundStyle(AppTheme.secondaryText)
+						.accessibilityHidden(true)
+					Text("Only runs when")
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowTitle)
+					Picker("Condition output", selection: Binding(
+						get: { node.when?.from ?? "" },
+						set: { key in node.when = FlowEditorOutputInput(from: key, path: previousOutputs.first(where: { $0.key == key })?.booleanPath) }
+					)) {
+						if !previousOutputs.contains(where: { $0.key == condition.from }) { Text(condition.from).tag(condition.from) }
+						ForEach(previousOutputs) { output in Text(output.key).tag(output.key) }
+					}
+					.labelsHidden()
+					.pickerStyle(.menu)
+					.fixedSize()
+					TextField("Yes/no field", text: Binding(
+						get: { node.when?.path ?? "" },
+						set: { node.when = FlowEditorOutputInput(from: node.when?.from ?? "", path: $0.isEmpty ? nil : $0) }
+					))
+					.textFieldStyle(.roundedBorder)
+					.font(.system(size: 11, design: .monospaced))
+					.frame(maxWidth: 160)
+					.accessibilityLabel("Condition field")
+					Text("is true")
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowTitle)
+					Spacer(minLength: 0)
+					Button {
+						node.when = nil
+					} label: {
+						Image(systemName: "xmark")
+							.font(.system(size: 9, weight: .bold))
+							.foregroundStyle(AppTheme.secondaryText)
+							.frame(width: 20, height: 20)
+							.contentShape(Rectangle())
+					}
+					.buttonStyle(.plain)
+					.accessibilityLabel("Remove condition")
 				}
-			)).disabled(previousOutputs.isEmpty && node.when == nil)
-				.accessibilityIdentifier("flow-editor-condition-\(node.id)")
-				.help("Choose a boolean output from an earlier step. Add a step first if none is available.")
-			if let condition = node.when {
-				Picker("Condition output", selection: Binding(
-					get: { node.when?.from ?? "" },
-					set: { key in node.when = FlowEditorOutputInput(from: key, path: previousOutputs.first(where: { $0.key == key })?.booleanPath) }
-				)) {
-					if !previousOutputs.contains(where: { $0.key == condition.from }) { Text(condition.from).tag(condition.from) }
-					ForEach(previousOutputs) { output in Text(output.key).tag(output.key) }
-				}.pickerStyle(.menu)
-				TextField("Boolean field path", text: Binding(
-					get: { node.when?.path ?? "" },
-					set: { node.when = FlowEditorOutputInput(from: node.when?.from ?? "", path: $0.isEmpty ? nil : $0) }
-				)).textFieldStyle(.roundedBorder)
-				Text("Runs when the value is true; skips when false. A missing value or another type stops the flow.")
-					.font(.caption).foregroundStyle(AppTheme.secondaryText)
+				Text("Skips this step when the value is false. A missing value stops the flow.")
+					.font(.system(size: 11))
+					.foregroundStyle(SettingsDesign.rowDescription)
 			}
+			.padding(10)
+			.background(
+				RoundedRectangle(cornerRadius: 8, style: .continuous)
+					.fill(AppTheme.primaryText.opacity(0.035))
+			)
+			.accessibilityElement(children: .contain)
+			.accessibilityIdentifier("flow-editor-condition-\(node.id)")
 		}
 	}
 }

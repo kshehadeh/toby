@@ -23,7 +23,15 @@ struct FlowEditorView: View {
 			VStack(alignment: .leading, spacing: 30) {
 				FlowEditorIdentityCard(draft: $draft)
 				FlowTriggersEditor(triggers: $draft.triggers, invalidFields: $draft.invalidTriggerFields)
-				TextField("Project ID (optional, for Agent Task context)", text: $draft.projectId).textFieldStyle(.roundedBorder)
+				if draft.nodes.contains(where: { $0.type == "agent_task" }) || !draft.projectId.isEmpty {
+					HStack(spacing: 10) {
+						FlowEditorFieldLabel("Project")
+							.frame(width: 96, alignment: .leading)
+						TextField("Project ID for the Agent Task (optional)", text: $draft.projectId)
+							.textFieldStyle(.roundedBorder)
+							.accessibilityIdentifier("flow-editor-project-id")
+					}
+				}
 				howItWorks
 			}
 			.padding(.horizontal, 28)
@@ -89,6 +97,8 @@ struct FlowEditorView: View {
 					catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
 					scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
 					previousOutputs: draft.promptOutputs(before: node.id),
+					outputOptions: outputOptions(before: node),
+					triggerValues: triggerValues,
 					canMoveUp: position > 0,
 					canMoveDown: position < toolNodes.count - 1,
 					onMove: { direction in move(nodeId: node.id, direction: direction) },
@@ -139,6 +149,8 @@ struct FlowEditorView: View {
 						catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
 						scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
 						previousOutputs: draft.promptOutputs(before: node.id),
+						outputOptions: outputOptions(before: node),
+						triggerValues: triggerValues,
 						canMoveUp: actionNodes.first?.id != node.id,
 						canMoveDown: actionNodes.last?.id != node.id,
 						onMove: { direction in move(nodeId: node.id, direction: direction) },
@@ -267,6 +279,40 @@ struct FlowEditorView: View {
 			iconURL: module?.resolvedIconURL,
 			systemImage: systemImage
 		)
+	}
+
+	private var triggerValues: [FlowTriggerValue] {
+		FlowTriggerValues.values(for: draft.triggers)
+	}
+
+	/// Earlier outputs a step input can use, named by the step that makes them.
+	private func outputOptions(before node: FlowEditorNode) -> [FlowStepOutputOption] {
+		draft.promptOutputs(before: node.id).map { output in
+			guard let source = draft.nodes.first(where: { $0.id == output.stepId }) else {
+				return FlowStepOutputOption(
+					key: output.key,
+					title: output.key,
+					textPath: output.textPath,
+					systemImage: "arrow.turn.down.right"
+				)
+			}
+			let many = source.outputKeys.count > 1
+			if source.isLLM {
+				return FlowStepOutputOption(
+					key: output.key,
+					title: many ? "AI answer (\(output.key))" : "AI answer",
+					textPath: output.textPath,
+					systemImage: "sparkles"
+				)
+			}
+			let info = stepInfo(for: source)
+			return FlowStepOutputOption(
+				key: output.key,
+				title: many ? "\(info.title) (\(output.key))" : info.title,
+				textPath: output.textPath,
+				systemImage: info.systemImage
+			)
+		}
 	}
 
 	/// Step outputs the AI step can read, plus any data its prompt still
@@ -490,202 +536,148 @@ private struct FlowEditorToolCard: View {
 	let catalogTool: FlowCatalogTool?
 	let scriptTool: UserScriptTool?
 	let previousOutputs: [FlowPromptOutput]
+	let outputOptions: [FlowStepOutputOption]
+	let triggerValues: [FlowTriggerValue]
 	let canMoveUp: Bool
 	let canMoveDown: Bool
 	let onMove: (Int) -> Void
 	let onRemove: () -> Void
 
+	@State private var isExpanded = true
+
+	private var specs: [FlowStepInputSpec] {
+		FlowStepInputLayout.specs(catalogTool: catalogTool, scriptTool: scriptTool)
+	}
+
+	/// The source while open; what the step is set to once collapsed.
+	private var subtitle: String? {
+		if isExpanded { return info.source }
+		return FlowStepInputLayout.summary(specs: specs, node: node, triggerValues: triggerValues, outputs: outputOptions)
+			?? info.source
+	}
+
 	var body: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			HStack(spacing: 12) {
-				Image(systemName: "line.3.horizontal")
-					.font(.system(size: 12, weight: .semibold))
-					.foregroundStyle(AppTheme.tertiaryText)
-					.frame(width: 14)
-					.contentShape(Rectangle())
-					.draggable(node.id)
-					.help("Drag to reorder")
-					.accessibilityHidden(true)
+		VStack(alignment: .leading, spacing: 0) {
+			header
+				.padding(.horizontal, 16)
+				.padding(.vertical, 12)
 
-				FlowStepIconTile(iconURL: info.iconURL, systemImage: info.systemImage)
-
-				VStack(alignment: .leading, spacing: 1) {
-					Text(info.title)
-						.font(.system(size: 13, weight: .medium))
-						.foregroundStyle(SettingsDesign.rowTitle)
-					if let source = info.source {
-						Text(source)
+			if isExpanded {
+				Rectangle()
+					.fill(SettingsDesign.cardBorder)
+					.frame(height: 1)
+					.padding(.leading, 72)
+				VStack(alignment: .leading, spacing: 8) {
+					if let description = info.description {
+						Text(description)
 							.font(.system(size: 12))
 							.foregroundStyle(SettingsDesign.rowDescription)
+							.fixedSize(horizontal: false, vertical: true)
+							.padding(.bottom, 2)
+					}
+					if catalogTool?.looksLikeRuntimeIdRequired == true {
+						Text("This tool needs an ID that usually comes from another step, and flows can’t pass those along yet.")
+							.font(.system(size: 12))
+							.foregroundStyle(AppTheme.tertiaryText)
+							.fixedSize(horizontal: false, vertical: true)
+					}
+					if !specs.isEmpty {
+						FlowEditorStepInputs(node: $node, specs: specs, triggerValues: triggerValues, outputs: outputOptions)
+					} else if node.userToolId == nil, node.standardTool == nil {
+						Text("\(node.moduleName).\(node.toolName)")
+							.font(.system(size: 12, design: .monospaced))
+							.foregroundStyle(SettingsDesign.rowDescription)
+							.textSelection(.enabled)
+					}
+					if node.when != nil {
+						FlowEditorConditionControls(node: $node, previousOutputs: previousOutputs)
+							.padding(.top, 4)
 					}
 				}
-				Spacer(minLength: 0)
-				FlowEditorStepMenu(accessibilityLabel: "Options for \(info.title)") {
-					Button("Move up") { onMove(-1) }
-						.disabled(!canMoveUp)
-					Button("Move down") { onMove(1) }
-						.disabled(!canMoveDown)
-					Divider()
-					Button("Remove step", role: .destructive, action: onRemove)
-				}
+				.padding(.leading, 72)
+				.padding(.trailing, 16)
+				.padding(.top, 12)
+				.padding(.bottom, 14)
 			}
-
-			VStack(alignment: .leading, spacing: 10) {
-				if let description = info.description {
-					Text(description)
-						.font(.system(size: 12))
-						.foregroundStyle(SettingsDesign.rowDescription)
-						.fixedSize(horizontal: false, vertical: true)
-				}
-				if catalogTool?.looksLikeRuntimeIdRequired == true {
-					Text("This tool needs an ID that usually comes from another step, and flows can’t pass those along yet.")
-						.font(.system(size: 12))
-						.foregroundStyle(AppTheme.tertiaryText)
-						.fixedSize(horizontal: false, vertical: true)
-				}
-				if let catalogTool {
-					let properties = catalogTool.inputSchema.properties ?? [:]
-					let required = Set(catalogTool.requiredFields)
-					let keys = (catalogTool.requiredFields + properties.keys.sorted()).uniqued()
-					ForEach(keys, id: \.self) { key in
-						inputRow(key: key, property: properties[key], isRequired: required.contains(key))
-					}
-				} else if let scriptTool {
-					ForEach(scriptTool.inputNames, id: \.self) { key in
-						inputRow(key: key, property: nil, isRequired: true)
-					}
-				} else if node.userToolId == nil, node.standardTool == nil {
-					Text("\(node.moduleName).\(node.toolName)")
-						.font(.system(size: 12, design: .monospaced))
-						.foregroundStyle(SettingsDesign.rowDescription)
-						.textSelection(.enabled)
-				}
-			}
-			.padding(.leading, 56)
-			FlowEditorConditionControls(node: $node, previousOutputs: previousOutputs)
 		}
-		.padding(.horizontal, 16)
-		.padding(.vertical, 14)
 		.flowEditorCard()
 		.accessibilityIdentifier("flow-editor-step-\(node.id)")
 	}
 
-	@ViewBuilder
-	private func inputRow(key: String, property: FlowInputProperty?, isRequired: Bool) -> some View {
-		VStack(alignment: .leading, spacing: 6) {
-			Picker("Source for \(FlowEditorText.inputLabel(key))", selection: Binding(
-				get: { node.outputInputs[key] != nil ? "output" : node.triggerInputs[key] != nil ? "trigger" : "fixed" },
-				set: { source in
-					node.outputInputs.removeValue(forKey: key)
-					node.triggerInputs.removeValue(forKey: key)
-					if source == "trigger" { node.triggerInputs[key] = "event.payload.changes" }
-					if source == "output" {
-						let output = previousOutputs.last?.key ?? ""
-						node.outputInputs[key] = FlowEditorOutputInput(from: output, path: previousOutputs.last?.textPath)
+	private var header: some View {
+		HStack(spacing: 12) {
+			Image(systemName: "line.3.horizontal")
+				.font(.system(size: 12, weight: .semibold))
+				.foregroundStyle(AppTheme.tertiaryText)
+				.frame(width: 14)
+				.contentShape(Rectangle())
+				.draggable(node.id)
+				.help("Drag to reorder")
+				.accessibilityHidden(true)
+
+			FlowStepIconTile(iconURL: info.iconURL, systemImage: info.systemImage)
+
+			Button(action: toggleExpanded) {
+				VStack(alignment: .leading, spacing: 1) {
+					Text(info.title)
+						.font(.system(size: 13, weight: .medium))
+						.foregroundStyle(SettingsDesign.rowTitle)
+					if let subtitle {
+						Text(subtitle)
+							.font(.system(size: 12))
+							.foregroundStyle(SettingsDesign.rowDescription)
+							.lineLimit(1)
 					}
 				}
-			)) {
-				Text("Fixed value").tag("fixed")
-				Text("Trigger event").tag("trigger")
-				Text("Previous step output").tag("output").disabled(previousOutputs.isEmpty)
-			}.pickerStyle(.menu).controlSize(.small)
-			if let source = node.outputInputs[key] {
-				Picker("Output for \(FlowEditorText.inputLabel(key))", selection: Binding(
-					get: { node.outputInputs[key]?.from ?? "" },
-					set: { selected in node.outputInputs[key] = FlowEditorOutputInput(from: selected, path: previousOutputs.first(where: { $0.key == selected })?.textPath) }
-				)) {
-					if !previousOutputs.contains(where: { $0.key == source.from }) { Text(source.from).tag(source.from) }
-					ForEach(previousOutputs) { output in Text(output.key).tag(output.key) }
-				}.pickerStyle(.menu)
-				TextField("Field path (optional; markdown for an AI answer)", text: Binding(
-					get: { node.outputInputs[key]?.path ?? "" },
-					set: { node.outputInputs[key] = FlowEditorOutputInput(from: node.outputInputs[key]?.from ?? "", path: $0.isEmpty ? nil : $0) }
-				)).textFieldStyle(.roundedBorder)
-			} else
-			if node.triggerInputs[key] != nil {
-				TextField(
-					"Path in trigger context",
-					text: Binding(
-						get: { node.triggerInputs[key] ?? "" },
-						set: { node.triggerInputs[key] = $0 }
-					)
-				).textFieldStyle(.roundedBorder)
-				Text("Use event.payload.changes for a batch, or event.payload.changes.0.path for its first file. Manual runs need trigger context.")
-					.font(.caption).foregroundStyle(AppTheme.secondaryText)
-			} else {
-				FlowEditorInputRow(key: key, property: property, isRequired: isRequired, value: stringBinding(for: key))
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.accessibilityHint(isExpanded ? "Collapses this step" : "Shows this step’s settings")
+
+			if node.when != nil, !isExpanded {
+				Image(systemName: "arrow.triangle.branch")
+					.font(.system(size: 11, weight: .medium))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.help("Runs only when a condition is true")
+					.accessibilityLabel("Has a condition")
+			}
+
+			Button(action: toggleExpanded) {
+				Image(systemName: "chevron.down")
+					.font(.system(size: 11, weight: .semibold))
+					.foregroundStyle(AppTheme.secondaryText)
+					.rotationEffect(.degrees(isExpanded ? 180 : 0))
+					.frame(width: 26, height: 26)
+					.contentShape(Rectangle())
+			}
+			.buttonStyle(.plain)
+			.accessibilityLabel(isExpanded ? "Collapse \(info.title)" : "Expand \(info.title)")
+			.accessibilityIdentifier("flow-editor-step-toggle-\(node.id)")
+
+			FlowEditorStepMenu(accessibilityLabel: "Options for \(info.title)") {
+				Button("Move up") { onMove(-1) }
+					.disabled(!canMoveUp)
+				Button("Move down") { onMove(1) }
+					.disabled(!canMoveDown)
+				Divider()
+				if node.when == nil {
+					Button("Only run when…") {
+						node.when = FlowEditorConditionControls.defaultCondition(previousOutputs)
+						isExpanded = true
+					}
+					.disabled(previousOutputs.isEmpty)
+				} else {
+					Button("Remove condition") { node.when = nil }
+				}
+				Divider()
+				Button("Remove step", role: .destructive, action: onRemove)
 			}
 		}
 	}
 
-	private func stringBinding(for key: String) -> Binding<String> {
-		Binding(
-			get: { node.constInputs[key] ?? "" },
-			set: { node.constInputs[key] = $0 }
-		)
-	}
-}
-
-private struct FlowEditorInputRow: View {
-	let key: String
-	let property: FlowInputProperty?
-	let isRequired: Bool
-	@Binding var value: String
-
-	private var hint: String? {
-		FlowEditorText.firstSentence(property?.description)
-	}
-
-	private var isNumber: Bool {
-		property?.type == "integer" || property?.type == "number"
-	}
-
-	var body: some View {
-		HStack(alignment: .firstTextBaseline, spacing: 10) {
-			HStack(spacing: 4) {
-				Text(FlowEditorText.inputLabel(key))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				if isRequired {
-					Text("(required)")
-						.foregroundStyle(AppTheme.tertiaryText)
-				}
-			}
-			.font(.system(size: 12))
-			.frame(width: 120, alignment: .leading)
-
-			if property?.type == "boolean" {
-				Toggle(FlowEditorText.inputLabel(key), isOn: Binding(
-					get: { value.lowercased() == "true" },
-					set: { value = $0 ? "true" : "false" }
-				))
-				.labelsHidden()
-				.toggleStyle(.switch)
-				.controlSize(.small)
-				.tint(SettingsDesign.toggleTint)
-				if let hint {
-					Text(hint)
-						.font(.system(size: 12))
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(2)
-				}
-			} else if isNumber {
-				TextField(isRequired ? "" : "Optional", text: $value)
-					.textFieldStyle(.roundedBorder)
-					.frame(width: 72)
-					.accessibilityLabel(FlowEditorText.inputLabel(key))
-				if let hint {
-					Text(hint)
-						.font(.system(size: 12))
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(2)
-				}
-			} else {
-				TextField(hint ?? (isRequired ? "" : "Optional"), text: $value)
-					.textFieldStyle(.roundedBorder)
-					.accessibilityLabel(FlowEditorText.inputLabel(key))
-			}
-			Spacer(minLength: 0)
-		}
+	private func toggleExpanded() {
+		withAnimation(.easeOut(duration: 0.2)) { isExpanded.toggle() }
 	}
 }
 
@@ -1269,7 +1261,8 @@ private struct FlowEditorWrapLayout: Layout {
 	}
 }
 
-private extension View {
+extension View {
+	/// The editor's card chrome: settings card fill, hairline, concentric corners.
 	func flowEditorCard() -> some View {
 		let shape = AppTheme.concentricRect(minimum: SettingsDesign.cardCornerRadius)
 		return self
@@ -1313,12 +1306,5 @@ private struct FlowColorSwatchButton: View {
 		.accessibilityLabel(option.label)
 		.accessibilityAddTraits(isSelected ? .isSelected : [])
 		.accessibilityIdentifier("flow-editor-color-\(option.id)")
-	}
-}
-
-private extension Array where Element == String {
-	func uniqued() -> [String] {
-		var seen = Set<String>()
-		return filter { seen.insert($0).inserted }
 	}
 }
