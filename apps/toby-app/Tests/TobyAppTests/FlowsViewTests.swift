@@ -111,6 +111,31 @@ struct FlowsViewTests {
 		}
 	}
 
+	@Test("flows sidebar offers Home Refresh and matches only refresh triggers")
+	func homeRefreshFilter() throws {
+		let view = FlowsSidebarView(store: FlowsStore())
+		#expect(throws: Never.self) { try view.inspect().find(text: "Home Refresh") }
+		for builtin in [true, false] {
+			var refresh = sampleFlow(builtin: builtin)
+			var trigger = FlowTriggerSpec.homeRefresh()
+			trigger.enabled = false
+			refresh.triggers = [trigger]
+			#expect(FlowSidebarFilter.homeRefresh.matches(refresh))
+			#expect(!FlowSidebarFilter.homeActions.matches(refresh))
+			#expect(!FlowSidebarFilter.manual.matches(refresh))
+		}
+		var other = sampleFlow()
+		for source in ["manual", "home.action", "schedule", "macos.wake"] {
+			var trigger = FlowTriggerSpec.manual()
+			trigger.changeSource(source)
+			other.triggers = [trigger]
+			#expect(!FlowSidebarFilter.homeRefresh.matches(other))
+		}
+		other.triggers = nil
+		#expect(!FlowSidebarFilter.homeRefresh.matches(other))
+		#expect(FlowSidebarFilter.all.matches(other))
+	}
+
 	@Test("flows sidebar renders rows when no flow is selected")
 	func flowsSidebarRendersRowsWhenNoFlowIsSelected() throws {
 		let store = FlowsStore()

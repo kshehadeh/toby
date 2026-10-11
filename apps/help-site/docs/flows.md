@@ -81,6 +81,8 @@ Their **When** section shows **Home refresh**. Home runs these flows when it nee
 
 Open **Toby.app** and choose **Flows** from the sidebar (or the View menu / menu bar).
 
+Use **Filter flows** to show All, Manual, Home Actions, Home Refresh, Scheduled, or Events. **Home Refresh** includes built-in and custom flows that update Home cards, including flows whose refresh trigger is disabled.
+
 ![Toby.app Flows](/img/toby-app-flows.png)
 
 From there you can:

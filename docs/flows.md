@@ -528,6 +528,11 @@ Modal is UI-only: the run response includes `result` for the app to display.
 
 ### Toby.app UI
 
+The flow sidebar filters by trigger source: All, Manual (`manual`), Home Actions
+(`home.action`), Home Refresh (`dashboard.refresh`), Scheduled (`schedule`), and
+Events (`macos.*`). Filters include both built-in and custom flows and match
+configured triggers regardless of whether they are enabled.
+
 The main window **Flows** surface (`DetailRoute.flows`) lists flows in a second
 column and opens inspect-only detail with node steps and
 recent runs. **New flow** or **Edit** opens a step-list editor in a sheet.

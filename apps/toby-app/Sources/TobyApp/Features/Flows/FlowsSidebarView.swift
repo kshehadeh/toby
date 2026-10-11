@@ -1,14 +1,32 @@
 import SwiftUI
 
+enum FlowSidebarFilter: String, CaseIterable {
+	case all = "All"
+	case manual = "Manual"
+	case homeActions = "Home Actions"
+	case homeRefresh = "Home Refresh"
+	case scheduled = "Scheduled"
+	case events = "Events"
+
+	func matches(_ flow: FlowListItem) -> Bool {
+		self == .all || (flow.triggers ?? []).contains { trigger in
+			switch self {
+			case .all: true
+			case .manual: trigger.source.type == "manual"
+			case .homeActions: trigger.source.type == "home.action"
+			case .homeRefresh: trigger.source.type == "dashboard.refresh"
+			case .scheduled: trigger.source.type == "schedule"
+			case .events: trigger.source.type.hasPrefix("macos.")
+			}
+		}
+	}
+}
+
 struct FlowsSidebarView: View {
 	@Bindable var store: FlowsStore
 	@Binding var showScriptTools: Bool
-	@State private var filter = "All"
-	private var filteredFlows: [FlowListItem] { store.flows.filter { flow in
-		filter == "All" || (flow.triggers ?? []).contains { trigger in
-			switch filter { case "Scheduled": trigger.source.type == "schedule"; case "Events": trigger.source.type.hasPrefix("macos."); case "Home Actions": trigger.source.type == "home.action"; default: trigger.source.type == "manual" }
-		}
-	} }
+	@State private var filter = FlowSidebarFilter.all
+	private var filteredFlows: [FlowListItem] { store.flows.filter { filter.matches($0) } }
 
 	init(store: FlowsStore, showScriptTools: Binding<Bool> = .constant(false)) {
 		self.store = store
@@ -27,7 +45,7 @@ struct FlowsSidebarView: View {
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.accessibilityIdentifier("open-script-tools")
 		Picker("Filter flows", selection: $filter) {
-            ForEach(["All", "Manual", "Home Actions", "Scheduled", "Events"], id: \.self) { Text($0).tag($0) }
+            ForEach(FlowSidebarFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
         }.padding(.horizontal, 12).padding(.bottom, 10)
 		Divider()
 		FeatureBrowserList(
