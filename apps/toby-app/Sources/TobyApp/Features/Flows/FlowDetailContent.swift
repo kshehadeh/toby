@@ -2,6 +2,7 @@ import SwiftUI
 
 enum FlowDetailTab: String, Hashable, CaseIterable {
 	case details
+	case activity
 	case recentRuns
 }
 
@@ -16,6 +17,9 @@ struct FlowDetailContent: View {
 			} label: {
 				Text("Details")
 			}
+			Tab(value: FlowDetailTab.activity) {
+				FlowTriggerActivity(flowId: flow.id) { id in Task { await store.selectRun(id: id) } }
+			} label: { Text("Trigger activity") }
 			Tab(value: FlowDetailTab.recentRuns) {
 				FlowRecentRunsPane(store: store)
 			} label: {
@@ -44,6 +48,18 @@ struct FlowDetailsPane: View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 26) {
 				FlowOverviewHeader(flow: flow)
+                DetailSection(title: "When") {
+                    ForEach(flow.triggers ?? []) { trigger in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack { Text(trigger.name); Spacer(); Text(trigger.enabled ? trigger.label : "Disabled").foregroundStyle(.secondary) }
+                            if trigger.source.type == "dashboard.refresh" {
+                                Text("Runs when Home refreshes this card, using its update setting. Automatic updates reuse fresh content for up to five minutes.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
 
 				DetailSection(title: "How it works") {
 					FlowStoryCard(flow: flow)

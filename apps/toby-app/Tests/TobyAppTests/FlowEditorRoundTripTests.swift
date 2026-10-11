@@ -7,6 +7,23 @@ import ViewInspector
 @MainActor
 @Suite("Flow editor round trips")
 struct FlowEditorRoundTripTests {
+	@Test("replacing a step drops its stale result pointer while preserving valid pointers")
+	func replacedStepResult() throws {
+		let data = Data("""
+		{"id":"convert","type":"tool_executor","tool":{"moduleName":"images","toolName":"imagesConvert"},"outputs":{"converted":"result"}}
+		""".utf8)
+		var draft = FlowEditorDraft.blank()
+		draft.nodes = [FlowEditorNode(stored: try JSONDecoder().decode(FlowStoredNode.self, from: data))]
+		draft.result = FlowResultPointer(from: "converted", path: "markdown")
+		#expect((draft.jsonBody()["result"] as? [String: String])?["from"] == "converted")
+		let replacement = Data("""
+		{"id":"new-convert","type":"tool_executor","tool":{"moduleName":"images","toolName":"imagesConvert"}}
+		""".utf8)
+		draft.nodes = [FlowEditorNode(stored: try JSONDecoder().decode(FlowStoredNode.self, from: replacement))]
+		#expect(draft.jsonBody()["result"] == nil)
+		draft.result = FlowResultPointer(from: "result", path: "markdown")
+		#expect((draft.jsonBody()["result"] as? [String: String])?["from"] == "result")
+	}
 	@Test("editor shows the AI step with its data and persona controls")
 	func editorShowsAIStepControls() throws {
 		let data = """
@@ -133,6 +150,96 @@ struct FlowEditorRoundTripTests {
 		let edited = try #require(draft.jsonBody()["nodes"] as? [[String: Any]])
 		#expect(edited[1]["userPrompt"] as? String == "A new prompt")
 		#expect(edited[1]["outputs"] as? [String: String] == ["summary": "object"])
+	}
+
+	@Test("actions after AI preserve output references and appear in the Acts phase")
+	func actionsAfterAI() throws {
+		let data = """
+		{ "id": "notify", "type": "tool_executor",
+		  "tool": { "moduleName": "macos", "toolName": "macNotificationShow" },
+		  "inputs": { "title": { "const": "Reminder" }, "description": { "from": "object", "path": "markdown" } } }
+		""".data(using: .utf8)!
+		let action = FlowEditorNode(stored: try JSONDecoder().decode(FlowStoredNode.self, from: data))
+		var draft = FlowEditorDraft.blank()
+		draft.nodes = [.llm(), action]
+		let view = FlowEditorView(store: FlowsStore(), draft: .constant(draft))
+		#expect(throws: Never.self) { try view.inspect().find(text: "3. ACTS") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-action") }
+		#expect(action.outputInputs["description"]?.from == "object")
+		let inputs = try #require(action.jsonBody()["inputs"] as? [String: [String: Any]])
+		#expect(inputs["description"]?["from"] as? String == "object")
+		#expect(inputs["description"]?["path"] as? String == "markdown")
+		var edited = action
+		edited.outputInputs.removeValue(forKey: "description")
+		edited.constInputs["description"] = "Fixed text"
+		let fixed = try #require(edited.jsonBody()["inputs"] as? [String: [String: Any]])
+		#expect(fixed["description"]?["const"] as? String == "Fixed text")
+	}
+
+	@Test("named output fields and action conditions survive editing")
+	func structuredDecisionsRoundTrip() throws {
+		let data = """
+		{
+		  "id": "flow.reminder", "name": "Meeting reminder", "nodes": [
+		    { "id": "think", "type": "llm_prompter",
+		      "schema": { "kind": "object", "fields": {
+		        "shouldNotify": { "type": "boolean", "description": "Whether a meeting is coming" },
+		        "title": { "type": "string" }, "description": { "type": "string" }
+		      } }, "systemPrompt": "Decide", "userPrompt": "Look at events", "outputs": { "decision": "object" } },
+		    { "id": "notify", "type": "tool_executor", "tool": { "moduleName": "macos", "toolName": "macNotificationShow" },
+		      "when": { "from": "decision", "path": "shouldNotify" },
+		      "inputs": { "title": { "from": "decision", "path": "title" }, "description": { "from": "decision", "path": "description" } } }
+		  ], "result": { "from": "decision" }, "destinations": [{ "type": "modal" }]
+		}
+		""".data(using: .utf8)!
+		var draft = FlowEditorDraft.from(document: try JSONDecoder().decode(FlowDocumentPayload.self, from: data))
+		#expect(draft.outputValidationError == nil)
+		#expect(draft.nodes[0].outputFields.count == 3)
+		#expect(draft.nodes[1].when == FlowEditorOutputInput(from: "decision", path: "shouldNotify"))
+		#expect(draft.promptOutputs(before: "notify").first?.booleanPath == "shouldNotify")
+		let original = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+		let saved = try #require(draft.jsonBody()["nodes"] as? NSArray)
+		#expect(saved.isEqual(original["nodes"]))
+		let aiControls = FlowEditorOutputControls(node: .constant(draft.nodes[0]))
+		#expect(throws: Never.self) { try aiControls.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-answer-format") }
+		#expect(throws: Never.self) { try aiControls.inspect().find(text: "AI must return every field. Use a boolean field to decide whether a later action runs.") }
+		let conditions = FlowEditorConditionControls(node: .constant(draft.nodes[1]), previousOutputs: draft.promptOutputs(before: "notify"))
+		#expect(throws: Never.self) { try conditions.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-condition-notify") }
+		#expect(throws: Never.self) { try conditions.inspect().find(text: "Runs when the value is true; skips when false. A missing value or another type stops the flow.") }
+		draft.nodes[1].when = nil
+		let edited = try #require(draft.jsonBody()["nodes"] as? [[String: Any]])
+		#expect(edited[1]["when"] == nil)
+	}
+
+	@Test("converting markdown to named fields keeps the shared result usable")
+	func convertsSharedMarkdownResult() {
+		var ai = FlowEditorNode.llm()
+		ai.outputKind = "object"
+		ai.outputFields = [FlowEditorOutputField(name: "shouldRun", type: "boolean"), FlowEditorOutputField(name: "text", type: "string")]
+		var draft = FlowEditorDraft.blank()
+		draft.nodes = [ai]
+		draft.result = FlowResultPointer(from: "object", path: "markdown")
+		draft.adaptResultForNamedFields(nodeId: ai.id)
+		#expect(draft.result == FlowResultPointer(from: "object", path: nil))
+		// Custom field pointers continue to name the selected field.
+		draft.result = FlowResultPointer(from: "object", path: "text")
+		draft.adaptResultForNamedFields(nodeId: ai.id)
+		#expect(draft.result?.path == "text")
+	}
+
+	@Test("structured output validation rejects duplicate and unsafe names")
+	func validatesStructuredFields() {
+		var node = FlowEditorNode.llm()
+		node.outputKind = "object"
+		#expect(node.outputValidationError != nil)
+		node.outputFields = [FlowEditorOutputField(name: "shouldRun", type: "boolean")]
+		#expect(node.outputValidationError == nil)
+		node.outputFields.append(FlowEditorOutputField(name: "shouldRun", type: "string"))
+		#expect(node.outputValidationError == "Each output field needs a unique name.")
+		node.outputFields = [FlowEditorOutputField(name: "constructor", type: "string")]
+		#expect(node.outputValidationError != nil)
+		node.outputFields = [FlowEditorOutputField(name: "with spaces", type: "string")]
+		#expect(node.outputValidationError != nil)
 	}
 
 	@Test("row bindings survive removal, reordering, and editor dismissal")

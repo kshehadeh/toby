@@ -1,5 +1,4 @@
-import { getByPath } from "../flows/resolve-inputs";
-import type { Automation, AutomationEvent } from "./types";
+import type { NativeTriggerEvent, NativeTriggerRule } from "./native-types";
 
 export function localParts(date: Date, timezone: string) {
 	const parts = new Intl.DateTimeFormat("en-US", {
@@ -22,8 +21,8 @@ export function localParts(date: Date, timezone: string) {
 	};
 }
 export function matchReason(
-	a: Automation,
-	e: AutomationEvent,
+	a: NativeTriggerRule,
+	e: NativeTriggerEvent,
 	now: Date,
 	state: { lastClaimAt?: string | null; claimedDay?: string | null } = {},
 ): string | null {
@@ -65,18 +64,4 @@ export function matchReason(
 	)
 		return "cooldown";
 	return null;
-}
-export function automationInputs(
-	a: Automation,
-	e: AutomationEvent,
-	runId: string,
-) {
-	const inputs: Record<string, unknown> = { ...a.action.inputs };
-	for (const [key, path] of Object.entries(a.action.eventInputMappings)) {
-		const value = getByPath(e, path);
-		if (value === undefined) throw new Error(`Event has no field ${path}`);
-		inputs[key] = value;
-	}
-	inputs.automation = { id: a.id, runId, event: e };
-	return inputs;
 }

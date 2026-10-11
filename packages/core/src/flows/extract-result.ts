@@ -40,9 +40,11 @@ export function inferResultPointer(document: FlowDocument): FlowResultPointer {
 		return { from: "result" };
 	}
 
-	if (last.type === "llm_prompter") {
+	if (last.type !== "tool_executor") {
 		const from = firstBagKeyForPath(last.outputs, "object", "object");
-		return { from, path: "markdown" };
+		return last.type === "agent_task" || last.schema.kind === "markdown"
+			? { from, path: "markdown" }
+			: { from };
 	}
 
 	const from = firstBagKeyForPath(last.outputs, "result", "result");
@@ -129,6 +131,19 @@ export function extractFlowResult(
 	options?: { readonly lastNodeResult?: unknown },
 ): ExtractedFlowResult {
 	const pointer = inferResultPointer(document);
+	if (
+		!document.result &&
+		options?.lastNodeResult &&
+		typeof options.lastNodeResult === "object" &&
+		"skipped" in options.lastNodeResult &&
+		options.lastNodeResult.skipped === true
+	) {
+		return {
+			text: "Action skipped because its condition was false.",
+			format: "plain",
+			pointer,
+		};
+	}
 	const root = bag[pointer.from];
 	const value = getByPath(root, pointer.path);
 	const rendered = renderValue(value, options);

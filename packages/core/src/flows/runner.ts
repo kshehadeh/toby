@@ -1,6 +1,7 @@
 import type { Persona } from "../config/index";
 import { resolveDefaultPersona, resolvePersona } from "../personas/index";
 import { buildDefinitionSnapshot } from "./definition-snapshot";
+import { runAgentTaskNode } from "./nodes/agent-task";
 import {
 	defaultLlmPrompterOutputs,
 	runLlmPrompterNode,
@@ -132,6 +133,52 @@ export async function runFlowDefinition(
 				: null;
 
 		try {
+			if (node.type === "tool_executor" && node.when) {
+				const value = resolveNodeInputs(
+					node.id,
+					{ condition: node.when },
+					bag,
+				).condition;
+				if (typeof value !== "boolean")
+					throw new FlowNodeError(
+						node.id,
+						"Action condition must resolve to a boolean",
+						"invalid_condition",
+					);
+				if (!value) {
+					const completedAt = nowIso();
+					const durationMs = Date.now() - nodeStartedMs;
+					const nodeResult = {
+						skipped: true,
+						reason: "Action condition was false",
+						condition: node.when,
+						value,
+					};
+					nodeTrace.push({
+						nodeId: node.id,
+						type: node.type,
+						order,
+						status: "skipped",
+						durationMs,
+						startedAt: nodeStartedAt,
+						completedAt,
+						inputs: {},
+						bagWrites: {},
+						nodeResult,
+					});
+					if (nodeRowId)
+						completeFlowRunNode({
+							id: nodeRowId,
+							status: "skipped",
+							inputs: {},
+							outputs: { bagWrites: {}, nodeResult },
+							durationMs,
+							completedAt,
+						});
+					order++;
+					continue;
+				}
+			}
 			const inputs = resolveNodeInputs(node.id, node.inputs, bag);
 			const runtime = {
 				persona,
@@ -148,6 +195,11 @@ export async function runFlowDefinition(
 				nodeResult = result;
 				detail = result.detail;
 				outputsMap = node.outputs ?? defaultToolExecutorOutputs();
+			} else if (node.type === "agent_task") {
+				const result = await runAgentTaskNode(node, inputs, runtime);
+				nodeResult = result;
+				detail = result.detail;
+				outputsMap = node.outputs ?? defaultLlmPrompterOutputs();
 			} else {
 				const result = await runLlmPrompterNode(node, inputs, runtime);
 				nodeResult = result;

@@ -1,25 +1,24 @@
-import "../flows/index";
+import "../index";
 import { randomUUID } from "node:crypto";
-import { runUserFlowById } from "../flows/run-user-flow";
-import { daemonLog } from "../logging/daemon-log";
-import { resolveNativePort } from "../native-app/client";
-import { automationInputs } from "./matcher";
+import { daemonLog } from "../../logging/daemon-log";
+import { resolveNativePort } from "../../native-app/client";
+import { type UserFlowRunResult, runUserFlow } from "../run-user-flow";
 import {
-	claimPendingAutomation,
-	finishAutomationRun,
-	ingestAutomationBatch,
-	listAutomations,
-	pruneAutomationHistory,
-	recoverAutomationRuns,
-	validateAutomationFlow,
+	claimTriggerDecision,
+	enqueueScheduledFlows,
+	finishTriggerDecision,
+	ingestNativeEvents,
+	listTriggerBindings,
+	recoverTriggerDecisions,
+	triggerInputs,
 } from "./store";
 
 let sourceStatus = {
 	state: "idle",
-	message: "No enabled automations",
+	message: "No enabled macOS triggers",
 	lastPollAt: null as string | null,
 };
-export function automationSourceStatus() {
+export function flowTriggerSourceStatus() {
 	return sourceStatus;
 }
 async function native(
@@ -31,7 +30,7 @@ async function native(
 	const port = resolveNativePort();
 	if (!port) throw new Error("Waiting for Toby.app");
 	const response = await fetch(
-		`http://127.0.0.1:${port}/api/native/automations/${path}`,
+		`http://127.0.0.1:${port}/api/native/flows/triggers/${path}`,
 		{
 			method,
 			headers: { "Content-Type": "application/json" },
@@ -50,51 +49,63 @@ async function native(
 		throw new Error(payload.error ?? "Native source unavailable");
 	return payload.data;
 }
-export async function executeAutomationWorker(
+export async function executeFlowTriggerWorker(
 	signal: AbortSignal,
-	execute = runUserFlowById,
-): Promise<boolean> {
-	const run = claimPendingAutomation();
-	if (!run) return false;
+	decisionId?: string,
+): Promise<UserFlowRunResult | null> {
+	const run = claimTriggerDecision(new Date(), decisionId);
+	if (!run) return null;
 	try {
-		validateAutomationFlow(run.definition.action.flowId);
-		const result = await execute(run.definition.action.flowId, {
-			inputs: automationInputs(run.definition, run.event, run.id),
-			trigger: `automation:${run.automationId}:${run.eventId}`,
+		const result = await runUserFlow(run.binding.flowId, run.binding.document, {
+			inputs: triggerInputs(run.binding, run.event, run.id),
+			trigger: `${run.event.type}:${run.binding.trigger.id}`,
 			abortSignal: signal,
 		});
-		finishAutomationRun(
+		finishTriggerDecision(
 			run.id,
-			result.ok ? "success" : "error",
-			result.ok ? null : result.error,
+			signal.aborted ? "interrupted" : result.ok ? "success" : "error",
+			result.ok ? null : (result.error ?? null),
 			result.runId ?? null,
 			result.extracted?.text ?? null,
 		);
-		if (run.definition.notifyOnCompletion && !signal.aborted) {
+		if (run.binding.trigger.notifyOnCompletion && !signal.aborted) {
 			try {
 				await native(
 					"completion-notification",
 					"POST",
 					{
-						automationId: run.automationId,
-						runId: run.id,
-						name: run.definition.name,
+						flowId: run.binding.flowId,
+						runId: result.runId,
+						name: run.binding.document.name,
 						status: result.ok ? "success" : "error",
 					},
 					signal,
 				);
 			} catch {
-				/* Notification delivery never invalidates the saved result. */
+				/* Best effort notification. */
 			}
 		}
+		return result;
 	} catch (error) {
-		finishAutomationRun(
+		finishTriggerDecision(
 			run.id,
 			signal.aborted ? "interrupted" : "error",
-			error instanceof Error ? error.message : String(error),
+			String(error),
 		);
+		const completedAt = new Date().toISOString();
+		return {
+			ok: false,
+			flowName: run.binding.document.name,
+			outputs: {},
+			nodeTrace: [],
+			error: String(error),
+			startedAt: completedAt,
+			completedAt,
+			durationMs: 0,
+			extracted: null,
+			destinations: [],
+		};
 	}
-	return true;
 }
 function pause(ms: number, signal: AbortSignal): Promise<void> {
 	if (signal.aborted) return Promise.resolve();
@@ -108,28 +119,29 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
 		signal.addEventListener("abort", done, { once: true });
 	});
 }
-export async function runAutomationSupervisor(
+export async function runFlowTriggerSupervisor(
 	signal: AbortSignal,
 ): Promise<void> {
-	recoverAutomationRuns();
-	pruneAutomationHistory();
+	recoverTriggerDecisions();
+
 	const owner = randomUUID();
 	let cursor: { sessionId: string; sequence: number } | null = null;
 	let activeTypes = "";
 	const running = new Set<Promise<void>>();
 	let failures = 0;
-	let lastPrunedAt = Date.now();
+
 	try {
 		while (!signal.aborted) {
-			if (Date.now() - lastPrunedAt >= 86400000) {
-				pruneAutomationHistory();
-				lastPrunedAt = Date.now();
-			}
-			const enabled = listAutomations().filter((a) => a.enabled);
+			enqueueScheduledFlows();
+			const enabled = listTriggerBindings().filter(
+				(a) => a.trigger.enabled && a.trigger.source.type.startsWith("macos."),
+			);
 			const watches = enabled
-				.filter((a) => a.trigger.type === "macos.fileChanges")
-				.map((a) => ({ id: `${a.id}:${a.revision}`, ...a.trigger }));
-			const types = [...new Set(enabled.map((a) => a.trigger.type))].sort();
+				.filter((a) => a.trigger.source.type === "macos.fileChanges")
+				.map((a) => ({ id: `${a.id}:${a.revision}`, ...a.trigger.source }));
+			const types = [
+				...new Set(enabled.map((a) => a.trigger.source.type)),
+			].sort();
 			try {
 				if (!types.length) {
 					if (activeTypes)
@@ -138,7 +150,7 @@ export async function runAutomationSupervisor(
 					cursor = null;
 					sourceStatus = {
 						state: "idle",
-						message: "No enabled automations",
+						message: "No enabled macOS triggers",
 						lastPollAt: null,
 					};
 				} else {
@@ -164,7 +176,9 @@ export async function runAutomationSupervisor(
 						signal,
 					);
 					if (batch.gap === true) {
-						daemonLog("warn", "daemon", "automation_event_gap", { sessionId });
+						daemonLog("warn", "daemon", "flow_trigger_event_gap", {
+							sessionId,
+						});
 						cursor = { sessionId, sequence: Number(batch.sequence) };
 					} else {
 						const next: { sessionId: string; sequence: number } = {
@@ -177,7 +191,7 @@ export async function runAutomationSupervisor(
 							next.sequence < cursor.sequence
 						)
 							throw new Error("Invalid native event batch");
-						ingestAutomationBatch(batch.events, next);
+						ingestNativeEvents(batch.events, next);
 						cursor = next;
 					}
 					const folderErrors = subscription.folderErrors as
@@ -206,18 +220,18 @@ export async function runAutomationSupervisor(
 					lastPollAt: sourceStatus.lastPollAt,
 				};
 				if (failures === 1)
-					daemonLog("warn", "daemon", "automation_source_unavailable", {
+					daemonLog("warn", "daemon", "flow_trigger_source_unavailable", {
 						error: String(error),
 					});
 				// Preserve cursor within the same native session for a short transport outage.
 			}
 			while (running.size < 2 && !signal.aborted) {
 				// The async worker claims synchronously before its first await.
-				const worker = executeAutomationWorker(signal);
+				const worker = executeFlowTriggerWorker(signal);
 				const task: Promise<void> = worker
 					.then(() => {})
 					.catch((error) => {
-						daemonLog("error", "daemon", "automation_worker_failed", {
+						daemonLog("error", "daemon", "flow_trigger_worker_failed", {
 							error: String(error),
 						});
 					})

@@ -6,7 +6,6 @@ struct RootView: View {
     @Bindable var dashboardStore: DashboardStore
     @Bindable var configureStore: ConfigureStore
     @Bindable var recordingsStore: RecordingsStore
-    @Bindable var schedulesStore: SchedulesStore
     @Bindable var projectsStore: ProjectsStore
     @Bindable var skillsStore: SkillsStore
     @Bindable var memoriesStore: MemoriesStore
@@ -19,7 +18,6 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var appearancePreferences: AppearancePreferences = .shared
-    @State private var automationsStore = AutomationsStore()
     @State private var permissionsStore = PermissionsStore()
     @State private var history = NavigationHistory()
     @State private var isIssueReportPresented = false
@@ -48,11 +46,11 @@ struct RootView: View {
     var body: some View {
         contentWithBackup
             .modifier(rootNotificationRouter)
-            .onReceive(NotificationCenter.default.publisher(for: .openAutomationRun)) { notification in
+            .onReceive(NotificationCenter.default.publisher(for: .openFlowRun)) { notification in
                 guard let id = notification.object as? String else { return }
                 bringMainWindowToFront()
-                navigateToRoute(.automations)
-                Task { await automationsStore.load(); await automationsStore.openRun(id) }
+                navigateToRoute(.flows)
+                Task { await flowsStore.load(); await flowsStore.selectRun(id: id) }
             }
             .onChange(of: history.current) { _, _ in
                 leaveProjectSessionIfMainChatVisible()
@@ -67,7 +65,7 @@ struct RootView: View {
 
     private var rootNotificationRouter: RootNotificationRouter {
         RootNotificationRouter(
-            onStartNewSchedule: startNewSchedule,
+            onStartNewFlow: startNewFlow,
             onStartNewSkill: startNewSkill,
             onStartNewProject: startNewProject,
             onStartNewMemory: startNewMemory,
@@ -76,7 +74,6 @@ struct RootView: View {
             onPersonasDidChange: {
                 Task {
                     await configureStore.handlePersonasChanged()
-                    await schedulesStore.refreshPersonas()
                     await projectsStore.refreshPersonas()
                     await store.refreshPersonas()
                 }
@@ -99,7 +96,6 @@ struct RootView: View {
             onOpenIssueReport: { isIssueReportPresented = true },
             onOpenChangelog: presentAbout,
             onOpenRecording: openRecording,
-            onOpenScheduleFromNotification: openScheduleFromNotification,
             onStartNewChat: {
                 bringMainWindowToFront()
                 startNewChat()
@@ -444,7 +440,7 @@ struct RootView: View {
                 isServerReady: store.isServerReady,
                 onRefresh: { Task { await refreshDashboardData() } },
                 onSelectRoute: navigateToRoute,
-                onCreateSchedule: startNewSchedule,
+                onCreateSchedule: startNewFlow,
                 onCreateSkill: startNewSkill,
                 recentWork: DashboardRecentWorkItem.merged(
                     sessions: store.sessions,
@@ -487,10 +483,6 @@ struct RootView: View {
             ProjectsView(projectsStore: projectsStore, chatStore: store)
         case .library:
             LibraryView(store: libraryStore)
-        case .automations:
-            AutomationsView(store: automationsStore, onOpenFlow: openDashboardFlow)
-        case .schedules:
-            SchedulesView(store: schedulesStore, onOpenFlow: openDashboardFlow)
         case .recordings:
             RecordingsView(
                 store: recordingsStore,
@@ -508,12 +500,7 @@ struct RootView: View {
 
     @ToolbarContentBuilder
     private var rootToolbar: some ToolbarContent {
-        if history.current == .automations {
-            RootToolbars.common(commonToolbarModel, header: RootHeaderTitle(title: rootNavigationTitle))
-            AutomationToolbar(store: automationsStore)
-        } else {
-            workspaceToolbar
-        }
+        workspaceToolbar
     }
 
     @ToolbarContentBuilder
@@ -604,37 +591,6 @@ struct RootView: View {
                                             }
                                         )
 
-            case .schedules, .automations:
-
-                                        RootToolbars.schedules(
-                                            common: commonToolbarModel,
-                                            title: RootToolbars.routeTitle(
-                                                .schedules,
-                                                selectedItemName: scheduleNavigationName
-                                            ),
-                                            hasSelection: schedulesStore.selectedSchedule != nil,
-                                            isSaving: schedulesStore.isSaving,
-                                            isRunning: schedulesStore.runningScheduleId != nil,
-                                            isDeleting: schedulesStore.deletingScheduleId != nil,
-                                            onNew: {
-                                                schedulesStore.startCreate()
-                                            },
-                                            onEdit: {
-                                                schedulesStore.startEdit()
-                                            },
-                                            onRun: {
-                                                guard let id = schedulesStore.selectedSchedule?.id else { return }
-                                                Task { await schedulesStore.runSchedule(id: id) }
-                                            },
-                                            onDelete: {
-                                                guard let schedule = schedulesStore.selectedSchedule else { return }
-                                                schedulesStore.pendingDelete = SchedulesStore.PendingDelete(
-                                                    scheduleId: schedule.id,
-                                                    title: schedule.displayName
-                                                )
-                                            }
-                                        )
-
             case .recordings:
 
                                         RootToolbars.recordings(
@@ -711,7 +667,7 @@ struct RootView: View {
                                             isRunsLoading: flowsStore.isRunsLoading,
                                             hasSelection: flowsStore.selectedFlow != nil,
                                             canEdit: flowsStore.selectedFlow?.builtin == false,
-                                            canRun: flowsStore.selectedFlow?.builtin == false,
+                                            canRun: flowsStore.selectedFlow?.canRunManually == true,
                                             canDelete: flowsStore.selectedFlow?.builtin == false,
                                             isRunning: flowsStore.isRunning,
                                             onNewFlow: {
@@ -751,13 +707,6 @@ struct RootView: View {
             )
         case .library:
             RootToolbars.routeTitle(.library, selectedItemName: libraryStore.inspectedItem?.title)
-        case .automations:
-            RootToolbars.routeTitle(.automations, selectedItemName: automationsStore.selected?.name)
-        case .schedules:
-            RootToolbars.routeTitle(
-                .schedules,
-                selectedItemName: scheduleNavigationName
-            )
         case .recordings:
             RootToolbars.recordingsNavigationTitle(
                 recording: recordingsStore.selectedRecording,
@@ -793,10 +742,6 @@ struct RootView: View {
                 recording: recordingsStore.selectedRecording,
                 selectedCount: recordingsStore.selectedRecordings.count
             )
-        case .automations:
-            automationsStore.sourceMessage
-        case .schedules:
-            scheduleNavigationSubtitle
         case .skills:
             skillNavigationSubtitle
         case .flows:
@@ -806,20 +751,8 @@ struct RootView: View {
         }
     }
 
-    private var scheduleNavigationName: String? {
-        schedulesStore.selectedSchedule?.displayName
-    }
-
     private var skillNavigationName: String? {
         skillsStore.selectedSkill?.name
-    }
-
-    private var scheduleNavigationSubtitle: String {
-        guard let schedule = schedulesStore.selectedSchedule else { return "" }
-        return RootToolbars.schedulesNavigationSubtitle(
-            isEnabled: schedule.enabled,
-            nextRunText: schedule.nextRunText
-        )
     }
 
     private var skillNavigationSubtitle: String {
@@ -865,7 +798,7 @@ struct RootView: View {
             CommandPaletteView(
                 sessions: store.sessions,
                 integrations: configureStore.integrationSections,
-                schedules: schedulesStore.schedules,
+                flows: flowsStore.flows,
                 recordings: recordingsStore.recordings,
                 onSelectSession: { id in
                     bringMainWindowToFront()
@@ -889,9 +822,9 @@ struct RootView: View {
                 onOpenIntegration: { navKey in
                     openSettings(navKey: navKey)
                 },
-                onOpenSchedule: { id in
+                onOpenFlow: { id in
                     bringMainWindowToFront()
-                    openSchedule(id: id)
+                    openDashboardFlow(id)
                 },
                 onOpenRecording: { id in
                     bringMainWindowToFront()
@@ -994,10 +927,10 @@ struct RootView: View {
         Task { await store.startNewSession(persona: persona) }
     }
 
-    private func startNewSchedule() {
+    private func startNewFlow() {
         bringMainWindowToFront()
-        navigateToRoute(.schedules)
-        schedulesStore.startCreate()
+        navigateToRoute(.flows)
+        Task { await flowsStore.startCreate() }
     }
 
     private func startNewSkill() {
@@ -1076,10 +1009,6 @@ struct RootView: View {
             Task { await projectsStore.selectHome() }
         case .library:
             libraryStore.selectHome()
-        case .automations:
-            automationsStore.selectedId = nil
-        case .schedules:
-            schedulesStore.selectHome()
         case .flows:
             flowsStore.selectHome()
         case .recordings:
@@ -1112,7 +1041,7 @@ struct RootView: View {
 
     private func runDashboardFlow(_ flowId: String) async -> FlowRunNowResponse? {
         await flowsStore.ensureLoaded()
-        return await flowsStore.runFlow(id: flowId)
+        return await flowsStore.runFlow(id: flowId, source: "home.action")
     }
 
     /// Onboarding must wait until the daemon handshake and first shared data
@@ -1138,7 +1067,7 @@ struct RootView: View {
             hasConnectedIntegrations: connected,
             hasModelConfigured: hasCustomPersona,
             hasRequiredPermissions: requiredPermissions,
-            hasSchedule: !schedulesStore.schedules.isEmpty,
+            hasSchedule: flowsStore.flows.contains { $0.triggers?.contains { $0.source.type == "schedule" } ?? false },
             hasSkill: !skillsStore.skills.isEmpty,
             hasTranscriptionConfigured: tx?.configured ?? false,
             transcriptionNeedsApiKey: tx?.needsApiKey ?? false,
@@ -1185,20 +1114,6 @@ struct RootView: View {
         emphasizeCreatePersona = false
     }
 
-    private func openSchedule(id: String) {
-        Task { await schedulesStore.selectSchedule(id: id) }
-        navigateToRoute(.schedules)
-    }
-
-    private func openScheduleFromNotification(id: String) {
-        bringMainWindowToFront()
-        navigateToRoute(.schedules)
-        Task {
-            await schedulesStore.load()
-            await schedulesStore.selectSchedule(id: id)
-        }
-    }
-
     private func openRecording(id: String) {
         Task {
             // Always reload the list so a recording finished off-route appears
@@ -1235,14 +1150,14 @@ struct RootView: View {
     private func loadSharedAppDataIfConnected() async {
         guard store.status != nil else { return }
         async let sessions: () = store.refreshSessions()
-        async let schedules: () = schedulesStore.ensureLoaded()
+        async let flows: () = flowsStore.load()
         async let recordings: () = recordingsStore.ensureListLoaded()
         async let memories: () = memoriesStore.ensureListLoaded()
         async let library: () = libraryStore.ensureListLoaded()
         async let skills: () = skillsStore.ensureListLoaded()
         async let projects: () = projectsStore.ensureListLoaded()
         async let integrations: () = loadIntegrationsCatalogIfNeeded()
-        _ = await (sessions, schedules, recordings, memories, library, skills, projects, integrations)
+        _ = await (sessions, flows, recordings, memories, library, skills, projects, integrations)
     }
 
     /// Soft-reset feature stores after Settings → General switches the Toby home.
@@ -1253,8 +1168,6 @@ struct RootView: View {
         dashboardStore.resetForHomeSwitch()
         configureStore.resetForHomeSwitch()
         recordingsStore.resetForHomeSwitch()
-        schedulesStore.resetForHomeSwitch()
-        automationsStore.resetForHomeSwitch()
         projectsStore.resetForHomeSwitch()
         skillsStore.resetForHomeSwitch()
         memoriesStore.resetForHomeSwitch()
@@ -1274,14 +1187,14 @@ struct RootView: View {
     private func refreshSharedAppDataIfConnected() async {
         guard store.status != nil else { return }
         async let sessions: () = store.refreshSessions()
-        async let schedules: () = schedulesStore.load()
+        async let flows: () = flowsStore.load()
         async let recordings: () = recordingsStore.loadList()
         async let memories: () = memoriesStore.loadList()
         async let library: () = libraryStore.loadList()
         async let skills: () = skillsStore.loadList()
         async let projects: () = projectsStore.loadList()
         async let integrations: () = loadIntegrationsCatalogIfNeeded()
-        _ = await (sessions, schedules, recordings, memories, library, skills, projects, integrations)
+        _ = await (sessions, flows, recordings, memories, library, skills, projects, integrations)
     }
 
     private func refreshDashboardData() async {

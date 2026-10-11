@@ -29,7 +29,6 @@ import {
 	getTranscriptionProvider,
 } from "../listen/transcription-providers";
 import { getBuiltInPersona } from "../personas/index";
-import { listSchedules, updateSchedule } from "../schedules/store";
 import { loadLocalSkills } from "../skills/index";
 import { updateSkillFrontmatter } from "../skills/manage";
 
@@ -83,34 +82,6 @@ export function collectCredentialConfigureKeys(): Set<string> {
 		}
 	}
 	return keys;
-}
-
-export function seedScheduleValues(values: Record<string, string>): void {
-	for (const key of Object.keys(values)) {
-		if (key.startsWith("schedules.")) {
-			delete values[key];
-		}
-	}
-	let schedules: ReturnType<typeof listSchedules> = [];
-	try {
-		schedules = listSchedules();
-	} catch {
-		schedules = [];
-	}
-	for (const schedule of schedules) {
-		values[`schedules.${schedule.id}.name`] = schedule.name;
-		values[`schedules.${schedule.id}.action`] = schedule.flowId
-			? "flow"
-			: "prompt";
-		values[`schedules.${schedule.id}.flow`] = schedule.flowId ?? "(none)";
-		values[`schedules.${schedule.id}.prompt`] = schedule.prompt;
-		values[`schedules.${schedule.id}.persona`] = schedule.personaName;
-		values[`schedules.${schedule.id}.cron`] = schedule.cronExpression;
-		values[`schedules.${schedule.id}.project`] = schedule.projectId ?? "(none)";
-		values[`schedules.${schedule.id}.enabled`] = schedule.enabled
-			? "Yes"
-			: "No";
-	}
 }
 
 /** Load full configure values from disk (includes secrets — CLI only). */
@@ -169,7 +140,6 @@ export function seedConfigureValues(): Record<string, string> {
 		// Keep the established configure key as a storage compatibility alias.
 		values[`skills.${skill.dirName}.description`] = skill.summary;
 	}
-	seedScheduleValues(values);
 	for (const cat of ALL_PROVIDER_CATEGORIES) {
 		const current = config.defaultProviders?.[cat];
 		values[`defaults.${cat}`] = current ?? "(none)";
@@ -747,41 +717,13 @@ function applyMcpConnectionConfigFromValues(
 }
 
 const SKILL_FIELD_RE = /^skills\.([^.]+)\.(name|description)$/;
-const SCHEDULE_FIELD_RE =
-	/^schedules\.([^.]+)\.(name|action|flow|prompt|persona|cron|project|enabled)$/;
 
 function partitionConfigurePatch(patch: Record<string, string>): {
 	config: Record<string, string>;
 	skills: Map<string, { name?: string; description?: string }>;
-	schedules: Map<
-		string,
-		{
-			name?: string;
-			prompt?: string;
-			personaName?: string;
-			cronExpression?: string;
-			projectId?: string | null;
-			flowId?: string | null;
-			enabled?: boolean;
-			action?: "prompt" | "flow";
-		}
-	>;
 } {
 	const config: Record<string, string> = {};
 	const skills = new Map<string, { name?: string; description?: string }>();
-	const schedules = new Map<
-		string,
-		{
-			name?: string;
-			prompt?: string;
-			personaName?: string;
-			cronExpression?: string;
-			projectId?: string | null;
-			flowId?: string | null;
-			enabled?: boolean;
-			action?: "prompt" | "flow";
-		}
-	>();
 
 	for (const [key, value] of Object.entries(patch)) {
 		const skillMatch = SKILL_FIELD_RE.exec(key);
@@ -794,30 +736,10 @@ function partitionConfigurePatch(patch: Record<string, string>): {
 			continue;
 		}
 
-		const scheduleMatch = SCHEDULE_FIELD_RE.exec(key);
-		if (scheduleMatch) {
-			const [, scheduleId, field] = scheduleMatch;
-			const entry = schedules.get(scheduleId) ?? {};
-			if (field === "name") entry.name = value;
-			else if (field === "prompt") entry.prompt = value;
-			else if (field === "persona") entry.personaName = value;
-			else if (field === "cron") entry.cronExpression = value;
-			else if (field === "project")
-				entry.projectId = value === "(none)" ? null : value;
-			else if (field === "action")
-				entry.action = value === "flow" ? "flow" : "prompt";
-			else if (field === "flow")
-				entry.flowId =
-					value === "(none)" || !value.trim() ? null : value.trim();
-			else entry.enabled = value === "Yes" || value === "true";
-			schedules.set(scheduleId, entry);
-			continue;
-		}
-
 		config[key] = value;
 	}
 
-	return { config, skills, schedules };
+	return { config, skills };
 }
 
 /** Apply configure values (web-safe), including secret credentials. */
@@ -825,6 +747,8 @@ export function applyConfigureValuesPatch(
 	patch: Record<string, string>,
 	baseValues?: Record<string, string>,
 ): void {
+	if (Object.keys(patch).some((key) => key.startsWith("schedules.")))
+		throw new Error("Schedules are configured as Flow triggers");
 	const credentialKeys = collectCredentialConfigureKeys();
 	const secretKeys = collectSecretConfigureKeys();
 	const credPatch: Record<string, string> = {};
@@ -848,7 +772,7 @@ export function applyConfigureValuesPatch(
 		writeCredentials(buildCredentialsFromValues(merged, creds));
 	}
 
-	const { config, skills, schedules } = partitionConfigurePatch(rest);
+	const { config, skills } = partitionConfigurePatch(rest);
 
 	if (Object.keys(config).length > 0) {
 		const merged = { ...(baseValues ?? seedConfigureValues()), ...config };
@@ -886,15 +810,6 @@ export function applyConfigureValuesPatch(
 
 	for (const [dirName, updates] of skills) {
 		updateSkillFrontmatter(dirName, updates);
-	}
-
-	for (const [scheduleId, updates] of schedules) {
-		const { action, ...rest } = updates;
-		if (action === "prompt") {
-			updateSchedule(scheduleId, { ...rest, flowId: null });
-		} else {
-			updateSchedule(scheduleId, rest);
-		}
 	}
 }
 

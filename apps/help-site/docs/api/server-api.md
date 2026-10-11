@@ -146,8 +146,8 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `GET` | `/api/configure/sections/:sectionKey` | One section detail |
 | `PATCH` | `/api/configure/values` | Persist configure changes |
 | `POST` | `/api/configure/actions/:action` | Named configure actions |
-| `POST` | `/api/schedules/parse-cron` | Parse cron / natural language |
-| `GET` | `/api/schedules/runs/:id` | Schedule run detail |
+| `POST` | `/api/flows/triggers/parse-cron` | Parse cron / natural language |
+| `GET` | `/api/flows/triggers/activity?flowId=` | Trigger decisions and run links |
 | `GET` | `/api/integrations/:name/status` | Integration status |
 | `GET` | `/api/integrations/:name/setup-guide` | Setup wizard steps |
 | `POST` | `/api/integrations/:name/connect` | Connect |
@@ -1016,15 +1016,16 @@ Body: `Record<string, string>`.
 
 ## Schedules
 
-### `POST /api/schedules/parse-cron`
+### `POST /api/flows/triggers/parse-cron`
 
 Parses natural-language or cron expressions for the schedules UI.
 
-### `GET /api/schedules/runs/:id`
+### Flow trigger activity
 
-Returns schedule run detail / transcript for a completed or in-progress run.
-
-## Integrations
+`GET /api/flows/triggers/activity?flowId=…` returns recent decisions and links
+to normal Flow runs. `GET /api/flows/triggers/status` reports native observation
+status. Triggers are embedded in Flow create/update definitions; there are no
+separate Schedule or Automation APIs.
 
 ### `GET /api/integrations/:name/status`
 
@@ -1057,3 +1058,11 @@ Static AI provider and related icon assets (not under `/api/`, but served by the
 - [Architecture](../architecture/overview) — how Toby.app and the daemon fit together
 - [Toby.app](../toby-app) — product UI surfaces
 - Contributor reference on GitHub: [server-api.md](https://github.com/kshehadeh/toby/blob/main/docs/server-api.md)
+
+### Home action entry point
+
+`POST /api/flows/:id/run` uses a manual trigger by default. Home Actions buttons
+send `{ "source": "home.action" }` to select a Home Screen Action trigger.
+Each entry point requires its own enabled trigger and uses the same run history.
+Home Screen Action triggers require a Home Actions placement; saving the Flow
+automatically keeps that placement consistent.

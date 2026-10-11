@@ -223,16 +223,6 @@ enum RootToolbars {
 		return recordingStartedDateText(recording)
 	}
 
-	static func schedulesNavigationSubtitle(isEnabled: Bool, nextRunText: String?) -> String {
-		if isEnabled, let nextRunText {
-			return "Next run \(nextRunText)"
-		}
-		if isEnabled {
-			return "No upcoming run"
-		}
-		return "Paused"
-	}
-
 	static func skillsNavigationSubtitle(
 		isEnabled: Bool,
 		updatedAt: String?,
@@ -473,56 +463,6 @@ enum RootToolbars {
 
 	static func projectFilesHelp(isPresented: Bool) -> String {
 		isPresented ? "Hide Files" : "Show Files"
-	}
-
-	@ToolbarContentBuilder
-	static func schedules(
-		common model: RootCommonToolbarModel,
-		title: String = "Schedules",
-		hasSelection: Bool,
-		isSaving: Bool,
-		isRunning: Bool,
-		isDeleting: Bool,
-		onNew: @escaping () -> Void,
-		onEdit: @escaping () -> Void = {},
-		onRun: @escaping () -> Void,
-		onDelete: @escaping () -> Void,
-	) -> some ToolbarContent {
-		common(model, header: RootHeaderTitle(title: title))
-		contextualActions {
-			if !hasSelection {
-				Button(action: onNew) {
-					Image(systemName: "plus")
-				}
-				.help("New Schedule")
-				.disabled(isSaving)
-				.accessibilityIdentifier("toolbar-new-schedule-button")
-				.accessibilityLabel("New Schedule")
-			} else {
-				Button(action: onEdit) {
-					Image(systemName: "square.and.pencil")
-				}
-				.help("Edit Schedule")
-				.accessibilityIdentifier("edit-schedule-button")
-				.accessibilityLabel("Edit Schedule")
-				Button(action: onRun) {
-					Image(systemName: "play.fill")
-				}
-				.help("Run Now")
-				.accessibilityLabel("Run Now")
-				.disabled(isRunning)
-				.accessibilityIdentifier("run-schedule-button")
-			}
-			if hasSelection {
-				Button(role: .destructive, action: onDelete) {
-					Image(systemName: "trash")
-				}
-				.help("Delete Schedule")
-				.accessibilityLabel("Delete Schedule")
-				.disabled(isDeleting)
-				.accessibilityIdentifier("delete-schedule-button")
-			}
-		}
 	}
 
 	enum RecordingsChatToolbarMode: Equatable {

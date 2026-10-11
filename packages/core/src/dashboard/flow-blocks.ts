@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getFlowRecord, listFlowRecords } from "../flows/definition-store";
 import type {
 	FlowDashboardRefresh,
@@ -11,6 +12,7 @@ import {
 	runUserFlowById,
 } from "../flows/run-user-flow";
 import { getLatestSuccessfulFlowRun } from "../flows/store";
+import { triggerInputs } from "../flows/triggers/store";
 import { DASHBOARD_CONTENT_TTL_MS } from "./cache-ttl";
 import { dashboardContentSections } from "./content-sections";
 import type { DashboardBlockContent } from "./types";
@@ -78,6 +80,13 @@ export function listFlowDashboardBlocks(): readonly FlowDashboardBlock[] {
 		if (record.builtin) continue;
 		const dest = dashboardDest(record.document);
 		if (!dest || dest.type !== "dashboard") continue;
+		if (
+			dest.variant === "runner" &&
+			!record.document.triggers?.some(
+				(t) => t.enabled && t.source.type === "home.action",
+			)
+		)
+			continue;
 		const last = getLatestSuccessfulFlowRun(record.id);
 		out.push({
 			id: record.id,
@@ -177,9 +186,32 @@ function runInformationalDashboardFlow(
 	const existing = inFlightDashboardFlowRuns.get(flowId);
 	if (existing) return existing;
 
+	const trigger = document.triggers?.find(
+		(t) => t.source.type === "dashboard.refresh" && t.enabled,
+	);
+	if (!trigger) return Promise.resolve(null);
+	const event = {
+		id: randomUUID(),
+		type: "dashboard.refresh",
+		occurredAt: new Date().toISOString(),
+		payload: {},
+	};
+	const inputs = triggerInputs(
+		{
+			id: `${flowId}/${trigger.id}`,
+			flowId,
+			revision: document.revision ?? 0,
+			trigger,
+			document,
+			createdAt: event.occurredAt,
+		},
+		event,
+		event.id,
+	);
 	const promise = (async (): Promise<DashboardBlockContent | null> => {
 		const run = await runUserFlow(flowId, {
-			trigger: `dashboard.flow:${flowId}`,
+			trigger: `dashboard.refresh:${flowId}`,
+			inputs,
 			deliverDestinations: false,
 		});
 		if (!run.ok) {
@@ -228,6 +260,16 @@ export async function getFlowDashboardContent(
 
 	const refresh = resolveDashboardRefresh(dest.variant, dest.refresh);
 	const last = getLatestSuccessfulFlowRun(flowId);
+
+	if (
+		!record.document.triggers?.some(
+			(t) => t.source.type === "dashboard.refresh" && t.enabled,
+		)
+	) {
+		return last
+			? contentFromRun(flowId, record.document, last)
+			: emptyFlowContent(flowId, record.updatedAt, "");
+	}
 
 	if (params?.force) {
 		return runInformationalDashboardFlow(flowId, record.document, runUserFlow);

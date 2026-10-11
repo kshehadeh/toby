@@ -1,7 +1,7 @@
 ---
 name: flow-builder
-description: Build a Toby flow or Home action from a natural-language description. Choose available tools, fixed inputs, an optional final LLM step, and result destinations.
-tools: listFlowAuthoringCatalog, createFlow, askUser
+description: Build a Toby flow or Home action from a natural-language description. Choose available tools, fixed inputs, an optional LLM step and subsequent actions, and result destinations.
+tools: listFlowAuthoringCatalog, inspectFlow, createFlow, updateFlow, inspectFlowFolder, askUser
 ---
 
 # Build a Toby flow
@@ -26,15 +26,11 @@ action. An informational dashboard destination is a card, not an action tile.
 
 Current custom-flow constraints:
 
-- A `tool_executor` calls one plugin tool or an existing Script Tool. Every
-  tool input must be a constant (`{ "const": value }`) or an automation context reference (`{ "from": "automation", "path": "event.payload.changes" }`). There is
-  no tool-to-tool or model-to-tool runtime input mapping.
-- At most one `llm_prompter` is allowed, and it must be last. It returns a
-  markdown object, with no tool-calling loop. Use it for summaries or
-  transformations, not for picking IDs to feed into later actions.
+- A `tool_executor` calls one plugin tool or an existing Script Tool. Inputs may be constants, trigger context references, or earlier output references (`{ "from": "summary", "path": "markdown" }`). References must point to outputs already emitted; never reference later steps.
+- The native editor supports one `llm_prompter` followed by actions. It returns either a markdown object or a flat structured object, with no tool-calling loop. For structured decisions use `schema: { "kind": "object", "fields": { "shouldNotify": { "type": "boolean" }, "title": { "type": "string" }, "description": { "type": "string" } } }`. All 1–32 fields are required; supported types are string, boolean, and number. Pass the corresponding output fields to later tool inputs. Gate an action with `when: { "from": "summary", "path": "shouldNotify" }`: true executes, false skips, missing/non-boolean fails. Ungated actions and result destinations run normally.
 - Tool outputs map bag keys to result paths, for example
   `outputs: { "events": "result" }`. Use distinct bag keys across steps.
-  The final LLM can read them with `{{json bag.events}}` or `{{bag.events}}`.
+  The LLM can read them with `{{json bag.events}}` or `{{bag.events}}`.
   Its usual output mapping is `outputs: { "summary": "object" }`,
   with flow result `{ "from": "summary", "path": "markdown" }` so the result
   retains markdown formatting.
@@ -65,38 +61,69 @@ permissions. Do not execute a script to test a design without a request to run i
 Call `createFlow` with the complete definition once required details are known.
 Use the tool's validation issues to correct the recipe. Stop and ask when the
 fix needs a user choice. Do not repeatedly create the same flow after success.
-This tool creates a new custom flow; it does not edit an existing flow.
+For edits, call `inspectFlow` and use `updateFlow` with the current revision and complete definition.
 
 Report the saved name, ordered steps, result destination, and any setup still
 needed. Tell the user where to find it in Flows and, if configured, Home Actions.
 Never claim the flow was run: creation validates and saves only. Adding email
 or Slack delivery must reflect the user's requested destination and recipients.
 
-## Event automations
+## Triggers and Agent Tasks
 
-When the user wants a saved flow to run after inactivity or system wake, inspect
-`listAutomationCatalog` after saving or selecting the custom flow. Use
-`createAutomation` to bind `macos.userReturned` (minimum idle seconds) or
-`macos.didWake` to that flow. Conditions support weekdays (Sunday = 0), an IANA
-timezone, and a 24-hour time window. Configure cooldown and once-per-day limits.
+Flows own their triggers. Do not create a separate schedule or automation.
+Use `listFlowAuthoringCatalog` for available trigger types and existing flows.
+A new flow defaults to one enabled manual trigger. Each trigger has a stable
+unique `id`, `name`, `enabled`, `source`, `conditions`, `policy`, `inputs`,
+`eventInputMappings`, and `notifyOnCompletion`.
 
-The app must remain running to observe events. Idle means no input, not proof
-that the user is absent. Wake does not mean the screen is unlocked. Missed
-events are not replayed; interrupted runs are not automatically retried.
-Creation does not execute the flow. Enable only when the user has requested
-automatic execution and the selected flow's actions/delivery targets are clear;
-otherwise save disabled. Use `updateAutomation` with the current revision to
-change an existing definition. Never create duplicates after a successful save.
+For timed work use `source: { "type": "schedule", "cron": "0 8 * * 1-5",
+"missedRuns": "latest" }` and `conditions: { "timezone": "America/New_York" }`.
+`latest` catches up the latest occurrence after downtime; `skip` ignores
+occurrences more than a minute late. Choose the user's timezone.
+Native sources include `macos.didWake`, `macos.userReturned` with
+`minimumIdleSeconds`, and `macos.fileChanges`. Conditions support weekdays
+(Sunday = 0), an IANA timezone, and a 24-hour time window. Policy supports
+`cooldownSeconds` and `oncePerDay`. Keep a manual trigger for Run Now. Use `home.action` for a Home Screen Action
+button; it automatically requires a dashboard runner destination. Selecting a
+runner destination also adds this trigger. Home-only flows do not need manual.
+Home action and manual inputs are independent; both run only when clicked.
+Use `dashboard.refresh` for a Home card that updates with Home. It requires an
+informational dashboard destination, whose `refresh` is `asNeeded` or `manual`.
+Saving either the card or trigger configures both. Home action and refresh cannot
+coexist on one flow. Home controls cache freshness; schedule/native conditions and
+cooldowns do not apply to Home refresh. Disabling it pauses card updates.
 
-Initial inputs and event mappings supply context to LLM prompt templates, including
-`{{json bag.automation}}`. Tools can read automation context references;
-do not promise tool-to-tool wiring, model-to-tool wiring, or branching.
+Enable automatic triggers only when the user requested automatic execution
+and the actions/delivery targets are clear. Saving an enabled trigger authorizes
+future runs, although saving itself does not execute the flow immediately.
+Otherwise save it disabled. Never create duplicates after a successful save.
+For folder tools that take a scalar file path, set `source.runPerFile: true`
+and bind the tool input to `trigger.event.payload.changes.0.path`. Without this
+option the changes are a batch; using only the first item drops other files.
+Specify conversion output formats explicitly and inspect supported input formats.
 
-For file automations, inspectAutomationFolder first. Select folder, recursion,
-extensions, exclusions, change kinds, and quiet interval. Ask the user to narrow
-a warned folder or explicitly accept it before allowLargeFolder=true. Use zero
-cooldown unless skipping later batches is intended. Map the whole
-event.payload.changes array to a tool that accepts a batch; using changes.0.path
-processes only the first item. Deleted files have metadata but may have no contents.
-Exclude generated output folders to prevent loops. Events missed during downtime
-or skipped for capacity/freshness are not automatically replayed.
+Use one `agent_task` step for a scheduled prompt that needs model-selected tools,
+skills, memory, or project context: `userPrompt`, optional `systemPrompt`, and
+`outputs: { "summary": "object" }`; result is `summary.markdown`. Set the flow's
+`projectId` when needed. Agent Tasks cannot ask interactive questions. A flow
+supports at most one AI step (`llm_prompter` or `agent_task`). Use `llm_prompter`
+for fixed structured output without tool calling.
+
+The event is available as `{{json bag.trigger}}` or a tool reference
+`{ "from": "trigger", "path": "event.payload.changes" }`. Trigger input mappings
+map input names to event paths (for example `payload.changes`). Step outputs
+must not overwrite `trigger`. Do not promise alternate branches, parallel
+nodes, nested structured schemas, or interactive per-run inputs.
+
+For file triggers, use `inspectFlowFolder` first. Select folder, recursion,
+extensions, exclusions, change kinds, and quiet interval. Narrow a warned
+folder or obtain explicit acceptance before setting `allowLargeFolder=true`.
+Use zero cooldown unless skipping later batches is intended. Map the whole
+changes array to a tool that accepts batches; changes.0.path processes only
+one file. Deleted files may have no contents. Exclude generated output folders
+to prevent loops.
+
+Toby.app must remain running for native events. Idle is no input, not proof of
+absence; wake does not imply unlock. Missed native events and interrupted runs
+are not replayed. Trigger activity explains skipped/failed runs and links to
+Flow run traces. Completion notifications are optional per trigger.

@@ -135,7 +135,7 @@ permission when needed.
 - **Native chat (Toby.app) and daemon inbound** — select chat-capable modules,
   merge tools, run the shared chat pipeline
   ([`chat-pipeline.md`](chat-pipeline.md)).
-- **Schedules** — headless turns with the same tool-calling pipeline.
+- **Flow Agent Tasks** — noninteractive tool-using prompts started by manual, schedule, or native event triggers.
 - **Configure API** — credential fields from `getCredentialDescriptors` across
   `getIntegrationModules()`; save via `mergeCredentialsPatch`; consumed by
   Toby.app.

@@ -29,6 +29,7 @@ import {
 	coerceFreeTextToSchema,
 	isMarkdownOnlyObjectSchema,
 } from "@toby/core/flows/nodes/llm-prompter";
+import { parseFlowTriggers } from "@toby/core/flows/triggers/types";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { z } from "zod";
 
@@ -276,6 +277,27 @@ describe("flow definition store + seed-on-miss", () => {
 		expect(names).toContain("dashboard.calendar.summary");
 		expect(names).not.toContain("dashboard.news.summary");
 		expect(Object.keys(BUILTIN_FLOWS)).toHaveLength(3);
+		for (const id of Object.keys(BUILTIN_FLOWS)) {
+			const triggers = parseFlowTriggers(loadFlowRecord(id)?.document.triggers);
+			expect(triggers).toHaveLength(1);
+			expect(triggers[0]).toMatchObject({
+				id: "dashboard-refresh",
+				enabled: true,
+				source: { type: "dashboard.refresh" },
+			});
+		}
+	});
+
+	it("refreshes existing built-in definitions with their Home trigger", () => {
+		saveFlowDocument(
+			{ ...emailDashboardSummaryDocument, triggers: [] },
+			{ builtin: true },
+		);
+		listFlows();
+		expect(
+			loadFlowRecord(emailDashboardSummaryDocument.id)?.document.triggers?.[0]
+				?.source.type,
+		).toBe("dashboard.refresh");
 	});
 
 	it("removes a builtin row that is no longer shipped", () => {
@@ -341,6 +363,38 @@ describe("flow definition store + seed-on-miss", () => {
 		// Documents match exported constants.
 		expect(tasks).toEqual(tasksDashboardSummaryDocument);
 		expect(cal).toEqual(calendarDashboardSummaryDocument);
+	});
+});
+
+describe("LLM output action inputs", () => {
+	it("resolves generated markdown for an action and fails on a missing field", () => {
+		const bag: Record<string, unknown> = {};
+		applyNodeOutputs(
+			"think",
+			{ summary: "object" },
+			{ object: { markdown: "Design review starts in five minutes." } },
+			bag,
+		);
+		expect(
+			resolveNodeInputs(
+				"notify",
+				{
+					title: { const: "Meeting reminder" },
+					description: { from: "summary", path: "markdown" },
+				},
+				bag,
+			),
+		).toEqual({
+			title: "Meeting reminder",
+			description: "Design review starts in five minutes.",
+		});
+		expect(() =>
+			resolveNodeInputs(
+				"notify",
+				{ description: { from: "summary", path: "missing" } },
+				bag,
+			),
+		).toThrow(/no path/);
 	});
 });
 

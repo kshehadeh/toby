@@ -201,9 +201,9 @@ describe("listFlowDashboardBlocks", () => {
 			],
 			result: { from: "summary", path: "markdown" },
 		};
-		saveUserFlowDocument(document);
+		const saved = saveUserFlowDocument(document);
 		const runUserFlow = mock(async (id: string) => {
-			expect(getFlowRecord(id)?.document).toEqual(document);
+			expect(getFlowRecord(id)?.document).toEqual(saved.document);
 			return fakeOkRun(id, "Calendar brief");
 		});
 		const content = await getFlowDashboardContent(document.id, {
@@ -212,7 +212,7 @@ describe("listFlowDashboardBlocks", () => {
 		});
 		expect(content?.text).toBe("Calendar brief");
 		expect(runUserFlow).toHaveBeenCalledTimes(1);
-		expect(getFlowRecord(document.id)?.document).toEqual(document);
+		expect(getFlowRecord(document.id)?.document).toEqual(saved.document);
 	});
 
 	it("resolves explicit informational refresh on the list payload", () => {
@@ -264,6 +264,45 @@ describe("listFlowDashboardBlocks", () => {
 		expect(runUserFlow).toHaveBeenCalledTimes(0);
 	});
 
+	it("disabled Home refresh preserves content even on force refresh", async () => {
+		const saved = saveUserFlowDocument(infoDoc);
+		saveUserFlowDocument({
+			...saved.document,
+			triggers: saved.document.triggers?.map((t) => ({ ...t, enabled: false })),
+		});
+		seedSuccess("flow.test.info", "## Kept", new Date().toISOString());
+		const runUserFlow = mock(async () => fakeOkRun("flow.test.info", "## New"));
+		const content = await getFlowDashboardContent("flow.test.info", {
+			force: true,
+			runUserFlow,
+		});
+		expect(content?.text).toBe("## Kept");
+		expect(runUserFlow).toHaveBeenCalledTimes(0);
+	});
+	it("Home refresh supplies trigger inputs and event context to steps", async () => {
+		const saved = saveUserFlowDocument(infoDoc);
+		saveUserFlowDocument({
+			...saved.document,
+			triggers: saved.document.triggers?.map((t) => ({
+				...t,
+				inputs: { topic: "Inbox" },
+				eventInputMappings: { time: "occurredAt" },
+			})),
+		});
+		const runUserFlow = mock(async () => fakeOkRun("flow.test.info", "## New"));
+		await getFlowDashboardContent("flow.test.info", {
+			force: true,
+			runUserFlow,
+		});
+		expect(runUserFlow.mock.calls[0]?.[1]?.inputs).toMatchObject({
+			topic: "Inbox",
+			time: expect.any(String),
+			trigger: {
+				id: "dashboard-refresh",
+				event: { type: "dashboard.refresh" },
+			},
+		});
+	});
 	it("as-needed soft returns last success and reruns when stale", async () => {
 		saveUserFlowDocument(infoDoc);
 		const completedAt = new Date("2026-01-01T00:00:00.000Z").toISOString();
@@ -277,7 +316,7 @@ describe("listFlowDashboardBlocks", () => {
 		expect(runUserFlow).toHaveBeenCalledTimes(1);
 		expect(runUserFlow.mock.calls[0]?.[1]).toMatchObject({
 			deliverDestinations: false,
-			trigger: "dashboard.flow:flow.test.info",
+			trigger: "dashboard.refresh:flow.test.info",
 		});
 	});
 

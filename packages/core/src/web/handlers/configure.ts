@@ -27,17 +27,6 @@ import {
 } from "../../personas/index";
 import { humanToCronAsync } from "../../schedules/cron-parser";
 import {
-	createScheduleRunForExecution,
-	executeScheduleRun,
-} from "../../schedules/executor";
-import {
-	createSchedule,
-	deleteSchedule,
-	getScheduleRun,
-	listSchedules,
-	updateSchedule,
-} from "../../schedules/store";
-import {
 	createSkill,
 	deleteSkill,
 	resetSkillIcon,
@@ -396,115 +385,9 @@ export async function handleConfigureAction(
 			updateSkillBody(dirName, bodyMarkdown);
 			return jsonResponse({ ok: true });
 		}
-		case "create-schedule": {
-			const created = createSchedule({
-				name: "New schedule",
-				prompt: "",
-				personaName: getDefaultPersonaName() ?? "Toby",
-				cronExpression: "0 9 * * *",
-				projectId: null,
-				enabled: true,
-			});
-			return jsonResponse({ ok: true, scheduleId: created.id });
-		}
-		case "update-schedule-field": {
-			const scheduleId = body?.scheduleId?.trim();
-			const field = body?.field?.trim();
-			const value = body?.value;
-			if (!scheduleId || !field) {
-				return errorResponse("scheduleId and field required");
-			}
-			if (field === "enabled") {
-				updateSchedule(scheduleId, {
-					enabled: value === "Yes" || value === "true",
-				});
-			} else if (field === "name") {
-				updateSchedule(scheduleId, { name: String(value ?? "") });
-			} else if (field === "prompt") {
-				updateSchedule(scheduleId, { prompt: String(value ?? "") });
-			} else if (field === "persona") {
-				updateSchedule(scheduleId, { personaName: String(value ?? "") });
-			} else if (field === "cron") {
-				updateSchedule(scheduleId, { cronExpression: String(value ?? "") });
-			} else if (field === "project") {
-				const projectId = String(value ?? "").trim();
-				updateSchedule(scheduleId, {
-					projectId: projectId && projectId !== "(none)" ? projectId : null,
-				});
-			} else if (field === "action") {
-				if (String(value ?? "") === "prompt") {
-					updateSchedule(scheduleId, { flowId: null });
-				}
-			} else if (field === "flow") {
-				const flowId = String(value ?? "").trim();
-				updateSchedule(scheduleId, {
-					flowId: flowId && flowId !== "(none)" ? flowId : null,
-				});
-			} else {
-				return errorResponse(`Unknown schedule field: ${field}`);
-			}
-			return jsonResponse({ ok: true });
-		}
-		case "delete-schedule": {
-			const scheduleId = body?.scheduleId?.trim();
-			if (!scheduleId) return errorResponse("scheduleId required");
-			deleteSchedule(scheduleId);
-			return jsonResponse({ ok: true });
-		}
-		case "run-schedule": {
-			const scheduleId = body?.scheduleId?.trim();
-			if (!scheduleId) return errorResponse("scheduleId required");
-			const schedule = listSchedules().find((s) => s.id === scheduleId);
-			if (!schedule) return errorResponse("Schedule not found", 404);
-			if (!schedule.enabled) return errorResponse("Schedule is disabled");
-			// Create the run record synchronously so the UI can open its detail view,
-			// then execute in the background so the HTTP request returns quickly.
-			const runId = createScheduleRunForExecution(schedule);
-			Promise.resolve().then(async () => {
-				try {
-					await executeScheduleRun(runId, schedule);
-				} catch (e) {
-					daemonLog("error", "daemon", "run_schedule_failed", {
-						scheduleId,
-						runId,
-						error: e instanceof Error ? e.message : String(e),
-					});
-				}
-			});
-			return jsonResponse({ ok: true, queued: true, runId });
-		}
 		default:
 			return errorResponse(`Unknown action: ${action}`, 404);
 	}
-}
-
-export function handleScheduleRunDetail(runId: string): Response {
-	const run = getScheduleRun(runId);
-	if (!run) return errorResponse("Schedule run not found", 404);
-	const schedule = listSchedules().find((s) => s.id === run.scheduleId);
-	let transcript: unknown[] = [];
-	if (run.transcript) {
-		try {
-			transcript = JSON.parse(run.transcript) as unknown[];
-		} catch {
-			transcript = [];
-		}
-	}
-	return jsonResponse({
-		run: {
-			id: run.id,
-			scheduleId: run.scheduleId,
-			scheduleName: schedule?.name ?? run.scheduleId,
-			personaName: run.personaName,
-			prompt: run.prompt,
-			output: run.output,
-			status: run.status,
-			error: run.error,
-			startedAt: run.startedAt,
-			completedAt: run.completedAt,
-			transcript,
-		},
-	});
 }
 
 export async function handleParseCron(req: Request): Promise<Response> {

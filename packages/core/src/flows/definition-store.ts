@@ -6,6 +6,7 @@ import {
 	listBuiltinFlowIds,
 } from "./builtins";
 import type { FlowDocument, StoredFlowRecord } from "./document-types";
+import { normalizeHomeActionFlow } from "./home-action";
 
 function nowIso(): string {
 	return new Date().toISOString();
@@ -307,7 +308,19 @@ export function saveUserFlowDocument(document: FlowDocument): StoredFlowRecord {
 	if (existing?.builtin) {
 		throw new Error(`Cannot overwrite built-in flow "${existing.id}"`);
 	}
-	return upsertFlowDocument(document, { builtin: false });
+	if (
+		existing &&
+		document.revision !== undefined &&
+		document.revision !== (existing.document.revision ?? 0)
+	)
+		throw new Error("Flow changed; reload before saving");
+	return upsertFlowDocument(
+		{
+			...normalizeHomeActionFlow(document),
+			revision: (existing?.document.revision ?? 0) + 1,
+		},
+		{ builtin: false },
+	);
 }
 
 /**

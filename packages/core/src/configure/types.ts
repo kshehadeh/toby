@@ -9,10 +9,7 @@ export type ItemKind =
 	| "image";
 
 /** Action items shown in the configure left tree when their parent section is expanded. */
-export const CONFIGURE_TREE_ACTION_KEYS = new Set([
-	"personas._new",
-	"schedules._new",
-]);
+export const CONFIGURE_TREE_ACTION_KEYS = new Set(["personas._new"]);
 
 /** Sentinel model-select value that triggers the "add custom model" editor. */
 export const ADD_CUSTOM_MODEL_SENTINEL = "__add_custom_model__";

@@ -175,6 +175,7 @@ private struct FlowRunNodeBlock: View {
 					Text(node.typeLabel)
 						.font(.system(size: 11))
 						.foregroundStyle(AppTheme.tertiaryText)
+					if node.status == "skipped" { Text("Skipped").font(.caption).foregroundStyle(AppTheme.secondaryText) }
 					Spacer()
 					Text(node.durationLabel)
 						.font(.system(size: 11))
@@ -187,6 +188,11 @@ private struct FlowRunNodeBlock: View {
 			}
 			.buttonStyle(.plain)
 
+			if node.status == "skipped" {
+				Text("Action condition was false. No tool was called.")
+					.font(.caption).foregroundStyle(AppTheme.secondaryText)
+					.padding(.leading, 16)
+			}
 			if isExpanded {
 				VStack(alignment: .leading, spacing: 8) {
 					if let error = node.error, !error.isEmpty {

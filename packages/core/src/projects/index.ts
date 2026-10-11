@@ -418,11 +418,6 @@ export function deleteProject(idOrSlug: string): void {
 	db.query(
 		"UPDATE chat_sessions SET project_id = NULL WHERE project_id = $id",
 	).run({ $id: project.id });
-	db.query("UPDATE schedules SET project_id = NULL WHERE project_id = $id").run(
-		{
-			$id: project.id,
-		},
-	);
 	db.query("DELETE FROM projects WHERE id = $id").run({ $id: project.id });
 	if (getActiveProjectSlug() === project.slug) {
 		clearActiveProjectSlug();

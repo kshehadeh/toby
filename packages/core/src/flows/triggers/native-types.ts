@@ -36,6 +36,7 @@ export const folderTriggerSchema = z
 			.default(["new"]),
 		settlingSeconds: z.number().int().min(2).max(60).default(5),
 		allowLargeFolder: z.boolean().default(false),
+		runPerFile: z.boolean().optional(),
 	})
 	.strict();
 export const fileChangeSchema = z
@@ -47,7 +48,7 @@ export const fileChangeSchema = z
 		modifiedAt: z.string().datetime(),
 	})
 	.strict();
-export const automationDraftSchema = z
+export const nativeRuleSchema = z
 	.object({
 		name: z.string().trim().min(1).max(200),
 		enabled: z.boolean().default(false),
@@ -127,8 +128,8 @@ export const automationDraftSchema = z
 		notifyOnCompletion: z.boolean().default(false),
 	})
 	.strict();
-export type AutomationDraft = z.infer<typeof automationDraftSchema>;
-export type Automation = AutomationDraft & {
+export type NativeRuleDraft = z.infer<typeof nativeRuleSchema>;
+export type NativeTriggerRule = NativeRuleDraft & {
 	id: string;
 	revision: number;
 	createdAt: string;
@@ -142,7 +143,7 @@ const eventBase = {
 	observationSessionId: z.string().uuid(),
 	sequence: z.number().int().positive(),
 };
-export const automationEventSchema = z
+export const nativeEventSchema = z
 	.discriminatedUnion("type", [
 		z
 			.object({
@@ -180,21 +181,8 @@ export const automationEventSchema = z
 		(e) => e.id === `${e.observationSessionId}:${e.sequence}`,
 		"Invalid event identity",
 	);
-export type AutomationEvent = z.infer<typeof automationEventSchema>;
-export type AutomationRun = {
-	id: string;
-	automationId: string;
-	eventId: string;
-	definition: Automation;
-	event: AutomationEvent;
-	status: string;
-	reason: string | null;
-	flowRunId: string | null;
-	output: string | null;
-	createdAt: string;
-	completedAt: string | null;
-};
-export const automationCatalog = {
+export type NativeTriggerEvent = z.infer<typeof nativeEventSchema>;
+export const nativeTriggerCatalog = {
 	triggers: [
 		{
 			type: eventTypes[0],

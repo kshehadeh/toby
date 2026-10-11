@@ -12,8 +12,7 @@ things, and how to customize it. Each section links to a full guide.
 ![The Toby main window: sidebar on the left, a chat in the middle, toolbar at the top](/img/toby-app-main.png)
 
 - **Sidebar (left).** Switch between areas: **Home**, **Chats**,
-  **Projects**, **Library**, and **Recordings**; then **Schedules** and
-  **Flows** under *Automation*; and **Skills** under *Tools*.
+  **Projects**, **Library**, **Recordings**, **Flows**, and **Skills** in one list.
 - **Bottom of the sidebar.** The persona picker on the left chooses which
   [persona](./personas) new chats use. The colored dot on the right shows
   whether Toby's background service is healthy. Green means everything is
@@ -97,9 +96,9 @@ See [Library](./library).
 Meeting and call recordings with transcripts and AI summaries. See
 [Recordings](./listen).
 
-## Schedules and Flows
+## Flows
 
-**Schedules** run a request automatically on a timetable. **Flows** are
+**Flows** have manual, schedule, and event triggers. Their steps are
 step-by-step recipes that can power Home cards and one-click buttons. See
 [Schedules](./schedules) and [Flows](./flows).
 
@@ -133,7 +132,6 @@ with…** and Toby opens a new chat with that request.
 | **⌘4** | Projects |
 | **⌘5** | Skills |
 | **⌘6** | Memories |
-| **⌘7** | Schedules |
 | **⌘8** | Flows |
 | **⌘9** | Recordings |
 | **⌘0** | Library |

@@ -24,6 +24,7 @@ function hydrateToolExecutorNode(
 		id: node.id,
 		type: "tool_executor",
 		tool: node.tool,
+		...(node.when ? { when: node.when } : {}),
 		...(node.inputs ? { inputs: node.inputs } : {}),
 		...(node.outputs ? { outputs: node.outputs } : {}),
 	};
@@ -41,6 +42,7 @@ function hydrateLlmPrompterNode(
 		id: node.id,
 		type: "llm_prompter",
 		schema,
+		schemaSpec: node.schema,
 		...(node.schemaName ? { schemaName: node.schemaName } : {}),
 		...(node.schemaDescription
 			? { schemaDescription: node.schemaDescription }
@@ -60,7 +62,16 @@ function hydrateLlmPrompterNode(
 	};
 }
 
-function hydrateNode(node: StoredFlowNode): FlowNodeDefinition {
+function hydrateNode(
+	node: StoredFlowNode,
+	projectId?: string,
+): FlowNodeDefinition {
+	if (node.type === "agent_task")
+		return {
+			...node,
+			projectId,
+			userPrompt: (ctx) => renderStoredUserPrompt(node.userPrompt, ctx),
+		};
 	if (node.type === "tool_executor") {
 		return hydrateToolExecutorNode(node);
 	}
@@ -84,7 +95,7 @@ export function hydrateFlowDocument(document: FlowDocument): FlowDefinition {
 		// Runtime key is the stable document id (matches flow_runs.flow_name).
 		name: id,
 		...(document.description ? { description: document.description } : {}),
-		nodes: document.nodes.map(hydrateNode),
+		nodes: document.nodes.map((node) => hydrateNode(node, document.projectId)),
 	};
 
 	const persona = document.persona;

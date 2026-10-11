@@ -30,8 +30,7 @@ The shipped `flow-builder` skill guides natural-language requests into custom
 flows. Chat tools `listFlowAuthoringCatalog` and `createFlow` inspect available
 steps and save a validated definition respectively. Creation uses generated
 `flow.<uuid>` IDs and the existing user-flow store/validator, with no execution
-or delivery. The tools support fixed tool inputs or automation-event references, an optional final markdown
-LLM step, result pointers, personas, and destinations. They do not update
+or delivery. The tools support constants, automation-event references, earlier output references, a markdown or structured LLM step, conditional subsequent actions, result pointers, personas, and destinations. They do not update
 existing flows or create Script Tools. A Home action uses
 `{ "type": "dashboard", "variant": "runner" }` alongside an optional modal.
 
@@ -209,7 +208,7 @@ Calls the flow persona’s model once with **structured** output (Zod →
 {
   id: "summarize",
   type: "llm_prompter",
-  schema: { kind: "markdown" }, // only preset today → z.object({ markdown: z.string() })
+  schema: { kind: "markdown" }, // default → z.object({ markdown: z.string() })
   schemaName: "EmailDashboardSummary",
   systemPrompt: "You are …",   // template string
   userPrompt: "Here are the items:\n\n{{dashboardItems bag.unread}}",
@@ -256,6 +255,42 @@ Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`,
 
 ## Input / output wiring
 
+### Structured decisions and conditional actions
+
+LLM nodes also accept a flat required-field schema:
+
+```json
+{
+  "kind": "object",
+  "fields": {
+    "shouldNotify": { "type": "boolean", "description": "A meeting starts within the next ten minutes" },
+    "title": { "type": "string" },
+    "description": { "type": "string" }
+  }
+}
+```
+
+Supported field types are `string`, `boolean`, and `number`; all 1–32 fields are required. Names must start with a letter and contain only ASCII letters, digits, and underscores; prototype traversal names are rejected. The schema is converted to a strict Zod object. Both structured provider output and the JSON text fallback must validate before outputs reach subsequent steps. The editor exposes this as **Answer format → Named fields**.
+
+For an LLM with `outputs: { decision: "object" }`, a notification step can declare:
+
+```json
+{
+  "id": "notify",
+  "type": "tool_executor",
+  "tool": { "moduleName": "macos", "toolName": "macNotificationShow" },
+  "when": { "from": "decision", "path": "shouldNotify" },
+  "inputs": {
+    "title": { "from": "decision", "path": "title" },
+    "description": { "from": "decision", "path": "description" }
+  }
+}
+```
+
+The editor labels `when` **Run only when**. The reference must point to an earlier output or automation context. The runner evaluates it before resolving action arguments: boolean `true` executes, `false` records `skipped` without calling a tool or emitting outputs, and missing/non-boolean values fail the run. Skipped nodes retain their reason and evaluated reference in history; the overall run succeeds unless a later step fails. Referencing an output that a skipped step did not emit fails when no earlier value exists under that key. Use distinct output keys to avoid referring to an older value from another step.
+
+Conditions apply to tool actions, not LLM nodes or result destinations. Trigger completion notifications are optional; when enabled they also report successful runs whose conditional action was skipped. Email/Slack destinations still deliver after a successful run; gate a send tool as an action when delivery should be conditional. A declared result pointer continues to control the result; if the final action is skipped and the result was inferred, the result reports the skip instead of an older value under the same key.
+
 ### Inputs
 
 | Source | Meaning |
@@ -266,10 +301,7 @@ Implementation: `packages/core/src/flows/nodes/llm-prompter.ts`,
 
 Missing bag keys or paths throw `FlowNodeError` and fail the run.
 
-User-authored tool inputs accept `{ const }` or `{ from: "automation", path: "event.payload.changes" }`. The native editor offers Fixed value / Automation event
-for each parameter and preserves references when editing. LLM prompts may
-interpolate bag values (`{{json bag.<key>}}`). Tool-to-tool and model-to-tool
-wiring remain unsupported. Manual runs without automation context fail before
+User-authored tool inputs accept `{ const }`, automation context references, or references to outputs from earlier steps. The native editor offers Fixed value / Automation event / Previous step output for each parameter and preserves references when editing. Use `{ from: "object", path: "markdown" }` to pass the default LLM answer into a later action. Named LLM outputs work the same way (for example `{ from: "summary", path: "markdown" }`). Only outputs emitted before the consuming step are accepted; unsafe prototype paths are rejected. Missing paths fail the run before the action executes. LLM prompts may interpolate bag values (`{{json bag.<key>}}`). The editor places actions following the AI step in an Acts phase. Manual runs without automation context fail before
 the affected tool executes. Paths containing prototype traversal keys are rejected.
 
 ### Outputs
@@ -306,8 +338,8 @@ If `result` is omitted, the last LLM node’s markdown (or the last tool’s
 `appliedActions` / payload) is used. New user flows default to
 `[{ type: "modal" }]`. A failed email/slack destination fails the run.
 Modal and dashboard destinations are registration-only (they never fail the
-run). Built-in dashboard flows omit destinations and keep reading the bag in
-code.
+run). Built-in dashboard flows declare informational Home placement; their category
+rendering still reads the summary bag in code.
 
 ### Custom flow home cards
 
@@ -324,11 +356,11 @@ flow. See [Home block colors](dashboard.md#home-block-colors). Card body:
 | --- | --- | --- | --- |
 | `informational` + `asNeeded` (default) | Same size as built-ins; body is last successful run output | Last success if younger than 5 min; stale last success returned immediately plus a background rerun; never-run awaits a run | `runUserFlowById` with `deliverDestinations: false` |
 | `informational` + `manual` | Same card chrome | Last success only (no rerun) | Same force path as as-needed |
-| `runner` | Compact **Actions** rail tile (colored card, flow SF Symbol, play glyph, and name; hover 1s shows title and description). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
+| `runner` | Compact **Actions** rail tile (colored card, flow SF Symbol, play glyph, and name; hover 1s shows title and description). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run` with `source: "home.action"`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
 
 `showsResultSheet` is true when the flow also has a `modal` destination. **Run
 Now** then opens the result sheet. Combining dashboard + email/slack is
-allowed; email/Slack still fire on **Run now** and schedules, **not** on
+allowed; email/Slack still fire on **Run now** and triggered runs, **not** on
 dashboard card generation.
 
 ## Storage model
@@ -361,7 +393,20 @@ Dashboard (and future) built-ins are defined as seed `FlowDocument`s in
 - `getFlow(id)` / `getFlowRecord(id)`: if no row and `id` is a known built-in,
   **insert the seed once** and return it.
 - `listFlows()`: ensures **all** built-ins exist, then lists every row.
-- Existing rows are **never overwritten** by seed (preserves future user edits).
+- Existing dashboard rows still marked built-in are refreshed when the shipped seed changes. Custom rows are preserved.
+
+Built-in dashboard summaries declare one enabled `dashboard.refresh` trigger
+(`dashboard-refresh`, "Home refresh"). Home owns execution and cache invalidation:
+soft requests reuse fresh summaries for five minutes and can return persisted
+content while regenerating in the background; force refresh bypasses caches.
+Disconnected or empty categories do not run the flow. Concurrent refreshes share
+an in-flight run. Custom flows can also choose this source. It requires a dashboard informational
+destination and cannot coexist with `home.action`. Saving an informational Home
+destination adds the matching trigger. Disabled refresh triggers retain their card
+but suppress both soft and force runs. Home controls freshness through the
+destination’s `refresh` setting, rather than schedule/native cooldown policies.
+It is not polled by the schedule/native trigger supervisor.
+Actual summary runs record `dashboard.refresh:<category>` in run history.
 
 ### Runtime API
 
@@ -380,7 +425,7 @@ const result: FlowResult = await runFlow("dashboard.email.summary", {
   personaOverride, // optional Persona
   inputs: { /* optional seed bag */ },
   abortSignal,
-  trigger: "dashboard.summary:email", // optional label for history
+  trigger: "dashboard.refresh:email", // optional label for history
   record: true, // default; set false to skip chat.sqlite run writes
 });
 
@@ -421,7 +466,7 @@ Every flow **run** is persisted to **`~/.toby/chat.sqlite`** (tables `flow_runs`
 | `flow_name` | Flow id |
 | `status` | `running` \| `success` \| `error` |
 | `persona_name`, `provider`, `model` | Resolved persona / model |
-| `trigger` | Caller label (e.g. `dashboard.summary:calendar`) |
+| `trigger` | Caller label (e.g. `dashboard.refresh:calendar`) |
 | `definition_snapshot_json` | Graph metadata for UI (node list, wiring) |
 | `initial_inputs_json` / `final_outputs_json` | Seed bag and final bag |
 | **`started_at`** / **`completed_at`** | ISO timestamps for the execution window |
@@ -470,9 +515,10 @@ route for click-through.
 
 User-authored documents are validated by `validateUserFlowDocument`:
 
-- Tool executor inputs must be `{ const }` (no bag wiring)
+- Tool executor inputs may be constants, automation context references, or earlier output references
 - Required tool fields must be filled when the plugin is installed
-- An LLM Prompter, if present, must be last and use `{ kind: "markdown" }`
+- At most one LLM Prompter is supported; it uses the markdown preset or a flat object schema and may be followed by tool actions
+- Action conditions reference earlier outputs or automation context; strict boolean evaluation occurs at run time
 - Destinations are `modal`, `email` (`to`, `subject`), `slack` (`channel`), or `dashboard` (`variant`, optional informational `refresh`, optional Home `color`)
 - Email/Slack destinations require that integration to be connected
 
@@ -491,7 +537,10 @@ destinations, including the Home color default. The icon follows the flow onto
 Home. Home color overrides the flow-level tile color for Actions and supplies
 the informational card appearance; Edit Home can override it on this Mac. Documents without
 an icon or color retain the existing category-derived / generic icon fallback
-and the default teal tile. Custom flows can be edited, deleted, and
+and the default teal tile. When serializing edits, the native editor omits a result pointer whose output
+bag key no longer exists after step removal or replacement. Runtime inference
+then selects the final step’s result; valid explicit pointers remain unchanged.
+Custom flows can be edited, deleted, and
 **Run now**. Built-in flows stay read-only. A successful interactive run with a
 modal destination opens a result sheet.
 
@@ -589,8 +638,7 @@ them.
 
 1. Add a `FlowDocument` to `packages/core/src/flows/builtins.ts` and
    `BUILTIN_FLOWS`.  
-2. Use serializable nodes only (string prompt templates, schema `{ kind:
-   "markdown" }` for now).  
+2. Use serializable nodes only (string prompt templates, a markdown preset or flat object schema).
 3. Call `runFlow("<id>")` from the consumer (`getFlow` seeds on first miss).  
 4. Add tests under `apps/cli/tests/` and document here.
 
@@ -632,12 +680,77 @@ saveFlowDocument(myFlow);
 For one-off tests without persisting a definition, build a runtime
 `FlowDefinition` and call `runFlowDefinition(def, { record: false })`.
 
-## Scheduled runs
+## Triggers
 
-A [schedule](daemon.md#schedules) may set `flow_id` instead of a chat prompt.
-The daemon then calls `runUserFlowById` (same destination delivery as **Run now**
-on the Flows screen). Modal/dashboard destinations do not open a window on a
-daemon tick; email/Slack still send. Output is stored on the schedule run.
+A custom Flow owns zero or more triggers; a new definition defaults to an enabled
+manual trigger. There are no separate Schedule or Automation entities, endpoints,
+or CLI commands. Existing legacy records are not migrated or executed.
+
+Each trigger has a stable ID, name, enabled flag, source, conditions (IANA timezone,
+optional weekdays/time window), policy (cooldown seconds/once per day), initial
+inputs, event input mappings, and optional completion notification.
+Sources are `manual`, `home.action` (Home Screen Action), `dashboard.refresh` (Home refresh), `schedule` (cron and `missedRuns: latest | skip`),
+`macos.didWake`, `macos.userReturned`, and `macos.fileChanges`.
+`latest` runs only the latest missed cron occurrence since flow creation;
+`skip` ignores occurrences more than 60 seconds late. Cron uses the trigger's
+explicit timezone. Native events require Toby.app and are not replayed after downtime.
+
+Definitions and revisions live in `flows`. The daemon's
+`flows/triggers/supervisor.ts` polls cron and native events, records durable
+claims in `flow_trigger_decisions`, and executes the captured Flow definition
+through `runUserFlow`. Run Now uses the same queue and requires an enabled
+manual trigger. Manual and Home action runs bypass automatic cooldown/day/window conditions.
+At most two runs execute globally, with one active run per Flow. Non-file
+triggers allow one queued occurrence per binding; file batches queue up to the
+global pending limit of 100. Native events expire after 120 seconds. Disabling
+or deleting a trigger cancels queued work. Edits preserve already queued
+snapshots. Restart marks pending/running decisions interrupted without retrying
+possible external effects. Occurrence IDs prevent duplicate delivery on polling.
+Cooldown and daily limits are consumed when queued, including eventual failures.
+
+Folder sources accept optional `runPerFile: true`. Ingestion splits each native
+batch into single-change events, preserving the native event ID and watch revision.
+Separate occurrence IDs deduplicate each file on repeated polls. Steps can read
+`trigger.event.payload.changes.0.path` as a scalar path. Runs remain serialized
+per Flow and subject to queue limits, freshness, cooldown, and daily limits.
+The default is one run per batch. Watcher startup and edits establish a new
+baseline rather than replaying existing files.
+
+All runs share `flow_runs`, node traces, result extraction, and destinations.
+Background runs do not open modal windows. Trigger activity displays the latest
+100 decisions, including skips, errors, and links to run traces. Completion
+notifications are opt-in per trigger.
+
+Steps read `{ from: "trigger", path: "event.payload.changes" }`, or templates
+such as `{{json bag.trigger}}`. Initial inputs and event mappings populate
+the same input bag. `trigger` is reserved and cannot be overwritten by step outputs.
+
+### Home Screen Action
+
+The `home.action` trigger is the Home Actions entry point. Selecting it forces
+one `{ type: "dashboard", variant: "runner" }` destination, preserving its
+Home color and other destinations. The native editor locks removal and variant
+changes for this location while any Home Screen Action trigger exists, even if
+it is disabled. Removing/changing the last such trigger restores an editable
+informational Home card. Choosing an Actions button as a destination adds a
+matching enabled Home Screen Action trigger. Validation and persistence enforce
+the pair for definitions authored through chat or the API as well.
+
+Only enabled Home action triggers register an Actions button. A Home click calls
+`POST /api/flows/:id/run` with `{ "source": "home.action" }`; ordinary Run Now
+uses the default `manual` source. Both use the same queue/history, but each
+selects its own trigger inputs and event context. A Flow can have either or both
+entry points; Home-only Flows do not require a manual trigger.
+
+### Agent Task
+
+An `agent_task` node runs a noninteractive, tool-using prompt with the selected
+persona, skills, memory, and optional Flow `projectId`. It accepts `userPrompt`,
+optional `systemPrompt`, and output mappings, returning `{ object: { markdown } }`.
+Use `outputs: { summary: "object" }` and result `{ from: "summary", path: "markdown" }`.
+A scheduled prompt is simply a Flow containing this node and a schedule trigger.
+A Flow supports at most one AI node: `agent_task` or `llm_prompter`.
+The latter keeps fixed structured generation without a tool-calling loop.
 
 ## Failure behavior
 
@@ -650,13 +763,11 @@ daemon tick; email/Slack still send. Output is stored on the schedule run.
 ## Non-goals (current)
 
 - Visual canvas / DAG editor (the editor is a vertical step list)
-- Runtime binding of one node’s output into the next **tool**’s arguments
-  (structured bind; e.g. LLM-picked email UIDs → `archiveEmail`)
-- Multi-step tool loops inside LLM Prompter (use chat or a schedule prompt)
-- Branching, conditionals, parallel nodes
+- Multi-step tool loops inside LLM Prompter (use an Agent Task)
+- Alternate branches, conditional LLM nodes/destinations, parallel nodes
 - Running a flow from the command palette
 - Overwriting existing built-in rows when seed content changes
-- Schema presets beyond `{ kind: "markdown" }`
+- Nested objects, arrays, and optional structured output fields
 - CLI `toby flows`
 
 ## Related docs
@@ -667,10 +778,6 @@ daemon tick; email/Slack still send. Output is stored on the schedule run.
 - [plugin-protocol.md](plugin-protocol.md) — `tools list` / `tools execute`  
 - [integrations.md](integrations.md) — `IntegrationModule` and discovery  
 
-## Event automations
+## Native event triggers
 
-Saved custom flows can also run on macOS idle/return and system-wake events.
-The daemon matches and claims events while Toby.app observes native APIs.
-Existing schedules keep their current execution path. See
-[event automations](automations.md) for conditions, native app requirements,
-transport, restart behavior, and API contracts.
+See [native event triggers](automations.md) for source requirements and file watching.

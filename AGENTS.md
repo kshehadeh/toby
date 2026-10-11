@@ -61,7 +61,7 @@ scripts/                  build-app.sh, build-release-artifacts.sh, build-dmg.sh
 | Belongs in `@toby/core` | Belongs in `apps/cli` | Belongs in `apps/toby-app` |
 | ----------------------- | --------------------- | -------------------------- |
 | Chat pipeline, AI, tools, pretreatment | Commander entry (`cli.ts`, `commands/`) | SwiftUI product UI |
-| Integrations registry + plugin adapter | Daemon start/stop, schedules CLI, upgrade | Daemon client + native API server |
+| Integrations registry + plugin adapter | Daemon start/stop, upgrade | Daemon client + native API server |
 | Config, personas, skills, memory, projects | Listen CLI glue, plugins install CLI | TCC-gated native handlers (EventKit, audio, …) |
 | Session store, inbound router, HTTP routes | Release handoff helpers | Windowing, recordings browser, settings UI |
 
@@ -91,7 +91,7 @@ in `packages/core/src/config/index.ts`.
 | ---- | ---- |
 | `~/.toby/config.json` | Non-secret prefs: personas, connection flags (`connectedAt`), defaults (`config.json`, mode `0o600`) |
 | `~/.toby/credentials.json` | Secrets (AI keys, `integrations.<plugin>` tokens); **AES-256-GCM encrypted at rest on macOS**, data key in Keychain `dev.toby.credentials` (`credentials-crypto.ts`, `credentials-keychain.ts`). Always use `readCredentials`/`writeCredentials` — never read the file directly |
-| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, tool cache, library catalog |
+| `~/.toby/chat.sqlite` | Chats, projects, flows, trigger decisions, run history, tool cache, library catalog |
 | `~/.toby/memory.sqlite` | Memories, sources, proposals, embeddings, audit |
 | `~/.toby/logs/toby.log` | Unified JSON-lines log (`source` discriminator, `TOBY_LOG_LEVEL=debug` for verbose) |
 | `~/.toby/listen/recordings/<id>/` | Audio, metadata, transcripts |
@@ -130,7 +130,7 @@ See [`docs/architecture.md`](docs/architecture.md), [`docs/security.md`](docs/se
 ## CLI and daemon
 
 - Entry: [`apps/cli/src/cli.ts`](apps/cli/src/cli.ts) — registers built-in commands then `registerCommands` on each `IntegrationModule`.
-- Generic commands in [`apps/cli/src/commands/`](apps/cli/src/commands/): `connect`, `disconnect`, `status`, `config` (`backup`/`restore`/`sync`), `daemon`, `plugins` (`list`/`install`/`uninstall`/`inspect`/`doctor`/`setup`), `schedules`, `listen`, `skills`, `sessions`, `app`, `upgrade`, `internal-handoff`. They resolve behavior through the core registry — no `if (name === "…")` branches.
+- Generic commands in [`apps/cli/src/commands/`](apps/cli/src/commands/): `connect`, `disconnect`, `status`, `config` (`backup`/`restore`/`sync`), `daemon`, `plugins` (`list`/`install`/`uninstall`/`inspect`/`doctor`/`setup`), `listen`, `skills`, `sessions`, `app`, `upgrade`, `internal-handoff`. They resolve behavior through the core registry — no `if (name === "…")` branches.
 - Bare `toby` (no subcommand) opens Toby.app (`toby app` is explicit).
 - Chat/sessions/configure are **Toby.app + daemon HTTP API** surfaces (`127.0.0.1` SSE `POST /api/sessions/:id/turn`, `ChatEvent` stream). See [`docs/server-api.md`](docs/server-api.md), [`docs/daemon.md`](docs/daemon.md), [`docs/chat-pipeline.md`](docs/chat-pipeline.md).
 - Native bridge: Toby.app publishes a random port to `~/.toby/native-port` (`GET /api/native/health`); plugins `toby-plugin-macos`/`applecalendar`/`applecontacts`/`applereminders` delegate there and auto-launch the app. See [`docs/native-helpers.md`](docs/native-helpers.md).
@@ -138,7 +138,7 @@ See [`docs/architecture.md`](docs/architecture.md), [`docs/security.md`](docs/se
 ## Chat pipeline, flows, and native helpers (pointers)
 
 - Chat turn pipeline: six nodes `TurnInit → ExpandPrompt → AssembleMessages → CompactMessages → RunModelTurn → PersistTurn` (`packages/core/src/chat-pipeline/`, `turn-runtime.ts`, `transcript-reducer.ts`). Query+Tool loops are fused inside `RunModelTurnNode` (AI SDK `streamText`, ≤12 steps). See [`docs/chat-pipeline.md`](docs/chat-pipeline.md).
-- Flows: named SQLite-backed pipelines (`flows`/`flow_runs` tables in `chat.sqlite`), nodes `tool_executor`/`llm_prompter`, not the chat pipeline. See [`docs/flows.md`](docs/flows.md).
+- Flows: named SQLite-backed pipelines (`flows`/`flow_runs` tables in `chat.sqlite`), nodes `tool_executor`/`llm_prompter`/`agent_task`, with embedded manual, schedule, and native event triggers, not the chat pipeline. See [`docs/flows.md`](docs/flows.md).
 - Global tools: `webSearch` (Perplexity via AI Gateway), `getWeather` (Open-Meteo + Nominatim), `fetchWebContent`, `readPdf`, `getMyLocation` (CoreLocation via native API). See docs per tool.
 - Recording: single capture impl in Toby.app (`NativeAudioHandler`), both CLI/daemon and app routes write `~/.toby/listen/recordings/<id>/`; transcription via AI SDK. See [`docs/listen.md`](docs/listen.md).
 
@@ -253,7 +253,7 @@ Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
 | [`docs/flows.md`](docs/flows.md) | Named flow pipelines: SQLite definitions, seed-on-miss built-ins, nodes, runtime API, dashboard flows. |
 | [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
 | [`docs/library.md`](docs/library.md) | Indexed file library (`~/.toby/library/`, `chat.sqlite` catalog, chat tools). |
-| [`docs/daemon.md`](docs/daemon.md) | Background daemon: schedules, inbound, unified log. |
+| [`docs/daemon.md`](docs/daemon.md) | Background daemon: Flow triggers, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |
 | [`docs/dashboard.md`](docs/dashboard.md) | Home dashboard cards: block shell, soft vs force refresh, standard tools + flow AI blurbs, cache. |
 | [`docs/dashboard-standard-tools-plan.md`](docs/dashboard-standard-tools-plan.md) | Dashboard standard-tool contract, merge rules, plugin checklist. |

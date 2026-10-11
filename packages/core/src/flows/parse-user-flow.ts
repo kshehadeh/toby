@@ -3,10 +3,13 @@ import type {
 	FlowDocument,
 	FlowPersonaSpec,
 	FlowResultPointer,
+	FlowSchemaSpec,
 	StoredFlowNode,
 	StoredLlmPrompterNode,
 	StoredToolExecutorNode,
 } from "./document-types";
+import { schemaFromSpec } from "./schema-presets";
+import { parseFlowTriggers } from "./triggers/types";
 import type { FlowInputMap, FlowOutputMap, ToolRef } from "./types";
 import { UserFlowValidationError } from "./validate-user-flow";
 
@@ -64,6 +67,36 @@ function parseOutputs(raw: unknown): FlowOutputMap | undefined {
 	return Object.keys(out).length > 0 ? out : undefined;
 }
 
+function parseCondition(raw: unknown): { from: string; path?: string } {
+	if (
+		!isRecord(raw) ||
+		typeof raw.from !== "string" ||
+		!raw.from.trim() ||
+		"const" in raw ||
+		(raw.path !== undefined && typeof raw.path !== "string")
+	) {
+		throw new UserFlowValidationError([
+			"Action condition needs an output reference with an optional field path",
+		]);
+	}
+	return {
+		from: raw.from,
+		...(raw.path !== undefined ? { path: raw.path as string } : {}),
+	};
+}
+
+function parseSchema(raw: unknown): FlowSchemaSpec {
+	const spec = (raw ?? { kind: "markdown" }) as FlowSchemaSpec;
+	try {
+		schemaFromSpec(spec);
+	} catch (error) {
+		throw new UserFlowValidationError([
+			error instanceof Error ? error.message : "Invalid output schema",
+		]);
+	}
+	return spec;
+}
+
 function parseNode(raw: unknown): StoredFlowNode | null {
 	if (!isRecord(raw) || typeof raw.id !== "string" || !raw.id.trim()) {
 		return null;
@@ -75,6 +108,7 @@ function parseNode(raw: unknown): StoredFlowNode | null {
 			id: raw.id,
 			type: "tool_executor",
 			tool,
+			...(raw.when !== undefined ? { when: parseCondition(raw.when) } : {}),
 			...(parseInputs(raw.inputs) ? { inputs: parseInputs(raw.inputs) } : {}),
 			...(parseOutputs(raw.outputs)
 				? { outputs: parseOutputs(raw.outputs) }
@@ -82,15 +116,34 @@ function parseNode(raw: unknown): StoredFlowNode | null {
 		};
 		return node;
 	}
+	if (raw.type === "agent_task") {
+		if (raw.when !== undefined)
+			throw new UserFlowValidationError([
+				"Conditions are supported only on tool actions",
+			]);
+		if (typeof raw.userPrompt !== "string" || !raw.userPrompt.trim())
+			return null;
+		return {
+			id: raw.id,
+			type: "agent_task",
+			systemPrompt:
+				typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
+			userPrompt: raw.userPrompt,
+			...(parseInputs(raw.inputs) ? { inputs: parseInputs(raw.inputs) } : {}),
+			...(parseOutputs(raw.outputs)
+				? { outputs: parseOutputs(raw.outputs) }
+				: {}),
+		};
+	}
 	if (raw.type === "llm_prompter") {
-		const schemaKind =
-			isRecord(raw.schema) && raw.schema.kind === "markdown"
-				? ("markdown" as const)
-				: "markdown";
+		if (raw.when !== undefined)
+			throw new UserFlowValidationError([
+				"Conditions are supported only on tool actions",
+			]);
 		const node: StoredLlmPrompterNode = {
 			id: raw.id,
 			type: "llm_prompter",
-			schema: { kind: schemaKind },
+			schema: parseSchema(raw.schema),
 			systemPrompt:
 				typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
 			userPrompt: typeof raw.userPrompt === "string" ? raw.userPrompt : "",
@@ -200,6 +253,11 @@ export function parseUserFlowDocumentBody(
 			: {}),
 		...(persona ? { persona } : {}),
 		nodes,
+		triggers: parseFlowTriggers(body.triggers),
+		...(typeof body.revision === "number" ? { revision: body.revision } : {}),
+		...(typeof body.projectId === "string" && body.projectId.trim()
+			? { projectId: body.projectId.trim() }
+			: {}),
 		...(result ? { result } : {}),
 		...(destinations ? { destinations } : {}),
 	};

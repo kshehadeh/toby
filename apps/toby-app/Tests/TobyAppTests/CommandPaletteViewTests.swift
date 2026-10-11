@@ -9,7 +9,7 @@ struct CommandPaletteViewTests {
     private func makeView(
         sessions: [SessionSummary] = [],
         integrations: [SettingsItem] = [],
-        schedules: [ScheduleViewModel] = [],
+        flows: [FlowListItem] = [],
         recordings: [ListenRecordingSummary] = [],
         onSelectSession: @escaping (String) -> Void = { _ in },
         onNewChat: @escaping () -> Void = {},
@@ -17,7 +17,7 @@ struct CommandPaletteViewTests {
         onOpenMemories: @escaping () -> Void = {},
         onNavigateToRoute: @escaping (DetailRoute) -> Void = { _ in },
         onOpenIntegration: @escaping (String) -> Void = { _ in },
-        onOpenSchedule: @escaping (String) -> Void = { _ in },
+        onOpenFlow: @escaping (String) -> Void = { _ in },
         onOpenRecording: @escaping (String) -> Void = { _ in },
         onStartChat: @escaping (String) -> Void = { _ in },
         onRestartServer: @escaping () -> Void = {},
@@ -26,7 +26,7 @@ struct CommandPaletteViewTests {
         CommandPaletteView(
             sessions: sessions,
             integrations: integrations,
-            schedules: schedules,
+            flows: flows,
             recordings: recordings,
             onSelectSession: onSelectSession,
             onNewChat: onNewChat,
@@ -34,7 +34,7 @@ struct CommandPaletteViewTests {
             onOpenMemories: onOpenMemories,
             onNavigateToRoute: onNavigateToRoute,
             onOpenIntegration: onOpenIntegration,
-            onOpenSchedule: onOpenSchedule,
+            onOpenFlow: onOpenFlow,
             onOpenRecording: onOpenRecording,
             onStartChat: onStartChat,
             onRestartServer: onRestartServer,
@@ -59,19 +59,8 @@ struct CommandPaletteViewTests {
         )
     }
 
-    private func makeSchedule(id: String, name: String, prompt: String = "", personaName: String = "") -> ScheduleViewModel {
-        ScheduleViewModel(
-            id: id,
-            name: name,
-            prompt: prompt,
-            personaName: personaName,
-            cronExpression: "0 9 * * *",
-            cronHumanReadable: "Daily at 9:00 AM",
-            nextRunAt: nil,
-            enabled: true,
-            lastRunAt: nil,
-            recentRuns: []
-        )
+    private func makeFlow(id: String, name: String, prompt: String = "", personaName: String = "") -> FlowListItem {
+        FlowListItem(id: id, name: name, description: prompt, icon: nil, color: nil, builtin: false, persona: nil, nodes: [], result: nil, destinations: nil, createdAt: nil, updatedAt: nil)
     }
 
     private func makeRecording(id: String, name: String? = nil, durationMs: Int? = nil, hasTranscript: Bool = false) -> ListenRecordingSummary {
@@ -91,12 +80,12 @@ struct CommandPaletteViewTests {
         )
     }
 
-    @Test("empty query shows actions, sessions, integrations, schedules, and recordings")
+    @Test("empty query shows actions, sessions, integrations, flows, and recordings")
     func emptyQueryShowsAllResultTypes() throws {
         let view = makeView(
             sessions: [SessionSummary(id: "s1", name: "Session One", createdAt: nil, updatedAt: nil)],
             integrations: [makeIntegration(label: "Gmail", key: "gmail")],
-            schedules: [makeSchedule(id: "sch1", name: "Daily Review")],
+            flows: [makeFlow(id: "sch1", name: "Daily Review")],
             recordings: [makeRecording(id: "rec1", name: "Team Meeting")]
         )
         let buttons = try view.inspect().findAll(ViewType.Button.self)
@@ -126,12 +115,12 @@ struct CommandPaletteViewTests {
         #expect(!titles.contains("Gmail"))
     }
 
-    @Test("search filters schedules by name and prompt")
+    @Test("search filters flows by name and prompt")
     func searchFiltersSchedules() throws {
         let view = makeView(
-            schedules: [
-                makeSchedule(id: "sch1", name: "Daily Review", prompt: "Review tasks"),
-                makeSchedule(id: "sch2", name: "Weekly Standup", prompt: "Check email"),
+            flows: [
+                makeFlow(id: "sch1", name: "Daily Review", prompt: "Review tasks"),
+                makeFlow(id: "sch2", name: "Weekly Standup", prompt: "Check email"),
             ]
         )
         let results = view.results(for: "review")
@@ -173,7 +162,7 @@ struct CommandPaletteViewTests {
         let view = makeView(
             sessions: [SessionSummary(id: "s1", name: "Session", createdAt: nil, updatedAt: nil)],
             integrations: [makeIntegration(label: "Gmail", key: "gmail")],
-            schedules: [makeSchedule(id: "sch1", name: "Schedule")],
+            flows: [makeFlow(id: "sch1", name: "Schedule")],
             recordings: [makeRecording(id: "rec1", name: "Recording")]
         )
         let results = view.results(for: "")
@@ -189,8 +178,8 @@ struct CommandPaletteViewTests {
         #expect(session?.kind == .session("s1"))
         let integration = results.first { $0.id == "integration-gmail" }
         #expect(integration?.kind == .integration("gmail"))
-        let schedule = results.first { $0.id == "schedule-sch1" }
-        #expect(schedule?.kind == .schedule("sch1"))
+        let schedule = results.first { $0.id == "flow-sch1" }
+        #expect(schedule?.kind == .flow("sch1"))
         let recording = results.first { $0.id == "recording-rec1" }
         #expect(recording?.kind == .recording("rec1"))
     }
@@ -212,12 +201,12 @@ struct CommandPaletteViewTests {
         #expect(selectedNavKey == "integrations.gmail")
     }
 
-    @Test("selecting a schedule opens it via callback")
+    @Test("selecting a flow opens it via callback")
     func selectScheduleCallback() throws {
         var selectedId: String?
         let view = makeView(
-            schedules: [makeSchedule(id: "sch1", name: "Daily Review")],
-            onOpenSchedule: { selectedId = $0 },
+            flows: [makeFlow(id: "sch1", name: "Daily Review")],
+            onOpenFlow: { selectedId = $0 },
             onDismiss: {}
         )
         let buttons = try view.inspect().findAll(ViewType.Button.self)

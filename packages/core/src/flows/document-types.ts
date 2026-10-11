@@ -1,4 +1,10 @@
-import type { FlowInputMap, FlowOutputMap, ToolRef } from "./types";
+import type { FlowTrigger } from "./triggers/types";
+import type {
+	FlowCondition,
+	FlowInputMap,
+	FlowOutputMap,
+	ToolRef,
+} from "./types";
 
 /** How the flow picks a persona at run time. */
 export type FlowPersonaSpec =
@@ -6,16 +12,24 @@ export type FlowPersonaSpec =
 	| { readonly source: "named"; readonly name: string }
 	| { readonly source: "dashboard" };
 
-/**
- * Serializable structured-output schema for LLM Prompter nodes.
- * Only the markdown object preset is supported today.
- */
-export type FlowSchemaSpec = { readonly kind: "markdown" };
+/** Flat, required fields for structured LLM output. */
+export type FlowSchemaField = {
+	readonly type: "string" | "boolean" | "number";
+	readonly description?: string;
+};
+export type FlowSchemaSpec =
+	| { readonly kind: "markdown" }
+	| {
+			readonly kind: "object";
+			readonly fields: Readonly<Record<string, FlowSchemaField>>;
+	  };
 
 export type StoredToolExecutorNode = {
 	readonly id: string;
 	readonly type: "tool_executor";
 	readonly tool: ToolRef;
+	/** Execute only when the referenced value is a boolean true. */
+	readonly when?: FlowCondition;
 	readonly inputs?: FlowInputMap;
 	readonly outputs?: FlowOutputMap;
 };
@@ -49,7 +63,18 @@ export type StoredLlmPrompterNode = {
 	readonly timeoutMs?: number;
 };
 
-export type StoredFlowNode = StoredToolExecutorNode | StoredLlmPrompterNode;
+export type StoredAgentTaskNode = {
+	readonly id: string;
+	readonly type: "agent_task";
+	readonly systemPrompt?: string;
+	readonly userPrompt: string;
+	readonly inputs?: FlowInputMap;
+	readonly outputs?: FlowOutputMap;
+};
+export type StoredFlowNode =
+	| StoredToolExecutorNode
+	| StoredLlmPrompterNode
+	| StoredAgentTaskNode;
 
 /** Bag pointer for the value destinations and the result sheet consume. */
 export type FlowResultPointer = {
@@ -106,6 +131,9 @@ export type FlowDocument = {
 	/** Named Home Actions tile fill. Custom flows use the curated color set. */
 	readonly color?: string;
 	readonly persona?: FlowPersonaSpec;
+	readonly revision?: number;
+	readonly triggers?: readonly FlowTrigger[];
+	readonly projectId?: string;
 	readonly nodes: readonly StoredFlowNode[];
 	/** Optional bag pointer; inferred from the last node when omitted. */
 	readonly result?: FlowResultPointer;

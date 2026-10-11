@@ -6,7 +6,7 @@ title: Flows
 # Flows
 
 A **flow** is a fixed recipe Toby follows step by step: gather information
-from your apps, optionally have AI write it up, then deliver the result. Unlike
+from your apps, optionally use AI to summarize or decide, run actions, then deliver the result. Unlike
 a chat, a flow does the same thing the same way every time, so it suits
 routines you run often.
 
@@ -17,7 +17,7 @@ Use a flow when you want:
 - **A live card on Home.** For example, "Top Jira issues assigned to me",
   refreshed whenever you open Toby.
 - **A result sent somewhere.** For example, a daily task digest emailed to you
-  or posted to Slack, run by a [schedule](./schedules).
+  or posted to Slack, run by a [schedule trigger](./schedules).
 
 The built-in **Upcoming**, **Tasks**, and **Unread mail** cards on
 [Home](./toby-app#home) are flows too.
@@ -29,11 +29,26 @@ calendar events.” The built-in **flow-builder** skill checks available tools,
 collects any required details, and saves a custom flow. Open **Flows** to review
 or run it. Home actions also appear in the **Actions** rail.
 
-Saving does not run the flow. Tool arguments use fixed values or automation event
-inputs, and an optional LLM step runs last. Choose **Automation event** for a
-parameter that takes file changes; see [Event automations](automations.md). For a new AppleScript or TypeScript step,
+Saving does not run the flow. Tool arguments can use **Fixed value**, **Trigger event**, or **Previous step output**. After adding an AI step, use **Add an action** in the **Acts** section to run a tool with its answer. For a notification, keep the title fixed and set the description to the AI output with field path `markdown`. Choose **Trigger event** for a parameter that takes file changes; see [Event automations](automations.md). For a new AppleScript or TypeScript step,
 Toby can draft the code and guide you through saving it in **Script Tools**
 before adding it to the flow.
+
+Actions normally run every time the flow reaches them. Enable **Run only when** to run an action only when a previous output field is boolean `true`. A `false` value skips the action; a missing field or another type stops the flow before it calls the tool. Skipped actions appear in run history with their reason.
+
+### Notify only when a meeting is coming
+
+1. Add the calendar **Upcoming events summary** source. Its output includes a `generatedAt` timestamp for the current time.
+2. In the AI step, choose **Answer format → Named fields**. Add `shouldNotify` (Boolean), `title` (Text), and `description` (Text).
+3. Ask AI to compare meeting start times against `generatedAt` and set `shouldNotify` to true only for meetings starting in the next ten minutes, ignore all-day and ongoing events, and write the notification title and body. It must fill every field even when no notification is needed.
+4. Add **Show notification** in **Acts**. Set title and description to **Previous step output**, select the AI output, and enter field paths `title` and `description`.
+5. Enable **Run only when**, select that same AI output, and enter field path `shouldNotify`.
+6. Save the flow and schedule it at `25,55 * * * *` for :25 and :55 each hour.
+
+Completion notifications are optional per trigger. Leave **Notify when finished** off for quiet checks.
+
+Named fields support text, boolean, and number values. Names must start with a letter and use letters, numbers, and underscores; each field needs a unique name. All fields are required. Toby validates AI output before it reaches an action.
+
+Conditions apply to actions. The **Shares** destinations still run after a successful flow; use a conditional send tool in **Acts** for email or Slack delivery that should depend on the decision. The Mac must be awake, the daemon running, and calendar and notification permissions enabled.
 
 Changing a flow's destination to a dashboard card preserves its existing steps
 and the data passed to its LLM prompt. Refreshing the card runs the saved flow.
@@ -60,6 +75,8 @@ The flows that ship with Toby are **built-in** and power the Home cards:
 
 Those pipelines use the **Home persona** (configured under **Settings → Home**) for their model and writing style. Connect the matching [integrations](./integrations/overview), leave Toby running, and Home can refresh those blurbs automatically.
 
+Their **When** section shows **Home refresh**. Home runs these flows when it needs a fresh summary or you explicitly refresh the card. Fresh cached summaries are reused for up to five minutes; a previous summary can stay visible while a replacement is generated. Empty cards skip the flow. Built-in flows remain read-only. For custom flows, choosing **Home refresh** automatically selects **Show it on Home → A card with the answer** and makes that location required. You can change its color and automatic/manual update setting. Disabling the trigger pauses updates; removing it removes the Home card. Choosing Home Screen Action instead switches to an Actions button.
+
 ## Browse flows in Toby.app
 
 Open **Toby.app** and choose **Flows** from the sidebar (or the View menu / menu bar).
@@ -78,9 +95,11 @@ Built-in flows are labeled and are **read-only** in the UI.
 ## Create your own flow
 
 Click **+** in the Flows toolbar. The **New flow** sheet walks you through
-three parts: what the flow **gathers and acts** on, what the AI **thinks**
-about it, and where the answer is **shared**. Nothing is created until you
+what the flow **gathers and acts** on, what the AI **thinks** about it, and where the answer is **shared**. Adding AI also exposes an **Acts** section for subsequent actions. Nothing is created until you
 click **Save**.
+
+When you replace a step, Toby keeps a selected result if its output still exists.
+If that output was removed, the flow uses the new final step’s result automatically.
 
 ![The New flow sheet with Name, Look, and the Gathers and acts, Thinks, and Shares sections](/img/toby-app-flow-builder.png)
 
@@ -94,7 +113,8 @@ click **Save**.
 3. **Thinks.** Optionally click **Add an AI step** and describe what the AI
    should do with what was gathered, for example "List the three most urgent
    items in one line each."
-4. **Shares.** Choose where the result goes. **Show it in a window** is the
+4. **Acts.** After adding AI, optionally add an action that uses its output. Enable **Run only when** for an action that depends on a boolean decision.
+5. **Shares.** Choose where the result goes. **Show it in a window** is the
    default. You can add or swap in:
    - **Email** or **Slack** (that app must be connected)
    - **Home**, as either:
@@ -103,16 +123,15 @@ click **Save**.
        minutes old. **Manual** refreshes only when you click refresh.
      - **A button** in the **Actions** strip that runs the flow when you
        click it. Hover over a button to see its name and description.
-5. Click **Save**, then **Run now** to try it.
+6. Click **Save**, then **Run now** to try it.
 
 You can combine a dashboard card with a result window (or email / Slack). A
 flow can have only one Dashboard destination. Email and Slack still send when
 you **Run now** or when a schedule fires — not when the home card refreshes.
 
-A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Tools that need IDs from a previous search (for example “archive these messages”) still belong in [chat](./getting-started/first-chat) or a [schedule](./schedules) prompt — the model can pick IDs and call the tool itself.
+A good first flow is a focus macro: turn Wi-Fi off, then minimize all windows. Use **Previous step output** to pass data or IDs from a source into another tool. Named AI fields can supply a single text ID; AI-selected lists of IDs still need [chat](./getting-started/first-chat) or an **Agent Task** step because structured flow output does not yet support arrays.
 
-To run a flow on a timetable, open **Schedules**, set **When it runs** to
-**Flow**, and pick the flow. See [Schedules](./schedules).
+To run on a timetable, add **On a schedule** in the Flow editor’s **When** section. See [Scheduled flows](./schedules).
 
 ### Home color
 
@@ -173,12 +192,40 @@ expand the step's **Outputs** under **Nodes**. The Jira search output includes a
 `summary.markdown`; flow creation now checks that the requested result exists
 in the step outputs.
 
-## Flows vs chat vs schedules
+## Home Screen Action
 
-| | **Chat** | **Flow** | **Schedule** |
-| --- | -------- | -------- | ------------ |
-| **How it runs** | Interactive conversation with tools chosen per turn | Fixed pipeline of tool + model steps | Fires a prompt **or a flow** on a cron |
-| **Best for** | Open-ended questions and multi-step work | Repeatable summaries and automated workflows | “Do this every morning” |
+Choose **Home Screen Action** in **When** to add a button to Home’s Actions.
+Toby automatically selects **Show it on Home → A button in Actions** in
+**Where it shows**. That location cannot be removed or switched to a card while
+the trigger exists; you can still change its color and add other destinations.
+Choosing **A button in Actions** first also adds the matching trigger.
+
+Change or remove the Home Screen Action trigger to unlock the location. It
+becomes a Home card that you can then change or remove. Disabling the trigger
+hides its button, while keeping the required location saved.
+
+Keep a **Manually** trigger as well if you want **Run Now** from Flows. The Home
+button and Run Now can have separate trigger inputs, and both appear in the
+same run history.
+
+## When a Flow runs
+
+Flows combine steps and triggers in one place. New flows start with an enabled
+**Manually** trigger for **Run Now**. Add Home refresh, Home Screen Action, schedule, wake, return-after-idle, or
+file-change triggers in **When**. Each has its own inputs, conditions, limits,
+and optional completion notification. Automatic triggers start disabled; enable
+them when you are ready for future runs. Keep a manual trigger to run on demand.
+
+Use the **All**, **Manual**, **Home Actions**, **Scheduled**, and **Events** filters to find flows.
+**Trigger activity** shows runs and skipped events, with links to detailed traces.
+All trigger types share the Flow's steps, persona, result, and destinations.
+
+Choose **Agent Task — can use tools** for a prompt that needs Toby to choose
+its own tools, use skills/memory, or work in a project. Choose **Generate an
+answer** for fixed markdown or named-field output from supplied data. A flow
+supports one AI step. Agent Tasks cannot ask questions while running.
+
+Chat remains the interactive option for open-ended work and follow-up questions.
 
 ## Tips
 
@@ -196,6 +243,5 @@ in the step outputs.
 
 ## Run on a macOS event
 
-Use [Event automations](automations.md) to run a saved custom flow when you
-return after inactivity or your Mac wakes. Toby.app must remain running to
-observe these events. Time-based schedules continue to work as before.
+Add an [event trigger](automations.md) in the Flow editor. Toby.app must remain
+running to observe wake, idle, or file-change events.

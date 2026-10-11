@@ -13,7 +13,7 @@ Toby.app).
 | Package | Path | Role |
 | ------- | ---- | ---- |
 | **`@toby/core`** | [`packages/core/src/`](../packages/core/src/) | Harness: chat pipeline, AI, integrations, config, personas, skills, memory, library, planning, chat-inbound, logging, session store, message prep. Consumable from scripts, daemons, or other apps via `@toby/core/...` imports. |
-| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, daemon/schedules/upgrade glue, and native app launch. Depends on `@toby/core`; must not be imported by core. |
+| **`@toby/cli`** | [`apps/cli/src/`](../apps/cli/src/) | CLI app: Commander entry, generic commands, daemon/upgrade glue, and native app launch. Depends on `@toby/core`; must not be imported by core. |
 | **`Toby.app`** | [`apps/toby-app/`](../apps/toby-app/) | Native macOS app (SwiftUI) with a real bundle identity. Uses the daemon localhost API for chat/configuration/recordings and runs a separate **native API server** for TCC-gated operations (EventKit calendar/reminders, Contacts.framework, Accessibility, microphone, system audio, and all macOS system controls). `toby-plugin-macos`, `toby-plugin-applecalendar`, `toby-plugin-applecontacts`, and `toby-plugin-applereminders` are TypeScript bun-package plugins that delegate to this server. It does not import core. See [`native-helpers.md`](native-helpers.md). |
 
 ```mermaid
@@ -74,7 +74,7 @@ packages/core/src/       # @toby/core — UI-agnostic harness
 apps/cli/src/
   cli.ts                 # Program entry: registers commands, loads integration CLI hooks
   commands/              # Cross-integration Commander commands (connect, daemon, app, …)
-  schedules/ listen/ upgrade/ releases/   # CLI orchestration and maintenance helpers
+  listen/ upgrade/ releases/   # CLI orchestration and maintenance helpers
 
 apps/toby-app/             # Toby.app — native macOS app (SwiftUI)
   Sources/TobyApp/
@@ -209,7 +209,10 @@ resets both expression layers. Reduce Motion uses a static processing eyebrow
 and disables talking motion. All layers reuse the existing visible-only timer.
 
 The main window uses shared `RootToolbars` builders for its native header.
-Feature record lists (chats, recordings, schedules, skills, flows, integrations,
+The main sidebar is one ungrouped destination list: Home, Chats, Projects, Library,
+Recordings, Flows, and Skills. There are no Automation or Tools category headings.
+
+Feature record lists (chats, recordings, skills, flows, integrations,
 projects, library) live in `FeatureWorkspaceSplit` under that header — the toolbar
 separator spans the list and detail, matching Chats, instead of promoting the
 list into a full-height title-bar column. `RootView` supplies selected item names from the existing feature stores; empty
@@ -243,7 +246,7 @@ and the command palette read from shared list stores instead
 of relying on each feature view to hit the daemon
 first.
 
-The shared preload covers chat sessions, schedules, recording summaries,
+The shared preload covers chat sessions, flows, recording summaries,
 memory summaries, skill summaries, project summaries/sessions, and integration
 sections. Feature views still call idempotent `ensureLoaded()` fallbacks, but
 they are not the primary source of global data population.
@@ -267,7 +270,7 @@ the detail surface that needs them.
 3. **Chat and configuration** are interactive native-app workflows backed by core web/API handlers (daemon HTTP API).
 4. **`config backup` / `config restore`** use shared helpers in `@toby/core` (`config/backup.ts`). Backups are streamed AES-256-GCM `.tbybak` archives covering settings, credentials, databases, project files, recordings, and library files. The CLI and the daemon HTTP API (`POST /api/config/backup`, `POST /api/config/restore`) share the same implementation; Toby.app File → Backup / Restore drives the API with native save/open panels.
 5. **`config sync`** uploads encrypted settings snapshots to iCloud Drive or a user-picked folder (`config/sync*.ts`). The daemon loop pushes after local writes and pulls on an interval; Toby.app Settings → Sync and `/api/native/icloud/*` handle coordinated iCloud I/O. See [icloud-sync.md](icloud-sync.md).
-6. **Daemon** (`toby daemon start`) runs schedules, inbound chat, settings sync, and the localhost API that Toby.app consumes.
+6. **Daemon** (`toby daemon start`) runs Flow triggers, inbound chat, settings sync, and the localhost API that Toby.app consumes.
 
 ## Local data
 
@@ -275,7 +278,7 @@ the detail surface that needs them.
 | -------- | ---- |
 | `~/.toby/config.json` | Integration connection flags, personas, first-class `connections` (including MCP) |
 | `~/.toby/credentials.json` | API keys, OAuth tokens, and other secrets. On macOS the file is **encrypted at rest** (AES-256-GCM); the data key lives in the Keychain (`dev.toby.credentials`). Logical shape is still a `CredentialsFile` JSON object after decrypt. |
-| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, tool cache, and library catalog |
+| `~/.toby/chat.sqlite` | Chats, projects, flows, trigger decisions, run history, tool cache, and library catalog |
 | `~/.toby/memory.sqlite` | Memories, sources, proposals, embeddings, and audit history |
 | `~/.toby/logs/toby.log` | Unified JSON-lines log for all subsystems (chat, daemon, server events, upgrade, native-app, macOS plugin). A `source` field discriminates the emitter; rotation is shared. Minimum level defaults to `info` (set `TOBY_LOG_LEVEL=debug` to include debug). |
 | `~/.toby/listen/recordings/<id>/` | Saved audio, metadata, and transcript artifacts. |

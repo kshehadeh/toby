@@ -32,20 +32,9 @@ private final class NativeNotificationDelegate: NSObject, UNUserNotificationCent
 		withCompletionHandler completionHandler: @escaping () -> Void
 	) {
 		let userInfo = response.notification.request.content.userInfo
-		if let type = userInfo["type"] as? String,
-			type == "scheduleCompletion",
-			let scheduleId = userInfo["scheduleId"] as? String
-		{
+		if userInfo["type"] as? String == "flowCompletion", let runId = userInfo["runId"] as? String {
 			DispatchQueue.main.async {
-				NotificationCenter.default.post(
-					name: .openScheduleFromNotification,
-					object: OpenScheduleFromNotificationRequest(scheduleId: scheduleId)
-				)
-			}
-		}
-		if userInfo["type"] as? String == "automationCompletion", let runId = userInfo["runId"] as? String {
-			DispatchQueue.main.async {
-				NotificationCenter.default.post(name: .openAutomationRun, object: runId)
+				NotificationCenter.default.post(name: .openFlowRun, object: runId)
 			}
 		}
 		completionHandler()
@@ -715,47 +704,12 @@ enum NativeMacOSHandler {
 	}
 
 	@MainActor
-	static func automationCompletionNotification(body: Data?) async -> Data {
+	static func flowCompletionNotification(body: Data?) async -> Data {
 		guard let runId = stringValue(body, key: "runId"), !runId.isEmpty else { return json(["ok": false, "error": "runId is required"]) }
-		let name = stringValue(body, key: "name") ?? "Automation"
+		let name = stringValue(body, key: "name") ?? "Flow"
 		let success = stringValue(body, key: "status") == "success"
-		return await displayNotification(title: success ? "Automation completed" : "Automation failed", description: name,
-			ctas: ["View result"], userInfo: ["type": "automationCompletion", "runId": runId])
-	}
-
-	@MainActor
-	static func scheduleCompletionNotification(body: Data?) async -> Data {
-		guard let scheduleId = stringValue(body, key: "scheduleId")?.trimmingCharacters(in: .whitespacesAndNewlines), !scheduleId.isEmpty else {
-			return json(["ok": false, "error": "scheduleId is required."])
-		}
-		let scheduleName = stringValue(body, key: "scheduleName")?.trimmingCharacters(in: .whitespacesAndNewlines)
-		let displayName = if let scheduleName, !scheduleName.isEmpty {
-			scheduleName
-		} else {
-			"Untitled schedule"
-		}
-		let runId = stringValue(body, key: "runId")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-		let status = stringValue(body, key: "status")?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-		let error = stringValue(body, key: "error")?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-		let isSuccess = status == "success"
-		let title = isSuccess ? "Schedule completed" : "Schedule failed"
-		let description = isSuccess
-			? "\(displayName) finished successfully."
-			: "\(displayName) failed: \(error?.isEmpty == false ? error! : "Unknown error")"
-
-		return await displayNotification(
-			title: title,
-			description: description,
-			ctas: ["View schedule"],
-			userInfo: [
-				"type": "scheduleCompletion",
-				"scheduleId": scheduleId,
-				"scheduleName": displayName,
-				"runId": runId,
-				"status": isSuccess ? "success" : "error",
-			]
-		)
+		return await displayNotification(title: success ? "Flow completed" : "Flow failed", description: name,
+			ctas: ["View result"], userInfo: ["type": "flowCompletion", "runId": runId])
 	}
 
 	// MARK: - Window minimize all

@@ -36,7 +36,7 @@ struct NavigationHistoryTests {
 	func goBackReturnsPreviousRoute() {
 		let history = NavigationHistory()
 		history.navigate(to: .skills)
-		history.navigate(to: .schedules)
+		history.navigate(to: .flows)
 		let route = history.goBack()
 		#expect(route == .skills)
 		#expect(history.current == .skills)
@@ -48,18 +48,18 @@ struct NavigationHistoryTests {
 	func goForwardReturnsNextRoute() {
 		let history = NavigationHistory()
 		history.navigate(to: .skills)
-		history.navigate(to: .schedules)
+		history.navigate(to: .flows)
 		_ = history.goBack()
 		let route = history.goForward()
-		#expect(route == .schedules)
-		#expect(history.current == .schedules)
+		#expect(route == .flows)
+		#expect(history.current == .flows)
 	}
 
 	@Test("resetToDashboard clears history to dashboard only")
 	func resetToDashboardClearsHistory() {
 		let history = NavigationHistory()
 		history.navigate(to: .chat)
-		history.navigate(to: .schedules)
+		history.navigate(to: .flows)
 		history.resetToDashboard()
 		#expect(history.current == .dashboard)
 		#expect(history.stack == [.dashboard])
@@ -84,7 +84,7 @@ struct NavigationHistoryTests {
 	func navigateTruncatesForwardHistory() {
 		let history = NavigationHistory()
 		history.navigate(to: .skills)
-		history.navigate(to: .schedules)
+		history.navigate(to: .flows)
 		history.navigate(to: .recordings)
 		// Go back twice to .skills
 		_ = history.goBack()
@@ -105,19 +105,19 @@ struct NavigationHistoryTests {
 		let history = NavigationHistory()
 		// chat -> skills -> schedules -> recordings
 		history.navigate(to: .skills)
-		history.navigate(to: .schedules)
+		history.navigate(to: .flows)
 		history.navigate(to: .recordings)
 		#expect(history.stack.count == 4)
 		#expect(history.currentIndex == 3)
 		// Back to schedules
 		_ = history.goBack()
-		#expect(history.current == .schedules)
+		#expect(history.current == .flows)
 		// Back to skills
 		_ = history.goBack()
 		#expect(history.current == .skills)
 		// Forward to schedules
 		_ = history.goForward()
-		#expect(history.current == .schedules)
+		#expect(history.current == .flows)
 		// Forward to recordings
 		_ = history.goForward()
 		#expect(history.current == .recordings)

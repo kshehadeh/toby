@@ -25,9 +25,6 @@ import {
 } from "../listen/transcription-providers";
 import { isBuiltInPersonaName } from "../personas/index";
 import { listProjects } from "../projects/index";
-import { cronToHuman } from "../schedules/cron-human";
-import { listScheduleRuns, listSchedules } from "../schedules/store";
-import { NONE_SCHEDULE_FLOW_ID, scheduleRunsFlow } from "../schedules/types";
 import type { ConfigureTreeContext, SettingsItem } from "./types";
 import {
 	ADD_CUSTOM_MODEL_SENTINEL,
@@ -727,175 +724,6 @@ export function buildSettingsTree(
 		],
 	};
 
-	let schedules = [] as ReturnType<typeof listSchedules>;
-	try {
-		schedules = listSchedules();
-	} catch {
-		schedules = [];
-	}
-	const projects = listProjects();
-	const projectSelectChoices = [
-		{ value: "(none)", label: "No project" },
-		...projects.map((project) => ({
-			value: project.id,
-			label: project.name,
-		})),
-	];
-	let flows: ReturnType<typeof listFlowRecords> = [];
-	try {
-		flows = listFlowRecords();
-	} catch {
-		flows = [];
-	}
-	const flowSelectChoices = [
-		{ value: NONE_SCHEDULE_FLOW_ID, label: "Select a flow" },
-		...flows.map((flow) => ({
-			value: flow.id,
-			label: flow.builtin ? `${flow.name} (built-in)` : flow.name,
-		})),
-	];
-	const daemonRunning = ctx.daemonRunning;
-	const activeScheduleCount = schedules.filter((s) => s.enabled).length;
-	const scheduleSections: SettingsItem[] = schedules.map((schedule) => {
-		let runs: ReturnType<typeof listScheduleRuns> = [];
-		try {
-			runs = listScheduleRuns(schedule.id, 5);
-		} catch {
-			runs = [];
-		}
-		const runItems: SettingsItem[] = runs.map((run) => ({
-			label: `${new Date(run.startedAt).toLocaleString()} · ${run.status.toUpperCase()}`,
-			kind: "action" as const,
-			key: `schedules.${schedule.id}.runs.${run.id}`,
-			currentValue: run.startedAt,
-		}));
-
-		return {
-			label: `${schedule.name}${schedule.enabled ? "" : " (off)"}`,
-			kind: "section" as const,
-			key: `schedules.${schedule.id}`,
-			children: [
-				{
-					label: "Name",
-					kind: "value" as const,
-					key: `schedules.${schedule.id}.name`,
-					currentValue: schedule.name,
-				},
-				{
-					label: "When it runs",
-					kind: "select" as const,
-					key: `schedules.${schedule.id}.action`,
-					options: ["prompt", "flow"],
-					currentValue: scheduleRunsFlow(schedule) ? "flow" : "prompt",
-					selectChoices: [
-						{ value: "prompt", label: "Prompt" },
-						{ value: "flow", label: "Flow" },
-					],
-				},
-				{
-					label: "Flow",
-					kind: "select" as const,
-					key: `schedules.${schedule.id}.flow`,
-					options: flowSelectChoices.map((choice) => choice.value),
-					selectChoices: flowSelectChoices,
-					currentValue: schedule.flowId ?? NONE_SCHEDULE_FLOW_ID,
-				},
-				{
-					label: "Prompt",
-					kind: "value" as const,
-					key: `schedules.${schedule.id}.prompt`,
-					currentValue: schedule.prompt,
-					multiline: true,
-				},
-				{
-					label: "Persona",
-					kind: "select" as const,
-					key: `schedules.${schedule.id}.persona`,
-					options: personas.map((p) => p.name),
-					currentValue: schedule.personaName,
-				},
-				{
-					label: "Project",
-					kind: "select" as const,
-					key: `schedules.${schedule.id}.project`,
-					options: projectSelectChoices.map((choice) => choice.value),
-					selectChoices: projectSelectChoices,
-					currentValue: schedule.projectId ?? "(none)",
-				},
-				{
-					label: "Schedule",
-					kind: "value" as const,
-					key: `schedules.${schedule.id}.cron`,
-					currentValue: `${schedule.cronExpression} (${cronToHuman(schedule.cronExpression)})`,
-				},
-				{
-					label: "Enabled",
-					kind: "select" as const,
-					key: `schedules.${schedule.id}.enabled`,
-					options: ["Yes", "No"],
-					currentValue: schedule.enabled ? "Yes" : "No",
-					selectChoices: [
-						{ value: "Yes", label: "On" },
-						{ value: "No", label: "Off" },
-					],
-				},
-				{
-					label: "Last run",
-					kind: "hint" as const,
-					key: `schedules.${schedule.id}._lastRun`,
-					currentValue: schedule.lastRunAt
-						? new Date(schedule.lastRunAt).toLocaleString()
-						: "Never",
-				},
-				...(runs.length > 0
-					? [
-							{
-								label: "Recent runs",
-								kind: "hint" as const,
-								key: `schedules.${schedule.id}._runsHeader`,
-								currentValue: "",
-							},
-							...runItems,
-						]
-					: []),
-				{
-					label: "Run now",
-					kind: "action" as const,
-					key: `schedules.${schedule.id}._run`,
-				},
-				{
-					label: "Delete schedule",
-					kind: "delete" as const,
-					key: `schedules.${schedule.id}._delete`,
-				},
-			],
-		};
-	});
-
-	const schedulesSection: SettingsItem = {
-		label: `Schedules${daemonRunning ? "" : " (daemon off)"}${
-			activeScheduleCount > 0 ? ` · ${activeScheduleCount} active` : ""
-		}`,
-		kind: "section",
-		key: "schedules",
-		children: [
-			{
-				label: "Create schedule",
-				kind: "action",
-				key: "schedules._new",
-			},
-			...(scheduleSections.length > 0
-				? scheduleSections
-				: [
-						{
-							label: "No schedules yet.",
-							kind: "hint" as const,
-							key: "schedules._empty",
-						},
-					]),
-		],
-	};
-
 	const defaultPersona =
 		personas.find((p) => p.name === getDefaultPersonaName()) ?? personas[0];
 	const libraryProviderId =
@@ -1023,7 +851,6 @@ export function buildSettingsTree(
 			transcriptionSection,
 			webSearchSection,
 			weatherSection,
-			schedulesSection,
 		],
 	};
 }

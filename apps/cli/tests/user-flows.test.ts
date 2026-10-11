@@ -181,7 +181,7 @@ describe("validateUserFlowDocument", () => {
 		} catch (error) {
 			expect(error).toBeInstanceOf(UserFlowValidationError);
 			expect((error as UserFlowValidationError).issues.join(" ")).toMatch(
-				/constant or an automation context reference/,
+				/previous step output/,
 			);
 		}
 	});
@@ -245,7 +245,7 @@ describe("validateUserFlowDocument", () => {
 		).toThrow(/missing required input "enabled"/i);
 	});
 
-	it("rejects an LLM node that is not last", () => {
+	it("accepts an action after an LLM node", () => {
 		const doc: FlowDocument = {
 			id: "flow.test.llm-middle",
 			name: "Bad order",
@@ -269,7 +269,45 @@ describe("validateUserFlowDocument", () => {
 				tools: catalog,
 				connectedModules: connected,
 			}),
-		).toThrow(/must be the last step/);
+		).not.toThrow();
+	});
+
+	it("accepts earlier output wiring and rejects forward and unsafe references", () => {
+		const doc = wifiThenMinimize();
+		doc.nodes[0].outputs = { previous: "result" };
+		doc.nodes[1] = {
+			id: "archive",
+			type: "tool_executor",
+			tool: { moduleName: "email", toolName: "archiveEmail" },
+			inputs: { uids: { from: "previous", path: "items" } },
+		};
+		const options = { tools: catalog, connectedModules: ["macos", "email"] };
+		expect(() => validateUserFlowDocument(doc, options)).not.toThrow();
+		for (const source of [
+			{ from: "later" },
+			{ from: "previous", path: "constructor.prototype" },
+		]) {
+			doc.nodes[1].inputs = { uids: source };
+			expect(() => validateUserFlowDocument(doc, options)).toThrow(
+				/previous step output/,
+			);
+		}
+	});
+
+	it("keeps the single AI step constraint", () => {
+		const node = {
+			id: "think",
+			type: "llm_prompter" as const,
+			schema: { kind: "markdown" as const },
+			systemPrompt: "Summarize",
+			userPrompt: "Hello",
+		};
+		expect(() =>
+			validateUserFlowDocument(
+				wifiThenMinimize({ nodes: [node, { ...node, id: "again" }] }),
+				{ tools: catalog, connectedModules: connected },
+			),
+		).toThrow(/at most one/);
 	});
 
 	it("accepts a last LLM node", () => {

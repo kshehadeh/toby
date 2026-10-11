@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { runAutomationSupervisor } from "@toby/core/automations/supervisor";
 import { getChatInboundStatus } from "@toby/core/chat-inbound/status";
 import { runChatInboundSupervisor } from "@toby/core/chat-inbound/supervisor";
 import { readChatInboundConfig } from "@toby/core/config/chat-inbound";
@@ -12,6 +11,7 @@ import {
 	getWebConfig,
 } from "@toby/core/config/index";
 import { runConfigSyncLoop } from "@toby/core/config/sync";
+import { runFlowTriggerSupervisor } from "@toby/core/flows/triggers/supervisor";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
 import {
 	closeAllMcpSessions,
@@ -43,7 +43,6 @@ import {
 	stopDaemon,
 	waitForDaemonRunning,
 } from "../schedules/daemon-status";
-import { runSchedulerLoop } from "../schedules/scheduler";
 
 function getWebUiUrlFromConfig(): string | null {
 	const { enabled, port } = getWebConfig();
@@ -181,7 +180,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 	});
 	console.log(
 		chalk.cyan(
-			`Toby daemon started (schedules every ${intervalSeconds}s, chat inbound if configured).`,
+			"Toby daemon started (Flow triggers and chat inbound if configured).",
 		),
 	);
 	console.log(chalk.dim(`  Log: ${getUnifiedLogPath()} (level ≥ ${logLevel})`));
@@ -197,25 +196,8 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 
 	try {
 		const tasks: Promise<void>[] = [
-			runSchedulerLoop({
-				intervalMs,
-				signal: controller.signal,
-				onCycle: ({ checked, fired }) => {
-					if (fired > 0) {
-						daemonLog("info", "scheduler", "schedules_fired", {
-							checked,
-							fired,
-						});
-						console.log(
-							chalk.dim(
-								`[daemon] Checked ${checked} schedule(s), fired ${fired}.`,
-							),
-						);
-					}
-				},
-			}),
 			runChatInboundSupervisor(controller.signal),
-			runAutomationSupervisor(controller.signal),
+			runFlowTriggerSupervisor(controller.signal),
 			startPluginPollingLoop({
 				signal: controller.signal,
 				onError: (name, message) => {
@@ -360,7 +342,9 @@ export function registerDaemonCommand(program: Command): void {
 					const verb = result.wasRunning ? "restarted" : "started";
 					console.log(chalk.green(`Daemon ${verb} (PID ${result.pid}).`));
 					console.log(
-						chalk.dim(`  Schedule poll interval: ${result.intervalSeconds}s`),
+						chalk.dim(
+							`  Maintenance poll interval: ${result.intervalSeconds}s`,
+						),
 					);
 					console.log(chalk.dim(`  Log: ${getUnifiedLogPath()}`));
 					console.log(

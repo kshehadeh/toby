@@ -199,6 +199,7 @@ final class FlowsStore {
 
 	func saveEditor() async {
 		guard let draft = editor else { return }
+		if let error = draft.outputValidationError { editorError = error; return }
 		isSaving = true
 		editorError = nil
 		defer { isSaving = false }
@@ -253,12 +254,12 @@ final class FlowsStore {
 
 	/// Run a custom flow without changing the Flows selection.
 	@discardableResult
-	func runFlow(id: String) async -> FlowRunNowResponse? {
+	func runFlow(id: String, source: String = "manual") async -> FlowRunNowResponse? {
 		isRunning = true
 		errorMessage = nil
 		defer { isRunning = false }
 		do {
-			let response = try await client.runFlow(id: id)
+			let response = try await client.runFlow(id: id, source: source)
 			lastRunResult = response
 			let wantsModal = response.destinations?.contains(where: { $0.type == "modal" }) ?? false
 			if response.ok, wantsModal {

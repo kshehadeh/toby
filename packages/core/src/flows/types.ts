@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { GatewayFundsErrorBody } from "../ai/gateway-funds";
 import type { Persona } from "../config/index";
+import type { FlowSchemaSpec } from "./document-types";
 
 /** How a node input is sourced from literals or prior context. */
 export type FlowInputSource =
@@ -11,6 +12,9 @@ export type FlowInputSource =
 			/** Optional simple dot-path into that value (e.g. `"items"` or `"result.count"`). */
 			readonly path?: string;
 	  };
+
+/** A boolean reference controlling whether an action runs. */
+export type FlowCondition = { readonly from: string; readonly path?: string };
 
 /** Map of node parameter name → source. */
 export type FlowInputMap = Readonly<Record<string, FlowInputSource>>;
@@ -30,6 +34,7 @@ export type ToolExecutorNodeDefinition = {
 	readonly id: string;
 	readonly type: "tool_executor";
 	readonly tool: ToolRef;
+	readonly when?: FlowCondition;
 	readonly inputs?: FlowInputMap;
 	/** Defaults to `{ result: "result" }` (tool result under key `result`). */
 	readonly outputs?: FlowOutputMap;
@@ -42,6 +47,8 @@ export type LlmPrompterNodeDefinition<
 	readonly type: "llm_prompter";
 	/** Zod schema for structured model output (always required). */
 	readonly schema: TSchema;
+	/** Stored schema retained for execution history. */
+	readonly schemaSpec?: FlowSchemaSpec;
 	/** Optional name passed to Output.object. */
 	readonly schemaName?: string;
 	readonly schemaDescription?: string;
@@ -55,7 +62,18 @@ export type LlmPrompterNodeDefinition<
 	readonly timeoutMs?: number;
 };
 
+export type AgentTaskNodeDefinition = {
+	readonly id: string;
+	readonly type: "agent_task";
+	readonly systemPrompt?: string;
+	readonly userPrompt: (ctx: FlowNodePromptContext) => string;
+	readonly projectId?: string;
+	readonly inputs?: FlowInputMap;
+	readonly outputs?: FlowOutputMap;
+};
+
 export type FlowNodeDefinition =
+	| AgentTaskNodeDefinition
 	| ToolExecutorNodeDefinition
 	| LlmPrompterNodeDefinition;
 
@@ -135,7 +153,17 @@ export type LlmPrompterDetail = {
 	} | null;
 };
 
-export type FlowNodeDetail = ToolExecutorDetail | LlmPrompterDetail;
+export type FlowNodeDetail =
+	| ToolExecutorDetail
+	| LlmPrompterDetail
+	| {
+			readonly kind: "agent_task";
+			readonly prompt: string;
+			readonly projectId: string | null;
+			readonly transcript: readonly unknown[];
+			readonly warnings: readonly string[];
+			readonly appliedActions: readonly string[];
+	  };
 
 /** Rich per-node record for in-memory result and DB persistence. */
 export type FlowNodeRecord = {
@@ -222,7 +250,9 @@ export type FlowNodeSnapshot = {
 	readonly id: string;
 	readonly type: FlowNodeDefinition["type"];
 	readonly tool?: ToolRef;
+	readonly when?: FlowCondition;
 	readonly schemaName?: string;
+	readonly schema?: FlowSchemaSpec;
 	readonly temperature?: number;
 	readonly maxOutputTokens?: number;
 	readonly inputs?: Readonly<

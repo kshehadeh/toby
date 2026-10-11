@@ -221,10 +221,10 @@ final class NativeAutomationEventSource: NSObject {
   func handle(method: String, path: String, body: Data?) -> [String: Any] {
     let components = URLComponents(string: "http://localhost" + path)
     let resource = components?.path ?? path
-    if resource == "/api/native/automations/status", method == "GET" {
+    if resource == "/api/native/flows/triggers/status", method == "GET" {
       return ["ok": true, "data": status()]
     }
-    if resource == "/api/native/automations/subscriptions", method == "PUT",
+    if resource == "/api/native/flows/triggers/subscriptions", method == "PUT",
       let body, let value = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
       let owner = value["owner"] as? String, UUID(uuidString: owner) != nil,
       let names = value["types"] as? [String],
@@ -243,7 +243,7 @@ final class NativeAutomationEventSource: NSObject {
       else { return ["ok": false, "error": "Invalid folder watches"] }
       return ["ok": true, "data": subscribe(owner: owner, types: Set(names), watches: watches)]
     }
-    if resource == "/api/native/automations/events", method == "GET" {
+    if resource == "/api/native/flows/triggers/events", method == "GET" {
       let query = components?.queryItems ?? []
       func item(_ key: String) -> String? { query.first { $0.name == key }?.value }
       if let session = item("sessionId"), let text = item("after"), let after = Int(text),

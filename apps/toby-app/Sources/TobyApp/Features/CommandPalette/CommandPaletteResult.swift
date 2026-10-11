@@ -6,7 +6,7 @@ struct CommandPaletteResult: Identifiable {
 		case route(DetailRoute)
 		case session(String)
 		case integration(String)
-		case schedule(String)
+		case flow(String)
 		case recording(String)
 		case chatPrompt(String)
 	}

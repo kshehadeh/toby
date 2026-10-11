@@ -3,6 +3,7 @@ import {
 	DASHBOARD_ITEM_LINK_INSTRUCTIONS,
 } from "../dashboard/prompts";
 import type { FlowDocument } from "./document-types";
+import { dashboardRefreshTrigger } from "./triggers/types";
 
 /**
  * Shared base system prompt for dashboard summary LLM nodes.
@@ -56,6 +57,10 @@ function dashboardSummaryFlow(params: {
 		name: params.id,
 		description: params.description,
 		persona: { source: "dashboard" },
+		triggers: [dashboardRefreshTrigger()],
+		destinations: [
+			{ type: "dashboard", variant: "informational", refresh: "asNeeded" },
+		],
 		nodes: [
 			{
 				id: params.fetchNodeId,

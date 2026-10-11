@@ -12,7 +12,6 @@ struct RootViewTests {
 			dashboardStore: DashboardStore(),
 			configureStore: ConfigureStore(),
 			recordingsStore: RecordingsStore(),
-			schedulesStore: SchedulesStore(),
 			projectsStore: ProjectsStore(),
 			skillsStore: SkillsStore(),
 			memoriesStore: MemoriesStore(),

@@ -3,6 +3,12 @@ import SwiftUI
 struct FlowsSidebarView: View {
 	@Bindable var store: FlowsStore
 	@Binding var showScriptTools: Bool
+	@State private var filter = "All"
+	private var filteredFlows: [FlowListItem] { store.flows.filter { flow in
+		filter == "All" || (flow.triggers ?? []).contains { trigger in
+			switch filter { case "Scheduled": trigger.source.type == "schedule"; case "Events": trigger.source.type.hasPrefix("macos."); case "Home Actions": trigger.source.type == "home.action"; default: trigger.source.type == "manual" }
+		}
+	} }
 
 	init(store: FlowsStore, showScriptTools: Binding<Bool> = .constant(false)) {
 		self.store = store
@@ -20,15 +26,18 @@ struct FlowsSidebarView: View {
 		.padding(12)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.accessibilityIdentifier("open-script-tools")
+		Picker("Filter flows", selection: $filter) {
+            ForEach(["All", "Manual", "Home Actions", "Scheduled", "Events"], id: \.self) { Text($0).tag($0) }
+        }.padding(.horizontal, 12).padding(.bottom, 10)
 		Divider()
 		FeatureBrowserList(
 			isLoading: store.isListLoading,
-			isEmpty: store.flows.isEmpty,
+			isEmpty: filteredFlows.isEmpty,
 			loadingText: "Loading flows…",
 			emptyText: "No flows",
 			onClearSelection: { store.selectHome() }
 		) {
-			ForEach(store.flows) { flow in
+			ForEach(filteredFlows) { flow in
 				Button {
 					Task { await store.selectFlow(id: flow.id) }
 				} label: {

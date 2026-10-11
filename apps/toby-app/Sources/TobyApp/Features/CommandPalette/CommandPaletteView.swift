@@ -3,7 +3,7 @@ import SwiftUI
 struct CommandPaletteView: View {
 	let sessions: [SessionSummary]
 	let integrations: [SettingsItem]
-	let schedules: [ScheduleViewModel]
+	let flows: [FlowListItem]
 	let recordings: [ListenRecordingSummary]
 	let onSelectSession: (String) -> Void
 	let onNewChat: () -> Void
@@ -11,7 +11,7 @@ struct CommandPaletteView: View {
 	let onOpenMemories: () -> Void
 	let onNavigateToRoute: (DetailRoute) -> Void
 	let onOpenIntegration: (String) -> Void
-	let onOpenSchedule: (String) -> Void
+	let onOpenFlow: (String) -> Void
 	let onOpenRecording: (String) -> Void
 	let onStartChat: (String) -> Void
 	let onRestartServer: () -> Void
@@ -107,16 +107,6 @@ struct CommandPaletteView: View {
 			))
 		}
 
-		if trimmed.isEmpty || "schedules".localizedCaseInsensitiveContains(trimmed) {
-			items.append(CommandPaletteResult(
-				id: "action-schedules",
-				title: "Open Schedules",
-				subtitle: "Manage scheduled tasks",
-				systemImage: DetailRoute.schedules.systemImage,
-				kind: .route(.schedules),
-			))
-		}
-
 		if trimmed.isEmpty || "flows".localizedCaseInsensitiveContains(trimmed) {
 			items.append(CommandPaletteResult(
 				id: "action-flows",
@@ -188,25 +178,9 @@ struct CommandPaletteView: View {
 			)
 		}
 
-		let filteredSchedules = schedules.filter { schedule in
-			guard !trimmed.isEmpty else { return true }
-			if schedule.displayName.localizedCaseInsensitiveContains(trimmed) { return true }
-			if schedule.prompt.localizedCaseInsensitiveContains(trimmed) { return true }
-			if schedule.personaName.localizedCaseInsensitiveContains(trimmed) { return true }
-			return false
-		}
-
-		for schedule in filteredSchedules {
-			items.append(
-				CommandPaletteResult(
-					id: "schedule-\(schedule.id)",
-					title: schedule.displayName,
-					subtitle: schedule.subtitle,
-					systemImage: DetailRoute.schedules.systemImage,
-					kind: .schedule(schedule.id),
-				),
-			)
-		}
+        for flow in flows where trimmed.isEmpty || flow.displayName.localizedCaseInsensitiveContains(trimmed) || (flow.description?.localizedCaseInsensitiveContains(trimmed) ?? false) {
+            items.append(CommandPaletteResult(id: "flow-\(flow.id)", title: flow.displayName, subtitle: flow.subtitle, systemImage: flow.systemImage, kind: .flow(flow.id)))
+        }
 
 		let filteredRecordings = recordings.filter { recording in
 			guard !trimmed.isEmpty else { return true }
@@ -391,9 +365,9 @@ struct CommandPaletteView: View {
 		case .integration(let navKey):
 			onDismiss()
 			onOpenIntegration(navKey)
-		case .schedule(let id):
+		case .flow(let id):
 			onDismiss()
-			onOpenSchedule(id)
+			onOpenFlow(id)
 		case .recording(let id):
 			onDismiss()
 			onOpenRecording(id)

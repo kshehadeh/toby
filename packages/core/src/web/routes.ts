@@ -3,7 +3,6 @@ import path from "node:path";
 import { getDaemonIdentity } from "../daemon/status";
 import { resolvePersonaImageFile } from "../personas/index";
 import { handleOpenRouterOAuth } from "./handlers/ai-provider-oauth";
-import { handleAutomations } from "./handlers/automations";
 import { handleChangelog } from "./handlers/changelog";
 import {
 	handleAskUserAnswer,
@@ -40,8 +39,6 @@ import {
 	handleConfigureSectionDetail,
 	handleConfigureSections,
 	handleConfigureTree,
-	handleParseCron,
-	handleScheduleRunDetail,
 } from "./handlers/configure";
 import {
 	handleConnectionConnect,
@@ -62,6 +59,7 @@ import {
 	handleDashboardCategorySummary,
 	handleDashboardFlowBlocks,
 } from "./handlers/dashboard";
+import { handleFlowTriggers } from "./handlers/flow-triggers";
 import {
 	handleFlowCreate,
 	handleFlowDelete,
@@ -264,11 +262,8 @@ export async function handleWebRequest(
 			// Aggregator list payload (internal / debug; not used by home cards).
 			return handleDashboardCategory(rest, url);
 		}
-		if (
-			pathname === "/api/automations" ||
-			pathname.startsWith("/api/automations/")
-		)
-			return handleAutomations(req, pathname);
+		if (pathname.startsWith("/api/flows/triggers/"))
+			return handleFlowTriggers(req, url);
 		if (pathname === "/api/flows" && req.method === "GET") {
 			return handleFlowsList();
 		}
@@ -287,7 +282,7 @@ export async function handleWebRequest(
 		}
 		const flowRunNowMatch = /^\/api\/flows\/([^/]+)\/run$/.exec(pathname);
 		if (flowRunNowMatch && req.method === "POST") {
-			return handleFlowRun(decodeURIComponent(flowRunNowMatch[1]));
+			return handleFlowRun(decodeURIComponent(flowRunNowMatch[1]), req);
 		}
 		const flowItemMatch = /^\/api\/flows\/([^/]+)$/.exec(pathname);
 		if (flowItemMatch) {
@@ -666,13 +661,7 @@ export async function handleWebRequest(
 		if (actionMatch && req.method === "POST") {
 			return handleConfigureAction(decodeURIComponent(actionMatch[1]), req);
 		}
-		const scheduleRunMatch = /^\/api\/schedules\/runs\/([^/]+)$/.exec(pathname);
-		if (scheduleRunMatch && req.method === "GET") {
-			return handleScheduleRunDetail(decodeURIComponent(scheduleRunMatch[1]));
-		}
-		if (pathname === "/api/schedules/parse-cron" && req.method === "POST") {
-			return handleParseCron(req);
-		}
+
 		if (pathname === "/api/connections" && req.method === "GET") {
 			return handleConnectionsList();
 		}

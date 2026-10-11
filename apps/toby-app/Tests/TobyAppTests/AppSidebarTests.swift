@@ -47,7 +47,7 @@ struct AppSidebarTests {
     @Test("destination list exposes every main route")
     func destinationListExposesEveryRoute() throws {
         let sidebar = makeSidebar(currentRoute: .dashboard)
-        for route in DetailRoute.sidebarPrimary + DetailRoute.sidebarAutomation + DetailRoute.sidebarTools {
+        for route in DetailRoute.sidebarPrimary {
             #expect(throws: Never.self) {
                 try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-destination-\(route.rawValue)")
             }

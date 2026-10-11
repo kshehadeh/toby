@@ -74,22 +74,6 @@ struct RootToolbarsTests {
 		)
 	}
 
-	@Test("Schedule subtitle reflects enabled state and next run")
-	func scheduleWindowSubtitle() {
-		#expect(
-			RootToolbars.schedulesNavigationSubtitle(isEnabled: true, nextRunText: "in 5 minutes")
-				== "Next run in 5 minutes"
-		)
-		#expect(
-			RootToolbars.schedulesNavigationSubtitle(isEnabled: true, nextRunText: nil)
-				== "No upcoming run"
-		)
-		#expect(
-			RootToolbars.schedulesNavigationSubtitle(isEnabled: false, nextRunText: "in 5 minutes")
-				== "Paused"
-		)
-	}
-
 	@Test("Skill subtitle uses enabled state and edit date")
 	func skillWindowSubtitle() {
 		#expect(

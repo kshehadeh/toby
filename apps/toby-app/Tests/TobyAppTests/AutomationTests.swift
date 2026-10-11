@@ -101,30 +101,4 @@ struct AutomationTests {
     source.sample()
     #expect(source.sessionId != session)
   }
-  @Test("editor validates required fields and preserves draft-only state")
-  func editor() throws {
-    var draft = AutomationEditorDraft()
-    #expect(!draft.canSave)
-    draft.name = "Briefing"
-    draft.flowId = "flow.test"
-    #expect(draft.canSave)
-    #expect(!draft.enabled)
-    draft.weekdays = [1, 5]
-    draft.useTimeWindow = true
-    let body = try draft.body()
-    let conditions = try #require(body["conditions"] as? [String: Any])
-    #expect(conditions["weekdays"] as? [Int] == [1, 5])
-    draft.inputsJSON = "[]"
-    #expect(throws: (any Error).self) { try draft.body() }
-  }
-  @Test("editor uses the shared sheet and native enable control")
-  func editorView() throws {
-    let store = AutomationsStore()
-    store.startEditor()
-    let sheet = AutomationEditorSheet(store: store)
-    #expect(
-      try sheet.inspect().find(viewWithAccessibilityIdentifier: "automation-name").textField()
-        .input() == "")
-
-  }
 }

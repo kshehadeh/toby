@@ -145,8 +145,10 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET` | `/api/configure/sections/:sectionKey` | Full detail (fields + values) for one settings section. |
 | `PATCH` | `/api/configure/values` | Persist configure value changes. |
 | `POST` | `/api/configure/actions/:action` | Configure actions (create/delete persona, skill, schedule, …). |
-| `POST` | `/api/schedules/parse-cron` | Parse natural-language or cron expressions. |
-| `GET` | `/api/schedules/runs/:id` | Schedule run detail / transcript. |
+| `POST` | `/api/flows/triggers/parse-cron` | Parse natural-language or cron expressions. |
+| `GET` | `/api/flows/triggers/activity?flowId=` | Latest 100 trigger decisions with run links. |
+| `GET` | `/api/flows/triggers/status` | Native source observation status. |
+| `GET` | `/api/flows/triggers/catalog` | Available trigger types. |
 | `GET` | `/api/integrations/:name/status` | Integration health / connection status (also aliases MCP connection ids). |
 | `GET` | `/api/integrations/:name/setup-guide` | Onboarding wizard steps for an integration. |
 | `GET` | `/api/integrations/:name/setup-state` | Guided setup progress: configured field names, workspace label, active inbound integration and persona; no tokens. |
@@ -1372,10 +1374,16 @@ Errors:
 - `400` for missing or invalid fields.
 - `404` for unknown actions.
 
-## Event automations
+## Flow triggers
 
-Saved custom flows can also run on macOS idle/return and system-wake events.
-The daemon matches and claims events while Toby.app observes native APIs.
-Existing schedules keep their current execution path. See
-[event automations](automations.md) for conditions, native app requirements,
-transport, restart behavior, and API contracts.
+Flow create/update bodies include `triggers` and optional `projectId`; returned
+definitions include `revision`. Send the current revision on updates to reject
+stale edits. `POST /api/flows/:id/run` accepts optional `triggerId` selecting an
+enabled manual trigger. Add `source: "home.action"` to select an enabled Home
+Screen Action trigger instead. It shares queue limits and run history with automatic
+triggers and returns 409 when busy. Built-in flows run through Home.
+
+The trigger endpoints above reject browser Origin/cross-site requests. Native
+observation uses `/api/native/flows/triggers/*`. The old `/api/automations/*`,
+`/api/schedules/*`, and configure `schedules.*` contracts are removed.
+See [Flows](flows.md#triggers) for the model and execution semantics.

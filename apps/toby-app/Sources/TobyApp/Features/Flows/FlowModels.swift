@@ -4,6 +4,9 @@ import SwiftUI
 // MARK: - API models
 
 struct FlowListItem: Decodable, Identifiable, Equatable {
+	var triggers: [FlowTriggerSpec]? = nil
+	var projectId: String? = nil
+	var canRunManually: Bool { triggers?.contains { $0.enabled && $0.source.type == "manual" } ?? false }
 	let id: String
 	let name: String
 	let description: String?
@@ -84,12 +87,15 @@ struct FlowNodeSnapshot: Decodable, Identifiable, Equatable {
 	let maxOutputTokens: Int?
 	let inputs: [String: FlowInputSourceSnapshot]?
 	let outputs: [String: String]?
+	var when: FlowEditorOutputInput? = nil
+	var schema: FlowSchemaKind? = nil
 	/// Server-resolved names and icon for a tool step (`GET /api/flows`).
 	var display: FlowToolDisplay? = nil
 
 	var typeLabel: String {
 		switch type {
 		case "tool_executor": return "Tool Executor"
+		case "agent_task": return "Agent Task"
 		case "llm_prompter": return "LLM Prompter"
 		default: return type.replacingOccurrences(of: "_", with: " ").capitalized
 		}
@@ -99,7 +105,7 @@ struct FlowNodeSnapshot: Decodable, Identifiable, Equatable {
 		if type == "tool_executor", let tool {
 			return tool.displayLabel
 		}
-		if type == "llm_prompter" {
+		if type == "llm_prompter" || type == "agent_task" {
 			return schemaName ?? "Structured output"
 		}
 		return typeLabel
@@ -328,6 +334,7 @@ struct FlowRunNodeDetail: Decodable, Identifiable, Equatable {
 	var typeLabel: String {
 		switch nodeType {
 		case "tool_executor": return "Tool Executor"
+		case "agent_task": return "Agent Task"
 		case "llm_prompter": return "LLM Prompter"
 		default: return nodeType.replacingOccurrences(of: "_", with: " ").capitalized
 		}
@@ -630,6 +637,9 @@ struct FlowInputProperty: Equatable, Decodable {
 }
 
 struct FlowDocumentPayload: Decodable, Equatable {
+	var revision: Int? = nil
+	var triggers: [FlowTriggerSpec]? = nil
+	var projectId: String? = nil
 	let id: String
 	let name: String
 	let description: String?
@@ -673,6 +683,12 @@ struct FlowStoredNode: Decodable, Equatable {
 
 struct FlowSchemaKind: Decodable, Equatable {
 	let kind: String
+	let fields: [String: FlowSchemaFieldSpec]?
+}
+
+struct FlowSchemaFieldSpec: Decodable, Equatable {
+	let type: String
+	let description: String?
 }
 
 struct FlowMutationResponse: Decodable {

@@ -100,9 +100,9 @@ struct OnboardingChecklist: Equatable {
 			),
 			OnboardingStep(
 				kind: .createSchedule,
-				title: "Create your first schedule",
+				title: "Create your first scheduled flow",
 				subtitle: "Automate a recurring task",
-				systemImage: DetailRoute.schedules.systemImage,
+				systemImage: DetailRoute.flows.systemImage,
 				isComplete: hasSchedule,
 				actionLabel: "Create"
 			),

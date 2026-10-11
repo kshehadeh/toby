@@ -395,7 +395,7 @@ struct TobyClient {
 	}
 
 	func parseCronExpression(input: String) async throws -> String {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/schedules/parse-cron"))
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/triggers/parse-cron"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 		request.httpBody = try JSONEncoder().encode(["input": input])
@@ -699,8 +699,8 @@ struct TobyClient {
 		return asStream ? .streamError(fallback) : .serverError(fallback)
 	}
 
-	func automationRequest<T: Decodable>(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> T {
-		let components = URLComponents(string: baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/automations" + path)
+	func flowTriggerRequest<T: Decodable>(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> T {
+		let components = URLComponents(string: baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/flows/triggers" + path)
 		guard let url = components?.url else { throw TobyClientError.invalidResponse }
 		var request = URLRequest(url: url)
 		request.httpMethod = method
@@ -1004,12 +1004,12 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
-	func runFlow(id: String) async throws -> FlowRunNowResponse {
+	func runFlow(id: String, source: String = "manual") async throws -> FlowRunNowResponse {
 		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)/run"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["source": source])
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 		if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -1024,14 +1024,6 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		struct Payload: Decodable { let skill: SkillDetail }
 		return try JSONDecoder().decode(Payload.self, from: data).skill
-	}
-
-	func fetchScheduleRun(id: String) async throws -> ScheduleRunDetail {
-		let url = baseURL.appendingPathComponent("api/schedules/runs/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		struct Payload: Decodable { let run: ScheduleRunDetail }
-		return try JSONDecoder().decode(Payload.self, from: data).run
 	}
 
 	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {

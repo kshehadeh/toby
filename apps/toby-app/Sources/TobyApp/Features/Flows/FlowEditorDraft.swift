@@ -11,10 +11,50 @@ struct FlowEditorDraft: Equatable, Identifiable {
 	var destinations: [FlowEditorDestination]
 	var result: FlowResultPointer?
 	var originalPersona: FlowPersonaSpec?
+	var triggers: [FlowTriggerSpec] = [.manual()]
+	var projectId: String = ""
+	var revision: Int?
+	var invalidTriggerFields: Set<String> = []
 
 	var id: String { existingId ?? "new" }
 
 	var isNew: Bool { existingId == nil }
+
+	var hasHomeActionTrigger: Bool { triggers.contains { $0.source.type == "home.action" } }
+
+	var hasHomeRefreshTrigger: Bool { triggers.contains { $0.isHomeRefresh } }
+
+	mutating func selectHomeRefresh() {
+		triggers.removeAll { $0.source.type == "home.action" }
+		if !hasHomeRefreshTrigger { triggers.append(.homeRefresh()) }
+		synchronizeHomeActionDestination()
+	}
+
+	mutating func selectHomeAction() {
+		triggers.removeAll { $0.isHomeRefresh }
+		if !hasHomeActionTrigger { triggers.append(.homeAction()) }
+		synchronizeHomeActionDestination()
+	}
+
+	mutating func synchronizeHomeActionDestination(removingHomeAction: Bool = false) {
+		if hasHomeActionTrigger {
+			if let index = destinations.firstIndex(where: { $0.type == "dashboard" }) {
+				destinations[index].dashboardVariant = "runner"
+			} else {
+				var destination = FlowEditorDestination.dashboard()
+				destination.dashboardVariant = "runner"
+				destinations.append(destination)
+			}
+		} else if hasHomeRefreshTrigger {
+		if let index = destinations.firstIndex(where: { $0.type == "dashboard" }) {
+			destinations[index].dashboardVariant = "informational"
+		} else { destinations.append(.dashboard()) }
+		} else if removingHomeAction {
+			for index in destinations.indices where destinations[index].type == "dashboard" {
+				destinations[index].dashboardVariant = "informational"
+			}
+		}
+	}
 
 	/// If steps write the same bag key, only the last writer is available.
 	func promptOutputs(before nodeId: String) -> [FlowPromptOutput] {
@@ -22,11 +62,23 @@ struct FlowEditorDraft: Equatable, Identifiable {
 		for node in nodes.prefix(while: { $0.id != nodeId }) {
 			for key in node.outputKeys {
 				outputs.removeAll { $0.key == key }
-				outputs.append(FlowPromptOutput(key: key, stepId: node.id))
+				outputs.append(FlowPromptOutput(key: key, stepId: node.id, textPath: node.suggestedOutputPath(for: key, type: "string"), booleanPath: node.suggestedOutputPath(for: key, type: "boolean")))
 			}
 		}
 		return outputs
 	}
+
+	mutating func adaptResultForNamedFields(nodeId: String) {
+		guard let pointer = result, pointer.path == "markdown",
+			let node = nodes.first(where: { $0.id == nodeId }),
+			node.outputKeys.contains(pointer.from), node.outputKind == "object",
+			!node.outputFields.contains(where: { $0.name == "markdown" }) else { return }
+		let body = node.originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+		let mapping = (body?["outputs"] as? [String: String])?[pointer.from] ?? "object"
+		if mapping == "object" { result = FlowResultPointer(from: pointer.from, path: nil) }
+	}
+
+	var outputValidationError: String? { nodes.lazy.compactMap(\.outputValidationError).first }
 
 	static func blank() -> FlowEditorDraft {
 		FlowEditorDraft(
@@ -49,7 +101,7 @@ struct FlowEditorDraft: Equatable, Identifiable {
 			personaName = ""
 		}
 		let destinations = (document.destinations ?? []).map(FlowEditorDestination.init(spec:))
-		return FlowEditorDraft(
+		var draft = FlowEditorDraft(
 			existingId: document.id,
 			name: document.name,
 			description: document.description ?? "",
@@ -59,17 +111,30 @@ struct FlowEditorDraft: Equatable, Identifiable {
 			nodes: document.nodes.map(FlowEditorNode.init(stored:)),
 			destinations: destinations.isEmpty ? [FlowEditorDestination.modal()] : destinations,
 			result: document.result,
-			originalPersona: document.persona
+			originalPersona: document.persona,
+			triggers: document.triggers ?? [.manual()],
+			projectId: document.projectId ?? "",
+			revision: document.revision
 		)
+		if draft.destinations.contains(where: { $0.type == "dashboard" && $0.dashboardVariant == "runner" }) {
+			draft.selectHomeAction()
+		} else if draft.destinations.contains(where: { $0.type == "dashboard" }) {
+			draft.selectHomeRefresh()
+		} else { draft.synchronizeHomeActionDestination() }
+		return draft
 	}
 
 	func jsonBody() -> [String: Any] {
+		var normalized = self
+		normalized.synchronizeHomeActionDestination()
 		var body: [String: Any] = [
 			"name": name.trimmingCharacters(in: .whitespacesAndNewlines),
+			"triggers": triggers.map(\.jsonBody),
+			"projectId": projectId,
 			"icon": FlowIconOption.resolvedSymbol(icon),
 			"color": FlowColorOption.resolvedId(color),
 			"nodes": nodes.map { $0.jsonBody() },
-			"destinations": destinations.map { $0.jsonBody() },
+			"destinations": normalized.destinations.map { $0.jsonBody() },
 		]
 		let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
 		if !trimmedDescription.isEmpty {
@@ -81,13 +146,28 @@ struct FlowEditorDraft: Equatable, Identifiable {
 		} else {
 			body["persona"] = ["source": originalPersona?.source == "dashboard" ? "dashboard" : "default"]
 		}
-		if let result {
+		// Replacing a step may remove its named output. Let the runtime infer the
+		// new final result rather than submitting a pointer to a removed output.
+		if let result, nodes.contains(where: { $0.outputKeys.contains(result.from) }) {
 			var pointer = ["from": result.from]
 			if let path = result.path { pointer["path"] = path }
 			body["result"] = pointer
 		}
+		if let revision { body["revision"] = revision }
 		return body
 	}
+}
+
+struct FlowEditorOutputInput: Codable, Equatable, Sendable {
+	var from: String
+	var path: String?
+}
+
+struct FlowEditorOutputField: Identifiable, Equatable, Sendable {
+	var id = UUID().uuidString
+	var name: String
+	var type: String
+	var description: String = ""
 }
 
 struct FlowEditorNode: Identifiable, Equatable {
@@ -97,14 +177,18 @@ struct FlowEditorNode: Identifiable, Equatable {
 	var toolName: String
 	var userToolId: String?
 	var constInputs: [String: String]
-	var automationInputs: [String: String] = [:]
+	var triggerInputs: [String: String] = [:]
+	var outputInputs: [String: FlowEditorOutputInput] = [:]
+	var when: FlowEditorOutputInput?
+	var outputKind = "markdown"
+	var outputFields: [FlowEditorOutputField] = []
 	var systemPrompt: String
 	var userPrompt: String
 	var standardTool: String?
 	var originalJSON: Data?
 	var originalInputStrings: [String: String] = [:]
 
-	var isLLM: Bool { type == "llm_prompter" }
+	var isLLM: Bool { type == "llm_prompter" || type == "agent_task" }
 
 	var outputKeys: [String] {
 		let body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
@@ -112,6 +196,29 @@ struct FlowEditorNode: Identifiable, Equatable {
 			return outputs.keys.sorted()
 		}
 		return [isLLM ? "object" : "result"]
+	}
+
+	var outputValidationError: String? {
+		guard type == "llm_prompter", outputKind == "object" else { return nil }
+		guard (1...32).contains(outputFields.count) else { return "Add 1–32 output fields." }
+		var names = Set<String>()
+		for field in outputFields {
+			guard field.name.range(of: "^[A-Za-z][A-Za-z0-9_]*$", options: .regularExpression) != nil,
+				!["constructor", "prototype", "__proto__"].contains(field.name) else { return "Field names must start with a letter and contain only letters, numbers, and underscores." }
+			guard names.insert(field.name).inserted else { return "Each output field needs a unique name." }
+		}
+		return nil
+	}
+
+	func suggestedOutputPath(for key: String, type: String) -> String? {
+		guard isLLM else { return nil }
+		let body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+		let mapping = (body?["outputs"] as? [String: String])?[key] ?? "object"
+		let field = outputKind == "markdown" ? (type == "string" ? "markdown" : nil) : outputFields.first(where: { $0.type == type })?.name
+		guard let field else { return nil }
+		if mapping == "object" { return field }
+		if mapping == "." || mapping.isEmpty { return "object.\(field)" }
+		return nil
 	}
 
 	static func tool(moduleName: String, toolName: String, required: [String]) -> FlowEditorNode {
@@ -165,10 +272,16 @@ struct FlowEditorNode: Identifiable, Equatable {
 		userToolId = stored.tool?.userToolId
 		standardTool = stored.tool?.standardTool
 		originalJSON = try? JSONSerialization.data(withJSONObject: stored.originalFields.mapValues(\.value), options: .sortedKeys)
+		outputKind = stored.schema?.kind ?? "markdown"
+		outputFields = (stored.schema?.fields ?? [:]).sorted { $0.key < $1.key }.map { FlowEditorOutputField(name: $0.key, type: $0.value.type, description: $0.value.description ?? "") }
+		if let raw = stored.originalFields["when"], let data = try? JSONSerialization.data(withJSONObject: raw.value) {
+			when = try? JSONDecoder().decode(FlowEditorOutputInput.self, from: data)
+		}
 		var inputs: [String: String] = [:]
 		if let storedInputs = stored.inputs {
 			for (key, source) in storedInputs {
-				if source.from == "automation" { automationInputs[key] = source.path ?? "" }
+				if source.from == "trigger" { triggerInputs[key] = source.path ?? "" }
+				else if let from = source.from { outputInputs[key] = FlowEditorOutputInput(from: from, path: source.path) }
 				if let value = source.constValue {
 					inputs[key] = value.editorString
 				}
@@ -205,16 +318,36 @@ struct FlowEditorNode: Identifiable, Equatable {
 		body["id"] = id
 		body["type"] = type
 		if isLLM {
-			body["schema"] = ["kind": "markdown"]
+			if type == "agent_task" {
+				body.removeValue(forKey: "schema")
+				body.removeValue(forKey: "promptHelpers")
+				body["systemPrompt"] = systemPrompt
+				body["userPrompt"] = userPrompt
+				return body
+			}
+			if outputKind == "object" {
+				var fields: [String: Any] = [:]
+				for field in outputFields {
+					var spec = ["type": field.type]
+					if !field.description.isEmpty { spec["description"] = field.description }
+					fields[field.name] = spec
+				}
+				body["schema"] = ["kind": "object", "fields": fields]
+			} else { body["schema"] = ["kind": "markdown"] }
 			body["systemPrompt"] = systemPrompt
 			body["userPrompt"] = userPrompt
-			if body["promptHelpers"] == nil { body["promptHelpers"] = ["composePersona": true] }
+			if body["promptHelpers"] == nil, originalJSON == nil { body["promptHelpers"] = ["composePersona": true] }
 			return body
 		}
+		if let when {
+			var condition = ["from": when.from]
+			if let path = when.path { condition["path"] = path }
+			body["when"] = condition
+		} else { body.removeValue(forKey: "when") }
 		var inputs: [String: Any] = [:]
 		let originalInputs = body["inputs"] as? [String: Any]
-		for (key, raw) in constInputs where automationInputs[key] == nil {
-			if originalInputStrings[key] == raw, let source = originalInputs?[key] {
+		for (key, raw) in constInputs where triggerInputs[key] == nil && outputInputs[key] == nil {
+			if originalInputStrings[key] == raw, let source = originalInputs?[key] as? [String: Any], source["const"] != nil {
 				inputs[key] = source
 				continue
 			}
@@ -222,7 +355,12 @@ struct FlowEditorNode: Identifiable, Equatable {
 			if trimmed.isEmpty { continue }
 			inputs[key] = ["const": FlowEditorNode.jsonConst(trimmed)]
 		}
-		for (key, path) in automationInputs { inputs[key] = ["from":"automation", "path":path] }
+		for (key, path) in triggerInputs { inputs[key] = ["from":"trigger", "path":path] }
+		for (key, source) in outputInputs {
+			var reference = ["from": source.from]
+			if let path = source.path { reference["path"] = path }
+			inputs[key] = reference
+		}
 		if let userToolId { body["tool"] = ["userToolId": userToolId] }
 		else if let standardTool { body["tool"] = ["standardTool": standardTool] }
 		else { body["tool"] = ["moduleName": moduleName, "toolName": toolName] }
@@ -249,6 +387,8 @@ struct FlowPromptOutput: Identifiable, Equatable {
 	let key: String
 	let stepId: String
 	var stepName: String?
+	var textPath: String? = nil
+	var booleanPath: String? = nil
 	var id: String { key }
 	var token: String { "{{json bag.\(key)}}" }
 }

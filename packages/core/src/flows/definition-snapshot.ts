@@ -27,6 +27,13 @@ function snapshotInputs(
 }
 
 function snapshotNode(node: FlowNodeDefinition): FlowNodeSnapshot {
+	if (node.type === "agent_task")
+		return {
+			id: node.id,
+			type: node.type,
+			inputs: snapshotInputs(node.inputs),
+			outputs: node.outputs,
+		};
 	if (node.type === "tool_executor") {
 		const tool =
 			"userToolId" in node.tool
@@ -36,6 +43,7 @@ function snapshotNode(node: FlowNodeDefinition): FlowNodeSnapshot {
 			id: node.id,
 			type: "tool_executor",
 			tool,
+			...(node.when ? { when: node.when } : {}),
 			inputs: snapshotInputs(node.inputs),
 			outputs: node.outputs,
 		};
@@ -44,6 +52,7 @@ function snapshotNode(node: FlowNodeDefinition): FlowNodeSnapshot {
 		id: node.id,
 		type: "llm_prompter",
 		schemaName: node.schemaName,
+		...(node.schemaSpec ? { schema: node.schemaSpec } : {}),
 		temperature: node.temperature,
 		maxOutputTokens: node.maxOutputTokens,
 		inputs: snapshotInputs(node.inputs),

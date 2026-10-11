@@ -12,7 +12,7 @@ struct FlowsView: View {
 
 	private var flowEditorCanSave: Bool {
 		guard let editor = store.editor else { return false }
-		return !editor.nodes.isEmpty
+		return editor.invalidTriggerFields.isEmpty && editor.outputValidationError == nil && !editor.nodes.isEmpty
 			&& !editor.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 	}
 

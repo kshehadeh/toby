@@ -8,21 +8,38 @@ struct FlowEditorView: View {
 	@Bindable var store: FlowsStore
 	@Binding var draft: FlowEditorDraft
 	@State private var isPickingTool = false
+	@State private var isAddingAction = false
 	@State private var scriptTools: [UserScriptTool] = []
 
-	private var toolNodes: [FlowEditorNode] { draft.nodes.filter { !$0.isLLM } }
+	private var toolNodes: [FlowEditorNode] { Array(draft.nodes.prefix(while: { !$0.isLLM })) }
+	private var actionNodes: [FlowEditorNode] {
+		guard let index = draft.nodes.firstIndex(where: \.isLLM) else { return [] }
+		return Array(draft.nodes.dropFirst(index + 1)).filter { !$0.isLLM }
+	}
 	private var llmNode: FlowEditorNode? { draft.nodes.first(where: \.isLLM) }
 
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 30) {
 				FlowEditorIdentityCard(draft: $draft)
+				FlowTriggersEditor(triggers: $draft.triggers, invalidFields: $draft.invalidTriggerFields)
+				TextField("Project ID (optional, for Agent Task context)", text: $draft.projectId).textFieldStyle(.roundedBorder)
 				howItWorks
 			}
 			.padding(.horizontal, 28)
 			.padding(.vertical, 24)
 			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80, alignment: .leading)
 			.frame(maxWidth: .infinity, alignment: .leading)
+		}
+		.onChange(of: draft.triggers) { old, new in
+			if new.contains(where: { trigger in trigger.isHomeRefresh && !old.contains(where: { $0.id == trigger.id && $0.isHomeRefresh }) }) {
+                draft.triggers.removeAll { $0.source.type == "home.action" }
+            } else if new.contains(where: { trigger in trigger.source.type == "home.action" && !old.contains(where: { $0.id == trigger.id && $0.source.type == "home.action" }) }) {
+                draft.triggers.removeAll { $0.isHomeRefresh }
+            } else if old.contains(where: { $0.isHomeRefresh }) && !new.contains(where: { $0.isHomeRefresh }) && !draft.hasHomeActionTrigger {
+                draft.destinations.removeAll { $0.type == "dashboard" }
+            }
+            draft.synchronizeHomeActionDestination(removingHomeAction: old.contains { $0.source.type == "home.action" } && !new.contains { $0.source.type == "home.action" })
 		}
 		.background(SettingsDesign.canvasBackground)
 		.accessibilityIdentifier("flow-editor")
@@ -71,6 +88,7 @@ struct FlowEditorView: View {
 					info: stepInfo(for: node),
 					catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
 					scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
+					previousOutputs: draft.promptOutputs(before: node.id),
 					canMoveUp: position > 0,
 					canMoveDown: position < toolNodes.count - 1,
 					onMove: { direction in move(nodeId: node.id, direction: direction) },
@@ -87,6 +105,7 @@ struct FlowEditorView: View {
 				detail: "Tasks, calendar, mail, your script tools and more",
 				accessibilityIdentifier: "flow-editor-add-step"
 			) {
+				isAddingAction = false
 				isPickingTool = true
 			}
 
@@ -98,6 +117,7 @@ struct FlowEditorView: View {
 					node: $draft.node(llmNode),
 					personaName: $draft.personaName,
 					dataOptions: dataOptions(for: llmNode),
+					onFormatChange: { draft.adaptResultForNamedFields(nodeId: llmNode.id) },
 					onRemove: { draft.nodes.removeAll { $0.isLLM } }
 				)
 			} else {
@@ -111,7 +131,27 @@ struct FlowEditorView: View {
 				}
 			}
 
-			FlowEditorPhaseHeader(number: 3, title: "Shares", detail: "Where the answer goes")
+			if llmNode != nil {
+				FlowEditorPhaseHeader(number: 3, title: "Acts", detail: "Actions that use the AI answer")
+				ForEach(actionNodes) { node in
+					FlowEditorToolCard(
+						node: $draft.node(node), info: stepInfo(for: node),
+						catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
+						scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
+						previousOutputs: draft.promptOutputs(before: node.id),
+						canMoveUp: actionNodes.first?.id != node.id,
+						canMoveDown: actionNodes.last?.id != node.id,
+						onMove: { direction in move(nodeId: node.id, direction: direction) },
+						onRemove: { draft.nodes.removeAll { $0.id == node.id } }
+					)
+				}
+				FlowEditorAddButton(title: "Add an action", detail: "Use the AI answer in a notification or another tool", accessibilityIdentifier: "flow-editor-add-action") {
+					isAddingAction = true
+					isPickingTool = true
+				}
+			}
+
+			FlowEditorPhaseHeader(number: llmNode == nil ? 3 : 4, title: "Shares", detail: "Where the answer goes")
 				.padding(.top, 10)
 			if draft.destinations.isEmpty {
 				Text("Nowhere picked yet. When you run the flow yourself, Toby shows the result in a window.")
@@ -120,7 +160,13 @@ struct FlowEditorView: View {
 					.fixedSize(horizontal: false, vertical: true)
 			}
 			ForEach(draft.destinations) { destination in
-				FlowEditorDestinationCard(destination: $draft.destination(destination)) {
+				FlowEditorDestinationCard(
+					destination: $draft.destination(destination),
+					isHomeActionRequired: destination.type == "dashboard" && (draft.hasHomeActionTrigger || draft.hasHomeRefreshTrigger),
+                    homeTriggerName: draft.hasHomeActionTrigger ? "Home Screen Action" : "Home refresh",
+                    onSelectHomeRefresh: { draft.selectHomeRefresh() },
+					onSelectHomeAction: { draft.selectHomeAction() }
+				) {
 					draft.destinations.removeAll { $0.id == destination.id }
 				}
 			}
@@ -134,7 +180,7 @@ struct FlowEditorView: View {
 				draft.destinations.append(.modal())
 			}
 			Button("Show it on Home") {
-				draft.destinations.append(.dashboard())
+				draft.selectHomeRefresh()
 			}
 			.disabled(draft.destinations.contains(where: { $0.type == "dashboard" }))
 			Button("Email the result") {
@@ -251,7 +297,7 @@ struct FlowEditorView: View {
 	}
 
 	private func insertBeforeAI(_ node: FlowEditorNode) {
-		if let index = draft.nodes.firstIndex(where: \.isLLM) {
+		if !isAddingAction, let index = draft.nodes.firstIndex(where: \.isLLM) {
 			draft.nodes.insert(node, at: index)
 		} else {
 			draft.nodes.append(node)
@@ -280,7 +326,7 @@ struct FlowEditorView: View {
 	}
 
 	private func move(nodeId: String, direction: Int) {
-		let tools = toolNodes
+		let tools = actionNodes.contains(where: { $0.id == nodeId }) ? actionNodes : toolNodes
 		guard let position = tools.firstIndex(where: { $0.id == nodeId }) else { return }
 		let target = position + direction
 		guard tools.indices.contains(target) else { return }
@@ -443,6 +489,7 @@ private struct FlowEditorToolCard: View {
 	let info: FlowEditorStepInfo
 	let catalogTool: FlowCatalogTool?
 	let scriptTool: UserScriptTool?
+	let previousOutputs: [FlowPromptOutput]
 	let canMoveUp: Bool
 	let canMoveDown: Bool
 	let onMove: (Int) -> Void
@@ -515,6 +562,7 @@ private struct FlowEditorToolCard: View {
 				}
 			}
 			.padding(.leading, 56)
+			FlowEditorConditionControls(node: $node, previousOutputs: previousOutputs)
 		}
 		.padding(.horizontal, 16)
 		.padding(.vertical, 14)
@@ -525,31 +573,44 @@ private struct FlowEditorToolCard: View {
 	@ViewBuilder
 	private func inputRow(key: String, property: FlowInputProperty?, isRequired: Bool) -> some View {
 		VStack(alignment: .leading, spacing: 6) {
-			Picker(
-				"Source for \(FlowEditorText.inputLabel(key))",
-				selection: Binding(
-					get: { node.automationInputs[key] != nil },
-					set: {
-						if $0 {
-							node.automationInputs[key] = "event.payload.changes"
-						} else {
-							node.automationInputs.removeValue(forKey: key)
-						}
+			Picker("Source for \(FlowEditorText.inputLabel(key))", selection: Binding(
+				get: { node.outputInputs[key] != nil ? "output" : node.triggerInputs[key] != nil ? "trigger" : "fixed" },
+				set: { source in
+					node.outputInputs.removeValue(forKey: key)
+					node.triggerInputs.removeValue(forKey: key)
+					if source == "trigger" { node.triggerInputs[key] = "event.payload.changes" }
+					if source == "output" {
+						let output = previousOutputs.last?.key ?? ""
+						node.outputInputs[key] = FlowEditorOutputInput(from: output, path: previousOutputs.last?.textPath)
 					}
-				)
-			) {
-				Text("Fixed value").tag(false)
-				Text("Automation event").tag(true)
+				}
+			)) {
+				Text("Fixed value").tag("fixed")
+				Text("Trigger event").tag("trigger")
+				Text("Previous step output").tag("output").disabled(previousOutputs.isEmpty)
 			}.pickerStyle(.menu).controlSize(.small)
-			if node.automationInputs[key] != nil {
+			if let source = node.outputInputs[key] {
+				Picker("Output for \(FlowEditorText.inputLabel(key))", selection: Binding(
+					get: { node.outputInputs[key]?.from ?? "" },
+					set: { selected in node.outputInputs[key] = FlowEditorOutputInput(from: selected, path: previousOutputs.first(where: { $0.key == selected })?.textPath) }
+				)) {
+					if !previousOutputs.contains(where: { $0.key == source.from }) { Text(source.from).tag(source.from) }
+					ForEach(previousOutputs) { output in Text(output.key).tag(output.key) }
+				}.pickerStyle(.menu)
+				TextField("Field path (optional; markdown for an AI answer)", text: Binding(
+					get: { node.outputInputs[key]?.path ?? "" },
+					set: { node.outputInputs[key] = FlowEditorOutputInput(from: node.outputInputs[key]?.from ?? "", path: $0.isEmpty ? nil : $0) }
+				)).textFieldStyle(.roundedBorder)
+			} else
+			if node.triggerInputs[key] != nil {
 				TextField(
-					"Path in automation context",
+					"Path in trigger context",
 					text: Binding(
-						get: { node.automationInputs[key] ?? "" },
-						set: { node.automationInputs[key] = $0 }
+						get: { node.triggerInputs[key] ?? "" },
+						set: { node.triggerInputs[key] = $0 }
 					)
 				).textFieldStyle(.roundedBorder)
-				Text("Use event.payload.changes for a batch, or event.payload.changes.0.path for its first file. Manual runs need automation context.")
+				Text("Use event.payload.changes for a batch, or event.payload.changes.0.path for its first file. Manual runs need trigger context.")
 					.font(.caption).foregroundStyle(AppTheme.secondaryText)
 			} else {
 				FlowEditorInputRow(key: key, property: property, isRequired: isRequired, value: stringBinding(for: key))
@@ -635,6 +696,7 @@ private struct FlowEditorAIStepCard: View {
 	@Binding var node: FlowEditorNode
 	@Binding var personaName: String
 	let dataOptions: [FlowEditorDataOption]
+	let onFormatChange: () -> Void
 	let onRemove: () -> Void
 
 	@State private var instructions = ""
@@ -650,7 +712,7 @@ private struct FlowEditorAIStepCard: View {
 					Text("Ask AI")
 						.font(.system(size: 13, weight: .medium))
 						.foregroundStyle(SettingsDesign.rowTitle)
-					Text("Reads what the steps above found and writes the answer. It can’t use tools.")
+					Text(node.type == "agent_task" ? "Uses tools, skills, memory, and project context to complete the task." : "Reads what the steps above found and writes the answer.")
 						.font(.system(size: 12))
 						.foregroundStyle(SettingsDesign.rowDescription)
 						.fixedSize(horizontal: false, vertical: true)
@@ -679,6 +741,12 @@ private struct FlowEditorAIStepCard: View {
 							.foregroundStyle(SettingsDesign.rowDescription)
 					}
 				}
+
+				Picker("AI step", selection: $node.type) {
+                    Text("Generate an answer").tag("llm_prompter")
+                    Text("Agent Task — can use tools").tag("agent_task")
+                }
+                if node.type == "llm_prompter" { FlowEditorOutputControls(node: $node, onFormatChange: onFormatChange) }
 
 				VStack(alignment: .leading, spacing: 8) {
 					HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -845,8 +913,12 @@ private struct FlowEditorDataChip: View {
 
 // MARK: - Destinations
 
-private struct FlowEditorDestinationCard: View {
+struct FlowEditorDestinationCard: View {
 	@Binding var destination: FlowEditorDestination
+	var isHomeActionRequired = false
+    var homeTriggerName = "Home Screen Action"
+    var onSelectHomeRefresh: () -> Void = {}
+	var onSelectHomeAction: () -> Void = {}
 	let onRemove: () -> Void
 
 	private var isRunner: Bool { destination.dashboardVariant == "runner" }
@@ -898,6 +970,7 @@ private struct FlowEditorDestinationCard: View {
 				Spacer(minLength: 0)
 				FlowEditorStepMenu(accessibilityLabel: "Options for \(title)") {
 					Button("Remove", role: .destructive, action: onRemove)
+						.disabled(isHomeActionRequired)
 				}
 			}
 
@@ -925,7 +998,10 @@ private struct FlowEditorDestinationCard: View {
 						isSelected: !isRunner
 					) {
 						destination.dashboardVariant = "informational"
+                        onSelectHomeRefresh()
 					}
+					.disabled(isHomeActionRequired)
+					.accessibilityIdentifier("flow-editor-home-card-choice")
 					FlowEditorChoiceTile(
 						systemImage: "play.square",
 						title: "A button in Actions",
@@ -933,7 +1009,15 @@ private struct FlowEditorDestinationCard: View {
 						isSelected: isRunner
 					) {
 						destination.dashboardVariant = "runner"
+						onSelectHomeAction()
 					}
+					.disabled(isHomeActionRequired)
+					.accessibilityIdentifier("flow-editor-home-action-choice")
+				}
+				if isHomeActionRequired {
+					Text("Required by the \(homeTriggerName) trigger. Change or remove that trigger to change this location.")
+						.font(.caption).foregroundStyle(SettingsDesign.rowDescription)
+						.accessibilityIdentifier("flow-editor-home-action-location-lock")
 				}
 				HStack(spacing: 10) {
 					FlowEditorFieldLabel("Home color")

@@ -1,5 +1,7 @@
 # Event-triggered automations
 
+> Historical design: superseded by [unified Flow triggers](flows.md#triggers). Separate Automation entities and APIs described below are no longer current.
+
 Status: first release implemented (idle/return and wake). Folder watching is implemented with batched new/changed/deleted events.
 See [automations.md](automations.md) for the shipped contract; this document
 retains the original implementation plan and future milestones.

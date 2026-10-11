@@ -1,4 +1,10 @@
 import { randomUUID } from "node:crypto";
+import {
+	enqueueTrigger,
+	finishTriggerDecision,
+	listTriggerBindings,
+} from "../../flows/triggers/store";
+import { executeFlowTriggerWorker } from "../../flows/triggers/supervisor";
 import "../../flows/index";
 import {
 	catalogConnectedNames,
@@ -15,7 +21,6 @@ import {
 import type { StoredFlowRecord } from "../../flows/document-types";
 import { hydrateFlowDocument } from "../../flows/hydrate";
 import { parseUserFlowDocumentBody } from "../../flows/parse-user-flow";
-import { runUserFlowById } from "../../flows/run-user-flow";
 import { getFlowRun, listFlowRuns } from "../../flows/store";
 import { describeFlowTool } from "../../flows/tool-display";
 import {
@@ -39,6 +44,8 @@ function serializeFlowRecord(record: StoredFlowRecord) {
 		icon: record.document.icon ?? null,
 		color: record.document.color ?? null,
 		builtin: record.builtin,
+		triggers: record.document.triggers ?? [],
+		projectId: record.document.projectId ?? null,
 		persona: record.document.persona ?? { source: "default" as const },
 		nodes: snapshot.nodes.map((node) =>
 			node.tool ? { ...node, display: describeFlowTool(node.tool) } : node,
@@ -163,12 +170,52 @@ export function handleFlowDelete(id: string): Response {
 }
 
 /** POST /api/flows/:id/run — run now (interactive). */
-export async function handleFlowRun(id: string): Promise<Response> {
+export async function handleFlowRun(
+	id: string,
+	req?: Request,
+): Promise<Response> {
 	const existing = getFlowRecord(id);
 	if (!existing) {
 		return errorResponse("Flow not found", 404);
 	}
-	const result = await runUserFlowById(id, { trigger: "ui" });
+	if (existing.builtin)
+		return errorResponse("Built-in flows run through Home", 403);
+	const body = req ? await readJsonBody(req) : {};
+	const source = body?.source ?? "manual";
+	if (source !== "manual" && source !== "home.action")
+		return errorResponse("Unsupported user-invoked trigger source", 400);
+	const binding = listTriggerBindings().find(
+		(b) =>
+			b.flowId === id &&
+			b.trigger.source.type === source &&
+			b.trigger.enabled &&
+			(!body?.triggerId || b.trigger.id === body.triggerId),
+	);
+	if (!binding)
+		return errorResponse(
+			source === "home.action"
+				? "Enable a Home Screen Action trigger to run this flow from Home"
+				: "Enable a manual trigger to run this flow",
+			400,
+		);
+	const decisionId = enqueueTrigger(binding, {
+		id: randomUUID(),
+		type: source,
+		occurredAt: new Date().toISOString(),
+		payload: {},
+	});
+	if (!decisionId) return errorResponse("Could not claim flow", 409);
+	const result = await executeFlowTriggerWorker(
+		req?.signal ?? new AbortController().signal,
+		decisionId,
+	);
+	if (!result) {
+		finishTriggerDecision(decisionId, "skipped", "busy");
+		return errorResponse(
+			"Flow is busy; try again when the active run finishes",
+			409,
+		);
+	}
 	const funds = result.ok ? undefined : result.gatewayFunds;
 	return jsonResponse({
 		ok: result.ok,

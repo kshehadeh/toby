@@ -16,9 +16,6 @@ struct AppSidebar: View {
 	let onPersonaSelected: () -> Void
 	let onRestartServer: () -> Void
 
-	@SceneStorage("sidebar.automationExpanded") private var automationExpanded = true
-	@SceneStorage("sidebar.toolsExpanded") private var toolsExpanded = true
-
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			List(selection: selectionBinding) {
@@ -26,17 +23,6 @@ struct AppSidebar: View {
 					destinationRow(route)
 				}
 
-				Section("Automation", isExpanded: $automationExpanded) {
-					ForEach(DetailRoute.sidebarAutomation) { route in
-						destinationRow(route)
-					}
-				}
-
-				Section("Tools", isExpanded: $toolsExpanded) {
-					ForEach(DetailRoute.sidebarTools) { route in
-						destinationRow(route)
-					}
-				}
 			}
 			.listStyle(.sidebar)
 			.scrollContentBackground(.hidden)

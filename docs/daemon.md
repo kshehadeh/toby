@@ -6,7 +6,7 @@ The **daemon** is a single long-running Toby process that runs work in the backg
 
 Today the daemon has five responsibilities that run **in parallel** inside that process:
 
-1. **Schedules** — cron-based prompts (summaries, inbox triage, etc.).
+1. **Flow triggers** — schedule and native event matching, durable claims, and Flow execution.
 2. **Chat inbound** — listen on an external chat provider (Slack via Socket Mode today) and run chat turns when users @mention the bot.
 3. **HTTP API server** — localhost API for the native macOS app and CLI.
 4. **Settings sync** — debounced upload and periodic pull of the encrypted vault when enabled (iCloud Drive or a user-picked folder; see [icloud-sync.md](icloud-sync.md)).
@@ -20,9 +20,9 @@ Start it with `toby daemon start` (detached background) or `toby daemon run` (fo
 flowchart TB
   subgraph proc [toby daemon process]
     lock[daemon.lock PID file]
-    sched[Scheduler loop]
+    sched[Flow trigger supervisor]
     inbound[Chat inbound listener]
-    sched --> schedPoll[Poll due schedules every N seconds]
+    sched --> schedPoll[Poll cron and native events]
     inbound --> provider[Active chatInbound provider]
     provider --> router[Inbound router]
     router --> headless[Headless chat turn]
@@ -35,12 +35,12 @@ flowchart TB
 | ---- | ---- |
 | `~/.toby/daemon.lock` | Holds daemon lock metadata (PID + interval); prevents duplicate instances |
 | `~/.toby/logs/toby.log` | Unified structured log; daemon entries use `source: "daemon"` |
-| `~/.toby/chat.sqlite` | Schedules, schedule runs, chat sessions, external session mapping |
+| `~/.toby/chat.sqlite` | Flows, flow runs, trigger decisions, chat sessions, external session mapping |
 
 Implementation entrypoints:
 
 - CLI: [`apps/cli/src/commands/daemon.ts`](../apps/cli/src/commands/daemon.ts)
-- Scheduler: [`apps/cli/src/schedules/scheduler.ts`](../apps/cli/src/schedules/scheduler.ts)
+- Flow triggers: [`packages/core/src/flows/triggers/supervisor.ts`](../packages/core/src/flows/triggers/supervisor.ts)
 - Inbound: [`packages/core/src/chat-inbound/`](../packages/core/src/chat-inbound/)
 - Log: [`packages/core/src/logging/daemon-log.ts`](../packages/core/src/logging/daemon-log.ts) (delegates to [`logger.ts`](../packages/core/src/logging/logger.ts))
 
@@ -48,7 +48,7 @@ Implementation entrypoints:
 
 | Command | Description |
 | ------- | ----------- |
-| `toby daemon start` | Spawn a detached background daemon (default schedule poll: 60s) |
+| `toby daemon start` | Spawn a detached background daemon (Flow trigger polling normally every 5s) |
 | `toby daemon run` | Foreground daemon (used internally by `start`) |
 | `toby daemon stop` | Stop the process recorded in `daemon.lock` |
 | `toby daemon restart` | Stop the daemon if running, then start it again (preserves poll interval unless `-i` is set) |
@@ -75,25 +75,12 @@ Manual **Restart server** always uses the same preferred binary as launch (produ
 
 `start` accepts `-i, --interval <seconds>` to change the schedule poll interval. `restart` accepts the same option; when omitted, it reuses the interval from the running daemon's lock file, or 60s if the daemon was not running.
 
-## Schedules
+## Flow triggers
 
-Schedules are stored in `chat.sqlite` and managed via `toby schedules` or **`/schedules`** in chat. Each schedule has a name, cron expression, enabled flag, and either a **prompt** (plus persona/project) or a **flow** (`flow_id`).
-
-When the daemon is running, every poll interval it:
-
-1. Loads schedules that may be due.
-2. Evaluates cron against `lastRunAt`.
-3. Runs matching schedules:
-   - **Prompt** — the same tool-calling pipeline as headless chat (non-interactive; no `askUser`).
-   - **Flow** — `runUserFlowById` (destinations such as email/Slack still fire; modal/dashboard do not pop a window).
-
-Schedule execution is logged under category `scheduler` in the unified log (`source: "daemon"`, `schedule_run_start`, `schedule_run_complete`, `schedules_fired`, etc.).
-
-User-facing setup: [help-site schedules doc](../apps/help-site/docs/schedules.md).
-In Toby.app, **Schedules** in the destination list opens a schedule list beside
-the editor; select a row to edit that schedule, or use the toolbar
-to create a schedule. Click empty space in the list, or **Schedules** again, to
-clear the selection.
+Flows own manual, cron, wake, idle-return, and file-change triggers. The unified
+supervisor runs captured Flow definitions and records normal Flow run history.
+See [Flows](flows.md#triggers) for timezone, missed-run, queue, and restart rules,
+and [scheduled flows](../apps/help-site/docs/schedules.md) for setup.
 
 ## Chat inbound
 
@@ -101,7 +88,7 @@ Chat inbound lets Toby **listen** on a connected chat integration and respond in
 
 ### How it fits in the daemon
 
-On startup the daemon runs `runChatInboundSupervisor()` alongside the scheduler loop. The supervisor starts inbound listeners and **hot-reloads** them when configure changes `chatInbound.*` (or related inbound credentials/toggles). If inbound is not configured, the listener exits and the supervisor waits for a config change rather than spinning.
+On startup the daemon runs `runChatInboundSupervisor()` alongside the Flow trigger supervisor. The supervisor starts inbound listeners and **hot-reloads** them when configure changes `chatInbound.*` (or related inbound credentials/toggles). If inbound is not configured, the listener exits and the supervisor waits for a config change rather than spinning.
 
 When enabled, the daemon:
 
@@ -268,7 +255,7 @@ Compact one-line format (for scripts): `formatDaemonLogEntry()` in the daemon-lo
 
 | Symptom | Things to check |
 | ------- | ---------------- |
-| Schedules never run | `toby daemon status`; log for `schedules_fired`; cron and `enabled` on schedule |
+| Scheduled flows never run | `toby daemon status`; Flow Trigger activity; cron, timezone and enabled flag |
 | No inbound activity | `chatInbound.enabled`, `integrations.slack.inboundEnabled`, Slack connected |
 | Log shows `inbound_not_connected` | Run `toby connect slack` |
 | No `slack_socket_connected` | Bot + app tokens in configure (not user OAuth alone); Socket Mode enabled; see [Slack credential reference](../apps/help-site/docs/integrations/slack.md#credentials-and-auth-reference) |
@@ -289,10 +276,6 @@ SSE streams emit `ChatEvent` JSON on default `data:` lines. Terminal events use 
 - [integrations.md](integrations.md) — `chatInbound` on `IntegrationModule`
 - [create-integration.md](create-integration.md#inbound-chat) — adding a new inbound provider
 
-## Event automations
+## Native event triggers
 
-Saved custom flows can also run on macOS idle/return and system-wake events.
-The daemon matches and claims events while Toby.app observes native APIs.
-Existing schedules keep their current execution path. See
-[event automations](automations.md) for conditions, native app requirements,
-transport, restart behavior, and API contracts.
+See [native Flow triggers](automations.md) for source observation requirements.

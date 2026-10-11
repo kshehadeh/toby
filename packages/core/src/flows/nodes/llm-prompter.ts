@@ -207,8 +207,9 @@ export async function runLlmPrompterNode(
 				);
 
 				if (structured.output != null) {
+					const validated = node.schema.parse(structured.output);
 					return {
-						object: structured.output,
+						object: validated,
 						detail: baseDetail(
 							node,
 							runtime,
@@ -241,6 +242,9 @@ export async function runLlmPrompterNode(
 		}
 
 		// 2) Free-form generation with a **fresh full** timeout budget.
+		const outputFormat = markdownOnly
+			? "Reply with ONLY the final user-facing content in markdown. Do not wrap the answer in JSON."
+			: `Reply with ONLY a JSON object matching this schema: ${JSON.stringify(await zodSchema(node.schema).jsonSchema)}. Include all required fields with the exact types. Do not use markdown fences.`;
 		const freeform = await withTimeout(
 			timeoutMs,
 			runtime.abortSignal,
@@ -250,9 +254,8 @@ export async function runLlmPrompterNode(
 					instructions: `${systemPrompt}
 
 OUTPUT FORMAT:
-- Reply with ONLY the final user-facing content in markdown.
-- Do NOT include chain-of-thought, planning, or analysis of these instructions.
-- Do NOT wrap the answer in a JSON object unless explicitly required.`,
+- ${outputFormat}
+- Do NOT include chain-of-thought, planning, or analysis of these instructions.`,
 					prompt: userPrompt,
 					abortSignal: signal,
 					temperature,

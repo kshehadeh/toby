@@ -9,6 +9,9 @@ import type {
 } from "./document-types";
 import { isFlowTileColor } from "./flow-colors";
 import { isFlowIconSymbol } from "./flow-icons";
+import { normalizeHomeActionFlow } from "./home-action";
+import { schemaFromSpec } from "./schema-presets";
+import { parseFlowTriggers } from "./triggers/types";
 import type { FlowInputSource, ToolRef } from "./types";
 
 export type FlowCatalogTool = {
@@ -93,7 +96,22 @@ function isEventSource(source: FlowInputSource): boolean {
 	return (
 		isRecord(source) &&
 		!("const" in source) &&
-		source.from === "automation" &&
+		source.from === "trigger" &&
+		(source.path === undefined ||
+			!source.path
+				.split(".")
+				.some((p) => ["__proto__", "constructor", "prototype"].includes(p)))
+	);
+}
+
+function isOutputSource(
+	source: FlowInputSource,
+	availableOutputs: ReadonlySet<string>,
+): boolean {
+	return (
+		isRecord(source) &&
+		!("const" in source) &&
+		availableOutputs.has(source.from) &&
 		(source.path === undefined ||
 			!source.path
 				.split(".")
@@ -105,12 +123,26 @@ function validateToolNode(
 	node: StoredToolExecutorNode,
 	options: ValidateUserFlowOptions,
 	issues: string[],
+	availableOutputs: ReadonlySet<string>,
 ): void {
+	if (
+		node.when &&
+		!isOutputSource(node.when, availableOutputs) &&
+		!isEventSource(node.when)
+	) {
+		issues.push(
+			`Node "${node.id}" condition must reference a previous step output or trigger context using a safe field path`,
+		);
+	}
 	const inputs = node.inputs ?? {};
 	for (const [name, source] of Object.entries(inputs)) {
-		if (!isConstSource(source) && !isEventSource(source)) {
+		if (
+			!isConstSource(source) &&
+			!isEventSource(source) &&
+			!isOutputSource(source, availableOutputs)
+		) {
 			issues.push(
-				`Node "${node.id}" input "${name}" must be a constant or an automation context reference`,
+				`Node "${node.id}" input "${name}" must be a constant, a trigger context reference, or a previous step output`,
 			);
 		}
 	}
@@ -133,6 +165,7 @@ function validateToolNode(
 		if (
 			!source ||
 			(!isEventSource(source) &&
+				!isOutputSource(source, availableOutputs) &&
 				(!isConstSource(source) || !constIsPresent(source.const)))
 		) {
 			issues.push(
@@ -142,19 +175,13 @@ function validateToolNode(
 	}
 }
 
-function validateLlmNode(
-	node: StoredLlmPrompterNode,
-	index: number,
-	nodeCount: number,
-	issues: string[],
-): void {
-	if (index !== nodeCount - 1) {
+function validateLlmNode(node: StoredLlmPrompterNode, issues: string[]): void {
+	try {
+		schemaFromSpec(node.schema);
+	} catch (error) {
 		issues.push(
-			`LLM Prompter node "${node.id}" must be the last step (v1 does not map model output into later tools)`,
+			`LLM Prompter node "${node.id}": ${error instanceof Error ? error.message : "Invalid output schema"}`,
 		);
-	}
-	if (node.schema.kind !== "markdown") {
-		issues.push(`LLM Prompter node "${node.id}" must use the markdown schema`);
 	}
 	if (!node.systemPrompt.trim() && !node.userPrompt.trim()) {
 		issues.push(`LLM Prompter node "${node.id}" needs a system or user prompt`);
@@ -284,6 +311,19 @@ export function validateUserFlowDocument(
 	options: ValidateUserFlowOptions,
 ): FlowDocument {
 	const issues: string[] = [];
+	try {
+		const triggers = parseFlowTriggers(document.triggers);
+		if (
+			triggers.some((t) => t.source.type === "home.action") &&
+			triggers.some((t) => t.source.type === "dashboard.refresh")
+		) {
+			issues.push(
+				"Choose either Home Screen Action or Home refresh for this flow",
+			);
+		}
+	} catch (error) {
+		issues.push(String(error));
+	}
 	const id = document.id.trim();
 	const name = document.name.trim();
 	const icon = document.icon?.trim();
@@ -307,7 +347,14 @@ export function validateUserFlowDocument(
 		issues.push("Flow must have at least one node");
 	}
 
+	if (
+		document.nodes.filter((node) => node.type !== "tool_executor").length > 1
+	) {
+		issues.push("Custom flows support at most one AI step");
+	}
+
 	const nodeIds = new Set<string>();
+	const availableOutputs = new Set<string>();
 	document.nodes.forEach((node: StoredFlowNode, index) => {
 		if (!node.id.trim()) {
 			issues.push(`Node ${index + 1} has an empty id`);
@@ -317,16 +364,38 @@ export function validateUserFlowDocument(
 			issues.push(`Duplicate node id "${node.id}"`);
 		}
 		nodeIds.add(node.id);
+		if (
+			node.outputs &&
+			Object.keys(node.outputs).some((key) =>
+				[
+					"trigger",
+					"automation",
+					"__proto__",
+					"constructor",
+					"prototype",
+				].includes(key),
+			)
+		)
+			issues.push("Steps cannot overwrite reserved context");
 
 		if (node.type === "tool_executor") {
-			validateToolNode(node, options, issues);
+			validateToolNode(node, options, issues, availableOutputs);
+		} else if (node.type === "agent_task") {
+			if (!node.userPrompt.trim()) issues.push("Agent Task needs a prompt");
 		} else if (node.type === "llm_prompter") {
-			validateLlmNode(node, index, document.nodes.length, issues);
+			validateLlmNode(node, issues);
 		} else {
 			issues.push(
 				`Node "${(node as StoredFlowNode).id}" has unsupported type "${(node as { type: string }).type}"`,
 			);
 		}
+		for (const key of Object.keys(
+			node.outputs ??
+				(node.type !== "tool_executor"
+					? { object: "object" }
+					: { result: "result" }),
+		))
+			availableOutputs.add(key);
 	});
 
 	const connected = new Set(options.connectedModules);
@@ -355,7 +424,7 @@ export function validateUserFlowDocument(
 			document.nodes.flatMap((node) =>
 				Object.keys(
 					node.outputs ??
-						(node.type === "llm_prompter"
+						(node.type !== "tool_executor"
 							? { object: "object" }
 							: { result: "result" }),
 				),
@@ -372,7 +441,7 @@ export function validateUserFlowDocument(
 		throw new UserFlowValidationError(issues);
 	}
 
-	return {
+	return normalizeHomeActionFlow({
 		...document,
 		id,
 		name,
@@ -389,7 +458,7 @@ export function validateUserFlowDocument(
 					},
 				}
 			: {}),
-	};
+	});
 }
 
 export function defaultUserFlowDestinations(): readonly FlowDestination[] {

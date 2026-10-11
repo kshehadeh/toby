@@ -7,7 +7,7 @@ import SwiftUI
 /// second global event bus. Split into private helpers so the Swift type
 /// checker can finish in reasonable time.
 struct RootNotificationRouter: ViewModifier {
-	var onStartNewSchedule: () -> Void
+	var onStartNewFlow: () -> Void
 	var onStartNewSkill: () -> Void
 	var onStartNewProject: () -> Void
 	var onStartNewMemory: () -> Void
@@ -22,7 +22,6 @@ struct RootNotificationRouter: ViewModifier {
 	var onOpenIssueReport: () -> Void
 	var onOpenChangelog: () -> Void
 	var onOpenRecording: (String) -> Void
-	var onOpenScheduleFromNotification: (String) -> Void
 	var onStartNewChat: () -> Void
 	var onToggleRecording: () -> Void
 	var onSecondaryWindowClosed: () -> Void
@@ -55,8 +54,8 @@ struct RootNotificationRouter: ViewModifier {
 
 	private func withCreateReceivers(_ content: Content) -> some View {
 		content
-			.onReceive(NotificationCenter.default.publisher(for: .startNewSchedule)) { _ in
-				onStartNewSchedule()
+			.onReceive(NotificationCenter.default.publisher(for: .startNewFlow)) { _ in
+				onStartNewFlow()
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .startNewSkill)) { _ in
 				onStartNewSkill()
@@ -109,10 +108,6 @@ struct RootNotificationRouter: ViewModifier {
 				if let id = notification.object as? String {
 					onOpenRecording(id)
 				}
-			}
-			.onReceive(NotificationCenter.default.publisher(for: .openScheduleFromNotification)) { notification in
-				guard let request = notification.object as? OpenScheduleFromNotificationRequest else { return }
-				onOpenScheduleFromNotification(request.scheduleId)
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .startNewChat)) { _ in
 				onStartNewChat()

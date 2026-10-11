@@ -6,14 +6,14 @@ import Foundation
 /// Keep string raw values stable — external posters (menu bar, native handlers)
 /// and tests depend on them.
 extension Notification.Name {
-	static let openAutomationRun = Notification.Name("openAutomationRun")
+	static let openFlowRun = Notification.Name("openFlowRun")
 	static let askCompanion = Notification.Name("askCompanion")
 	static let openCommandPalette = Notification.Name("openCommandPalette")
 	static let openIssueReport = Notification.Name("openIssueReport")
 	static let openChangelog = Notification.Name("openChangelog")
 	static let openRecordingFromToast = Notification.Name("openRecordingFromToast")
 	static let startNewChat = Notification.Name("startNewChat")
-	static let startNewSchedule = Notification.Name("startNewSchedule")
+	static let startNewFlow = Notification.Name("startNewFlow")
 	static let startNewSkill = Notification.Name("startNewSkill")
 	static let startNewProject = Notification.Name("startNewProject")
 	static let startNewMemory = Notification.Name("startNewMemory")
@@ -28,7 +28,6 @@ extension Notification.Name {
 	static let gatewayFundsExhausted = Notification.Name("gatewayFundsExhausted")
 	static let openMemoriesWindow = Notification.Name("openMemoriesWindow")
 	static let openConnectionStatus = Notification.Name("openConnectionStatus")
-	static let openScheduleFromNotification = Notification.Name("openScheduleFromNotification")
 	static let backupConfig = Notification.Name("backupConfig")
 	static let restoreConfig = Notification.Name("restoreConfig")
 	/// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.
@@ -60,8 +59,4 @@ struct StartChatAboutRecordingRequest {
 	let name: String
 	let dateText: String
 	let hourText: String
-}
-
-struct OpenScheduleFromNotificationRequest {
-	let scheduleId: String
 }

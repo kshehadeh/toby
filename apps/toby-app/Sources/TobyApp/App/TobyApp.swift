@@ -9,7 +9,6 @@ struct TobyApp: App {
 	@State private var dashboardStore = DashboardStore()
 	@State private var configureStore = ConfigureStore()
 	@State private var recordingsStore = RecordingsStore()
-	@State private var schedulesStore = SchedulesStore()
 	@State private var projectsStore = ProjectsStore()
 	@State private var skillsStore = SkillsStore()
 	@State private var memoriesStore = MemoriesStore()
@@ -44,7 +43,6 @@ struct TobyApp: App {
 				dashboardStore: dashboardStore,
 				configureStore: configureStore,
 				recordingsStore: recordingsStore,
-				schedulesStore: schedulesStore,
 				projectsStore: projectsStore,
 				skillsStore: skillsStore,
 				memoriesStore: memoriesStore,
@@ -183,8 +181,8 @@ struct TobyApp: App {
 				}
 				.keyboardShortcut("n", modifiers: .command)
 
-				Button("New Schedule") {
-					NotificationCenter.default.post(name: .startNewSchedule, object: nil)
+				Button("New Flow") {
+					NotificationCenter.default.post(name: .startNewFlow, object: nil)
 				}
 
 				Button("New Skill") {
@@ -304,8 +302,6 @@ struct TobyApp: App {
 		case .projects: return KeyboardShortcut("4", modifiers: .command)
 		case .library: return KeyboardShortcut("0", modifiers: .command)
 		case .skills: return KeyboardShortcut("5", modifiers: .command)
-		case .automations: return nil
-		case .schedules: return KeyboardShortcut("7", modifiers: .command)
 		case .flows: return KeyboardShortcut("8", modifiers: .command)
 		case .recordings: return KeyboardShortcut("9", modifiers: .command)
 		}

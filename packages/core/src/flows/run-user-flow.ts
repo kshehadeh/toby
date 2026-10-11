@@ -6,7 +6,8 @@ import {
 } from "./deliver-destinations";
 import type { FlowDocument } from "./document-types";
 import { type ExtractedFlowResult, extractFlowResult } from "./extract-result";
-import { runFlow } from "./runner";
+import { hydrateFlowDocument } from "./hydrate";
+import { runFlowDefinition } from "./runner";
 import { completeFlowRunDestinations } from "./store";
 import type { FlowResult, FlowRunOptions } from "./types";
 
@@ -37,7 +38,10 @@ export async function runUserFlow(
 	document: FlowDocument,
 	options: UserFlowRunOptions = {},
 ): Promise<UserFlowRunResult> {
-	const result = await runFlow(id, options);
+	const result = await runFlowDefinition(
+		hydrateFlowDocument({ ...document, id }),
+		options,
+	);
 	if (!result.ok) {
 		return {
 			...result,

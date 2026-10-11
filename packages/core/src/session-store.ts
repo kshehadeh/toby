@@ -4,7 +4,6 @@ import type { AIContextWindowInfo } from "./ai/context-window";
 import type { UserIntentSpec } from "./ai/pretreatment";
 import { bufferToVector, vectorToBuffer } from "./ai/vector";
 import type { ChatSessionSettings } from "./api/chat-api";
-import { AUTOMATION_SCHEMA } from "./automations/schema";
 import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
 import { ensureTobyDir, getChatDbPath } from "./config/index";
 import {
@@ -78,7 +77,6 @@ export function getDb(): SqliteDb {
 }
 
 function ensureSchema(db: SqliteDb): void {
-	db.exec(AUTOMATION_SCHEMA);
 	db.exec(`
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id TEXT PRIMARY KEY,
@@ -166,41 +164,6 @@ CREATE TABLE IF NOT EXISTS chat_plan_phases (
 
 CREATE INDEX IF NOT EXISTS idx_chat_plans_session_id
   ON chat_plans(session_id);
-
-CREATE TABLE IF NOT EXISTS schedules (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  prompt TEXT NOT NULL,
-  persona_name TEXT NOT NULL,
-  cron_expression TEXT NOT NULL,
-  project_id TEXT,
-  flow_id TEXT,
-  enabled INTEGER NOT NULL DEFAULT 1,
-  last_run_at TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS schedule_runs (
-  id TEXT PRIMARY KEY,
-  schedule_id TEXT NOT NULL,
-  persona_name TEXT NOT NULL,
-  prompt TEXT NOT NULL,
-  output TEXT,
-  transcript TEXT,
-  status TEXT NOT NULL DEFAULT 'pending',
-  error TEXT,
-  started_at TEXT NOT NULL,
-  completed_at TEXT,
-  FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_schedule_runs_schedule_id
-  ON schedule_runs(schedule_id);
-
-CREATE INDEX IF NOT EXISTS idx_schedule_runs_started_at
-  ON schedule_runs(started_at DESC);
 
 CREATE TABLE IF NOT EXISTS flow_runs (
   id TEXT PRIMARY KEY,
@@ -306,15 +269,10 @@ CREATE INDEX IF NOT EXISTS idx_chat_external_sessions_session_id
 `);
 	migrateChatSessionsSchema(db);
 	migrateChatExternalSessionsSchema(db);
-	migrateScheduleRunsSchema(db);
-	migrateSchedulesSchema(db);
 	migrateFlowRunsSchema(db);
 	db.exec(`
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_project_id
   ON chat_sessions(project_id);
-
-CREATE INDEX IF NOT EXISTS idx_schedules_project_id
-  ON schedules(project_id);
 `);
 }
 
@@ -366,27 +324,6 @@ function migrateChatExternalSessionsSchema(db: SqliteDb): void {
 		db.exec(
 			"ALTER TABLE chat_external_sessions ADD COLUMN last_remote_message_at TEXT",
 		);
-	}
-}
-
-function migrateScheduleRunsSchema(db: SqliteDb): void {
-	const cols = db.query("PRAGMA table_info(schedule_runs)").all() as Array<{
-		name: string;
-	}>;
-	if (!cols.some((c) => c.name === "transcript")) {
-		db.exec("ALTER TABLE schedule_runs ADD COLUMN transcript TEXT");
-	}
-}
-
-function migrateSchedulesSchema(db: SqliteDb): void {
-	const cols = db.query("PRAGMA table_info(schedules)").all() as Array<{
-		name: string;
-	}>;
-	if (!cols.some((c) => c.name === "project_id")) {
-		db.exec("ALTER TABLE schedules ADD COLUMN project_id TEXT");
-	}
-	if (!cols.some((c) => c.name === "flow_id")) {
-		db.exec("ALTER TABLE schedules ADD COLUMN flow_id TEXT");
 	}
 }
 

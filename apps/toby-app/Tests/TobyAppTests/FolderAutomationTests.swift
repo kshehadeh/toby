@@ -107,56 +107,13 @@ struct FolderAutomationTests {
   @Test("tool editor round-trips automation references alongside constants")
   func toolReferences() throws {
     let data = Data(
-      #"{"id":"inspect","type":"tool_executor","tool":{"userToolId":"tool.test"},"inputs":{"changes":{"from":"automation","path":"event.payload.changes"},"label":{"const":"Files"}}}"#
+      #"{"id":"inspect","type":"tool_executor","tool":{"userToolId":"tool.test"},"inputs":{"changes":{"from":"trigger","path":"event.payload.changes"},"label":{"const":"Files"}}}"#
         .utf8)
     var node = FlowEditorNode(stored: try JSONDecoder().decode(FlowStoredNode.self, from: data))
-    #expect(node.automationInputs["changes"] == "event.payload.changes")
+    #expect(node.triggerInputs["changes"] == "event.payload.changes")
     node.constInputs["label"] = "Updated"
     let inputs = try #require(node.jsonBody()["inputs"] as? [String: [String: Any]])
-    #expect(inputs["changes"]?["from"] as? String == "automation")
+    #expect(inputs["changes"]?["from"] as? String == "trigger")
     #expect(inputs["label"]?["const"] as? String == "Updated")
-  }
-  @Test("assessment must match current filters and warning acknowledgment")
-  func assessmentState() async throws {
-    let root = try temp()
-    defer { try? FileManager.default.removeItem(at: root) }
-    let store = AutomationsStore()
-    store.startEditor()
-    store.editor?.name = "Files"
-    store.editor?.flowId = "flow.test"
-    store.editor?.triggerType = "macos.fileChanges"
-    store.editor?.folder = root.path
-    await store.assessFolder()
-    #expect(store.canSaveEditor)
-    store.editor?.recursive = true
-    #expect(!store.canSaveEditor)
-    await store.assessFolder()
-    #expect(store.canSaveEditor)
-    store.folderAssessment = NativeFolderScan(
-      files: [:], visited: 100001, limited: true, rootIdentity: "test")
-    #expect(!store.canSaveEditor)
-    store.editor?.allowLargeFolder = true
-    #expect(store.canSaveEditor)
-    store.cancelEditor()
-    #expect(store.folderAssessment == nil)
-  }
-  @Test("folder editor preserves options and requires an assessment before saving")
-  func editor() throws {
-    var draft = AutomationEditorDraft()
-    draft.name = "Files"
-    draft.flowId = "flow.test"
-    draft.triggerType = "macos.fileChanges"
-    #expect(!draft.canSave)
-    draft.folder = "/tmp/input"
-    draft.extensions = ".TXT, pdf"
-    draft.changeKinds = ["changed", "deleted"]
-    draft.cooldownMinutes = 0
-    let body = try draft.body()
-    let trigger = try #require(body["trigger"] as? [String: Any])
-    #expect(trigger["extensions"] as? [String] == ["txt", "pdf"])
-    #expect(trigger["kinds"] as? [String] == ["changed", "deleted"])
-    let store = AutomationsStore()
-    store.editor = draft
-    #expect(!store.canSaveEditor)
   }
 }

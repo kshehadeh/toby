@@ -7,12 +7,14 @@ import Foundation
 enum FlowStoryPhase: Equatable {
 	case gathers
 	case thinks
+	case acts
 	case shares
 
 	var label: String {
 		switch self {
 		case .gathers: return "Gathers And Acts"
 		case .thinks: return "Thinks"
+		case .acts: return "Acts"
 		case .shares: return "Shares"
 		}
 	}
@@ -40,12 +42,14 @@ enum FlowStory {
 	static func rows(for flow: FlowListItem) -> [FlowStoryRow] {
 		var drafts: [(id: String, phase: FlowStoryPhase, title: String, subtitle: String?, systemImage: String, iconURL: URL?, tint: FlowStoryTint)] = []
 
+		var hasAI = false
 		for node in flow.nodes {
-			if node.type == "llm_prompter" {
+			if (node.type == "llm_prompter" || node.type == "agent_task") {
+				hasAI = true
 				drafts.append((
 					id: "node-\(node.id)",
 					phase: .thinks,
-					title: "Asks AI to put it together",
+					title: node.type == "agent_task" ? "Asks AI to complete a task using tools" : "Asks AI to put it together",
 					subtitle: "Using the steps above, with \(flow.plainPersonaPhrase)",
 					systemImage: "sparkles",
 					iconURL: nil,
@@ -54,7 +58,7 @@ enum FlowStory {
 			} else {
 				drafts.append((
 					id: "node-\(node.id)",
-					phase: .gathers,
+					phase: hasAI ? .acts : .gathers,
 					title: node.plainTitle,
 					subtitle: node.plainSubtitle,
 					systemImage: node.plainSystemImage,
@@ -175,7 +179,7 @@ extension FlowNodeSnapshot {
 
 	/// SF Symbol shown when the integration has no icon (or it is loading).
 	var plainSystemImage: String {
-		if type == "llm_prompter" { return "sparkles" }
+		if type == "llm_prompter" || type == "agent_task" { return "sparkles" }
 		if tool?.userToolId != nil { return "curlybraces" }
 		if let category = standardCategory, let symbol = FlowStory.systemImage(forCategory: category) {
 			return symbol

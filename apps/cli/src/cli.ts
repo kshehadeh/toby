@@ -11,7 +11,6 @@ import { registerDisconnectCommand } from "./commands/disconnect";
 import { registerInternalCommands } from "./commands/internal-handoff";
 import { registerListenCommand } from "./commands/listen";
 import { registerPluginsCommand } from "./commands/plugins";
-import { registerSchedulesCommand } from "./commands/schedules";
 import { registerSessionsCommand } from "./commands/sessions";
 import { registerSkillsCommand } from "./commands/skills";
 import { registerStatusCommand } from "./commands/status";
@@ -39,7 +38,6 @@ for (const mod of getIntegrationModules()) {
 }
 registerConfigCommand(program);
 registerDaemonCommand(program);
-registerSchedulesCommand(program);
 registerSessionsCommand(program);
 registerSkillsCommand(program);
 registerStatusCommand(program);

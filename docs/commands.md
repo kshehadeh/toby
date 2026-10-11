@@ -114,12 +114,14 @@ vault with that password; create is refused if a vault already exists. Without
 Integration behavior is resolved through the core registry (discovered plugins).
 Plugins may register additional Commander subcommands via `registerCommands`.
 
-## Daemon and schedules
+## Daemon and Flow triggers
 
 | Command | Purpose |
 | ------- | ------- |
-| `toby daemon start` / `run` / `stop` / `restart` / `status` | Background daemon (schedules, inbound, HTTP API). See [`daemon.md`](daemon.md). |
-| `toby schedules` | Manage cron-based scheduled prompts (see command help). |
+| `toby daemon start` / `run` / `stop` / `restart` / `status` | Background daemon (Flow triggers, inbound, HTTP API). See [`daemon.md`](daemon.md). |
+
+Scheduled work is managed in **Flows** or through Flow authoring in chat. The
+`toby schedules` command has been removed.
 
 ## Plugins
 
