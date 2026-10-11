@@ -68,7 +68,10 @@ Each native stage/encode has a deadline, within the plugin subprocess timeout.
 The optional protocol-v1 `fileAccess: true` tool annotation requests core's file
 bridge. The adapter resolves `source` at execution time and sends `files.source`
 (approved local path or attachment base64 plus filename) and `files.outputDir`.
-Image bytes never appear in model-generated arguments or tool results.
+Flow tool steps use the same `fileAccess` resolver, including absolute local
+sources and `outputLocation: source` to save beside the input. Invalid source
+values fail before invoking the plugin. Image bytes never appear in
+model-generated arguments or tool results.
 
 `bindPluginFileContext` binds cached tool executors to each turn using async local
 storage. References resolve only against that turn's attachments; ambiguous

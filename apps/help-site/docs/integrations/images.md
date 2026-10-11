@@ -67,3 +67,9 @@ your editing instructions but cannot visually inspect the image. Describe the
 desired crop or use centred cropping when the subject position matters.
 
 Disconnecting Images disables its tools and keeps saved files.
+
+For a file-triggered Flow, enable **Run once per file** and bind the conversion
+source to `trigger.event.payload.changes.0.path`. Choose **JPEG** explicitly
+and `outputLocation: source` to save a new `.jpg` beside each original.
+The Images tool supports PNG input; HEIC requires a separate macOS conversion
+script because it is not supported by this integration.

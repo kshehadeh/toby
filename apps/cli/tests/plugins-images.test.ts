@@ -8,10 +8,14 @@ import { validateChatAttachments } from "@toby/core/chat-pipeline/attachments";
 import { readConfig, writeConfig } from "@toby/core/config/index";
 import {
 	createPluginIntegrationModule,
+	getPluginMetadataRecord,
 	loadPluginMetadata,
+	rememberPluginMetadata,
 } from "@toby/core/integrations/plugins/adapter";
 import { bindPluginFileContext } from "@toby/core/integrations/plugins/file-context";
 import type { Project } from "@toby/core/projects/index";
+
+import { executeNamedTool } from "@toby/core/flows/tool-resolve";
 
 const pluginDir = path.resolve(import.meta.dirname, "../../plugin-images");
 let directory: string;
@@ -72,6 +76,27 @@ function metadata() {
 }
 
 describe("Images integration", () => {
+	it("Flow tool execution converts a local file beside its source", async () => {
+		const cache = getPluginMetadataRecord();
+		const previous = cache.get("images");
+		try {
+			rememberPluginMetadata(metadata());
+			const source = path.join(directory, "flow-input.png");
+			fs.writeFileSync(source, Buffer.from(image, "base64"));
+			const result = await executeNamedTool({
+				moduleName: "images",
+				toolName: "imagesConvert",
+				input: { source, format: "jpeg", outputLocation: "source" },
+			});
+			expect(result.ok).toBe(true);
+			expect(result.result).toMatchObject({ format: "jpeg" });
+			expect(fs.existsSync(path.join(directory, "flow-input.jpg"))).toBe(true);
+			expect(fs.readFileSync(source).toString("base64")).toBe(image);
+		} finally {
+			if (previous) cache.set("images", previous);
+			else cache.delete("images");
+		}
+	});
 	it("reports protocol, readiness, and no credential fields", async () => {
 		const disconnected = await protocol(["status"]);
 		expect(disconnected.body).toMatchObject({

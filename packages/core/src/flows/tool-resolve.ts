@@ -12,6 +12,7 @@ import {
 	pluginToolsExecuteAsync,
 	pluginToolsList,
 } from "../integrations/plugins/client";
+import { resolvePluginFileContext } from "../integrations/plugins/file-context";
 import type { PluginToolsListResponse } from "../integrations/plugins/protocol";
 import { getPluginMetadata } from "../integrations/plugins/registry";
 import {
@@ -219,6 +220,23 @@ export async function executeNamedTool(params: {
 
 	const envelope = buildPluginEnvelope(params.moduleName);
 	const dataDir = ensurePluginDataDir(params.moduleName);
+	const definition = listModuleToolDefinitions(params.moduleName)?.find(
+		(tool) => tool.name === params.toolName,
+	);
+	let files: ReturnType<typeof resolvePluginFileContext> | undefined;
+	try {
+		files = definition?.fileAccess
+			? resolvePluginFileContext(params.input)
+			: undefined;
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error ? error.message : String(error),
+			moduleName: params.moduleName,
+			toolName: params.toolName,
+			standardTool: params.standardTool,
+		};
+	}
 
 	const execResult = await pluginToolsExecuteAsync(metadata.target, {
 		tool: params.toolName,
@@ -227,6 +245,7 @@ export async function executeNamedTool(params: {
 		state: envelope.state,
 		dryRun: false,
 		paths: { dataDir },
+		files,
 	});
 
 	forwardPluginStderr(params.moduleName, execResult.stderr);
