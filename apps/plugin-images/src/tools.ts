@@ -1,11 +1,22 @@
-const number = (description: string, minimum: number, maximum: number) => ({
+const number = (
+	description: string,
+	minimum: number,
+	maximum: number,
+	defaultValue?: number,
+) => ({
 	type: "number",
 	description,
 	minimum,
 	maximum,
+	...(defaultValue === undefined ? {} : { default: defaultValue }),
 });
-const integer = (description: string, minimum: number, maximum: number) => ({
-	...number(description, minimum, maximum),
+const integer = (
+	description: string,
+	minimum: number,
+	maximum: number,
+	defaultValue?: number,
+) => ({
+	...number(description, minimum, maximum, defaultValue),
 	type: "integer",
 });
 const common = {
@@ -22,6 +33,7 @@ const common = {
 	outputLocation: {
 		type: "string",
 		enum: ["default", "source"],
+		default: "default",
 		description:
 			"default saves to project outputs or Toby generated-files. source saves beside the local input file; use for same-folder requests. Not available for attachments.",
 	},
@@ -34,6 +46,7 @@ const common = {
 		"JPEG/WebP encoding quality; 85 default. Ignored for PNG. Does not restore lost detail.",
 		1,
 		100,
+		85,
 	),
 	lossless: {
 		type: "boolean",
@@ -44,11 +57,13 @@ const common = {
 		"PNG compression level (not visual quality); 6 default. Ignored for JPEG/WebP.",
 		0,
 		9,
+		6,
 	),
 	background: {
 		type: "string",
 		description:
 			"Opaque #RRGGBB background for JPEG transparency or contain padding; white default.",
+		default: "#FFFFFF",
 	},
 };
 const transforms = {
@@ -73,10 +88,12 @@ const transforms = {
 	fit: {
 		type: "string",
 		enum: ["contain", "cover"],
+		default: "contain",
 		description: "Resize fit; contain default. Cover crops centrally.",
 	},
 	enlarge: {
 		type: "boolean",
+		default: false,
 		description: "Allow enlargement; false default.",
 	},
 	rotate: {
@@ -97,7 +114,7 @@ const compression = {
 		1,
 		50 * 1024 * 1024,
 	),
-	minQuality: integer("Minimum target-search quality; 30 default", 1, 100),
+	minQuality: integer("Minimum target-search quality; 30 default", 1, 100, 30),
 };
 function definition(
 	name: string,

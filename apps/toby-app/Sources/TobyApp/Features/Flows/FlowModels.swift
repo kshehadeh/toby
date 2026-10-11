@@ -595,14 +595,42 @@ struct FlowInputSchema: Equatable, Decodable {
 struct FlowInputProperty: Equatable, Decodable {
 	let type: String?
 	let description: String?
+	/// Schema `title`, when a tool names the field for people.
+	var title: String? = nil
+	/// Allowed values as strings (`null` removed), in schema order.
+	var enumValues: [String]? = nil
+	/// Labels for `enumValues` from the common `enumNames` extension.
+	var enumNames: [String]? = nil
+	/// Schema `default`, as a string.
+	var defaultValue: String? = nil
+	var minimum: Double? = nil
+	var maximum: Double? = nil
 
 	enum CodingKeys: String, CodingKey {
-		case type, description
+		case type, description, title, minimum, maximum
+		case enumValues = "enum"
+		case enumNames
+		case defaultValue = "default"
 	}
 
-	init(type: String?, description: String?) {
+	init(
+		type: String?,
+		description: String?,
+		title: String? = nil,
+		enumValues: [String]? = nil,
+		enumNames: [String]? = nil,
+		defaultValue: String? = nil,
+		minimum: Double? = nil,
+		maximum: Double? = nil
+	) {
 		self.type = type
 		self.description = description
+		self.title = title
+		self.enumValues = enumValues
+		self.enumNames = enumNames
+		self.defaultValue = defaultValue
+		self.minimum = minimum
+		self.maximum = maximum
 	}
 
 	init(from decoder: Decoder) throws {
@@ -610,11 +638,18 @@ struct FlowInputProperty: Equatable, Decodable {
 		if let stringType = try? container.decode(String.self, forKey: .type) {
 			type = stringType
 		} else if let types = try? container.decode([String].self, forKey: .type) {
-			type = types.first
+			type = types.first(where: { $0 != "null" }) ?? types.first
 		} else {
 			type = nil
 		}
 		description = try? container.decode(String.self, forKey: .description)
+		title = try? container.decode(String.self, forKey: .title)
+		enumValues = (try? container.decode([AnyCodable].self, forKey: .enumValues))
+			.flatMap { Self.strings($0.map(\.value)) }
+		enumNames = try? container.decode([String].self, forKey: .enumNames)
+		defaultValue = (try? container.decode(AnyCodable.self, forKey: .defaultValue)).flatMap { Self.string($0.value) }
+		minimum = try? container.decode(Double.self, forKey: .minimum)
+		maximum = try? container.decode(Double.self, forKey: .maximum)
 	}
 
 	static func parse(_ raw: Any?) -> FlowInputProperty {
@@ -625,14 +660,37 @@ struct FlowInputProperty: Equatable, Decodable {
 		if let stringType = object["type"] as? String {
 			type = stringType
 		} else if let types = object["type"] as? [String] {
-			type = types.first
+			type = types.first(where: { $0 != "null" }) ?? types.first
 		} else {
 			type = nil
 		}
 		return FlowInputProperty(
 			type: type,
-			description: object["description"] as? String
+			description: object["description"] as? String,
+			title: object["title"] as? String,
+			enumValues: (object["enum"] as? [Any]).flatMap(strings),
+			enumNames: object["enumNames"] as? [String],
+			defaultValue: object["default"].flatMap(string),
+			minimum: (object["minimum"] as? NSNumber)?.doubleValue,
+			maximum: (object["maximum"] as? NSNumber)?.doubleValue
 		)
+	}
+
+	/// JSON scalars as the strings the editor stores; `null` and objects drop out.
+	static func string(_ value: Any) -> String? {
+		if let string = value as? String { return string }
+		guard let number = value as? NSNumber else { return nil }
+		if CFGetTypeID(number as CFTypeRef) == CFBooleanGetTypeID() {
+			return number.boolValue ? "true" : "false"
+		}
+		let double = number.doubleValue
+		if double.rounded() == double, abs(double) < 1e15 { return String(Int(double)) }
+		return String(double)
+	}
+
+	private static func strings(_ values: [Any]) -> [String]? {
+		let strings = values.compactMap(string)
+		return strings.isEmpty ? nil : strings
 	}
 }
 
