@@ -655,26 +655,20 @@ enum RootToolbars {
 	) -> some ToolbarContent {
 		let mode = flowsToolbarMode(hasSelection: hasSelection)
 		common(model, header: RootHeaderTitle(title: title))
-		contextualActions(
-			isVisible: mode == .home || (mode == .detail && (canEdit || canRun || canDelete))
-		) {
-			switch mode {
-			case .home:
-				Button(action: onNewFlow) {
-					Image(systemName: "plus")
+		contextualActions {
+			Button(action: onNewFlow) {
+				Image(systemName: "plus")
+			}
+			.help("New flow")
+			.accessibilityIdentifier("toolbar-new-flow-button")
+			.accessibilityLabel("New flow")
+			if mode == .detail, canEdit {
+				Button(action: onEdit) {
+					Image(systemName: "square.and.pencil")
 				}
-				.help("New flow")
-				.accessibilityIdentifier("toolbar-new-flow-button")
-				.accessibilityLabel("New flow")
-			case .detail:
-				if canEdit {
-					Button(action: onEdit) {
-						Image(systemName: "square.and.pencil")
-					}
-					.help("Edit Flow")
-					.accessibilityIdentifier("edit-flow-button")
-					.accessibilityLabel("Edit Flow")
-				}
+				.help("Edit Flow")
+				.accessibilityIdentifier("edit-flow-button")
+				.accessibilityLabel("Edit Flow")
 			}
 			switch mode {
 			case .home:
