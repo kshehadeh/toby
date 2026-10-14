@@ -40,6 +40,7 @@ Human- and flow-oriented docs for this repository.
 | [chat-inbound.md](chat-inbound.md) | Inbound provider contract; external session keys; Slack thread/DM mapping. |
 | [slack-setup-plan.md](slack-setup-plan.md) | Proposed native setup wizard and Slack app provisioning options. |
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |
+| [acp-backends-plan.md](acp-backends-plan.md) | Proposed implementation: selectable API/ACP backends for chat, summaries, flows, and auxiliary generation. |
 | [memory.md](memory.md) | Durable user memory subsystem (`memory.sqlite`). |
 | [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary and releases. |
 | [recent-changes-2026-06-12-to-18.md](recent-changes-2026-06-12-to-18.md) | Dated snapshot of major changes (June 12–18, 2026). |

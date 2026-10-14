@@ -29,11 +29,33 @@ struct FlowsView: View {
 		.onChange(of: store.selectedFlowId) { _, id in
 			if id != nil { preferList = false }
 		}
+		.onChange(of: TutorialStore.shared.currentStep) { _, step in
+			if step == .builtInFlow { preferList = true }
+			if step == .howItWorks {
+				preferList = false
+				store.selectedDetailTab = .details
+			}
+		}
 		.onChange(of: store.editor != nil) { _, editing in
-			if editing { preferList = false }
+			if editing {
+				preferList = false
+				if store.editor?.isNew == true { TutorialStore.shared.advance(.createFlow) }
+			}
 		}
 		.task {
 			await store.ensureLoaded()
+			let tutorial = TutorialStore.shared
+			if let step = tutorial.currentStep {
+				if step == .builtInFlow { preferList = true }
+				if [.howItWorks, .flowSources, .flowAI, .flowSharing, .createFlow].contains(step) {
+					store.selectedDetailTab = .details
+					if store.selectedFlow == nil, let flow = store.flows.first(where: \.builtin) {
+						await store.selectFlow(id: flow.id)
+					}
+				} else if [.editorTrigger, .editorSources, .editorAI, .editorOutput].contains(step), store.editor == nil {
+					await store.startCreate()
+				}
+			}
 		}
 		.sheet(isPresented: $showScriptTools) {
 			UserScriptToolsView(store: scriptToolsStore)

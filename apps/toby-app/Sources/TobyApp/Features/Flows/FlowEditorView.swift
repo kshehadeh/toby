@@ -1,43 +1,47 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Flow editor laid out like the flow's overview: who it is, then what it
-/// Gathers And Acts, how it Thinks and where it Shares. Every phase is optional; a
-/// flow needs at least one source or an AI step to save.
+/// Flow editor laid out like the flow's overview: who it is, then its Steps,
+/// actions and AI prompts in any order, and where it Shares. A flow needs at
+/// least one step to save.
 struct FlowEditorView: View {
 	@Bindable var store: FlowsStore
 	@Binding var draft: FlowEditorDraft
 	@State private var isPickingTool = false
-	@State private var isAddingAction = false
 	@State private var scriptTools: [UserScriptTool] = []
 
-	private var toolNodes: [FlowEditorNode] { Array(draft.nodes.prefix(while: { !$0.isLLM })) }
-	private var actionNodes: [FlowEditorNode] {
-		guard let index = draft.nodes.firstIndex(where: \.isLLM) else { return [] }
-		return Array(draft.nodes.dropFirst(index + 1)).filter { !$0.isLLM }
-	}
-	private var llmNode: FlowEditorNode? { draft.nodes.first(where: \.isLLM) }
+	private var aiNodes: [FlowEditorNode] { draft.nodes.filter(\.isLLM) }
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 30) {
-				FlowEditorIdentityCard(draft: $draft)
-				FlowTriggersEditor(triggers: $draft.triggers, invalidFields: $draft.invalidTriggerFields)
-				if draft.nodes.contains(where: { $0.type == "agent_task" }) || !draft.projectId.isEmpty {
-					HStack(spacing: 10) {
-						FlowEditorFieldLabel("Project")
-							.frame(width: 96, alignment: .leading)
-						TextField("Project ID for the Agent Task (optional)", text: $draft.projectId)
-							.textFieldStyle(.roundedBorder)
-							.accessibilityIdentifier("flow-editor-project-id")
+		ScrollViewReader { proxy in
+			ScrollView {
+				VStack(alignment: .leading, spacing: 30) {
+					FlowEditorIdentityCard(draft: $draft)
+					FlowTriggersEditor(triggers: $draft.triggers, invalidFields: $draft.invalidTriggerFields)
+						.tutorialTip(.editorTrigger, available: draft.isNew)
+						.id(TutorialStep.editorTrigger)
+					if draft.nodes.contains(where: { $0.type == "agent_task" }) || !draft.projectId.isEmpty {
+						HStack(spacing: 10) {
+							FlowEditorFieldLabel("Project")
+								.frame(width: 96, alignment: .leading)
+							TextField("Project ID for the Agent Task (optional)", text: $draft.projectId)
+								.textFieldStyle(.roundedBorder)
+								.accessibilityIdentifier("flow-editor-project-id")
+						}
 					}
+					howItWorks
 				}
-				howItWorks
+				.padding(.horizontal, 28)
+				.padding(.vertical, 24)
+				.frame(maxWidth: SettingsDesign.contentMaxWidth + 80, alignment: .leading)
+				.frame(maxWidth: .infinity, alignment: .leading)
 			}
-			.padding(.horizontal, 28)
-			.padding(.vertical, 24)
-			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80, alignment: .leading)
-			.frame(maxWidth: .infinity, alignment: .leading)
+			.task(id: TutorialStore.shared.currentStep) {
+				if draft.isNew, let step = TutorialStore.shared.currentStep,
+					[.editorTrigger, .editorSources, .editorAI, .editorOutput].contains(step) {
+					proxy.scrollTo(step, anchor: .center)
+				}
+			}
 		}
 		.onChange(of: draft.triggers) { old, new in
 			if new.contains(where: { trigger in trigger.isHomeRefresh && !old.contains(where: { $0.id == trigger.id && $0.isHomeRefresh }) }) {
@@ -74,96 +78,52 @@ struct FlowEditorView: View {
 					.font(.system(size: 13, weight: .semibold))
 					.foregroundStyle(SettingsDesign.rowTitle)
 				Text(draft.nodes.isEmpty
-					? "Add a source, an AI step, or both. A flow needs at least one of them to run."
+					? "Add actions, AI prompts, or both. A flow needs at least one step to run."
 					: "Each time the flow runs, Toby goes through these from top to bottom.")
 					.font(.system(size: 12))
 					.foregroundStyle(SettingsDesign.rowDescription)
 					.fixedSize(horizontal: false, vertical: true)
 			}
 
-			FlowEditorPhaseHeader(number: 1, title: FlowStoryPhase.gathers.label, detail: "Where Toby gathers information or takes action")
+			FlowEditorPhaseHeader(number: 1, title: "Steps", detail: "What Toby does, in order. Later steps can use earlier answers.")
 				.padding(.top, 4)
-			if toolNodes.isEmpty {
-				Text("No sources. That’s fine when AI only needs your instructions, or when the flow just runs actions.")
+				.tutorialTip(.editorSources, available: draft.isNew)
+				.id(TutorialStep.editorSources)
+			if draft.nodes.isEmpty {
+				Text("No steps yet. Add an action to gather information or do something, or an AI prompt to write or decide.")
 					.font(.system(size: 12))
 					.foregroundStyle(AppTheme.tertiaryText)
 					.fixedSize(horizontal: false, vertical: true)
 			}
-			ForEach(toolNodes) { node in
-				let position = toolNodes.firstIndex(where: { $0.id == node.id }) ?? 0
-				FlowEditorToolCard(
-					node: $draft.node(node),
-					info: stepInfo(for: node),
-					catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
-					scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
-					previousOutputs: draft.promptOutputs(before: node.id),
-					outputOptions: outputOptions(before: node),
-					triggerValues: triggerValues,
-					canMoveUp: position > 0,
-					canMoveDown: position < toolNodes.count - 1,
-					onMove: { direction in move(nodeId: node.id, direction: direction) },
-					onRemove: { draft.nodes.removeAll { $0.id == node.id } }
-				)
-				.dropDestination(for: String.self) { ids, _ in
-					guard let id = ids.first, id != node.id else { return false }
-					moveNode(id: id, before: node.id)
-					return true
-				}
+			ForEach(draft.nodes) { node in
+				stepCard(for: node)
+					.dropDestination(for: String.self) { ids, _ in
+						guard let id = ids.first, id != node.id else { return false }
+						moveNode(id: id, before: node.id)
+						return true
+					}
 			}
-			FlowEditorAddButton(
-				title: "Add a source",
-				detail: "Tasks, calendar, mail, your script tools and more",
-				accessibilityIdentifier: "flow-editor-add-step"
-			) {
-				isAddingAction = false
-				isPickingTool = true
-			}
-
-			FlowEditorPhaseHeader(number: 2, title: "Thinks", detail: "What AI does with it")
-				.padding(.top, 10)
-			if let llmNode {
-				FlowEditorAIStepCard(
-					store: store,
-					node: $draft.node(llmNode),
-					personaName: $draft.personaName,
-					dataOptions: dataOptions(for: llmNode),
-					onFormatChange: { draft.adaptResultForNamedFields(nodeId: llmNode.id) },
-					onRemove: { draft.nodes.removeAll { $0.isLLM } }
-				)
-			} else {
+			VStack(alignment: .leading, spacing: 10) {
 				FlowEditorAddButton(
-					title: "Add an AI step",
-					detail: "Have AI summarize or decide from what was gathered",
+					title: "Add an action",
+					detail: "Tasks, calendar, mail, your script tools and more",
+					accessibilityIdentifier: "flow-editor-add-step"
+				) {
+					isPickingTool = true
+				}
+				FlowEditorAddButton(
+					title: "Add an AI prompt",
+					detail: "Have AI summarize, write or decide from earlier steps",
 					systemImage: "sparkles",
 					accessibilityIdentifier: "flow-editor-add-ai"
 				) {
 					addLLM()
 				}
+				.tutorialTip(.editorAI, available: draft.isNew)
+				.id(TutorialStep.editorAI)
 			}
 
-			if llmNode != nil {
-				FlowEditorPhaseHeader(number: 3, title: "Acts", detail: "Actions that use the AI answer")
-				ForEach(actionNodes) { node in
-					FlowEditorToolCard(
-						node: $draft.node(node), info: stepInfo(for: node),
-						catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
-						scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
-						previousOutputs: draft.promptOutputs(before: node.id),
-						outputOptions: outputOptions(before: node),
-						triggerValues: triggerValues,
-						canMoveUp: actionNodes.first?.id != node.id,
-						canMoveDown: actionNodes.last?.id != node.id,
-						onMove: { direction in move(nodeId: node.id, direction: direction) },
-						onRemove: { draft.nodes.removeAll { $0.id == node.id } }
-					)
-				}
-				FlowEditorAddButton(title: "Add an action", detail: "Use the AI answer in a notification or another tool", accessibilityIdentifier: "flow-editor-add-action") {
-					isAddingAction = true
-					isPickingTool = true
-				}
-			}
-
-			FlowEditorPhaseHeader(number: llmNode == nil ? 3 : 4, title: "Shares", detail: "Where the answer goes")
+			FlowEditorPhaseHeader(number: 2, title: "Shares", detail: "Where the answer goes")
 				.padding(.top, 10)
 			if draft.destinations.isEmpty {
 				Text("Nowhere picked yet. When you run the flow yourself, Toby shows the result in a window.")
@@ -183,6 +143,8 @@ struct FlowEditorView: View {
 				}
 			}
 			addDestinationMenu
+				.tutorialTip(.editorOutput, available: draft.isNew)
+				.id(TutorialStep.editorOutput)
 		}
 	}
 
@@ -216,6 +178,68 @@ struct FlowEditorView: View {
 		.buttonStyle(.plain)
 		.menuIndicator(.hidden)
 		.accessibilityIdentifier("flow-editor-add-destination")
+	}
+
+	// MARK: - Steps
+
+	@ViewBuilder
+	private func stepCard(for node: FlowEditorNode) -> some View {
+		let position = draft.nodes.firstIndex(where: { $0.id == node.id }) ?? 0
+		let canMoveUp = position > 0
+		let canMoveDown = position < draft.nodes.count - 1
+		if node.isLLM {
+			FlowEditorAIStepCard(
+				store: store,
+				node: $draft.node(node),
+				personaName: $draft.personaName,
+				title: aiTitle(for: node),
+				dataOptions: dataOptions(for: node),
+				canMoveUp: canMoveUp,
+				canMoveDown: canMoveDown,
+				onMove: { direction in move(nodeId: node.id, direction: direction) },
+				onFormatChange: { draft.adaptResultForNamedFields(nodeId: node.id) },
+				onRemove: { draft.nodes.removeAll { $0.id == node.id } }
+			)
+		} else {
+			FlowEditorToolCard(
+				node: $draft.node(node),
+				info: stepInfo(for: node),
+				catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
+				scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
+				previousOutputs: draft.promptOutputs(before: node.id),
+				outputOptions: outputOptions(before: node),
+				triggerValues: triggerValues,
+				canMoveUp: canMoveUp,
+				canMoveDown: canMoveDown,
+				onMove: { direction in move(nodeId: node.id, direction: direction) },
+				onRemove: { draft.nodes.removeAll { $0.id == node.id } }
+			)
+		}
+	}
+
+	/// "Ask AI" for a single prompt; numbered once a flow has several.
+	private func aiTitle(for node: FlowEditorNode) -> String {
+		let ai = aiNodes
+		guard ai.count > 1, let index = ai.firstIndex(where: { $0.id == node.id }) else { return "Ask AI" }
+		return "Ask AI (\(index + 1))"
+	}
+
+	/// "AI answer" for a single prompt; numbered once a flow has several.
+	private func aiAnswerTitle(for node: FlowEditorNode) -> String {
+		let ai = aiNodes
+		guard ai.count > 1, let index = ai.firstIndex(where: { $0.id == node.id }) else { return "AI answer" }
+		return "AI answer \(index + 1)"
+	}
+
+	/// How an earlier step's output is named in data chips and pickers.
+	private func dataOption(key: String, source: FlowEditorNode) -> FlowEditorDataOption {
+		let many = source.outputKeys.count > 1
+		if source.isLLM {
+			let title = aiAnswerTitle(for: source)
+			return FlowEditorDataOption(key: key, label: many ? "\(title) (\(key))" : title, detail: "AI")
+		}
+		let info = stepInfo(for: source)
+		return FlowEditorDataOption(key: key, label: many ? "\(info.title) (\(key))" : info.title, detail: info.sourceName)
 	}
 
 	// MARK: - Step info
@@ -298,9 +322,10 @@ struct FlowEditorView: View {
 			}
 			let many = source.outputKeys.count > 1
 			if source.isLLM {
+				let title = aiAnswerTitle(for: source)
 				return FlowStepOutputOption(
 					key: output.key,
-					title: many ? "AI answer (\(output.key))" : "AI answer",
+					title: many ? "\(title) (\(output.key))" : title,
 					textPath: output.textPath,
 					systemImage: "sparkles"
 				)
@@ -322,9 +347,7 @@ struct FlowEditorView: View {
 			guard let source = draft.nodes.first(where: { $0.id == output.stepId }) else {
 				return FlowEditorDataOption(key: output.key, label: output.key, detail: nil)
 			}
-			let info = stepInfo(for: source)
-			let label = source.outputKeys.count > 1 ? "\(info.title) (\(output.key))" : info.title
-			return FlowEditorDataOption(key: output.key, label: label, detail: info.sourceName)
+			return dataOption(key: output.key, source: source)
 		}
 		for key in FlowPromptComposer.referencedKeys(in: llm.userPrompt) where !options.contains(where: { $0.key == key }) {
 			options.append(FlowEditorDataOption(key: key, label: key, detail: "No longer available"))
@@ -335,57 +358,35 @@ struct FlowEditorView: View {
 	// MARK: - Mutations
 
 	private func addTool(_ tool: FlowCatalogTool) {
-		insertBeforeAI(.tool(moduleName: tool.moduleName, toolName: tool.toolName, required: tool.requiredFields))
+		draft.appendStep(.tool(moduleName: tool.moduleName, toolName: tool.toolName, required: tool.requiredFields))
 	}
 
 	private func addUserTool(_ tool: UserScriptTool) {
-		insertBeforeAI(FlowEditorNode.userTool(tool))
-	}
-
-	private func insertBeforeAI(_ node: FlowEditorNode) {
-		if !isAddingAction, let index = draft.nodes.firstIndex(where: \.isLLM) {
-			draft.nodes.insert(node, at: index)
-		} else {
-			draft.nodes.append(node)
-		}
+		draft.appendStep(.userTool(tool))
 	}
 
 	private func addLLM() {
-		guard !draft.nodes.contains(where: \.isLLM) else { return }
 		var node = FlowEditorNode.llm()
 		node.userPrompt = FlowEditorDraft.defaultAIPrompt(reading: dataOptionsForNewAIStep())
-		draft.nodes.append(node)
+		draft.appendStep(node)
 	}
 
+	/// Every output a step added at the end could read, latest writer wins.
 	private func dataOptionsForNewAIStep() -> [FlowEditorDataOption] {
-		var seen: [String: FlowEditorDataOption] = [:]
-		var order: [String] = []
-		for node in draft.nodes where !node.isLLM {
-			let info = stepInfo(for: node)
-			for key in node.outputKeys {
-				if seen[key] == nil { order.append(key) }
-				let label = node.outputKeys.count > 1 ? "\(info.title) (\(key))" : info.title
-				seen[key] = FlowEditorDataOption(key: key, label: label, detail: info.sourceName)
-			}
+		draft.promptOutputs(before: "").compactMap { output in
+			draft.nodes.first(where: { $0.id == output.stepId }).map { dataOption(key: output.key, source: $0) }
 		}
-		return order.compactMap { seen[$0] }
 	}
 
 	private func move(nodeId: String, direction: Int) {
-		let tools = actionNodes.contains(where: { $0.id == nodeId }) ? actionNodes : toolNodes
-		guard let position = tools.firstIndex(where: { $0.id == nodeId }) else { return }
-		let target = position + direction
-		guard tools.indices.contains(target) else { return }
-		guard let from = draft.nodes.firstIndex(where: { $0.id == nodeId }),
-			let to = draft.nodes.firstIndex(where: { $0.id == tools[target].id })
-		else { return }
+		guard let from = draft.nodes.firstIndex(where: { $0.id == nodeId }) else { return }
+		let to = from + direction
+		guard draft.nodes.indices.contains(to) else { return }
 		draft.nodes.swapAt(from, to)
 	}
 
 	private func moveNode(id: String, before targetId: String) {
-		guard let from = draft.nodes.firstIndex(where: { $0.id == id }),
-			!draft.nodes[from].isLLM
-		else { return }
+		guard let from = draft.nodes.firstIndex(where: { $0.id == id }) else { return }
 		let node = draft.nodes.remove(at: from)
 		let to = draft.nodes.firstIndex(where: { $0.id == targetId }) ?? draft.nodes.count
 		draft.nodes.insert(node, at: to)
@@ -687,7 +688,11 @@ private struct FlowEditorAIStepCard: View {
 	@Bindable var store: FlowsStore
 	@Binding var node: FlowEditorNode
 	@Binding var personaName: String
+	let title: String
 	let dataOptions: [FlowEditorDataOption]
+	let canMoveUp: Bool
+	let canMoveDown: Bool
+	let onMove: (Int) -> Void
 	let onFormatChange: () -> Void
 	let onRemove: () -> Void
 
@@ -699,9 +704,17 @@ private struct FlowEditorAIStepCard: View {
 	var body: some View {
 		VStack(alignment: .leading, spacing: 14) {
 			HStack(spacing: 12) {
+				Image(systemName: "line.3.horizontal")
+					.font(.system(size: 12, weight: .semibold))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.frame(width: 14)
+					.contentShape(Rectangle())
+					.draggable(node.id)
+					.help("Drag to reorder")
+					.accessibilityHidden(true)
 				FlowStepIconTile(iconURL: nil, systemImage: "sparkles", isAccent: true)
 				VStack(alignment: .leading, spacing: 1) {
-					Text("Ask AI")
+					Text(title)
 						.font(.system(size: 13, weight: .medium))
 						.foregroundStyle(SettingsDesign.rowTitle)
 					Text(node.type == "agent_task" ? "Uses tools, skills, memory, and project context to complete the task." : "Reads what the steps above found and writes the answer.")
@@ -710,8 +723,13 @@ private struct FlowEditorAIStepCard: View {
 						.fixedSize(horizontal: false, vertical: true)
 				}
 				Spacer(minLength: 0)
-				FlowEditorStepMenu(accessibilityLabel: "Options for the AI step") {
-					Button("Remove AI step", role: .destructive, action: onRemove)
+				FlowEditorStepMenu(accessibilityLabel: "Options for \(title)") {
+					Button("Move up") { onMove(-1) }
+						.disabled(!canMoveUp)
+					Button("Move down") { onMove(1) }
+						.disabled(!canMoveDown)
+					Divider()
+					Button("Remove AI prompt", role: .destructive, action: onRemove)
 				}
 			}
 
@@ -748,7 +766,7 @@ private struct FlowEditorAIStepCard: View {
 							.foregroundStyle(AppTheme.tertiaryText)
 					}
 					if dataOptions.isEmpty {
-						Text("Nothing to read yet. Add a source above to give AI some information.")
+						Text("Nothing to read yet. Add an action above to give AI some information.")
 							.font(.system(size: 12))
 							.foregroundStyle(SettingsDesign.rowDescription)
 					} else {
@@ -797,13 +815,13 @@ private struct FlowEditorAIStepCard: View {
 					}
 				}
 			}
-			.padding(.leading, 42)
+			.padding(.leading, 68)
 		}
 		.padding(.horizontal, 16)
 		.padding(.top, 14)
 		.padding(.bottom, 16)
 		.flowEditorCard()
-		.accessibilityIdentifier("flow-editor-ai-step")
+		.accessibilityIdentifier("flow-editor-ai-step-\(node.id)")
 		.onAppear(perform: loadPrompt)
 		.onChange(of: instructions) { _, newValue in
 			applyInstructions(newValue)

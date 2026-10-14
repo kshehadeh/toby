@@ -198,7 +198,11 @@ struct RootView: View {
             .background(WindowAccessor { window in
                 mainWindow = window
             })
+            .onChange(of: history.current) { _, route in
+                TutorialStore.shared.setContext(TutorialSection.forRoute(route))
+            }
             .onAppear {
+                TutorialStore.shared.setContext(TutorialSection.forRoute(history.current))
                 configureStore.onChangesSaved = { Task { await store.refreshStatus() } }
             }
     }
@@ -782,7 +786,13 @@ struct RootView: View {
             onCheckForUpdates: {
                 Task { await updateStore.checkNativeAppForUpdates() }
             },
-            updateStore: updateStore
+            updateStore: updateStore,
+            tutorialSection: TutorialSection.forRoute(history.current),
+            showTutorialButton: TutorialStore.shared.showTutorialButton,
+            onStartTutorial: {
+                sidebarVisibility = .all
+                TutorialStore.shared.start(TutorialSection.forRoute(history.current))
+            }
         )
     }
 

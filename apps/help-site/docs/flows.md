@@ -29,7 +29,7 @@ calendar events.” The built-in **flow-builder** skill checks available tools,
 collects any required details, and saves a custom flow. Open **Flows** to review
 or run it. Home actions also appear in the **Actions** rail.
 
-Saving does not run the flow. Each step shows the settings it needs; optional settings you haven’t filled in sit under **More options**. To use a value from the trigger or an earlier step instead of typing one, click the link button beside a field and pick it, for example **The new file** from a file trigger or **AI answer** from the AI step. **Use a field from it…** picks a named field such as `title`. After adding an AI step, use **Add an action** in the **Acts** section to run a tool with its answer. For a notification, keep the title typed and link the description to **AI answer**. For file triggers, see [Event automations](automations.md). Click a step’s title to collapse it to a one-line summary. For a new AppleScript or TypeScript step,
+Saving does not run the flow. Each step shows the settings it needs; optional settings you haven’t filled in sit under **More options**. To use a value from the trigger or an earlier step instead of typing one, click the link button beside a field and pick it, for example **The new file** from a file trigger or **AI answer** from an AI prompt above it. **Use a field from it…** picks a named field such as `title`. To run a tool with an AI answer, click **Add an action** after the AI prompt. For a notification, keep the title typed and link the description to **AI answer**. For file triggers, see [Event automations](automations.md). Click a step’s title to collapse it to a one-line summary. For a new AppleScript or TypeScript step,
 Toby can draft the code and guide you through saving it in **Script Tools**
 before adding it to the flow.
 
@@ -37,10 +37,10 @@ Actions normally run every time the flow reaches them. Choose **Only run when…
 
 ### Notify only when a meeting is coming
 
-1. Add the calendar **Upcoming events summary** source. Its output includes a `generatedAt` timestamp for the current time.
-2. In the AI step, choose **Answer format → Named fields**. Add `shouldNotify` (Boolean), `title` (Text), and `description` (Text).
+1. Click **Add an action** and add the calendar **Upcoming events summary**. Its output includes a `generatedAt` timestamp for the current time.
+2. Click **Add an AI prompt**, then choose **Answer format → Named fields**. Add `shouldNotify` (Boolean), `title` (Text), and `description` (Text).
 3. Ask AI to compare meeting start times against `generatedAt` and set `shouldNotify` to true only for meetings starting in the next ten minutes, ignore all-day and ongoing events, and write the notification title and body. It must fill every field even when no notification is needed.
-4. Add **Show notification** in **Acts**. Link title and description to **AI answer** with the link button, then choose **Use a field from it…** and enter `title` and `description`.
+4. Click **Add an action** and add **Show notification** below the AI prompt. Link title and description to **AI answer** with the link button, then choose **Use a field from it…** and enter `title` and `description`.
 5. Choose **Only run when…** from the action’s **•••** menu, select that same AI output, and enter `shouldNotify`.
 6. Save the flow and schedule it at `25,55 * * * *` for :25 and :55 each hour.
 
@@ -48,7 +48,7 @@ Completion notifications are optional per trigger. Leave **Notify me when it fin
 
 Named fields support text, boolean, and number values. Names must start with a letter and use letters, numbers, and underscores; each field needs a unique name. All fields are required. Toby validates AI output before it reaches an action.
 
-Conditions apply to actions. The **Shares** destinations still run after a successful flow; use a conditional send tool in **Acts** for email or Slack delivery that should depend on the decision. The Mac must be awake, the daemon running, and calendar and notification permissions enabled.
+Conditions apply to actions. The **Shares** destinations still run after a successful flow; use a conditional send action for email or Slack delivery that should depend on the decision. The Mac must be awake, the daemon running, and calendar and notification permissions enabled.
 
 Changing a flow's destination to a dashboard card preserves its existing steps
 and the data passed to its LLM prompt. Refreshing the card runs the saved flow.
@@ -97,26 +97,32 @@ Built-in flows are labeled and are **read-only** in the UI.
 ## Create your own flow
 
 Click **+** in the Flows toolbar. The **New flow** sheet walks you through
-what the flow **gathers and acts** on, what the AI **thinks** about it, and where the answer is **shared**. Adding AI also exposes an **Acts** section for subsequent actions. Nothing is created until you
+the flow’s **steps** (actions and AI prompts, in any order) and where the answer is **shared**. Nothing is created until you
 click **Save**.
 
 When you replace a step, Toby keeps a selected result if its output still exists.
 If that output was removed, the flow uses the new final step’s result automatically.
 
-![The New flow sheet with Name, Look, and the Gathers and acts, Thinks, and Shares sections](/img/toby-app-flow-builder.png)
+![The New flow sheet with Name, Look, Steps, and Shares sections](/img/toby-app-flow-builder.png)
 
 1. **Name and look.** Give the flow a name and a one-line description, then
    pick an icon and color under **Look**. The color is used for its Home button
    (teal if you skip it).
-2. **Gathers and acts.** Click **Add a source** to add steps that read from
-   or act on your apps (tasks, calendar, mail, macOS controls, or your own
-   [script tools](#reuse-a-script-in-several-flows)). Fill in any settings a
-   step needs, such as Wi‑Fi on or off, when you add it.
-3. **Thinks.** Optionally click **Add an AI step** and describe what the AI
-   should do with what was gathered, for example "List the three most urgent
-   items in one line each."
-4. **Acts.** After adding AI, optionally add an action that uses its output. Choose **Only run when…** in its **•••** menu when it depends on a boolean decision.
-5. **Shares.** Choose where the result goes. **Show it in a window** is the
+2. **Steps.** Steps run from top to bottom, and each can use the output of
+   any step above it. Mix the two kinds freely:
+   - **Add an action** reads from or acts on your apps (tasks, calendar,
+     mail, macOS controls, or your own
+     [script tools](#reuse-a-script-in-several-flows)). Fill in any settings
+     a step needs, such as Wi‑Fi on or off, when you add it. Choose **Only run
+     when…** in its **•••** menu when it depends on a boolean decision.
+   - **Add an AI prompt** describes what the AI should do with earlier
+     results, for example "List the three most urgent items in one line
+     each." A flow can have several AI prompts; a later one can read an
+     earlier one’s answer.
+
+   Reorder steps by dragging them or with **Move up** and **Move down** in
+   the **•••** menu.
+3. **Shares.** Choose where the result goes. **Show it in a window** is the
    default. You can add or swap in:
    - **Email** or **Slack** (that app must be connected)
    - **Home**, as either:
@@ -125,7 +131,7 @@ If that output was removed, the flow uses the new final step’s result automati
        minutes old. **Manual** refreshes only when you click refresh.
      - **A button** in the **Actions** strip that runs the flow when you
        click it. Hover over a button to see its name and description.
-6. Click **Save**, then **Run now** to try it.
+4. Click **Save**, then **Run now** to try it.
 
 You can combine a dashboard card with a result window (or email / Slack). A
 flow can have only one Dashboard destination. Email and Slack still send when
@@ -225,7 +231,8 @@ All trigger types share the Flow's steps, persona, result, and destinations.
 Choose **Agent Task — can use tools** for a prompt that needs Toby to choose
 its own tools, use skills/memory, or work in a project. Choose **Generate an
 answer** for fixed markdown or named-field output from supplied data. A flow
-supports one AI step. Agent Tasks cannot ask questions while running.
+can have several AI prompts, and they share the flow’s persona. Agent Tasks
+cannot ask questions while running.
 
 Chat remains the interactive option for open-ended work and follow-up questions.
 

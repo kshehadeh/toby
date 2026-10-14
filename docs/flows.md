@@ -754,8 +754,10 @@ persona, skills, memory, and optional Flow `projectId`. It accepts `userPrompt`,
 optional `systemPrompt`, and output mappings, returning `{ object: { markdown } }`.
 Use `outputs: { summary: "object" }` and result `{ from: "summary", path: "markdown" }`.
 A scheduled prompt is simply a Flow containing this node and a schedule trigger.
-A Flow supports at most one AI node: `agent_task` or `llm_prompter`.
-The latter keeps fixed structured generation without a tool-calling loop.
+A Flow may contain any number of AI nodes (`agent_task` or `llm_prompter`)
+in any position. The latter keeps fixed structured generation without a
+tool-calling loop. Give each node a unique output key; a later node writing the
+same key replaces the earlier value in the bag.
 
 ## Failure behavior
 

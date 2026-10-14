@@ -72,6 +72,8 @@ struct AppSidebar: View {
 
 	private func destinationRow(_ route: DetailRoute) -> some View {
 		Label(route.menuTitle, systemImage: route.systemImage)
+			.tutorialTipForSidebar(route)
+			.accessibilityElement(children: .contain)
 			.tag(route)
 			.tint(AppTheme.secondaryText)
 			.accessibilityHint(route.sidebarHint)
@@ -106,5 +108,21 @@ struct SidebarActionHelpPopover: View {
 		}
 		.padding(14)
 		.frame(width: 260, alignment: .leading)
+	}
+}
+
+private extension View {
+	@ViewBuilder
+	func tutorialTipForSidebar(_ route: DetailRoute) -> some View {
+		if let step = TutorialStep.sidebarStep(for: route) {
+			switch step {
+			case .projects: tutorialTip(.projects, available: TutorialStore.shared.activeSection == .home, arrowEdge: .trailing)
+			case .library: tutorialTip(.library, available: TutorialStore.shared.activeSection == .home, arrowEdge: .trailing)
+			case .recordings: tutorialTip(.recordings, available: TutorialStore.shared.activeSection == .home, arrowEdge: .trailing)
+			case .flows: tutorialTip(.flows, available: TutorialStore.shared.activeSection == .home, arrowEdge: .trailing)
+			case .skills: tutorialTip(.skills, available: TutorialStore.shared.activeSection == .home, arrowEdge: .trailing)
+			default: self
+			}
+		} else { self }
 	}
 }

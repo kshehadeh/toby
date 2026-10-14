@@ -103,6 +103,39 @@ API). Implementation: `AppearancePreferences` /
 | `toby.appearance.mode` | system | Theme | Theme (`system` / `light` / `dark`) |
 | `toby.appearance.accent` | orange | Accent color | Accent color preset |
 
+### Section tutorials (TipKit)
+
+The permanent main toolbar has a context-sensitive tutorial button. It starts or
+restarts only the currently displayed section's tutorial: Home, Chats, Projects,
+Library, Recordings, Flows, or Skills. Tutorials are requested explicitly and do
+not start automatically on launch. `TutorialSection` owns each section's ordered
+lesson list; `TutorialStore` keeps progress independently by section. Home
+introduces dashboard controls and the sidebar workspaces; Flows walks through a
+built-in flow, How it works, and a new flow draft (trigger, sources, AI, output).
+The editor uses stable `ScrollViewReader` targets to reveal the output controls.
+The tutorial does not execute flows or save drafts.
+
+Settings → General → **Show tutorial button** controls toolbar visibility only.
+There is no settings restart button. Stopping or closing a tip ends its session
+without hiding the toolbar button. Navigating to another section ends the old
+session; that section's toolbar button starts its own tutorial. Replaying one
+section clears only that section's completed lessons. Setup and update tips keep
+their own behavior.
+
+Client-local UserDefaults keys: `tutorial.enabled` (button visibility, default
+true; reused from the previous global switch), `tutorial.sectionProgress`
+(section IDs mapped to completed stable lesson IDs), and `tutorial.generation`
+(TipKit replay identity). Completed progress survives launches; active sessions
+do not resume automatically. Old global `tutorial.completedSteps` is no longer
+read. The shared TipKit datastore is never reset for replay.
+
+To extend a tutorial, add copy and a stable ID to `TutorialStep`, add it to the
+appropriate `TutorialSection.steps`, and attach `.tutorialTip(...)` to its control
+or section. Use `available:` for conditional anchors and callbacks for navigation.
+Put fixed scroll IDs outside the tip modifier for editor lessons below the fold.
+Implementation lives in `Features/Tutorial/`; `RootToolbars.common` places the
+button alongside recording, Settings, and Search across all main routes.
+
 Chat activity uses a single expandable work log (`TranscriptGrouping` /
 `TranscriptView` / `WorkedForRow`). Work sections start collapsed, including
 active and failed work, and keep the user’s expansion choice through completion.

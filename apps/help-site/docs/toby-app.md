@@ -208,8 +208,34 @@ These preferences apply to this Mac only.
 | **Start at login** | Open Toby automatically when you log in | Off |
 | **Show menu bar icon** | Quick access to chat, recording, and windows from the menu bar | On |
 | **Global shortcuts** | System-wide shortcuts for the command palette, recording, and new chat | Not set |
+| **Show tutorial button** | Show a button in the main toolbar to start the current section’s tutorial | On |
 | **Theme** | System, Light, or Dark | System |
 | **Accent color** | Color for buttons and highlights | Orange |
+
+### Section tutorials
+
+Choose the **tutorial button** (question mark) in the permanent main toolbar to
+start or restart the tutorial for the section you are viewing. For example, in
+**Flows** it starts the Flows tutorial; in **Home** it starts the Home tutorial.
+Home, Chats, Projects, Library, Recordings, Flows, and Skills each have their own
+tutorial. Replaying one section does not reset progress in the others.
+
+The Home tutorial introduces the dashboard and workspaces. The Flows tutorial
+invites you to inspect a built-in flow, explains **How it works**, and opens a new
+flow draft. It explains triggers, sources, AI, and output destinations, scrolling
+the editor to reveal the output area. The other sections currently provide a
+short introduction.
+
+Tutorials start when you request them. Choose **Next** to continue, or **Finish
+tutorial** at the end. **Stop tour**, closing a tip, or switching sections ends
+the current session. Use the toolbar button to start that section again.
+Exploring the tutorial does not run a flow or save a draft; you can customize and
+save the draft afterward or choose **Cancel**.
+
+Use **Settings → General → Show tutorial button** to show or hide the toolbar
+button. This setting controls the button’s visibility, and there is no separate
+restart button in Settings. Progress is saved on this Mac; setup help and update
+notices are separate from tutorials.
 
 ## Menus
 

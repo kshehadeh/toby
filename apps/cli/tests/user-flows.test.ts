@@ -294,20 +294,31 @@ describe("validateUserFlowDocument", () => {
 		}
 	});
 
-	it("keeps the single AI step constraint", () => {
+	it("accepts several AI steps that read earlier AI answers", () => {
 		const node = {
 			id: "think",
 			type: "llm_prompter" as const,
 			schema: { kind: "markdown" as const },
 			systemPrompt: "Summarize",
 			userPrompt: "Hello",
+			outputs: { draft: "object" },
 		};
-		expect(() =>
-			validateUserFlowDocument(
-				wifiThenMinimize({ nodes: [node, { ...node, id: "again" }] }),
-				{ tools: catalog, connectedModules: connected },
-			),
-		).toThrow(/at most one/);
+		const normalized = validateUserFlowDocument(
+			wifiThenMinimize({
+				nodes: [
+					node,
+					{
+						...node,
+						id: "again",
+						userPrompt: "Polish {{json bag.draft}}",
+						outputs: { polished: "object" },
+					},
+				],
+				result: { from: "polished", path: "markdown" },
+			}),
+			{ tools: catalog, connectedModules: connected },
+		);
+		expect(normalized.nodes.map((n) => n.id)).toEqual(["think", "again"]);
 	});
 
 	it("accepts a last LLM node", () => {

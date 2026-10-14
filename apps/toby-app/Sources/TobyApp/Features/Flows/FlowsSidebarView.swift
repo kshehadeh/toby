@@ -57,12 +57,16 @@ struct FlowsSidebarView: View {
 		) {
 			ForEach(filteredFlows) { flow in
 				Button {
+					if flow.builtin { TutorialStore.shared.advance(.builtInFlow) }
 					Task { await store.selectFlow(id: flow.id) }
 				} label: {
 					FlowSidebarRow(
 						flow: flow,
 						isSelected: store.selectedFlowId == flow.id
 					)
+				}
+				.tutorialTip(.builtInFlow, available: flow.id == filteredFlows.first(where: \.builtin)?.id, arrowEdge: .trailing) {
+					Task { await store.selectFlow(id: flow.id) }
 				}
 				.buttonStyle(.plain)
 				.contextMenu {
@@ -79,6 +83,9 @@ struct FlowsSidebarView: View {
 				}
 			}
 		}
+		}
+		.onChange(of: TutorialStore.shared.currentStep) { _, step in
+			if step == .builtInFlow { filter = .all }
 		}
 	}
 }

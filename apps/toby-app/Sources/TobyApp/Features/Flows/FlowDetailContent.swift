@@ -45,51 +45,65 @@ struct FlowDetailsPane: View {
 	}
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 26) {
-				FlowOverviewHeader(flow: flow)
-                DetailSection(title: "When") {
-                    ForEach(flow.triggers ?? []) { trigger in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack { Text(trigger.name); Spacer(); Text(trigger.enabled ? trigger.label : "Disabled").foregroundStyle(.secondary) }
-                            if trigger.source.type == "dashboard.refresh" {
-                                Text("Runs when Home refreshes this card, using its update setting. Automatic updates reuse fresh content for up to five minutes.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
+		ScrollViewReader { proxy in
+			ScrollView {
+				VStack(alignment: .leading, spacing: 26) {
+					FlowOverviewHeader(flow: flow)
+	                DetailSection(title: "When") {
+	                    ForEach(flow.triggers ?? []) { trigger in
+	                        VStack(alignment: .leading, spacing: 6) {
+	                            HStack { Text(trigger.name); Spacer(); Text(trigger.enabled ? trigger.label : "Disabled").foregroundStyle(.secondary) }
+	                            if trigger.source.type == "dashboard.refresh" {
+	                                Text("Runs when Home refreshes this card, using its update setting. Automatic updates reuse fresh content for up to five minutes.")
+	                                    .font(.caption)
+	                                    .foregroundStyle(.secondary)
+	                            }
+	                        }
+	                    }
+	                }
 
-				DetailSection(title: "How it works") {
-					FlowStoryCard(flow: flow)
-				}
+					DetailSection(title: "How it works") {
+						FlowStoryCard(flow: flow)
+					}
+					.tutorialTip(.howItWorks, .flowSources, .flowAI, .flowSharing, .createFlow) {
+						if TutorialStore.shared.currentStep == .editorTrigger {
+							Task { await store.startCreate() }
+						}
+					}
+					.id("tutorial-flow-story")
 
-				DisclosureGroup(isExpanded: $showsTechnicalDetails) {
-					FlowTechnicalDetails(flow: flow)
-						.padding(.top, 10)
-				} label: {
-					HStack(spacing: 6) {
-						Text("Technical details")
-							.font(.system(size: 13, weight: .semibold))
-							.foregroundStyle(SettingsDesign.rowTitle)
-						Text("For troubleshooting")
-							.font(.system(size: 12))
-							.foregroundStyle(AppTheme.tertiaryText)
+					DisclosureGroup(isExpanded: $showsTechnicalDetails) {
+						FlowTechnicalDetails(flow: flow)
+							.padding(.top, 10)
+					} label: {
+						HStack(spacing: 6) {
+							Text("Technical details")
+								.font(.system(size: 13, weight: .semibold))
+								.foregroundStyle(SettingsDesign.rowTitle)
+							Text("For troubleshooting")
+								.font(.system(size: 12))
+								.foregroundStyle(AppTheme.tertiaryText)
+						}
+					}
+					.accessibilityIdentifier("flow-technical-details")
+
+					if let errorMessage = store.errorMessage, !store.flows.isEmpty {
+						InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
 					}
 				}
-				.accessibilityIdentifier("flow-technical-details")
-
-				if let errorMessage = store.errorMessage, !store.flows.isEmpty {
-					InlineStatusMessage(message: errorMessage, tone: .error, font: .caption)
+				.frame(maxWidth: SettingsDesign.contentMaxWidth + 80)
+				.frame(maxWidth: .infinity, alignment: .leading)
+			}
+			.padding(20)
+			.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+			.accessibilityIdentifier("flow-details-tab")
+			.task(id: TutorialStore.shared.currentStep) {
+				if let step = TutorialStore.shared.currentStep,
+					[.howItWorks, .flowSources, .flowAI, .flowSharing, .createFlow].contains(step) {
+					proxy.scrollTo("tutorial-flow-story", anchor: .top)
 				}
 			}
-			.frame(maxWidth: SettingsDesign.contentMaxWidth + 80)
-			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.padding(20)
-		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-		.accessibilityIdentifier("flow-details-tab")
 	}
 }
 

@@ -106,8 +106,9 @@ Use one `agent_task` step for a scheduled prompt that needs model-selected tools
 skills, memory, or project context: `userPrompt`, optional `systemPrompt`, and
 `outputs: { "summary": "object" }`; result is `summary.markdown`. Set the flow's
 `projectId` when needed. Agent Tasks cannot ask interactive questions. A flow
-supports at most one AI step (`llm_prompter` or `agent_task`). Use `llm_prompter`
-for fixed structured output without tool calling.
+may mix AI steps (`llm_prompter` or `agent_task`) and tool steps in any order;
+give every step a unique output key so later steps can read each one. Use
+`llm_prompter` for fixed structured output without tool calling.
 
 The event is available as `{{json bag.trigger}}` or a tool reference
 `{ "from": "trigger", "path": "event.payload.changes" }`. Trigger input mappings

@@ -347,12 +347,6 @@ export function validateUserFlowDocument(
 		issues.push("Flow must have at least one node");
 	}
 
-	if (
-		document.nodes.filter((node) => node.type !== "tool_executor").length > 1
-	) {
-		issues.push("Custom flows support at most one AI step");
-	}
-
 	const nodeIds = new Set<string>();
 	const availableOutputs = new Set<string>();
 	document.nodes.forEach((node: StoredFlowNode, index) => {

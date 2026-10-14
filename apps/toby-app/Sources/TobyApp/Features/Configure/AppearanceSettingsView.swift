@@ -4,6 +4,7 @@ import SwiftUI
 /// Client-local General settings: home directory, startup, menu bar, theme, and accent.
 struct AppearanceSettingsView: View {
 	@Bindable var preferences: AppearancePreferences
+	@State private var tutorial = TutorialStore.shared
 	/// Applies a home-directory switch (soft reset). `nil` restores default `~/.toby`.
 	var onSwitchTobyHome: ((String?) async throws -> Void)? = nil
 
@@ -16,6 +17,7 @@ struct AppearanceSettingsView: View {
 		Form {
 			homeDirectorySection
 			startupSection
+			tutorialSection
 			themeSection
 			accentSection
 		}
@@ -197,6 +199,18 @@ struct AppearanceSettingsView: View {
 						.foregroundStyle(.secondary)
 				}
 			}
+		}
+	}
+
+	private var tutorialSection: some View {
+		Section {
+			Toggle("Show tutorial button", isOn: $tutorial.showTutorialButton)
+				.toggleStyle(.switch)
+				.accessibilityIdentifier("general-tutorial-enabled")
+		} header: {
+			Text("Tutorial")
+		} footer: {
+			Text("Show a tutorial button in the main toolbar. The button starts or restarts the tutorial for the section you are viewing.")
 		}
 	}
 

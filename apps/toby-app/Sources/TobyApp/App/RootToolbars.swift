@@ -18,6 +18,9 @@ struct RootCommonToolbarModel {
 	var onForward: () -> Void
 	var onCheckForUpdates: () -> Void = {}
 	var updateStore: UpdateStore? = nil
+	var tutorialSection: TutorialSection? = nil
+	var showTutorialButton: Bool = true
+	var onStartTutorial: () -> Void = {}
 }
 
 /// Route title used for `navigationTitle` / tests. Optional `leading` is the only
@@ -150,6 +153,9 @@ enum RootToolbars {
 			)
 			SettingsToolbarButton(onOpenSettings: model.onOpenSettings)
 			SearchToolbarButton(onSearch: model.onSearch)
+			if model.showTutorialButton, let section = model.tutorialSection {
+				TutorialToolbarButton(section: section, onStart: model.onStartTutorial)
+			}
 		}
 		if let updateStore = model.updateStore {
 			if updateStore.isUpdateAvailable || updateStore.isUpgrading {

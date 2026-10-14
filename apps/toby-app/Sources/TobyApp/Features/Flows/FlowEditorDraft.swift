@@ -68,13 +68,32 @@ struct FlowEditorDraft: Equatable, Identifiable {
 		return outputs
 	}
 
+	/// A bag key no step writes yet, e.g. `answer`, `answer2`, so each new
+	/// step's output stays readable after later steps run.
+	func uniqueOutputKey(base: String) -> String {
+		let taken = Set(nodes.flatMap(\.outputKeys))
+		if !taken.contains(base) { return base }
+		var suffix = 2
+		while taken.contains("\(base)\(suffix)") { suffix += 1 }
+		return "\(base)\(suffix)"
+	}
+
+	/// Adds a new step at the end, writing to its own output key.
+	mutating func appendStep(_ node: FlowEditorNode) {
+		var node = node
+		if node.outputs == nil {
+			let key = uniqueOutputKey(base: node.isLLM ? "answer" : "result")
+			node.outputs = [key: node.isLLM ? "object" : "result"]
+		}
+		nodes.append(node)
+	}
+
 	mutating func adaptResultForNamedFields(nodeId: String) {
 		guard let pointer = result, pointer.path == "markdown",
 			let node = nodes.first(where: { $0.id == nodeId }),
 			node.outputKeys.contains(pointer.from), node.outputKind == "object",
 			!node.outputFields.contains(where: { $0.name == "markdown" }) else { return }
-		let body = node.originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-		let mapping = (body?["outputs"] as? [String: String])?[pointer.from] ?? "object"
+		let mapping = node.outputs?[pointer.from] ?? "object"
 		if mapping == "object" { result = FlowResultPointer(from: pointer.from, path: nil) }
 	}
 
@@ -187,14 +206,13 @@ struct FlowEditorNode: Identifiable, Equatable {
 	var standardTool: String?
 	var originalJSON: Data?
 	var originalInputStrings: [String: String] = [:]
+	/// Bag key → result path this step writes; nil uses the runtime default.
+	var outputs: [String: String]?
 
 	var isLLM: Bool { type == "llm_prompter" || type == "agent_task" }
 
 	var outputKeys: [String] {
-		let body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-		if let outputs = body?["outputs"] as? [String: String] {
-			return outputs.keys.sorted()
-		}
+		if let outputs { return outputs.keys.sorted() }
 		return [isLLM ? "object" : "result"]
 	}
 
@@ -212,8 +230,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 
 	func suggestedOutputPath(for key: String, type: String) -> String? {
 		guard isLLM else { return nil }
-		let body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-		let mapping = (body?["outputs"] as? [String: String])?[key] ?? "object"
+		let mapping = outputs?[key] ?? "object"
 		let field = outputKind == "markdown" ? (type == "string" ? "markdown" : nil) : outputFields.first(where: { $0.type == type })?.name
 		guard let field else { return nil }
 		if mapping == "object" { return field }
@@ -272,6 +289,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		userToolId = stored.tool?.userToolId
 		standardTool = stored.tool?.standardTool
 		originalJSON = try? JSONSerialization.data(withJSONObject: stored.originalFields.mapValues(\.value), options: .sortedKeys)
+		outputs = stored.originalFields["outputs"]?.value as? [String: String]
 		outputKind = stored.schema?.kind ?? "markdown"
 		outputFields = (stored.schema?.fields ?? [:]).sorted { $0.key < $1.key }.map { FlowEditorOutputField(name: $0.key, type: $0.value.type, description: $0.value.description ?? "") }
 		if let raw = stored.originalFields["when"], let data = try? JSONSerialization.data(withJSONObject: raw.value) {
@@ -317,6 +335,7 @@ struct FlowEditorNode: Identifiable, Equatable {
 		var body = originalJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
 		body["id"] = id
 		body["type"] = type
+		if let outputs { body["outputs"] = outputs }
 		if isLLM {
 			if type == "agent_task" {
 				body.removeValue(forKey: "schema")

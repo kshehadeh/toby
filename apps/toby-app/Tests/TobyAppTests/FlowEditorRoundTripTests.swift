@@ -34,19 +34,20 @@ struct FlowEditorRoundTripTests {
 		let jira = FlowEditorNode(stored: try JSONDecoder().decode(FlowStoredNode.self, from: data))
 		let store = FlowsStore()
 		var draft = FlowEditorDraft.blank()
-		draft.nodes = [jira, .llm()]
+		let llm = FlowEditorNode.llm()
+		draft.nodes = [jira, llm]
 		store.editor = draft
 		let view = FlowEditorView(store: store, draft: editorDraftBinding(
 			Binding(get: { store.editor }, set: { store.editor = $0 }), fallback: .blank()
 		))
-		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step-\(llm.id)") }
 		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Let it read") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Search jira issues") }
-		#expect(throws: (any Error).self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
 	}
 
-	@Test("an empty flow offers a source and an AI step, and a flow can skip either")
+	@Test("an empty flow offers an action and an AI prompt, and a flow can skip either")
 	func editorSupportsMissingPhases() throws {
 		let store = FlowsStore()
 		var draft = FlowEditorDraft.blank()
@@ -55,17 +56,19 @@ struct FlowEditorRoundTripTests {
 		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
 		#expect(throws: (any Error).self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-persona") }
 
-		draft.nodes = [.llm()]
+		let llm = FlowEditorNode.llm()
+		draft.nodes = [llm]
 		let aiOnly = FlowEditorView(store: store, draft: .constant(draft))
-		#expect(throws: Never.self) { try aiOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step") }
+		#expect(throws: Never.self) { try aiOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step-\(llm.id)") }
 		#expect(throws: Never.self) {
-			try aiOnly.inspect().find(text: "Nothing to read yet. Add a source above to give AI some information.")
+			try aiOnly.inspect().find(text: "Nothing to read yet. Add an action above to give AI some information.")
 		}
 
 		draft.nodes = [.tool(moduleName: "macos", toolName: "macWifiSetPower", required: ["enabled"])]
 		let toolsOnly = FlowEditorView(store: store, draft: .constant(draft))
 		#expect(throws: Never.self) { try toolsOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-ai") }
-		#expect(throws: (any Error).self) { try toolsOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step") }
+		#expect(throws: Never.self) { try toolsOnly.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-step") }
+		#expect(throws: (any Error).self) { try toolsOnly.inspect().find(text: "Ask AI") }
 	}
 
 	@Test("a new AI step reads every earlier step by default")
@@ -105,6 +108,38 @@ struct FlowEditorRoundTripTests {
 		#expect(outputs.last?.token == "{{json bag.jiraIssues}}")
 		#expect(draft.promptOutputs(before: first.id).isEmpty)
 		#expect(jira.outputKeys == ["jiraIssues"])
+	}
+
+	@Test("new steps get their own output keys so earlier answers stay readable")
+	func newStepsGetUniqueOutputKeys() throws {
+		var draft = FlowEditorDraft.blank()
+		draft.appendStep(.tool(moduleName: "todoist", toolName: "tasks", required: []))
+		draft.appendStep(.llm())
+		draft.appendStep(.tool(moduleName: "calendar", toolName: "events", required: []))
+		draft.appendStep(.llm())
+		#expect(draft.nodes.map(\.outputKeys) == [["result"], ["answer"], ["result2"], ["answer2"]])
+		#expect(draft.promptOutputs(before: draft.nodes[3].id).map(\.key) == ["result", "answer", "result2"])
+		let nodes = try #require(draft.jsonBody()["nodes"] as? [[String: Any]])
+		#expect(nodes[1]["outputs"] as? [String: String] == ["answer": "object"])
+		#expect(nodes[2]["outputs"] as? [String: String] == ["result2": "result"])
+		#expect(draft.nodes[3].suggestedOutputPath(for: "answer2", type: "string") == "markdown")
+	}
+
+	@Test("AI prompts and actions can be mixed in any order")
+	func mixedStepOrder() throws {
+		let first = FlowEditorNode.llm()
+		let action = FlowEditorNode.tool(moduleName: "macos", toolName: "macNotificationShow", required: [])
+		let second = FlowEditorNode.llm()
+		var draft = FlowEditorDraft.blank()
+		draft.appendStep(first)
+		draft.appendStep(action)
+		draft.appendStep(second)
+		let view = FlowEditorView(store: FlowsStore(), draft: .constant(draft))
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step-\(first.id)") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-step-\(action.id)") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-ai-step-\(second.id)") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Ask AI (2)") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "AI answer 1") }
 	}
 
 	@Test("changing a destination preserves standard tools, wiring, and LLM settings")
@@ -152,7 +187,7 @@ struct FlowEditorRoundTripTests {
 		#expect(edited[1]["outputs"] as? [String: String] == ["summary": "object"])
 	}
 
-	@Test("actions after AI preserve output references and appear in the Acts phase")
+	@Test("actions after AI preserve output references and appear in the step list")
 	func actionsAfterAI() throws {
 		let data = """
 		{ "id": "notify", "type": "tool_executor",
@@ -163,8 +198,8 @@ struct FlowEditorRoundTripTests {
 		var draft = FlowEditorDraft.blank()
 		draft.nodes = [.llm(), action]
 		let view = FlowEditorView(store: FlowsStore(), draft: .constant(draft))
-		#expect(throws: Never.self) { try view.inspect().find(text: "3. ACTS") }
-		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-action") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-step-\(action.id)") }
+		#expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-add-step") }
 		#expect(action.outputInputs["description"]?.from == "object")
 		let inputs = try #require(action.jsonBody()["inputs"] as? [String: [String: Any]])
 		#expect(inputs["description"]?["from"] as? String == "object")
