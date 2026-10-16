@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import {
 	buildAiGatewayAttributionHeaders,
+	createOllamaProvider,
+	createOpenRouterProvider,
 	formatPersonaAiLabel,
 	isAIProviderConfigured,
 	normalizeModelOnProviderChange,
@@ -336,5 +338,23 @@ describe("isAIProviderConfigured (openrouter)", () => {
 		writeCredentials({});
 		process.env.OPENROUTER_API_KEY = "sk-or-env-test";
 		expect(isAIProviderConfigured("openrouter")).toBe(true);
+	});
+});
+
+describe("structured outputs", () => {
+	it("sends json_schema for OpenRouter chat models", () => {
+		const model = createOpenRouterProvider().chatModel("openai/gpt-5.6-luna");
+		expect(
+			(model as { supportsStructuredOutputs?: boolean })
+				.supportsStructuredOutputs,
+		).toBe(true);
+	});
+
+	it("leaves Ollama on the compatible client's default json mode", () => {
+		const model = createOllamaProvider().chatModel("llama3.2");
+		expect(
+			(model as { supportsStructuredOutputs?: boolean })
+				.supportsStructuredOutputs,
+		).toBe(false);
 	});
 });

@@ -362,6 +362,10 @@ export function createOpenRouterProvider() {
 	return createOpenAICompatible({
 		name: "openrouter",
 		baseURL: OPENROUTER_DEFAULT_BASE_URL,
+		// Send Output.object as json_schema. The default json_object mode is
+		// rejected by OpenAI and Azure unless the prompt contains the word "json",
+		// and OpenRouter surfaces that only as "Provider returned error".
+		supportsStructuredOutputs: true,
 		...(apiKey ? { apiKey } : {}),
 		headers: buildAiGatewayAttributionHeaders(),
 	});

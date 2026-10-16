@@ -9,6 +9,7 @@ import {
 	zodSchema,
 } from "ai";
 import { z } from "zod";
+import { isAbortError } from "../abort";
 import type { ValidatedChatAttachment } from "../chat-pipeline/attachments";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
@@ -804,6 +805,9 @@ ${params.description.trim()}${existing}`;
 			model: modelLabel,
 		});
 	} catch (error) {
+		if (isAbortError(error)) {
+			throw error;
+		}
 		const errorMsg = formatChatModelError(error);
 		log("warn", "tool", "skill_draft_failed", {
 			persona: params.persona.name,
@@ -811,25 +815,23 @@ ${params.description.trim()}${existing}`;
 			error: errorMsg,
 		});
 
-		// If structured output parsing failed, retry with plain text generation.
-		// Many models (especially through non-OpenAI providers) produce valid
-		// SKILL.md content but can't conform to the structured-output schema.
-		if (NoOutputGeneratedError.isInstance(error)) {
-			const fallback = await draftSkillMarkdownFromText({
-				persona: params.persona,
-				systemPrompt,
-				userPrompt,
-				preferredFolderHint: params.preferredFolderHint,
-				modelLabel,
-			});
-			if (fallback.ok) return fallback;
-			return {
-				ok: false,
-				error: `Structured output parsing failed (${errorMsg}) and text fallback also failed: ${fallback.error}`,
-			};
-		}
-
-		return { ok: false, error: errorMsg };
+		// Structured output can fail while parsing, or the provider can reject
+		// json mode entirely. A plain SKILL.md completion can still succeed.
+		const fallback = await draftSkillMarkdownFromText({
+			persona: params.persona,
+			systemPrompt,
+			userPrompt,
+			preferredFolderHint: params.preferredFolderHint,
+			modelLabel,
+		});
+		if (fallback.ok) return fallback;
+		const reason = NoOutputGeneratedError.isInstance(error)
+			? "Structured output parsing failed"
+			: "Structured output failed";
+		return {
+			ok: false,
+			error: `${reason} (${errorMsg}) and text fallback also failed: ${fallback.error}`,
+		};
 	}
 
 	// --- Attempt 2: plain text fallback (structured output returned null) ---
@@ -930,6 +932,9 @@ IMPORTANT: Respond with ONLY the raw SKILL.md file content. Start with --- on it
 			},
 		};
 	} catch (error) {
+		if (isAbortError(error)) {
+			throw error;
+		}
 		const errorMsg = formatChatModelError(error);
 		log("warn", "tool", "skill_draft_text_fallback_failed", {
 			persona: params.persona.name,

@@ -10,16 +10,83 @@ function readObjectMessage(value: unknown): string | undefined {
 		: undefined;
 }
 
+const GENERIC_PROVIDER_ERROR = "Provider returned error";
+
+type GatewayErrorBody = {
+	error?: {
+		message?: unknown;
+		metadata?: {
+			provider_name?: unknown;
+			raw?: unknown;
+		};
+	};
+	message?: unknown;
+};
+
+function readString(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: undefined;
+}
+
+/**
+ * OpenRouter wraps upstream failures as "Provider returned error" and puts the
+ * provider text in `error.metadata.raw` (a JSON string or object).
+ */
+function readUpstreamProviderMessage(
+	raw: unknown,
+	depth = 0,
+): string | undefined {
+	if (depth > 3 || raw == null) {
+		return undefined;
+	}
+	if (typeof raw === "string") {
+		const trimmed = raw.trim();
+		if (!trimmed) {
+			return undefined;
+		}
+		try {
+			const parsed: unknown = JSON.parse(trimmed);
+			if (parsed && typeof parsed === "object") {
+				return (
+					readUpstreamProviderMessage(parsed, depth + 1) ??
+					trimmed.slice(0, 500)
+				);
+			}
+		} catch {
+			return trimmed.slice(0, 500);
+		}
+		return trimmed.slice(0, 500);
+	}
+	if (typeof raw === "object") {
+		const record = raw as GatewayErrorBody;
+		return (
+			readUpstreamProviderMessage(record.error, depth + 1) ??
+			readString(record.message)?.slice(0, 500)
+		);
+	}
+	return undefined;
+}
+
 function parseResponseBodyMessage(responseBody: unknown): string | undefined {
 	if (typeof responseBody !== "string" || !responseBody.trim()) {
 		return undefined;
 	}
 	try {
-		const parsed = JSON.parse(responseBody) as {
-			error?: { message?: string };
-			message?: string;
-		};
-		return parsed.error?.message ?? parsed.message;
+		const parsed = JSON.parse(responseBody) as GatewayErrorBody;
+		const message =
+			readString(parsed.error?.message) ?? readString(parsed.message);
+		const metadata = parsed.error?.metadata;
+		const upstream = readUpstreamProviderMessage(metadata?.raw);
+		const providerName = readString(metadata?.provider_name);
+		if (
+			upstream &&
+			upstream !== message &&
+			upstream !== GENERIC_PROVIDER_ERROR
+		) {
+			return providerName ? `${providerName}: ${upstream}` : upstream;
+		}
+		return message;
 	} catch {
 		return responseBody.slice(0, 500);
 	}
