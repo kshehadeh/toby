@@ -91,6 +91,14 @@ Nodes emit the existing event vocabulary — no new event types. The core transc
 | `lifecycle_*` | AssembleMessagesNode (merge), RunModelTurnNode (model request), PersistTurnNode (save) |
 | `assistant_segment_*` / `assistant_text_delta` | RunModelTurnNode (via `chatWithTools`) |
 | `tool_call_start` / `tool_call_complete` | RunModelTurnNode (via tool lifecycle hooks) |
+| `tool_call_progress` | Running tools via `reportToolProgress()` (`ai/tool-progress.ts`) or plugin `@@toby-progress` stderr lines. Transient: never persisted |
+
+`runModelTurn` adds each tool's `presentation` (`chat-pipeline/tool-presentation.ts`)
+to `tool_call_start` / `tool_call_complete`, plus a renderer-shaped `summary` on
+completion when one exists. The transcript reducer saves display-safe args
+(`sanitizeToolArgsForDisplay`), the presentation, and a `failed` flag on tool
+steps. Toby.app maps the presentation kind to a native step renderer
+(`Features/Chat/StepRenderers/`).
 
 ### RunModelTurnNode internals
 
