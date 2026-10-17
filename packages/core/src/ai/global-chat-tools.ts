@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import {
 	NoOutputGeneratedError,
 	Output,
@@ -12,12 +11,7 @@ import {
 import { z } from "zod";
 import type { ValidatedChatAttachment } from "../chat-pipeline/attachments";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
-import {
-	type Persona,
-	ensureTobyDir,
-	getGeneratedFilesDir,
-	getSkillsDir,
-} from "../config/index";
+import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
 import { log } from "../logging/chat-log";
 import {
 	type Project,
@@ -40,8 +34,11 @@ import {
 	listenChatToolsPromptSection,
 } from "./listen-chat-tools";
 import { createLocationGlobalTools } from "./location-global-tools";
+import { resolveChatAttachmentCapability } from "./model-capabilities";
 import { createModelForAuxiliary } from "./model-factory";
 import { createPdfReadTools } from "./pdf-read-tool";
+import { executeSaveProjectAttachment } from "./project-attachment";
+import { createProjectManagementTools } from "./project-management-tools";
 import { createReflectTools, reflectToolsPromptSection } from "./reflect-tools";
 import { createSubAgentTool, subAgentPromptSection } from "./sub-agent-tool";
 import {
@@ -53,6 +50,16 @@ import {
 	createWebSearchGlobalTools,
 	isWebSearchAvailable,
 } from "./web-search-global-tools";
+import {
+	WRITE_TEXT_FILE_EXTENSIONS,
+	executeWriteTextFile,
+	writeTextFileSuccessPayload,
+} from "./write-text-file";
+
+export {
+	markdownDownloadLinkForWrittenFile,
+	resolveWriteTextFileTarget,
+} from "./write-text-file";
 
 const SKILL_MD_BASENAME = "SKILL.md";
 
@@ -109,34 +116,6 @@ type GlobalChatToolsContext = {
 	/** Validated files attached to the current turn. */
 	readonly attachments?: readonly ValidatedChatAttachment[];
 };
-
-/** Text file extensions `writeTextFile` is allowed to create. */
-const WRITE_TEXT_FILE_EXTENSIONS: ReadonlySet<string> = new Set([
-	".md",
-	".markdown",
-	".txt",
-	".text",
-	".json",
-	".yaml",
-	".yml",
-	".csv",
-	".tsv",
-	".log",
-	".xml",
-	".html",
-	".rst",
-]);
-
-type WriteTextFileLocation = "context" | "outputs";
-
-interface ResolveWriteTargetResult {
-	readonly ok: boolean;
-	readonly error?: string;
-	readonly absPath?: string;
-	readonly baseDir?: string;
-	/** Human-readable label for the base location. */
-	readonly baseLabel?: string;
-}
 
 interface ResolveProjectFileTargetResult {
 	readonly ok: boolean;
@@ -271,6 +250,15 @@ const MAX_SEARCH_MATCHES = 50;
 const MAX_SEARCH_FILE_BYTES = 256 * 1024;
 const MAX_SEARCH_FILES = 200;
 const MAX_READ_FILE_BYTES = 96 * 1024;
+/** Largest project image `readProjectFile` will hand to the model (provider limits are ~5 MB). */
+const MAX_READ_IMAGE_BYTES = 5 * 1024 * 1024;
+const PROJECT_IMAGE_MEDIA_TYPES: Readonly<Record<string, string>> = {
+	".jpg": "image/jpeg",
+	".jpeg": "image/jpeg",
+	".png": "image/png",
+	".gif": "image/gif",
+	".webp": "image/webp",
+};
 const MAX_SEARCH_LINE_CHARS = 400;
 
 function isProbablyBinaryBuffer(buf: Buffer): boolean {
@@ -485,101 +473,81 @@ export function readProjectTextFile(params: {
 	};
 }
 
+type ProjectImageRead =
+	| {
+			readonly ok: true;
+			readonly kind: "image";
+			readonly path: string;
+			readonly mediaType: string;
+			readonly byteSize: number;
+	  }
+	| { readonly ok: false; readonly error: string };
+
+/** True when `inputPath` names an image `readProjectFile` can show the model. */
+export function isProjectImagePath(inputPath: string): boolean {
+	return path.extname(inputPath).toLowerCase() in PROJECT_IMAGE_MEDIA_TYPES;
+}
+
 /**
- * Resolve and validate the absolute target path for `writeTextFile`. Rejects
- * absolute inputs, parent-directory traversal, and paths that escape the base
- * directory (active project context/root, or the generated-files fallback).
+ * Validate a project image for `readProjectFile`. Returns metadata only; the
+ * bytes are attached to the model input by the tool's `toModelOutput` so the
+ * base64 never lands in the transcript event payload.
  */
-export function resolveWriteTextFileTarget(params: {
+export function readProjectImageFile(params: {
+	readonly project: Project;
 	readonly inputPath: string;
-	readonly location: WriteTextFileLocation;
-	readonly project?: Project | null;
-}): ResolveWriteTargetResult {
-	const raw = params.inputPath.trim();
-	if (!raw) {
-		return { ok: false, error: "path must not be empty." };
+	readonly modelCanSeeImages: boolean;
+}): ProjectImageRead & { readonly absPath?: string } {
+	const target = resolveProjectFileTarget({
+		inputPath: params.inputPath,
+		project: params.project,
+	});
+	if (!target.ok || !target.absPath) {
+		return { ok: false, error: target.error ?? "Invalid path." };
 	}
-	if (path.isAbsolute(raw)) {
+	if (!hasSafeProjectParentDirectory(params.project, target.absPath)) {
+		return { ok: false, error: "File is outside a safe project directory." };
+	}
+	const mediaType =
+		PROJECT_IMAGE_MEDIA_TYPES[path.extname(target.absPath).toLowerCase()];
+	if (!mediaType) {
+		return { ok: false, error: "File is not a supported image type." };
+	}
+	let stat: fs.Stats;
+	try {
+		stat = fs.lstatSync(target.absPath);
+	} catch {
+		return { ok: false, error: "File does not exist." };
+	}
+	if (!stat.isFile() || stat.isSymbolicLink()) {
 		return {
 			ok: false,
-			error: "path must be relative (absolute paths are not allowed).",
+			error: "Path must be a regular file, not a folder or symbolic link.",
 		};
 	}
-	const normalized = path.normalize(raw);
-	if (
-		normalized === ".." ||
-		normalized.startsWith(`..${path.sep}`) ||
-		normalized.split(path.sep).includes("..")
-	) {
+	if (!params.modelCanSeeImages) {
 		return {
 			ok: false,
-			error: "path must not traverse outside the base directory.",
+			error:
+				"The current model cannot view images. Switch to a vision-capable model to read image contents.",
 		};
 	}
-
-	let baseDir: string;
-	let baseLabel: string;
-	if (params.project) {
-		switch (params.location) {
-			case "outputs":
-				baseDir = params.project.outputsDir;
-				baseLabel = `project "${params.project.name}" outputs`;
-				break;
-			default:
-				baseDir =
-					(params.project as { folderPath?: string }).folderPath ??
-					params.project.dir;
-				baseLabel = `project "${params.project.name}" folder`;
-				break;
-		}
-	} else {
-		baseDir = getGeneratedFilesDir();
-		baseLabel = "~/.toby/generated-files";
-	}
-
-	const absPath = path.resolve(baseDir, normalized);
-	const relCheck = path.relative(baseDir, absPath);
-	if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
-		return { ok: false, error: "Resolved path escapes the base directory." };
-	}
-
-	const ext = path.extname(absPath).toLowerCase();
-	if (!ext) {
-		return { ok: false, error: "path must include a file extension." };
-	}
-	if (!WRITE_TEXT_FILE_EXTENSIONS.has(ext)) {
+	if (stat.size > MAX_READ_IMAGE_BYTES) {
 		return {
 			ok: false,
-			error: `Unsupported file type "${ext}". Allowed: ${[...WRITE_TEXT_FILE_EXTENSIONS].join(", ")}.`,
+			error: `Image is ${Math.ceil(stat.size / 1024 / 1024)} MB; the limit is 5 MB. Create a smaller copy (for example with imagesCompress or imagesTransform) and read that instead.`,
 		};
 	}
-
-	return { ok: true, absPath, baseDir, baseLabel };
-}
-
-/**
- * Markdown the model should paste into its reply so the chat UI can offer
- * Download / Open for a file written by `writeTextFile`.
- */
-export function markdownDownloadLinkForWrittenFile(absPath: string): string {
-	const name = path.basename(absPath);
-	return `[Download ${name}](${pathToFileURL(absPath).href})`;
-}
-
-function writeTextFileSuccessPayload(params: {
-	readonly absPath: string;
-	readonly dryRun: boolean;
-	readonly created: boolean;
-	readonly message: string;
-}) {
 	return {
-		ok: true as const,
-		dryRun: params.dryRun,
-		path: params.absPath,
-		fileUrl: pathToFileURL(params.absPath).href,
-		markdown: markdownDownloadLinkForWrittenFile(params.absPath),
-		created: params.created,
-		message: params.message,
+		ok: true,
+		kind: "image",
+		path: path
+			.relative(params.project.folderPath, target.absPath)
+			.split(path.sep)
+			.join("/"),
+		mediaType,
+		byteSize: stat.size,
+		absPath: target.absPath,
 	};
 }
 
@@ -639,6 +607,11 @@ Global Toby tools (catalog — only tools in the current set can be called; see 
 - **update_in_library**: Update a library item's title or description, or replace its file. Only when the user asks to change a saved item.
 - **remove_from_library**: Permanently delete a library item. Only when the user explicitly asks to remove it.
 - **getCurrentDateTime**: Return the current local/UTC date-time and timezone.
+- **listTobyProjects**: List the user's Toby projects (id, slug, name, summary, folder).
+- **createTobyProject**: Create a new Toby project. Only when the user asks to create a project. Required: \`name\`. Optional: \`summary\`, \`folderPath\` (absolute path to an existing folder).
+- **saveToTobyProject**: Save a UTF-8 text file into an existing Toby project by name or id, from any chat. Only when the user asks to save or add information to a project. Required: \`project\`, \`path\`, \`content\`. Optional: \`location\` (\`context\` default | \`outputs\`), \`overwrite\`. Include the returned \`markdown\` link in your reply.
+- **saveAttachmentToTobyProject**: Save an original file attached to the current message into an existing Toby project's \`attachments/\` folder, by name or id, from any chat. Only when the user asks to add an attached file to a project. Required: \`project\`, \`filename\` (exact attached filename). Optional: \`overwrite\`. Do not use **saveToTobyProject** to recreate an attachment.
+- **deleteTobyProject**: Delete a Toby project (chats and folder files are kept). Only when the user explicitly asks to delete that project. Confirm with **askUser** first unless the request is unambiguous. Required: \`project\`.
 - **fetchWebContent**: Fetch a web page and extract its main readable content (strips ads, navigation, footers). Returns article title, text content, excerpt, and metadata. Use to read blog posts, articles, documentation, or any page with substantive text. If the URL is a PDF, use **readPdf** instead (fetchWebContent will extract PDF text if called on a PDF URL).
 - **readPdf**: Extract searchable text from a PDF into this turn. Sources (exactly one): \`filename\` (current-turn PDF attachment), \`path\` (project-relative PDF when a project is active), or \`url\` (http/https). Optional \`startPage\` / \`endPage\` (1-indexed). If the user attached exactly one PDF, call **readPdf** with no arguments. Use when the user attaches a PDF, asks to read or summarize a PDF, or points at a .pdf in the project or on the web. Does not OCR scanned image PDFs. Native file parts may still be present for multimodal models; still call **readPdf** when you need the text layer.${searchToolLine}${weatherToolLine}${locationToolLine}
 ${
@@ -646,7 +619,7 @@ ${
 		? `- **saveProjectAttachment**: Save an original file attached to this turn into this project's \`attachments/\` folder. Only call when the user explicitly asks to save an attached file to the project. Required: \`filename\` (the exact attached filename). Optional: \`overwrite\` (default false).
 - **listProjectFiles**: List the current project file tree, including each item's project-relative path. Use this to identify existing files before organizing, moving, searching, or deleting them.
 - **searchProjectFiles**: Search file contents inside this project (substring or regex). Use this before answering questions about the project's work so you can ground the reply in existing files. Optional: \`pathPrefix\` to scope the search, \`isRegex\` for a JavaScript regular expression.
-- **readProjectFile**: Read a UTF-8 text file already in this project by project-relative path. Use after listing or searching to load the file into this turn. For PDFs, use **readPdf** instead.
+- **readProjectFile**: Read a file already in this project by project-relative path: UTF-8 text, or an image (JPEG, PNG, GIF, WebP) that you can then see and describe. Use after listing or searching to load the file into this turn. For PDFs, use **readPdf** instead.
 - **writeTextFile**: Always available in project chats. Create or update a UTF-8 text file in this project. Default \`location='outputs'\` for generated artifacts; \`location='context'\` for notes and reference files anywhere in the project folder (path may include subfolders). Required: \`path\`, \`content\`. Optional: \`overwrite\`.
 - **createProjectFolder**: Create a folder inside this project. Call this to establish or extend the project layout (including without an explicit "create a folder" request) and when the user asks to create a folder. Required: \`path\`, relative to the project folder.
 - **renameProjectFile**: Move or rename a file already in this project. Call this to place files into the project layout and when the user asks to move or rename. Required: \`sourcePath\` and \`destinationPath\`, both relative to the project folder. Optional: \`overwrite\` (default false).
@@ -660,9 +633,13 @@ Project workspace rules:
 - Infer a layout from the project summary, or invent a small one if none is given. Create folders and move misplaced files into it. Do not reshuffle a layout that already matches the skill.
 
 Project attachment rules:
-- This tool is available only in project chats and only for files attached to the current user message.
+- **saveProjectAttachment** is available only in project chats and only for files attached to the current user message. To save into a different project, use **saveAttachmentToTobyProject**.
 - Preserve the original file bytes. Do not use \`writeTextFile\` to recreate an attachment.
 - Never overwrite an existing attachment unless the user explicitly asks to replace it, then pass \`overwrite=true\`.
+
+Project image rules:
+- To look at an image already saved in the project (for example under \`attachments/\`), call **readProjectFile** with its project-relative path; the image is then visible to you. Do not ask the user to re-attach images the project already has.
+- Read each image you need to describe; image metadata tools (such as imagesInspect) do not show image contents.
 
 Project PDF rules:
 - To read a PDF already in the project, call \`listProjectFiles\` if needed, then **readPdf** with the project-relative \`path\` (for example \`attachments/brief.pdf\`).
@@ -990,87 +967,15 @@ export function createGlobalChatTools(
 								"Replace an existing attachment with the same name (default false)",
 							),
 					}),
-					execute: async ({ filename, overwrite }) => {
-						const attachment = ctx.attachments?.find(
-							(candidate) => candidate.filename === filename,
-						);
-						if (!attachment) {
-							return {
-								ok: false as const,
-								error: `No current-turn attachment named "${filename}".`,
-							};
-						}
-
-						const attachmentDir = path.join(project.folderPath, "attachments");
-						const targetFile = path.join(attachmentDir, attachment.filename);
-						try {
-							const existingDir = fs.lstatSync(attachmentDir);
-							if (!existingDir.isDirectory() || existingDir.isSymbolicLink()) {
-								return {
-									ok: false as const,
-									error: "Project attachments path is not a safe directory.",
-								};
-							}
-						} catch {
-							// Create it below for new projects.
-						}
-
-						let alreadyExists = false;
-						try {
-							const existing = fs.lstatSync(targetFile);
-							alreadyExists = true;
-							if (existing.isSymbolicLink() || existing.isDirectory()) {
-								return {
-									ok: false as const,
-									error: "Refusing to replace a symbolic link or directory.",
-								};
-							}
-						} catch {
-							// The target does not exist.
-						}
-						if (alreadyExists && overwrite !== true) {
-							return {
-								ok: false as const,
-								error: `An attachment named "${attachment.filename}" already exists. Set overwrite=true to replace it.`,
-							};
-						}
-
-						if (ctx.dryRun) {
-							const verb = alreadyExists ? "replace" : "save";
-							const message = `[dry-run] Would ${verb} ${targetFile}`;
-							ctx.appliedActions.push(message);
-							return writeTextFileSuccessPayload({
-								absPath: targetFile,
-								dryRun: true,
-								created: !alreadyExists,
-								message,
-							});
-						}
-
-						try {
-							fs.mkdirSync(attachmentDir, { recursive: true });
-							fs.writeFileSync(
-								targetFile,
-								Buffer.from(attachment.dataBase64, "base64"),
-							);
-						} catch (error) {
-							return {
-								ok: false as const,
-								error:
-									error instanceof Error
-										? error.message
-										: "Failed to save the project attachment.",
-							};
-						}
-						const message = `Saved ${targetFile} (project attachments)`;
-						ctx.appliedActions.push(message);
-						return writeTextFileSuccessPayload({
-							absPath: targetFile,
-							dryRun: false,
-							created: !alreadyExists,
-							message,
-						});
-					},
+					execute: async ({ filename, overwrite }) =>
+						executeSaveProjectAttachment({
+							project,
+							filename,
+							overwrite: overwrite === true,
+							attachments: ctx.attachments,
+							dryRun: ctx.dryRun,
+							appliedActions: ctx.appliedActions,
+						}),
 				}),
 				listProjectFiles: tool({
 					description:
@@ -1115,7 +1020,7 @@ export function createGlobalChatTools(
 				}),
 				readProjectFile: tool({
 					description:
-						"Read a UTF-8 text file already in the active project. Use after listing or searching to load the file into this turn. For PDFs, use readPdf instead.",
+						"Read a file already in the active project: UTF-8 text, or an image (JPEG, PNG, GIF, WebP) whose contents you can then see, e.g. saved photos, screenshots, or scanned documents. Use after listing or searching to load the file into this turn. For PDFs, use readPdf instead.",
 					inputSchema: z.object({
 						path: z
 							.string()
@@ -1124,8 +1029,40 @@ export function createGlobalChatTools(
 								"Path relative to the project folder, e.g. 'research/notes.md'",
 							),
 					}),
-					execute: async ({ path: inputPath }) =>
-						readProjectTextFile({ project, inputPath }),
+					execute: async ({ path: inputPath }) => {
+						if (!isProjectImagePath(inputPath)) {
+							return readProjectTextFile({ project, inputPath });
+						}
+						const { absPath: _absPath, ...result } = readProjectImageFile({
+							project,
+							inputPath,
+							modelCanSeeImages: resolveChatAttachmentCapability(ctx.persona)
+								.supported,
+						});
+						return result;
+					},
+					toModelOutput: ({ output }: { output: unknown }) => {
+						const result = output as ProjectImageRead;
+						if (result?.ok && result.kind === "image") {
+							try {
+								const absPath = path.join(project.folderPath, result.path);
+								return {
+									type: "content",
+									value: [
+										{ type: "text", text: JSON.stringify(result) },
+										{
+											type: "image-data",
+											mediaType: result.mediaType,
+											data: fs.readFileSync(absPath).toString("base64"),
+										},
+									],
+								};
+							} catch {
+								// Fall through to the JSON result.
+							}
+						}
+						return { type: "text", value: JSON.stringify(output) };
+					},
 				}),
 				createProjectFolder: tool({
 					description:
@@ -1478,6 +1415,7 @@ export function createGlobalChatTools(
 	return {
 		...reflectTools,
 		...createFlowAuthoringTools(ctx),
+		...createProjectManagementTools(ctx),
 		...projectAttachmentTools,
 		...createListenChatTools(),
 		...createWebFetchTools(),
@@ -1543,88 +1481,14 @@ export function createGlobalChatTools(
 					),
 			}),
 			execute: async ({ path: inputPath, content, location, overwrite }) => {
-				if (content.includes("\u0000")) {
-					return {
-						ok: false as const,
-						error: "content appears to be binary (contains NUL bytes).",
-					};
-				}
-				const resolved = resolveWriteTextFileTarget({
+				return executeWriteTextFile({
 					inputPath,
+					content,
 					location: location ?? "outputs",
+					overwrite: overwrite === true,
 					project: ctx.project ?? null,
-				});
-				if (!resolved.ok || !resolved.absPath) {
-					return {
-						ok: false as const,
-						error: resolved.error ?? "Could not resolve target path.",
-					};
-				}
-				const targetFile = resolved.absPath;
-
-				let alreadyExists = false;
-				try {
-					const stat = fs.lstatSync(targetFile);
-					alreadyExists = true;
-					if (stat.isSymbolicLink()) {
-						return {
-							ok: false as const,
-							error: "Refusing to write through a symlink.",
-						};
-					}
-					if (stat.isDirectory()) {
-						return {
-							ok: false as const,
-							error: "Target path is a directory.",
-						};
-					}
-				} catch {
-					alreadyExists = false;
-				}
-
-				if (alreadyExists && overwrite !== true) {
-					return {
-						ok: false as const,
-						error: `File already exists at ${targetFile}. Set overwrite=true to replace it.`,
-					};
-				}
-
-				if (ctx.dryRun) {
-					const verb = alreadyExists ? "update" : "write";
-					const msg = `[dry-run] Would ${verb} ${targetFile}`;
-					ctx.appliedActions.push(msg);
-					return writeTextFileSuccessPayload({
-						absPath: targetFile,
-						dryRun: true,
-						created: !alreadyExists,
-						message: msg,
-					});
-				}
-
-				try {
-					ensureTobyDir();
-					fs.mkdirSync(path.dirname(targetFile), { recursive: true });
-					const normalizedContent = content.endsWith("\n")
-						? content
-						: `${content}\n`;
-					fs.writeFileSync(targetFile, normalizedContent, "utf-8");
-				} catch (e) {
-					return {
-						ok: false as const,
-						error:
-							e instanceof Error ? e.message : "Failed to write text file.",
-					};
-				}
-
-				const msg = alreadyExists
-					? `Updated ${targetFile}`
-					: `Wrote ${targetFile} (${resolved.baseLabel})`;
-				ctx.appliedActions.push(msg);
-				return writeTextFileSuccessPayload({
-					absPath: targetFile,
-					dryRun: false,
-					created: !alreadyExists,
-					message: msg,
+					dryRun: ctx.dryRun,
+					appliedActions: ctx.appliedActions,
 				});
 			},
 		}),

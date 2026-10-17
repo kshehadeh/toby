@@ -313,3 +313,76 @@ describe("project file management", () => {
 		}
 	});
 });
+
+describe("readProjectFile images", () => {
+	const visionPersona: Persona = {
+		...persona,
+		ai: { provider: "openai", model: "gpt-4o" },
+	};
+	const pngBytes = Buffer.from([
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+	]);
+
+	function setup(chatPersona: Persona) {
+		const folderPath = fs.mkdtempSync(
+			path.join(os.tmpdir(), "toby-project-image-"),
+		);
+		fs.mkdirSync(path.join(folderPath, "attachments"));
+		fs.writeFileSync(
+			path.join(folderPath, "attachments", "IMG_1 Large.png"),
+			pngBytes,
+		);
+		const project = { id: "p", name: "Pets", folderPath } as Project;
+		const tool = createGlobalChatTools({
+			dryRun: false,
+			persona: chatPersona,
+			appliedActions: [],
+			project,
+		}).readProjectFile;
+		return { folderPath, tool };
+	}
+
+	it("returns image metadata and attaches the bytes to the model output", async () => {
+		const { folderPath, tool } = setup(visionPersona);
+		try {
+			const output = await tool?.execute?.(
+				{ path: "attachments/IMG_1 Large.png" },
+				{ toolCallId: "read", messages: [] },
+			);
+			expect(output).toEqual({
+				ok: true,
+				kind: "image",
+				path: "attachments/IMG_1 Large.png",
+				mediaType: "image/png",
+				byteSize: pngBytes.length,
+			});
+			const modelOutput = (await tool?.toModelOutput?.({
+				toolCallId: "read",
+				input: { path: "attachments/IMG_1 Large.png" },
+				output,
+			})) as { type: string; value: { type: string; data?: string }[] };
+			expect(modelOutput.type).toBe("content");
+			expect(modelOutput.value[1]).toEqual({
+				type: "image-data",
+				mediaType: "image/png",
+				data: pngBytes.toString("base64"),
+			});
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
+	});
+
+	it("explains when the model cannot view images", async () => {
+		const { folderPath, tool } = setup(persona);
+		try {
+			const output = (await tool?.execute?.(
+				{ path: "attachments/IMG_1 Large.png" },
+				{ toolCallId: "read", messages: [] },
+			)) as { ok: boolean; error?: string };
+			expect(output.ok).toBe(false);
+			expect(output.error).toContain("cannot view images");
+		} finally {
+			fs.rmSync(folderPath, { recursive: true, force: true });
+		}
+	});
+});
