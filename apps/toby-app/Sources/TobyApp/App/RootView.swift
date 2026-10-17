@@ -79,6 +79,7 @@ struct RootView: View {
                 }
             },
             onSkillsDidChange: { skillsStore.handleExternalSkillChange() },
+            onProjectsDidChange: { projectsStore.handleExternalProjectChange() },
             onTobyHomeDidChange: {
                 Task { await handleTobyHomeDidChange() }
             },

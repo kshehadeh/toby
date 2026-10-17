@@ -129,6 +129,7 @@ export { ALWAYS_INCLUDED_TOOLS, PROJECT_GROUNDED_TOOLS };
 const EXPLICIT_REQUEST_ONLY_TOOLS: ReadonlySet<string> = new Set([
 	"createLocalSkill",
 	"remove_from_library",
+	"deleteTobyProject",
 ]);
 
 type ChatTurnOptions = {
@@ -399,7 +400,7 @@ function explicitRequestOnlyToolsForTurn(
 	if (!options?.projectActive) {
 		return EXPLICIT_REQUEST_ONLY_TOOLS;
 	}
-	return new Set(["remove_from_library"]);
+	return new Set(["remove_from_library", "deleteTobyProject"]);
 }
 
 export function filterToolNamesByRelevance(

@@ -306,6 +306,29 @@ function createGlobalToolsPreview(): { name: string; description: string }[] {
 				"Validate and save a new custom flow from a description; does not execute it.",
 		},
 		{
+			name: "listTobyProjects",
+			description: "List the user's Toby projects.",
+		},
+		{
+			name: "createTobyProject",
+			description: "Create a new Toby project when the user asks.",
+		},
+		{
+			name: "saveToTobyProject",
+			description:
+				"Save a text file into an existing Toby project by name or id, from any chat.",
+		},
+		{
+			name: "saveAttachmentToTobyProject",
+			description:
+				"Save a file attached to the current message into a Toby project by name or id, from any chat.",
+		},
+		{
+			name: "deleteTobyProject",
+			description:
+				"Delete a Toby project when explicitly requested; keeps its chats and files.",
+		},
+		{
 			name: "getCurrentDateTime",
 			description:
 				"Get the current local datetime, UTC datetime, timezone, and Unix milliseconds.",

@@ -19,6 +19,11 @@ enum ToolDisplayLabels {
 		"getMyLocation": "Get my location",
 		"getWeather": "Get weather",
 		"readPdf": "Read PDF",
+		"listTobyProjects": "List projects",
+		"createTobyProject": "Create project",
+		"saveToTobyProject": "Save to project",
+		"saveAttachmentToTobyProject": "Save attachment to project",
+		"deleteTobyProject": "Delete project",
 	]
 
 	static func displayLabel(_ toolName: String) -> String {

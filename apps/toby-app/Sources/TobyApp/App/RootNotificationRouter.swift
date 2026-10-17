@@ -15,6 +15,7 @@ struct RootNotificationRouter: ViewModifier {
 	var onLibraryDidChange: () -> Void
 	var onPersonasDidChange: () -> Void
 	var onSkillsDidChange: () -> Void
+	var onProjectsDidChange: () -> Void
 	var onTobyHomeDidChange: () -> Void
 	var onBackupConfig: () -> Void
 	var onRestoreConfig: () -> Void
@@ -77,6 +78,9 @@ struct RootNotificationRouter: ViewModifier {
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .skillsDidChange)) { _ in
 				onSkillsDidChange()
+			}
+			.onReceive(NotificationCenter.default.publisher(for: .projectsDidChange)) { _ in
+				onProjectsDidChange()
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .tobyHomeDidChange)) { _ in
 				onTobyHomeDidChange()

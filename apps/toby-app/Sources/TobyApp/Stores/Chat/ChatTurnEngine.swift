@@ -181,6 +181,9 @@ enum ChatTurnEngine {
 				if errorString == nil, SkillsStore.mutatingSkillTools.contains(toolName) {
 					NotificationCenter.default.post(name: .skillsDidChange, object: nil)
 				}
+				if errorString == nil, ProjectsStore.mutatingProjectTools.contains(toolName) {
+					NotificationCenter.default.post(name: .projectsDidChange, object: nil)
+				}
 			}
 			state.activityLine = "Thinking…"
 		case "prep_start":

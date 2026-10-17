@@ -142,6 +142,31 @@ const CORE_TOOL_PRESENTATIONS: Record<string, ToolPresentation> = {
 		argChips: ["path", "location"],
 		primaryArg: "path",
 	},
+	listTobyProjects: transientStep("Checking projects", "Checked projects"),
+	createTobyProject: {
+		kind: "action",
+		verbs: ["Creating project", "Created project"],
+		argChips: ["name"],
+		primaryArg: "name",
+	},
+	saveToTobyProject: {
+		kind: "write",
+		verbs: ["Saving to project", "Saved to project"],
+		argChips: ["project", "path"],
+		primaryArg: "path",
+	},
+	saveAttachmentToTobyProject: {
+		kind: "write",
+		verbs: ["Saving attachment to project", "Saved attachment to project"],
+		argChips: ["project", "filename"],
+		primaryArg: "filename",
+	},
+	deleteTobyProject: {
+		kind: "action",
+		verbs: ["Deleting project", "Deleted project"],
+		argChips: ["project"],
+		primaryArg: "project",
+	},
 	getWeather: {
 		kind: "fetch",
 		verbs: ["Checking weather", "Checked weather"],

@@ -189,6 +189,28 @@ struct ChatTurnEngineTests {
 		#expect(expectation.wasPosted)
 	}
 
+	@Test("successful deleteTobyProject posts projectsDidChange")
+	func deleteTobyProjectPostsProjectsDidChange() throws {
+		let expectation = expectationForNotification(.projectsDidChange)
+		var state = makeState()
+		let event = try event(from: """
+			{"type":"tool_call_complete","toolName":"deleteTobyProject","id":"t1","blockKey":"t1","result":{"ok":true}}
+			""")
+		ChatTurnEngine.apply(event: event, state: &state)
+		#expect(expectation.wasPosted)
+	}
+
+	@Test("saveToTobyProject does not post projectsDidChange")
+	func saveToTobyProjectDoesNotPostProjectsDidChange() throws {
+		let expectation = expectationForNotification(.projectsDidChange)
+		var state = makeState()
+		let event = try event(from: """
+			{"type":"tool_call_complete","toolName":"saveToTobyProject","id":"t1","blockKey":"t1","result":{"ok":true}}
+			""")
+		ChatTurnEngine.apply(event: event, state: &state)
+		#expect(!expectation.wasPosted)
+	}
+
 	@Test("failed createLocalSkill does not post skillsDidChange")
 	func failedCreateLocalSkillDoesNotPostSkillsDidChange() throws {
 		let expectation = expectationForNotification(.skillsDidChange)

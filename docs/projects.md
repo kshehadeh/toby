@@ -41,6 +41,20 @@ Use **Toby.app** (Projects UI / settings) or the daemon HTTP API:
 | `GET` / `PATCH` / `DELETE` | `/api/projects/:idOrSlug` | Detail, update, delete |
 | `GET` | `/api/projects/:idOrSlug/tree` | Folder tree for the native file browser |
 
+Any chat (project or not) can also manage projects with built-in tools from
+[`project-management-tools.ts`](../packages/core/src/ai/project-management-tools.ts):
+
+| Tool | Purpose |
+| ---- | ------- |
+| `listTobyProjects` | List projects (id, slug, name, summary, folder) |
+| `createTobyProject` | Create a project (`name`, optional `summary`, absolute `folderPath`) |
+| `saveToTobyProject` | Write a text file into a project by id, slug, or name (`location` defaults to `context`) |
+| `saveAttachmentToTobyProject` | Copy a file attached to the current message into a project's `attachments/` folder, byte-for-byte |
+| `deleteTobyProject` | Delete a project record; its chats and folder files are kept (explicit request only) |
+
+Ambiguous names are rejected with the matching candidates. Toby.app refreshes
+its project list when chat creates or deletes a project.
+
 Active project slug is stored in config via `getActiveProjectSlug` /
 `setActiveProjectSlug` / `clearActiveProjectSlug` in
 [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts).
@@ -154,6 +168,11 @@ the project's work, then reads matching text files with `readProjectFile` (or
 `readPdf` for PDFs). Replies should cite project-relative paths and prefer that
 content over general knowledge, web search, or integrations.
 
+`readProjectFile` also reads images (JPEG, PNG, GIF, WebP, up to 5 MB). It
+returns metadata in the tool result and attaches the image bytes to the model
+input via `toModelOutput`, so saved photos and screenshots can be described in
+later turns. It fails with an explanation when the chat model cannot view images.
+
 Toby also **organizes the folder**: it infers a layout from the project summary
 (or invents a small one), creates folders, and moves misplaced files. The
 layout is stored in the `project-organization` skill so later chats follow it.
@@ -219,6 +238,7 @@ Older projects used:
 | Active slug in config | [`packages/core/src/config/index.ts`](../packages/core/src/config/index.ts) |
 | Prompt injection + auto-attach `project-organization` | [`packages/core/src/prepare-messages.ts`](../packages/core/src/prepare-messages.ts), [`assemble-messages.ts`](../packages/core/src/chat-pipeline/nodes/assemble-messages.ts) |
 | Search / read / organize tools | [`packages/core/src/ai/global-chat-tools.ts`](../packages/core/src/ai/global-chat-tools.ts) |
+| Create / save-to / delete tools for any chat | [`packages/core/src/ai/project-management-tools.ts`](../packages/core/src/ai/project-management-tools.ts) |
 | HTTP API | [`packages/core/src/web/handlers/projects.ts`](../packages/core/src/web/handlers/projects.ts) |
 | Configure tree fields | [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) |
 | Native UI | Toby.app Projects features / stores |

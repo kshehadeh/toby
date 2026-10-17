@@ -39,6 +39,12 @@ final class ProjectsStore {
 		let name: String
 	}
 
+	/// Chat tools that create or delete projects.
+	static let mutatingProjectTools: Set<String> = [
+		"createTobyProject",
+		"deleteTobyProject",
+	]
+
 	private let client = TobyClient()
 	@ObservationIgnored
 	nonisolated(unsafe)
@@ -144,6 +150,13 @@ final class ProjectsStore {
 	func ensureListLoaded() async {
 		guard !hasLoadedOnce else { return }
 		await loadList()
+	}
+
+	/// Handle a project change made outside the projects UI (chat tools).
+	/// Only reloads once the list has been loaded; first load picks it up otherwise.
+	func handleExternalProjectChange() {
+		guard hasLoadedOnce else { return }
+		Task { await loadList() }
 	}
 
 	func startCreate() {
