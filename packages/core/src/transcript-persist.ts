@@ -1,4 +1,12 @@
-import type { TranscriptEntry } from "./chat-pipeline/transcript-types";
+import {
+	type ToolPresentation,
+	parseToolPresentation,
+	sanitizeToolArgsForDisplay,
+} from "./chat-pipeline/tool-presentation";
+import type {
+	ToolDisplayArgs,
+	TranscriptEntry,
+} from "./chat-pipeline/transcript-types";
 import { stripLoneSurrogates } from "./lone-surrogates";
 
 type ToolCallPayload = {
@@ -59,10 +67,23 @@ type BoxedStepPayload = {
 		readonly cacheHit?: boolean;
 		readonly durationMs?: number;
 		readonly fullBody?: string;
+		readonly args?: ToolDisplayArgs;
+		readonly failed?: boolean;
 	}[];
 	readonly fullBody?: string;
 	readonly createdAt?: string;
+	readonly args?: ToolDisplayArgs;
+	readonly failed?: boolean;
+	readonly presentation?: ToolPresentation;
 };
+
+/** Re-validate persisted display args (older rows or hand-edited data). */
+function restoreDisplayArgs(value: unknown): ToolDisplayArgs | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return undefined;
+	}
+	return sanitizeToolArgsForDisplay(value as Record<string, unknown>);
+}
 
 /** Serialize a transcript entry for SQLite (`kind` + `text` columns). */
 export function serializeTranscriptEntry(e: TranscriptEntry): {
@@ -99,6 +120,9 @@ export function serializeTranscriptEntry(e: TranscriptEntry): {
 			...(e.toolRuns !== undefined ? { toolRuns: e.toolRuns } : {}),
 			...(e.fullBody !== undefined ? { fullBody: e.fullBody } : {}),
 			...(e.createdAt !== undefined ? { createdAt: e.createdAt } : {}),
+			...(e.args !== undefined ? { args: e.args } : {}),
+			...(e.failed !== undefined ? { failed: e.failed } : {}),
+			...(e.presentation !== undefined ? { presentation: e.presentation } : {}),
 		};
 		return { kind: "boxed_step", text: JSON.stringify(payload) };
 	}
@@ -217,6 +241,15 @@ function deserializeTranscriptRowInner(row: {
 					...(typeof p.createdAt === "string" && p.createdAt.length > 0
 						? { createdAt: p.createdAt }
 						: {}),
+					...(() => {
+						const args = restoreDisplayArgs(p.args);
+						return args ? { args } : {};
+					})(),
+					...(typeof p.failed === "boolean" ? { failed: p.failed } : {}),
+					...(() => {
+						const presentation = parseToolPresentation(p.presentation);
+						return presentation ? { presentation } : {};
+					})(),
 					...(Array.isArray(p.toolRuns)
 						? {
 								toolRuns: p.toolRuns
@@ -230,6 +263,8 @@ function deserializeTranscriptRowInner(row: {
 											cacheHit?: boolean;
 											durationMs?: number;
 											fullBody?: string;
+											args?: unknown;
+											failed?: unknown;
 										} =>
 											typeof run?.blockKey === "string" &&
 											run.blockKey.length > 0 &&
@@ -256,6 +291,13 @@ function deserializeTranscriptRowInner(row: {
 											: {}),
 										...(typeof run.fullBody === "string"
 											? { fullBody: run.fullBody }
+											: {}),
+										...(() => {
+											const args = restoreDisplayArgs(run.args);
+											return args ? { args } : {};
+										})(),
+										...(typeof run.failed === "boolean"
+											? { failed: run.failed }
 											: {}),
 									})),
 							}

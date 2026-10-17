@@ -20,6 +20,10 @@ import {
 } from "@toby/core/chat-pipeline/transcript-reducer";
 import type { TranscriptEntry } from "@toby/core/chat-pipeline/transcript-types";
 import { createPluginStderrSplitter } from "@toby/core/integrations/plugins/client";
+import {
+	deserializeTranscriptRow,
+	serializeTranscriptEntry,
+} from "@toby/core/transcript-persist";
 
 function apply(events: ChatEvent[]): TranscriptEntry[] {
 	return events.reduce<TranscriptEntry[]>(
@@ -207,6 +211,13 @@ describe("tool presentation helpers", () => {
 			argChips: ["limit"],
 		});
 		expect(getToolPresentation("ignored")).toBeUndefined();
+		expect(parseToolPresentation({ kind: "generic", transient: true })).toEqual(
+			{
+				kind: "generic",
+				transient: true,
+			},
+		);
+		expect(getToolPresentation("enableTools")?.transient).toBe(true);
 		clearPluginToolPresentations();
 		expect(getToolPresentation("fetchOpenTasks")).toBeUndefined();
 	});
@@ -282,5 +293,58 @@ describe("tool progress plumbing", () => {
 		log += splitter.flush();
 		expect(updates).toEqual([{ items: [] }]);
 		expect(log).toBe("starting\nmore log\ntail");
+	});
+});
+
+describe("transcript persistence of tool display fields", () => {
+	it("round-trips args, presentation, failed, and per-run args", () => {
+		const entries = apply([
+			{
+				type: "tool_call_start",
+				blockKey: "b1",
+				seq: 1,
+				toolName: "webSearch",
+				args: { query: ["one"] },
+			},
+			{
+				type: "tool_call_complete",
+				blockKey: "b1",
+				seq: 2,
+				toolName: "webSearch",
+				args: { query: ["one"] },
+				result: { error: "boom" },
+			},
+			{
+				type: "tool_call_start",
+				blockKey: "b2",
+				seq: 3,
+				toolName: "webSearch",
+				args: { query: "two" },
+			},
+		]);
+		const restored = boxed(
+			deserializeTranscriptRow(serializeTranscriptEntry(boxed(entries[0]))),
+		);
+		expect(restored.presentation?.kind).toBe("search");
+		expect(restored.toolRuns?.map((run) => run.args?.query)).toEqual([
+			["one"],
+			"two",
+		]);
+		expect(restored.toolRuns?.[0]?.failed).toBe(true);
+
+		const [single] = apply([
+			{
+				type: "tool_call_start",
+				blockKey: "s1",
+				seq: 1,
+				toolName: "readProjectFile",
+				args: { path: "a.md" },
+			},
+		]);
+		const restoredSingle = boxed(
+			deserializeTranscriptRow(serializeTranscriptEntry(boxed(single))),
+		);
+		expect(restoredSingle.args).toEqual({ path: "a.md" });
+		expect(restoredSingle.presentation?.kind).toBe("read");
 	});
 });
