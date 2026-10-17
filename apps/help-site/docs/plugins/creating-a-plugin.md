@@ -493,6 +493,7 @@ chat transcript. Without it, Toby shows the tool's label and up to three
 | `verbs` | Two titles: while running and when done, e.g. `["Searching messages", "Searched messages"]` |
 | `argChips` | Input keys to show as chips, in order. Array values become one chip per item |
 | `primaryArg` | Input key shown as literal text (monospaced), such as a query or path |
+| `transient` | `true` for housekeeping tools with nothing to show afterwards. The step appears only while it runs and is hidden once it succeeds (failures stay visible) |
 
 Unknown kinds fall back to `generic`; invalid fields are ignored.
 

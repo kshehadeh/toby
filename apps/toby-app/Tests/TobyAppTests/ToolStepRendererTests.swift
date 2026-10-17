@@ -295,4 +295,83 @@ struct ToolStepRendererTests {
 		#expect(try view.inspect().find(text: "8 results · reuters.com").string() == "8 results · reuters.com")
 		#expect(throws: (any Error).self) { try view.inspect().find(ToolLiveRail.self) }
 	}
+
+	@Test("persisted grouped web search shows query chips (regression)")
+	func persistedGroupedChips() throws {
+		let json = #"{"id": "call_Je9B9D8mPZdYZlqucg2fVNyk", "seq": 13, "variant": "tool", "header": "Toby: Web search (x2)", "body": "", "toolBlockKey": "call_Je9B9D8mPZdYZlqucg2fVNyk", "toolName": "webSearch", "integrationLabel": "Toby", "durationMs": 6432, "toolRuns": [{"blockKey": "call_Je9B9D8mPZdYZlqucg2fVNyk", "header": "Toby: Web search", "body": "5 results \u00b7 pmc.ncbi.nlm.nih.gov, petsvetcheck.de +3", "args": {"query": ["feline intestinal cancer lymphoma adenocarcinoma symptoms diagnosis treatment veterinary source", "Cornell Feline Health Center intestinal lymphoma cats", "Merck Veterinary Manual gastrointestinal neoplasia cats"], "max_results": 5, "search_recency_filter": "year", "country": "US"}, "durationMs": 6432, "failed": false}, {"blockKey": "call_qY8C7TFF6dh1fSKmt5CqOEtM", "header": "Toby: Web search", "body": "6 results \u00b7 vet.cornell.edu, cwhl.vet.cornell.edu", "args": {"query": ["site:vet.cornell.edu cats gastrointestinal lymphoma intestinal cancer", "site:merckvetmanual.com cat intestinal tumors lymphoma adenocarcinoma", "site:vcahospitals.com cats intestinal lymphoma symptoms treatment"], "max_results": 6, "search_recency_filter": "year", "country": "US"}, "durationMs": 5680, "failed": false}], "kind": "boxed_step"}"#
+		let entry = try JSONDecoder().decode(TranscriptEntry.self, from: Data(json.utf8))
+		let group = TranscriptWorkGroup(id: "w", entries: [entry], userTurnIndex: 0, durationMs: 1, isActive: false)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		let display = try #require(steps.first?.toolDisplay())
+		#expect(!display.chips.isEmpty)
+	}
+
+	@Test("live grouped web search shows query chips")
+	func liveGroupedChips() throws {
+		var state = makeState()
+		for id in ["c1", "c2"] {
+			try apply(#"{"type":"tool_call_start","blockKey":"\#(id)","toolName":"webSearch","integrationLabel":"Toby","args":{}}"#, to: &state)
+			try apply(#"{"type":"tool_call_start","blockKey":"\#(id)","toolName":"webSearch","integrationLabel":"Toby","argsUpdate":true,"args":{"query":["a \#(id)","b"],"max_results":5}}"#, to: &state)
+			try apply(#"{"type":"tool_call_complete","blockKey":"\#(id)","toolName":"webSearch","integrationLabel":"Toby","args":{"query":["a \#(id)","b"],"max_results":5},"result":{"results":[]},"durationMs":10,"summary":"No results"}"#, to: &state)
+		}
+		let group = TranscriptWorkGroup(id: "w", entries: state.transcript, userTurnIndex: 0, durationMs: 1, isActive: false)
+		let steps = workSteps(from: group)
+		#expect(steps.count == 1)
+		let display = try #require(steps.first?.toolDisplay())
+		#expect(display.chips.map(\.text).contains("a c1"))
+	}
+
+	private func transientStep(isActive: Bool, failed: Bool = false, presentation: ToolPresentation? = nil) -> WorkStep {
+		WorkStep(
+			id: "t",
+			type: .tool,
+			title: "Toby: Toby list tools",
+			body: "Done.",
+			fullBody: nil,
+			durationMs: isActive ? nil : 100,
+			isActive: isActive,
+			cacheHit: nil,
+			toolName: "tobyListTools",
+			count: 1,
+			children: [],
+			integrationLabel: "Toby",
+			presentation: presentation,
+			failed: failed,
+		)
+	}
+
+	@Test("finished housekeeping steps are hidden; running or failed ones stay")
+	func transientSteps() {
+		#expect(transientStep(isActive: false).isHiddenTransientStep)
+		#expect(!transientStep(isActive: true).isHiddenTransientStep)
+		#expect(!transientStep(isActive: false, failed: true).isHiddenTransientStep)
+		#expect(!transientStep(
+			isActive: false,
+			presentation: ToolPresentation(kind: .generic, transient: false),
+		).isHiddenTransientStep)
+
+		let model = WorkActivityModel(
+			group: TranscriptWorkGroup(id: "w", entries: [], userTurnIndex: 0, durationMs: 1, isActive: false),
+			steps: [transientStep(isActive: false)],
+			duration: 1,
+		)
+		#expect(model.steps.isEmpty)
+	}
+
+	@Test("core tools drop the Toby prefix and placeholder summaries")
+	func compactCoreTitles() throws {
+		let display = try #require(transientStep(isActive: false).toolDisplay())
+		#expect(display.title == "Toby list tools")
+		#expect(display.summary.isEmpty)
+
+		let plugin = ToolStepDisplay.resolve(context(
+			toolName: "fetchOpenTasks",
+			presentation: ToolPresentation(kind: .list, verbs: ["Fetching", "Fetched"]),
+			integrationLabel: "Todoist",
+		))
+		#expect(plugin.title == "Todoist: Fetched")
+		let core = ToolStepDisplay.resolve(context(integrationLabel: "Toby"))
+		#expect(core.title == "Searched the web")
+	}
 }

@@ -9,6 +9,13 @@ extension WorkStep {
 		return type == .tool || type == .toolCall
 	}
 
+	/// Finished housekeeping step (tool listing, enabling tools) that the work
+	/// log omits. Running or failed transient steps stay visible.
+	var isHiddenTransientStep: Bool {
+		guard isRenderableToolStep, !isActive, !failed else { return false }
+		return ToolStepTransience.isTransient(toolName: toolName, presentation: presentation)
+	}
+
 	var toolPhase: ToolStepPhase {
 		if failed { return .failed }
 		if isActive { return .running }
@@ -90,11 +97,11 @@ struct ToolStepRow: View {
 	var body: some View {
 		HStack(alignment: .top, spacing: 10) {
 			Image(systemName: showsFailure ? "exclamationmark.circle" : display.systemImage)
-				.font(.system(size: 15, weight: .medium))
+				.font(.system(size: 13, weight: .medium))
 				.foregroundStyle(glyphColor)
 				.frame(width: 16)
 				.accessibilityHidden(true)
-			VStack(alignment: .leading, spacing: 4) {
+			VStack(alignment: .leading, spacing: 3) {
 				header
 				if !display.chips.isEmpty {
 					ToolArgChipsView(chips: display.chips)
@@ -102,14 +109,6 @@ struct ToolStepRow: View {
 				if !display.liveItems.isEmpty {
 					ToolLiveRail(items: display.liveItems, fraction: display.fraction)
 						.transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .top)))
-				}
-				if !display.summary.isEmpty {
-					Text(display.summary)
-						.font(isPath(display.summary) ? .system(size: 11.5, design: .monospaced) : .system(size: 12))
-						.foregroundStyle(palette.faint)
-						.lineLimit(1)
-						.truncationMode(isPath(display.summary) ? .middle : .tail)
-						.textSelection(.enabled)
 				}
 				if let errorText, !errorText.isEmpty {
 					Text(errorText)
@@ -124,8 +123,8 @@ struct ToolStepRow: View {
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.padding(.vertical, 12)
-		.padding(.horizontal, 14)
+		.padding(.vertical, 6)
+		.padding(.horizontal, 12)
 		.animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: display.liveItems.isEmpty)
 		.animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: showsRuns)
 		// Keep children separate when the row has its own disclosure button.
@@ -139,6 +138,16 @@ struct ToolStepRow: View {
 				.font(.system(size: 13, weight: .semibold))
 				.foregroundStyle(palette.primary)
 				.lineLimit(1)
+				.layoutPriority(1)
+			// Result shares the title line so finished steps stay one row tall.
+			if !display.summary.isEmpty {
+				Text(display.summary)
+					.font(isPath(display.summary) ? .system(size: 11.5, design: .monospaced) : .system(size: 12))
+					.foregroundStyle(palette.faint)
+					.lineLimit(1)
+					.truncationMode(isPath(display.summary) ? .middle : .tail)
+					.textSelection(.enabled)
+			}
 			Spacer(minLength: 0)
 			meta
 			if canShowRuns {

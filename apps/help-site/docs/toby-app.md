@@ -79,7 +79,8 @@ The **Working…** section starts collapsed. While Toby works, the step it is
 running stays visible under the header. It shows what the tool was asked
 (such as the search query or file path) and live progress, such as each query
 being searched. That progress disappears when the step finishes and leaves a
-one-line result, such as "8 results · reuters.com, europa.eu +5".
+one-line result, such as "8 results · reuters.com, europa.eu +5". Behind-the-scenes
+steps, like checking which tools are available, appear only while they run.
 
 Click the section to see every step and the selected tools, then click again to
 collapse it. Your choice stays in place when work finishes or fails; completed

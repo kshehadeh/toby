@@ -30,6 +30,12 @@ export type ToolPresentation = {
 	readonly argChips?: readonly string[];
 	/** Argument key holding the primary subject (query, path, URL). */
 	readonly primaryArg?: string;
+	/**
+	 * Housekeeping step with nothing to show the user afterwards (listing
+	 * tools, enabling tools). Shown only while running; hidden once it
+	 * succeeds. Failures stay visible.
+	 */
+	readonly transient?: boolean;
 };
 
 export type ToolProgressItemState = "waiting" | "running" | "done" | "failed";
@@ -51,7 +57,35 @@ export type ToolProgressUpdate = {
 	readonly fraction?: number;
 };
 
+/** Housekeeping tools: visible while running, hidden once they succeed. */
+function transientStep(running: string, done: string): ToolPresentation {
+	return { kind: "generic", verbs: [running, done], transient: true };
+}
+
 const CORE_TOOL_PRESENTATIONS: Record<string, ToolPresentation> = {
+	enableTools: transientStep("Enabling tools", "Enabled tools"),
+	tobyListTools: transientStep(
+		"Checking available tools",
+		"Checked available tools",
+	),
+	tobyListIntegrations: transientStep(
+		"Checking integrations",
+		"Checked integrations",
+	),
+	tobyListSkills: transientStep("Checking skills", "Checked skills"),
+	tobyListDefaults: transientStep("Checking defaults", "Checked defaults"),
+	tobyInstanceInfo: transientStep("Checking Toby setup", "Checked Toby setup"),
+	getCurrentDateTime: transientStep("Checking the date", "Checked the date"),
+	loadLocalSkillInstructions: transientStep("Loading skill", "Loaded skill"),
+	listFlowAuthoringCatalog: transientStep(
+		"Checking flow tools",
+		"Checked flow tools",
+	),
+	memoryRetrieveForTask: {
+		kind: "search",
+		verbs: ["Recalling memories", "Recalled memories"],
+		transient: true,
+	},
 	webSearch: {
 		kind: "search",
 		verbs: ["Searching the web", "Searched the web"],
@@ -74,10 +108,6 @@ const CORE_TOOL_PRESENTATIONS: Record<string, ToolPresentation> = {
 		verbs: ["Searching memory", "Searched memory"],
 		argChips: ["query"],
 		primaryArg: "query",
-	},
-	memoryRetrieveForTask: {
-		kind: "search",
-		verbs: ["Recalling memories", "Recalled memories"],
 	},
 	find_in_library: {
 		kind: "search",
@@ -163,6 +193,7 @@ export function parseToolPresentation(
 		...(verbs ? { verbs } : {}),
 		...(argChips && argChips.length > 0 ? { argChips } : {}),
 		...(primaryArg ? { primaryArg } : {}),
+		...(raw.transient === true ? { transient: true } : {}),
 	};
 }
 

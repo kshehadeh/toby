@@ -64,11 +64,15 @@ extension ToolStepRenderer {
 		}
 		guard let verb else {
 			// No verb: drop the inline " · “query”" suffix when chips show it.
-			if chips(context).isEmpty { return context.fallbackTitle }
-			let label = ToolDisplayLabels.displayLabel(context.toolName)
-			return context.integrationLabel.map { "\($0): \(label)" } ?? label
+			if chips(context).isEmpty {
+				return ToolStepTitle.strippingCorePrefix(context.fallbackTitle)
+			}
+			return ToolStepTitle.prefixed(
+				ToolDisplayLabels.displayLabel(context.toolName),
+				integrationLabel: context.integrationLabel,
+			)
 		}
-		return context.integrationLabel.map { "\($0): \(verb)" } ?? verb
+		return ToolStepTitle.prefixed(verb, integrationLabel: context.integrationLabel)
 	}
 
 	func chips(_ context: ToolStepContext) -> [ToolArgChip] {
@@ -94,16 +98,64 @@ extension ToolStepRenderer {
 		switch context.phase {
 		case .pending, .running:
 			return ""
-		case .cached:
+		case .done, .cached, .failed:
 			let trimmed = context.resultSummary.trimmingCharacters(in: .whitespacesAndNewlines)
-			return trimmed == "Done. Cached result." ? "" : trimmed
-		case .done, .failed:
-			return context.resultSummary.trimmingCharacters(in: .whitespacesAndNewlines)
+			return ToolStepTitle.placeholderSummaries.contains(trimmed) ? "" : trimmed
 		}
 	}
 
 	func systemImage(_ context: ToolStepContext) -> String {
 		ToolDisplayLabels.iconForTool(context.toolName)
+	}
+}
+
+enum ToolStepTitle {
+	/// Core tools are labelled "Toby"; prefixing every step with it is noise.
+	static let coreIntegrationLabel = "Toby"
+
+	/// Generic results that say nothing beyond "it finished".
+	static let placeholderSummaries: Set<String> = [
+		"Done.",
+		"Done. Cached result.",
+		"No result.",
+		"Running…",
+	]
+
+	static func prefixed(_ title: String, integrationLabel: String?) -> String {
+		guard let integrationLabel, !integrationLabel.isEmpty,
+		      integrationLabel != coreIntegrationLabel,
+		      !title.hasPrefix("\(integrationLabel):")
+		else { return title }
+		return "\(integrationLabel): \(title)"
+	}
+
+	static func strippingCorePrefix(_ title: String) -> String {
+		let prefix = "\(coreIntegrationLabel): "
+		return title.hasPrefix(prefix) ? String(title.dropFirst(prefix.count)) : title
+	}
+}
+
+/// Housekeeping tools whose finished steps carry no information for the user.
+enum ToolStepTransience {
+	/// Fallback for transcripts saved before presentations carried `transient`.
+	/// Mirrors the transient entries in core's `CORE_TOOL_PRESENTATIONS`.
+	static let legacyTransientTools: Set<String> = [
+		"enableTools",
+		"tobyListTools",
+		"tobyListIntegrations",
+		"tobyListSkills",
+		"tobyListDefaults",
+		"tobyInstanceInfo",
+		"getCurrentDateTime",
+		"loadLocalSkillInstructions",
+		"listFlowAuthoringCatalog",
+		"memoryRetrieveForTask",
+	]
+
+	static func isTransient(toolName: String?, presentation: ToolPresentation?) -> Bool {
+		if let transient = presentation?.transient { return transient }
+		guard let toolName else { return false }
+		return legacyTransientTools.contains(toolName)
 	}
 }
 

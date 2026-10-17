@@ -88,17 +88,21 @@ struct ToolPresentation: Equatable, Decodable {
 	let verbs: [String]?
 	let argChips: [String]?
 	let primaryArg: String?
+	/// Housekeeping step: shown while running, hidden once it succeeds.
+	let transient: Bool?
 
 	init(
 		kind: ToolPresentationKind,
 		verbs: [String]? = nil,
 		argChips: [String]? = nil,
 		primaryArg: String? = nil,
+		transient: Bool? = nil,
 	) {
 		self.kind = kind
 		self.verbs = verbs
 		self.argChips = argChips
 		self.primaryArg = primaryArg
+		self.transient = transient
 	}
 
 	var runningVerb: String? {

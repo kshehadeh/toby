@@ -179,7 +179,7 @@ struct WorkActivityModel {
 	init(group: TranscriptWorkGroup, steps: [WorkStep], duration: TimeInterval?) {
 		isRunning = group.isActive
 		errorText = group.errorText
-		self.steps = steps.filter { $0.type != .assistantInterim }
+		self.steps = steps.filter { $0.type != .assistantInterim && !$0.isHiddenTransientStep }
 		stepCount = self.steps.count
 		self.duration = max(duration ?? workStepDuration(from: steps) ?? 0.1, 0.1)
 
@@ -378,8 +378,8 @@ private struct ActivityStepRow: View {
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.padding(.vertical, 12)
-		.padding(.horizontal, 14)
+		.padding(.vertical, 6)
+		.padding(.horizontal, 12)
 	}
 
 	private var detail: String {
