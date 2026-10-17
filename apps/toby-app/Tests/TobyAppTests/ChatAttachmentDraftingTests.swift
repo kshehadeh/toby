@@ -173,4 +173,22 @@ struct ChatAttachmentDraftingTests {
 		#expect(attachments.count == 1)
 		#expect(attachments[0].filename == "a.txt")
 	}
+
+	@Test("attachableDroppedFileURLs keeps files and skips links and directories")
+	func droppedFileURLsFilter() throws {
+		let root = FileManager.default.temporaryDirectory
+			.appendingPathComponent("toby-drop-\(UUID().uuidString)", isDirectory: true)
+		try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: root) }
+		let file = root.appendingPathComponent("note.txt")
+		try Data("hi".utf8).write(to: file)
+		let folder = root.appendingPathComponent("dir", isDirectory: true)
+		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+		let missing = root.appendingPathComponent("gone.png")
+		let web = try #require(URL(string: "https://example.com/a.png"))
+
+		let kept = ChatAttachmentDrafting.attachableDroppedFileURLs([file, folder, web, missing])
+
+		#expect(kept.map(\.path) == [file.path, missing.path])
+	}
 }

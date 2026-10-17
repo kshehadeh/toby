@@ -773,6 +773,63 @@ struct ChatStoreTests {
         #expect(client.saveAttachmentsToProjectValues == [true])
     }
 
+    @Test("pending attachments clear once the turn is accepted")
+    func submitPromptClearsAttachmentsWhenTurnIsAccepted() async {
+        let client = MockChatClient()
+        client.waitForStream = true
+        let store = ChatStore(client: client)
+        store.sessionId = "sess"
+        store.promptText = "look at this"
+        store.pendingAttachments = [Self.sampleAttachment]
+
+        let task = Task { await store.submitPrompt() }
+        for _ in 0 ..< 100 where client.streamGate == nil {
+            await Task.yield()
+        }
+        #expect(client.streamGate != nil)
+        #expect(store.pendingAttachments.isEmpty)
+        #expect(store.promptText.isEmpty)
+        client.resumeStream()
+        await task.value
+        #expect(store.pendingAttachments.isEmpty)
+    }
+
+    @Test("pending attachments stay when the turn is rejected before it posts")
+    func submitPromptKeepsAttachmentsWhenPostFails() async {
+        let client = MockChatClient()
+        client.streamTurnError = TobyClientError.serverError("nope")
+        let store = ChatStore(client: client)
+        store.sessionId = "sess"
+        store.promptText = "look"
+        store.pendingAttachments = [Self.sampleAttachment]
+
+        await store.submitPrompt()
+
+        #expect(store.pendingAttachments == [Self.sampleAttachment])
+    }
+
+    @Test("pending attachments stay cleared when the stream fails after the post")
+    func submitPromptKeepsAttachmentsClearedAfterAcceptedStreamError() async {
+        let client = MockChatClient()
+        client.streamTurnError = TobyClientError.streamError("Model unavailable")
+        client.acceptTurnBeforeError = true
+        let store = ChatStore(client: client)
+        store.sessionId = "sess"
+        store.promptText = "look"
+        store.pendingAttachments = [Self.sampleAttachment]
+
+        await store.submitPrompt()
+
+        #expect(store.pendingAttachments.isEmpty)
+    }
+
+    private static let sampleAttachment = ChatAttachmentDraft(
+        filename: "pixel.png",
+        mediaType: "image/png",
+        dataBase64: "aQ==",
+        byteSize: 1,
+    )
+
     @Test("toggleRecording start uses native audio client")
     func toggleRecordingStartUsesNativeClient() async {
         let chat = MockChatClient()

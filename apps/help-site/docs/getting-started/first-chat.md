@@ -54,9 +54,9 @@ You can follow up without repeating yourself:
 
 ## Share files and pictures
 
-Click **+** in the message box to attach a PDF, image, or document, then ask
-about it: "Summarize this contract and list the key dates." You can also paste
-a web link and ask Toby to read it.
+Click **+** in the message box to attach a PDF, image, or document, or drag
+files onto the message box, then ask about it: "Summarize this contract and
+list the key dates." You can also paste a web link and ask Toby to read it.
 
 When Toby creates a file for you, such as a report or a list, the reply
 includes **Download** and **Open** buttons.

@@ -518,6 +518,7 @@ struct TobyClient {
 		clientTurnId: String? = nil,
 		onEvent: @escaping (ChatEventPayload) -> Void,
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
+		onPosted: (@MainActor () -> Void)? = nil,
 	) async throws -> TurnDonePayload {
 		let turnURL = baseURL.appendingPathComponent("api/sessions/\(sessionId)/turn")
 		ServerEventLog.beginTurn(sessionId: sessionId, text: text, url: turnURL)
@@ -562,6 +563,8 @@ struct TobyClient {
 			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
 			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
 		}
+		// Headers are in. The prompt is posted; later SSE failures are not a failed send.
+		onPosted?()
 
 		var pendingEvent: String?
 		for try await line in bytes.lines {
