@@ -68,7 +68,9 @@ export function headlessProgressLineForChatEvent(
 	personaName?: string,
 ): string | null {
 	if (event.type === "tool_call_start") {
-		return formatToolStatusLine(event.toolName);
+		return event.argsUpdate === true
+			? null
+			: formatToolStatusLine(event.toolName);
 	}
 	return activityLineForChatEvent(event, { personaName });
 }

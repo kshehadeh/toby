@@ -1,3 +1,5 @@
+import type { ToolPresentation } from "./tool-presentation";
+
 export type NoticeTone = "info" | "success" | "error";
 
 export type ToolRunEntry = {
@@ -9,7 +11,15 @@ export type ToolRunEntry = {
 	readonly durationMs?: number;
 	/** Full untruncated output, when it differs from `body`. */
 	readonly fullBody?: string;
+	/** Display-safe tool arguments (see `sanitizeToolArgsForDisplay`). */
+	readonly args?: ToolDisplayArgs;
+	/** True when the call errored or returned `{ error }`. */
+	readonly failed?: boolean;
 };
+
+export type ToolDisplayArgs = Readonly<
+	Record<string, string | number | boolean | readonly string[]>
+>;
 
 export type TranscriptAttachment = {
 	readonly filename: string;
@@ -67,6 +77,12 @@ export type TranscriptEntry =
 			readonly toolRuns?: readonly ToolRunEntry[];
 			/** Full untruncated output, when it differs from `body`. */
 			readonly fullBody?: string;
+			/** Display-safe tool arguments for single-call tool steps. */
+			readonly args?: ToolDisplayArgs;
+			/** True when a single-call tool step failed. */
+			readonly failed?: boolean;
+			/** Renderer hint for tool steps. */
+			readonly presentation?: ToolPresentation;
 			/** ISO-8601 timestamp for assistant segments shown in the transcript. */
 			readonly createdAt?: string;
 	  }

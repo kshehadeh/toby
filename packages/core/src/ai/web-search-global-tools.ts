@@ -4,6 +4,7 @@ import type { Persona } from "../config/index";
 import { readConfig, readCredentials } from "../config/index";
 import { gatewayFundsErrorBody } from "./gateway-funds";
 import { createVercelGatewayModel } from "./model-factory";
+import { reportToolProgress } from "./tool-progress";
 
 /** Gateway model used for the internal search call (cheap and fast). */
 const SEARCH_GATEWAY_MODEL = "openai/gpt-4.1-mini";
@@ -92,6 +93,15 @@ export function createWebSearchGlobalTools(
 						typeof input.query === "string"
 							? input.query
 							: input.query.join(", ");
+					const queries =
+						typeof input.query === "string" ? [input.query] : input.query;
+					reportToolProgress({
+						items: queries.map((query, index) => ({
+							id: `q${index}`,
+							label: query,
+							state: "running" as const,
+						})),
+					});
 
 					const result = await generateText({
 						model,
@@ -103,6 +113,7 @@ export function createWebSearchGlobalTools(
 					const toolResult = result.toolResults?.find(
 						(r) => r.toolName === "search",
 					);
+					reportSearchResults(queries, toolResult?.output);
 					return (
 						toolResult?.output ?? {
 							error: "No search results returned",
@@ -118,4 +129,48 @@ export function createWebSearchGlobalTools(
 			},
 		}),
 	};
+}
+
+/** Mark queries done and surface the top sources on the live rail. */
+function reportSearchResults(
+	queries: readonly string[],
+	output: unknown,
+): void {
+	const results =
+		output && typeof output === "object" && !Array.isArray(output)
+			? (output as { results?: unknown }).results
+			: undefined;
+	const list = Array.isArray(results) ? results : [];
+	const sources = list
+		.slice(0, 3)
+		.map((r, index) => {
+			const record =
+				r && typeof r === "object" ? (r as Record<string, unknown>) : {};
+			const title = typeof record.title === "string" ? record.title : "";
+			const url = typeof record.url === "string" ? record.url : undefined;
+			return title
+				? {
+						id: `src${index}`,
+						label: title,
+						state: "done" as const,
+						...(url ? { url } : {}),
+					}
+				: undefined;
+		})
+		.filter((item) => item !== undefined);
+	reportToolProgress({
+		items: [
+			...queries.map((query, index) => ({
+				id: `q${index}`,
+				label: query,
+				state: "done" as const,
+				...(queries.length === 1
+					? {
+							detail: `${list.length} ${list.length === 1 ? "result" : "results"}`,
+						}
+					: {}),
+			})),
+			...sources,
+		],
+	});
 }

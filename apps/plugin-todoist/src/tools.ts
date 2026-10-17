@@ -9,12 +9,18 @@ import {
 	fetchProjects,
 	updateTask as submitTodoistTaskUpdate,
 } from "./client";
+import { emitProgress } from "./progress";
 
 type JsonRecord = Record<string, unknown>;
 
 export const TOOL_DEFINITIONS = [
 	{
 		name: "fetchOpenTasks",
+		presentation: {
+			kind: "list",
+			verbs: ["Fetching open tasks", "Fetched open tasks"],
+			argChips: ["limit"],
+		},
 		displayName: "Fetch open tasks",
 		description:
 			"Fetch active (incomplete) Todoist tasks via the tasks list API — not completed archive",
@@ -31,6 +37,10 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "getOpenTasksSummary",
+		presentation: {
+			kind: "list",
+			verbs: ["Summarizing open tasks", "Summarized open tasks"],
+		},
 		displayName: "Open tasks summary",
 		description:
 			"Dashboard summary of open Todoist tasks. Returns a standardized shape with count, items, groups, and generatedAt. Tagged as tasks.openSummary standard tool.",
@@ -48,6 +58,11 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "fetchCompletedTasks",
+		presentation: {
+			kind: "list",
+			verbs: ["Fetching completed tasks", "Fetched completed tasks"],
+			argChips: ["limit"],
+		},
 		displayName: "Fetch completed tasks",
 		description: "Fetch recently completed Todoist tasks",
 		readOnly: true,
@@ -63,6 +78,10 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "listProjectNames",
+		presentation: {
+			kind: "list",
+			verbs: ["Listing projects", "Listed projects"],
+		},
 		displayName: "List project names",
 		description:
 			"List Todoist project names (includes project id so you can map task.projectId values).",
@@ -74,6 +93,11 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "getProjectNameById",
+		presentation: {
+			kind: "read",
+			verbs: ["Resolving project", "Resolved project"],
+			argChips: ["projectId"],
+		},
 		displayName: "Resolve project name",
 		description:
 			"Convert a Todoist project id to a project name. Use this when context includes only projectId values.",
@@ -91,6 +115,11 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "completeTask",
+		presentation: {
+			kind: "action",
+			verbs: ["Completing task", "Completed task"],
+			argChips: ["taskId"],
+		},
 		displayName: "Complete task",
 		description: "Mark a Todoist task as completed",
 		readOnly: false,
@@ -107,6 +136,12 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "createTask",
+		presentation: {
+			kind: "action",
+			verbs: ["Creating task", "Created task"],
+			argChips: ["content", "dueString", "priority"],
+			primaryArg: "content",
+		},
 		displayName: "Create task",
 		description:
 			"Create a new Todoist task in the inbox unless projectId or sectionId is set. Use projectId/sectionId from fetchOpenTasks context when the user wants a task in a specific project.",
@@ -154,6 +189,11 @@ export const TOOL_DEFINITIONS = [
 	},
 	{
 		name: "updateTask",
+		presentation: {
+			kind: "action",
+			verbs: ["Updating task", "Updated task"],
+			argChips: ["taskId", "content", "dueString"],
+		},
 		displayName: "Update task",
 		description:
 			"Update an existing Todoist task by id. Change the list title (`content` or `title`), notes (`description`), due date (`dueDate` YYYY-MM-DD, `dueString` natural language, or `dueDatetime` ISO 8601), `priority` (1–4, 4 = most urgent in API), and/or `labels`. Pass at least one field besides taskId.",
@@ -227,7 +267,18 @@ export async function executeTool(
 					},
 				};
 			}
-			const tasks = await fetchOpenTasks(config, limit ?? 30);
+			const tasks = await fetchOpenTasks(config, limit ?? 30, (page, count) =>
+				emitProgress({
+					items: [
+						{
+							id: "tasks",
+							label: "Open tasks",
+							state: "running",
+							detail: `page ${page} · ${count} found`,
+						},
+					],
+				}),
+			);
 			return { result: { tasks } };
 		}
 

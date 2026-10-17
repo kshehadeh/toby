@@ -19,7 +19,54 @@ export type PluginClientOptions = {
 	readonly timeoutMs?: number;
 	readonly signal?: AbortSignal;
 	readonly maxBufferBytes?: number;
+	/**
+	 * Receives parsed `@@toby-progress {json}` stderr lines while the plugin
+	 * runs (async invocations only). Those lines are removed from `stderr`.
+	 */
+	readonly onProgress?: (update: unknown) => void;
 };
+
+/** Stderr line prefix plugins use to report live tool progress. */
+export const PLUGIN_PROGRESS_PREFIX = "@@toby-progress ";
+
+/**
+ * Split a stderr chunk stream into progress updates and ordinary log text.
+ * Keeps a partial trailing line buffered until its newline arrives.
+ */
+export function createPluginStderrSplitter(
+	onProgress: ((update: unknown) => void) | undefined,
+): { push(chunk: string): string; flush(): string } {
+	let pending = "";
+	const handleLine = (line: string): string => {
+		if (onProgress && line.startsWith(PLUGIN_PROGRESS_PREFIX)) {
+			try {
+				onProgress(JSON.parse(line.slice(PLUGIN_PROGRESS_PREFIX.length)));
+			} catch {
+				/* Malformed progress lines are dropped. */
+			}
+			return "";
+		}
+		return `${line}\n`;
+	};
+	return {
+		push(chunk) {
+			pending += chunk;
+			let out = "";
+			let newline = pending.indexOf("\n");
+			while (newline >= 0) {
+				out += handleLine(pending.slice(0, newline));
+				pending = pending.slice(newline + 1);
+				newline = pending.indexOf("\n");
+			}
+			return out;
+		},
+		flush() {
+			const rest = pending;
+			pending = "";
+			return rest ? handleLine(rest).replace(/\n$/, "") : "";
+		},
+	};
+}
 
 /**
  * Accepts either a proper `PluginInvocationTarget` or a plain string path
@@ -194,6 +241,7 @@ function invokePluginAsync<T>(
 		let stdout = "";
 		let stderr = "";
 		let settled = false;
+		const stderrSplitter = createPluginStderrSplitter(options.onProgress);
 
 		const settle = (result: PluginInvokeResult<T>) => {
 			if (settled) return;
@@ -245,7 +293,7 @@ function invokePluginAsync<T>(
 		});
 
 		child.stderr?.on("data", (chunk: Buffer | string) => {
-			stderr += chunk.toString();
+			stderr += stderrSplitter.push(chunk.toString());
 		});
 
 		child.stdin?.on("error", () => {
@@ -267,6 +315,7 @@ function invokePluginAsync<T>(
 		});
 
 		child.on("close", (code) => {
+			stderr += stderrSplitter.flush();
 			settle(interpretPluginOutput<T>(stdout, stderr, code));
 		});
 	});

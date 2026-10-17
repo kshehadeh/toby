@@ -75,9 +75,18 @@ Where you talk to Toby. Press **⌘N** for a new chat, or use the arrow next to
 **+** to start one with a specific persona. See
 [Your first chat](./getting-started/first-chat).
 
-The **Working…** section starts collapsed. Click it to see work steps and selected
-tools, then click again to collapse it. Your choice stays in place when work
-finishes or fails; completed work shows **Worked for** with its duration.
+The **Working…** section starts collapsed. While Toby works, the step it is
+running stays visible under the header. It shows what the tool was asked
+(such as the search query or file path) and live progress, such as each query
+being searched. That progress disappears when the step finishes and leaves a
+one-line result, such as "8 results · reuters.com, europa.eu +5". Behind-the-scenes
+steps, like checking which tools are available, appear only while they run.
+
+Click the section to see every step and the selected tools, then click again to
+collapse it. Your choice stays in place when work finishes or fails; completed
+work shows **Worked for** with its duration. When the same tool runs several
+times in a row, the step shows a count such as **×3**. Click its arrow to see
+each call.
 
 ## Projects
 

@@ -56,6 +56,18 @@ struct WorkedForRow: View {
 					canExpand: showsWorkDetails && (!group.entries.isEmpty || group.errorText != nil)
 				)
 
+				if !isExpanded, showsWorkDetails, model.isRunning, !model.liveSteps.isEmpty {
+					// While running, keep the active call(s) visible so their live
+					// progress shows without expanding the whole work log.
+					VStack(alignment: .leading, spacing: 0) {
+						ForEach(model.liveSteps) { step in
+							ActivityStepRow(step: step, isFailing: false, errorText: nil)
+						}
+					}
+					.padding(.leading, 2)
+					.transition(.opacity)
+				}
+
 				if isExpanded, showsWorkDetails {
 					VStack(alignment: .leading, spacing: 0) {
 						ForEach(model.steps) { step in
@@ -124,6 +136,12 @@ struct WorkActivityModel {
 
 	var isFailed: Bool { errorText != nil }
 
+	/// Tool steps currently running (shown under a collapsed "Working…" header).
+	var liveSteps: [WorkStep] {
+		guard isRunning else { return [] }
+		return steps.filter { $0.isActive && $0.isRenderableToolStep }.suffix(3).map { $0 }
+	}
+
 	var title: String {
 		if isRunning { return "Working…" }
 		if isFailed { return "Stopped after \(formatActivityDuration(duration))" }
@@ -161,7 +179,7 @@ struct WorkActivityModel {
 	init(group: TranscriptWorkGroup, steps: [WorkStep], duration: TimeInterval?) {
 		isRunning = group.isActive
 		errorText = group.errorText
-		self.steps = steps.filter { $0.type != .assistantInterim }
+		self.steps = steps.filter { $0.type != .assistantInterim && !$0.isHiddenTransientStep }
 		stepCount = self.steps.count
 		self.duration = max(duration ?? workStepDuration(from: steps) ?? 0.1, 0.1)
 
@@ -311,6 +329,14 @@ private struct ActivityStepRow: View {
 	let errorText: String?
 
 	var body: some View {
+		if let display = step.toolDisplay() {
+			ToolStepRow(step: step, display: display, errorText: errorText, isFailing: isFailing)
+		} else {
+			legacyBody
+		}
+	}
+
+	private var legacyBody: some View {
 		HStack(alignment: .top, spacing: 10) {
 			Image(systemName: iconName)
 				.font(.system(size: 15, weight: .medium))
@@ -352,8 +378,8 @@ private struct ActivityStepRow: View {
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
 		}
-		.padding(.vertical, 12)
-		.padding(.horizontal, 14)
+		.padding(.vertical, 6)
+		.padding(.horizontal, 12)
 	}
 
 	private var detail: String {
@@ -440,7 +466,7 @@ private struct ActivityToolsFooter: View {
 	}
 }
 
-private struct ActivityChipLayout: Layout {
+struct ActivityChipLayout: Layout {
 	let spacing: CGFloat
 
 	func sizeThatFits(

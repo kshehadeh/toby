@@ -30,6 +30,10 @@ import {
 	resolveToolFundsError,
 	toolFundsActivity,
 } from "./gateway-funds";
+import {
+	createToolProgressAccumulator,
+	runWithToolProgress,
+} from "./tool-progress";
 export { formatChatModelError } from "./chat-errors";
 export { createModelForPersona } from "./model-factory";
 
@@ -277,11 +281,35 @@ function injectToolLifecycleHooks(
 					}
 					return cachedValue;
 				}
+				// Stream mode keys transcript rows by the provider's toolCallId.
+				const progressBlockKey = emitToolEvents
+					? blockKey
+					: ((toolOptions as { toolCallId?: string } | undefined)?.toolCallId ??
+						blockKey);
+				let progressOpen = true;
+				const emitProgress = streamCtx?.emit;
+				const reporter = emitProgress
+					? createToolProgressAccumulator(({ items, fraction }) => {
+							if (!progressOpen) return;
+							emitProgress({
+								type: "tool_call_progress",
+								blockKey: progressBlockKey,
+								seq: streamCtx.nextSeq(),
+								toolName: name,
+								items,
+								...(fraction !== undefined ? { fraction } : {}),
+							});
+						})
+					: undefined;
+				const runExecute = async () =>
+					execute(input as never, toolOptions as never);
 				try {
 					const result = await awaitWithAbort(
-						execute(input as never, toolOptions as never),
+						reporter ? runWithToolProgress(reporter, runExecute) : runExecute(),
 						abortSignal,
-					);
+					).finally(() => {
+						progressOpen = false;
+					});
 					throwIfAborted(abortSignal);
 					const funds = resolveToolFundsError(
 						result,
@@ -635,6 +663,22 @@ export async function chatWithTools(
 					!Array.isArray(part.input)
 						? (part.input as Record<string, unknown>)
 						: {};
+				if (
+					onChatEvent &&
+					emittedToolCallStarts.has(part.toolCallId) &&
+					Object.keys(args).length > 0
+				) {
+					// Streaming start went out with empty args; resend so clients
+					// can render argument chips before the tool finishes.
+					onChatEvent({
+						type: "tool_call_start",
+						blockKey: part.toolCallId,
+						seq: nextSeq(),
+						toolName: part.toolName ?? "",
+						args,
+						argsUpdate: true,
+					});
+				}
 				if (onChatEvent && !emittedToolCallStarts.has(part.toolCallId)) {
 					emittedToolCallStarts.set(part.toolCallId, Date.now());
 					onChatEvent({

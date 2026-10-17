@@ -76,17 +76,39 @@ enum ChatTurnEngine {
 					args: args,
 					integrationLabel: event.integrationLabel,
 				)
-				appendToolRow(
-					id: event.blockKey ?? event.id ?? UUID().uuidString,
-					header: header,
-					body: "Running…",
-					toolName: toolName,
-					integrationLabel: event.integrationLabel,
-					cacheHit: nil,
-					durationMs: nil,
-					state: &state,
-				)
+				let id = event.blockKey ?? event.id ?? UUID().uuidString
+				let displayArgs = ToolArgValue.displayArgs(from: args)
+				// A repeat start for the same call carries args that finished streaming.
+				let updated = replaceBoxedStep(id: id, state: &state) { current in
+					var next = current.with(header: header)
+					next.args = displayArgs ?? current.args
+					next.presentation = event.presentation ?? current.presentation
+					return next
+				}
+				if !updated {
+					appendToolRow(
+						id: id,
+						header: header,
+						body: "Running…",
+						toolName: toolName,
+						integrationLabel: event.integrationLabel,
+						cacheHit: nil,
+						durationMs: nil,
+						args: displayArgs,
+						presentation: event.presentation,
+						state: &state,
+					)
+				}
 				state.activityLine = "Running \(ToolDisplayLabels.displayLabel(toolName))…"
+			}
+		case "tool_call_progress":
+			guard let id = event.blockKey, let items = event.items else { break }
+			replaceBoxedStep(id: id, state: &state) { current in
+				// Late progress after completion must not resurrect the rail.
+				guard current.durationMs == nil, current.failed != true else { return current }
+				var next = current
+				next.progress = ToolStepProgress(items: items, fraction: event.fraction)
+				return next
 			}
 		case "tool_call_complete":
 			if let result = event.result?.value as? [String: Any] {
@@ -103,9 +125,12 @@ enum ChatTurnEngine {
 			if let toolName = event.toolName {
 				let args = event.args?.value as? [String: Any]
 				let errorString = errorString(from: event.error?.value)
+				let failed = errorString != nil || Self.resultHasError(event.result?.value)
 				let body: String
 				if event.cacheHit == true {
 					body = "Done. Cached result."
+				} else if let summary = event.summary, !summary.isEmpty {
+					body = summary
 				} else {
 					body = ToolDisplayLabels.formatToolOutput(
 						toolName: toolName,
@@ -140,6 +165,9 @@ enum ChatTurnEngine {
 					integrationLabel: event.integrationLabel,
 					cacheHit: event.cacheHit,
 					durationMs: event.durationMs,
+					args: ToolArgValue.displayArgs(from: args),
+					presentation: event.presentation,
+					failed: failed,
 					state: &state,
 				)
 				// Notify memories UI when chat mutates durable memory.
@@ -319,6 +347,9 @@ enum ChatTurnEngine {
 		integrationLabel: String?,
 		cacheHit: Bool?,
 		durationMs: Int?,
+		args: [String: ToolArgValue]? = nil,
+		presentation: ToolPresentation? = nil,
+		failed: Bool? = nil,
 		state: inout ChatTurnMutationState,
 	) {
 		state.transcript.append(
@@ -335,6 +366,9 @@ enum ChatTurnEngine {
 					durationMs: durationMs,
 					toolRuns: nil,
 					fullBody: fullBody,
+					args: args,
+					presentation: presentation,
+					failed: failed,
 				),
 			),
 		)
@@ -400,6 +434,9 @@ enum ChatTurnEngine {
 		integrationLabel: String?,
 		cacheHit: Bool?,
 		durationMs: Int?,
+		args: [String: ToolArgValue]? = nil,
+		presentation: ToolPresentation? = nil,
+		failed: Bool? = nil,
 		state: inout ChatTurnMutationState,
 	) {
 		let replaced = replaceBoxedStep(id: id, state: &state) { current in
@@ -416,6 +453,11 @@ enum ChatTurnEngine {
 				toolRuns: nil,
 				fullBody: fullBody,
 				createdAt: current.createdAt,
+				args: args ?? current.args,
+				presentation: presentation ?? current.presentation,
+				failed: failed,
+				// The live rail folds away on success; a failed call keeps it frozen.
+				progress: failed == true ? current.progress : nil,
 			)
 		}
 		if !replaced {
@@ -428,6 +470,9 @@ enum ChatTurnEngine {
 				integrationLabel: integrationLabel,
 				cacheHit: cacheHit,
 				durationMs: durationMs,
+				args: args,
+				presentation: presentation,
+				failed: failed,
 				state: &state,
 			)
 		}
@@ -455,6 +500,13 @@ enum ChatTurnEngine {
 	}
 
 	// MARK: - Helpers
+
+	private static func resultHasError(_ value: Any?) -> Bool {
+		guard let dict = value as? [String: Any], let message = dict["error"] as? String else {
+			return false
+		}
+		return !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+	}
 
 	private static func errorString(from value: Any?) -> String? {
 		guard let value else { return nil }

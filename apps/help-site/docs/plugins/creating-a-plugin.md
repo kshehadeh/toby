@@ -187,7 +187,7 @@ to pick up changes.
 | ------ | ---- |
 | **stdin** | UTF-8 JSON when the subcommand requires it; empty or omitted otherwise |
 | **stdout** | Exactly **one** JSON object, then exit—no log prefixes, banners, or trailing text |
-| **stderr** | Human-readable diagnostics only; Toby may show stderr on failure but never parses it |
+| **stderr** | Human-readable diagnostics. The one exception is `@@toby-progress` lines during `tools execute` (see [Live progress](#live-progress-optional)) |
 
 When stdin is empty for envelope-based commands, treat `config` and `state` as `{}`.
 
@@ -460,6 +460,12 @@ Returns the chat tool catalog for this integration.
       "name": "myappEcho",
       "description": "Echo a message back",
       "readOnly": true,
+      "presentation": {
+        "kind": "search",
+        "verbs": ["Searching messages", "Searched messages"],
+        "argChips": ["message"],
+        "primaryArg": "message"
+      },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -476,6 +482,20 @@ Each tool requires `name`, `description`, and `inputSchema` (JSON Schema object
 root with `properties`, `required`, and primitive types). Optional: `readOnly`
 (default `false`). Mark read-only tools when they do not mutate remote state;
 Toby may cache their results within a chat turn.
+
+Optional: `presentation` controls how the tool's step looks in the Toby.app
+chat transcript. Without it, Toby shows the tool's label and up to three
+`key: value` argument chips.
+
+| Field | Meaning |
+| ----- | ------- |
+| `kind` | One of `search`, `read`, `write`, `list`, `fetch`, `action`, `agent`, `generic`. Picks the native step renderer (icon and default chips) |
+| `verbs` | Two titles: while running and when done, e.g. `["Searching messages", "Searched messages"]` |
+| `argChips` | Input keys to show as chips, in order. Array values become one chip per item |
+| `primaryArg` | Input key shown as literal text (monospaced), such as a query or path |
+| `transient` | `true` for housekeeping tools with nothing to show afterwards. The step appears only while it runs and is hidden once it succeeds (failures stay visible) |
+
+Unknown kinds fall back to `generic`; invalid fields are ignored.
 
 ---
 
@@ -529,6 +549,27 @@ Runs one tool during chat.
 
 Honor **`dryRun`** for mutating tools. Return **`appliedActions`** whenever the
 tool would change something in production mode.
+
+#### Live progress (optional)
+
+While `tools execute` runs, a plugin can show temporary progress under its
+transcript step by writing lines like this to **stderr**:
+
+```text
+@@toby-progress {"items":[{"id":"inbox","label":"Inbox","state":"done","detail":"3 matches"},{"id":"work","label":"Work","state":"running"}],"fraction":0.5}
+```
+
+| Field | Meaning |
+| ----- | ------- |
+| `items[].id` | Stable id. A later line with the same id replaces the item |
+| `items[].label` | Short text for the sub-item |
+| `items[].state` | `waiting`, `running`, `done`, or `failed` |
+| `items[].detail` | Optional trailing text, such as a count |
+| `fraction` | Optional overall progress from 0 to 1 |
+
+Each line must be a single line of JSON. Toby removes these lines from stderr
+logs. The sub-items disappear when the call succeeds and stay visible if it
+fails. They are not saved in the chat history.
 
 ---
 

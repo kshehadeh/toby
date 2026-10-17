@@ -183,7 +183,7 @@ struct WorkedForRowTests {
 			onToggle: {}
 		)
 
-		#expect(try view.inspect().find(text: "Search the web").string() == "Search the web")
+		#expect(try view.inspect().find(text: "Searched the web").string() == "Searched the web")
 		#expect(try view.inspect().find(text: "Tools").string() == "Tools")
 		#expect(try view.inspect().find(text: "webSearch").string() == "webSearch")
 	}
