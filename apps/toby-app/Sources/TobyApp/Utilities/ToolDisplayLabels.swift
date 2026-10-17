@@ -277,8 +277,11 @@ enum ToolDisplayLabels {
 			return "sparkles"
 		}
 
-		return "wrench.and.screwdriver"
+		return defaultToolIcon
 	}
+
+	/// Fallback glyph when no tool-specific icon matches.
+	static let defaultToolIcon = "wrench.and.screwdriver"
 
 	private static let toolIconOverrides: [String: String] = [
 		"askUser": "questionmark.bubble",

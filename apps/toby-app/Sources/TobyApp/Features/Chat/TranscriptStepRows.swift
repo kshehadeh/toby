@@ -23,6 +23,11 @@ struct WorkStep: Identifiable {
 	let toolName: String?
 	let count: Int
 	let children: [WorkStep]
+	var integrationLabel: String? = nil
+	var args: [String: ToolArgValue]? = nil
+	var presentation: ToolPresentation? = nil
+	var progress: ToolStepProgress? = nil
+	var failed: Bool = false
 }
 
 // MARK: - WorkStep construction
@@ -100,7 +105,17 @@ private func makeBoxedStepWorkStep(
 	group: TranscriptWorkGroup,
 	index: Int
 ) -> WorkStep {
-	let isActive = group.isActive && index == group.entries.count - 1 && payload.durationMs == nil
+	let isActive: Bool
+	if payload.variant == "tool" {
+		// Parallel calls can all be running; a tool row is live until it completes.
+		let body = payload.body.trimmingCharacters(in: .whitespacesAndNewlines)
+		isActive = group.isActive
+			&& payload.durationMs == nil
+			&& payload.failed != true
+			&& (body.isEmpty || body == "Running…")
+	} else {
+		isActive = group.isActive && index == group.entries.count - 1 && payload.durationMs == nil
+	}
 	let stepType: WorkStepType
 	switch payload.variant {
 	case "tool": stepType = .tool
@@ -134,7 +149,11 @@ private func makeBoxedStepWorkStep(
 				cacheHit: run.cacheHit,
 				toolName: payload.toolName,
 				count: 1,
-				children: []
+				children: [],
+				integrationLabel: payload.integrationLabel,
+				args: run.args,
+				presentation: payload.presentation,
+				failed: run.failed == true
 			)
 		}
 		count = runs.count
@@ -154,7 +173,12 @@ private func makeBoxedStepWorkStep(
 		cacheHit: payload.cacheHit,
 		toolName: payload.toolName,
 		count: count,
-		children: children
+		children: children,
+		integrationLabel: payload.integrationLabel,
+		args: payload.args ?? (children.count == 1 ? children[0].args : nil),
+		presentation: payload.presentation,
+		progress: payload.progress,
+		failed: payload.failed == true || (children.count == 1 && children[0].failed)
 	)
 }
 
@@ -198,7 +222,11 @@ private func aggregateConsecutiveToolSteps(_ steps: [WorkStep]) -> [WorkStep] {
 				cacheHit: nil,
 				toolName: first.toolName,
 				count: buffer.count,
-				children: children
+				children: children,
+				integrationLabel: first.integrationLabel,
+				presentation: first.presentation,
+				progress: buffer.last(where: \.isActive)?.progress,
+				failed: buffer.contains { $0.failed }
 			))
 		}
 		buffer = []
@@ -238,7 +266,12 @@ private func childWorkStep(from step: WorkStep) -> WorkStep {
 		cacheHit: step.cacheHit,
 		toolName: step.toolName,
 		count: 1,
-		children: []
+		children: [],
+		integrationLabel: step.integrationLabel,
+		args: step.args,
+		presentation: step.presentation,
+		progress: step.progress,
+		failed: step.failed
 	)
 }
 

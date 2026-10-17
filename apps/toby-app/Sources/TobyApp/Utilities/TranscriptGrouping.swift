@@ -254,6 +254,9 @@ extension TranscriptEntry {
 				&+ payload.header.hashValue
 				&+ (payload.fullBody?.count ?? 0)
 				&+ (payload.durationMs ?? 0)
+				&+ (payload.args?.count ?? 0)
+				&+ (payload.failed == true ? 11 : 0)
+				&+ (payload.progress?.stamp ?? 0)
 		case .toolCall(let blockKey, let title, _):
 			return blockKey.hashValue &+ title.count &+ 5
 		case .toolOutput(let blockKey, let detail, _):

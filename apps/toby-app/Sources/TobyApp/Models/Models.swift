@@ -1117,6 +1117,9 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 		case durationMs
 		case attachments
 		case createdAt
+		case args
+		case presentation
+		case failed
 	}
 
 	init(from decoder: Decoder) throws {
@@ -1159,6 +1162,9 @@ enum TranscriptEntry: Decodable, Identifiable, Equatable {
 					toolRuns: try container.decodeIfPresent([ToolRunEntry].self, forKey: .toolRuns),
 					fullBody: try container.decodeIfPresent(String.self, forKey: .fullBody),
 					createdAt: try container.decodeIfPresent(String.self, forKey: .createdAt),
+					args: try? container.decodeIfPresent([String: ToolArgValue].self, forKey: .args),
+					presentation: try? container.decodeIfPresent(ToolPresentation.self, forKey: .presentation),
+					failed: try container.decodeIfPresent(Bool.self, forKey: .failed),
 				),
 			)
 		case "tool_call":
@@ -1195,8 +1201,47 @@ struct ToolRunEntry: Decodable, Equatable, Identifiable {
 	let cacheHit: Bool?
 	let durationMs: Int?
 	let fullBody: String?
+	var args: [String: ToolArgValue]? = nil
+	var failed: Bool? = nil
 
 	var id: String { blockKey }
+
+	private enum CodingKeys: String, CodingKey {
+		case blockKey, header, body, cacheHit, durationMs, fullBody, args, failed
+	}
+
+	init(
+		blockKey: String,
+		header: String,
+		body: String,
+		cacheHit: Bool?,
+		durationMs: Int?,
+		fullBody: String?,
+		args: [String: ToolArgValue]? = nil,
+		failed: Bool? = nil,
+	) {
+		self.blockKey = blockKey
+		self.header = header
+		self.body = body
+		self.cacheHit = cacheHit
+		self.durationMs = durationMs
+		self.fullBody = fullBody
+		self.args = args
+		self.failed = failed
+	}
+
+	init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		blockKey = try container.decode(String.self, forKey: .blockKey)
+		header = try container.decode(String.self, forKey: .header)
+		body = try container.decode(String.self, forKey: .body)
+		cacheHit = try container.decodeIfPresent(Bool.self, forKey: .cacheHit)
+		durationMs = try container.decodeIfPresent(Int.self, forKey: .durationMs)
+		fullBody = try container.decodeIfPresent(String.self, forKey: .fullBody)
+		// Display-only; a malformed value must not fail the whole transcript.
+		args = try? container.decodeIfPresent([String: ToolArgValue].self, forKey: .args)
+		failed = try container.decodeIfPresent(Bool.self, forKey: .failed)
+	}
 }
 
 struct BoxedStepPayload: Equatable {
@@ -1212,6 +1257,36 @@ struct BoxedStepPayload: Equatable {
 	let toolRuns: [ToolRunEntry]?
 	let fullBody: String?
 	var createdAt: String? = nil
+	/// Display-safe tool arguments (tool steps only).
+	var args: [String: ToolArgValue]? = nil
+	/// Renderer hint from core or the plugin's tool definition.
+	var presentation: ToolPresentation? = nil
+	/// True when the tool call errored.
+	var failed: Bool? = nil
+	/// Live progress while the call runs; never persisted.
+	var progress: ToolStepProgress? = nil
+
+	func with(header: String) -> BoxedStepPayload {
+		var next = BoxedStepPayload(
+			id: id,
+			seq: seq,
+			variant: variant,
+			header: header,
+			body: body,
+			toolName: toolName,
+			integrationLabel: integrationLabel,
+			cacheHit: cacheHit,
+			durationMs: durationMs,
+			toolRuns: toolRuns,
+			fullBody: fullBody,
+			createdAt: createdAt,
+		)
+		next.args = args
+		next.presentation = presentation
+		next.failed = failed
+		next.progress = progress
+		return next
+	}
 }
 
 struct ChatEventPayload: Decodable {
@@ -1232,6 +1307,12 @@ struct ChatEventPayload: Decodable {
 	let result: AnyCodable?
 	let args: AnyCodable?
 	let error: AnyCodable?
+	/// `tool_call_progress`: full live rail for the call.
+	let items: [ToolProgressItem]?
+	let fraction: Double?
+	let presentation: ToolPresentation?
+	/// `tool_call_complete`: renderer-shaped one-line summary.
+	let summary: String?
 }
 
 struct AnyCodable: Decodable, Equatable {
