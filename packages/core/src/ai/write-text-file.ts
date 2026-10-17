@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ensureTobyDir, getGeneratedFilesDir } from "../config/index";
+import { registerProjectFile } from "../library/library-catalog";
+import { log } from "../logging/chat-log";
 import type { Project } from "../projects/index";
 
 /** Text file extensions `writeTextFile` is allowed to create. */
@@ -134,7 +136,7 @@ export function writeTextFileSuccessPayload(params: {
  * Write a UTF-8 text file into a project (or the generated-files fallback when
  * `project` is null). Shared by `writeTextFile` and `saveToTobyProject`.
  */
-export function executeWriteTextFile(params: {
+export async function executeWriteTextFile(params: {
 	readonly inputPath: string;
 	readonly content: string;
 	readonly location: WriteTextFileLocation;
@@ -202,12 +204,12 @@ export function executeWriteTextFile(params: {
 		});
 	}
 
+	const normalizedContent = params.content.endsWith("\n")
+		? params.content
+		: `${params.content}\n`;
 	try {
 		ensureTobyDir();
 		fs.mkdirSync(path.dirname(targetFile), { recursive: true });
-		const normalizedContent = params.content.endsWith("\n")
-			? params.content
-			: `${params.content}\n`;
 		fs.writeFileSync(targetFile, normalizedContent, "utf-8");
 	} catch (e) {
 		return {
@@ -220,6 +222,26 @@ export function executeWriteTextFile(params: {
 		? `Updated ${targetFile}`
 		: `Wrote ${targetFile} (${resolved.baseLabel})`;
 	params.appliedActions.push(msg);
+	if (params.project) {
+		const relativePath = path
+			.relative(params.project.folderPath, targetFile)
+			.split(path.sep)
+			.join("/");
+		try {
+			await registerProjectFile({
+				projectId: params.project.id,
+				projectName: params.project.name,
+				relativePath,
+				filename: path.basename(targetFile),
+				bytes: Buffer.from(normalizedContent, "utf8"),
+			});
+		} catch (error) {
+			log("warn", "general", "library_catalog_skipped", {
+				path: relativePath,
+				reason: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
 	return writeTextFileSuccessPayload({
 		absPath: targetFile,
 		dryRun: false,

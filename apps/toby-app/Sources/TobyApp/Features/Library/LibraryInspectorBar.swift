@@ -102,6 +102,27 @@ struct LibraryInspectorBar: View {
 								.foregroundStyle(AppTheme.statusErrorForeground)
 						.textSelection(.enabled)
 				}
+				if !item.places.isEmpty {
+					DetailSection(title: "Where it came from") {
+						VStack(alignment: .leading, spacing: 8) {
+							ForEach(item.places) { place in
+								VStack(alignment: .leading, spacing: 1) {
+									Text(place.placeTitle)
+										.font(.system(size: 11, weight: .semibold))
+										.foregroundStyle(SettingsDesign.rowDescription)
+									Text(place.placeDetail)
+										.font(.system(size: 12))
+										.foregroundStyle(SettingsDesign.rowTitle)
+										.textSelection(.enabled)
+										.fixedSize(horizontal: false, vertical: true)
+								}
+								.accessibilityElement(children: .combine)
+								.accessibilityIdentifier("library-origin-\(place.id)")
+							}
+						}
+					}
+					.accessibilityIdentifier("library-origins")
+				}
 				DetailMetadataStack {
 					DetailMetadataRow(label: "File", value: item.originalFilename)
 					DetailMetadataRow(label: "Type", value: item.mimeType)
@@ -115,7 +136,7 @@ struct LibraryInspectorBar: View {
 			.padding(.horizontal, 16)
 			.padding(.bottom, 14)
 		}
-		.frame(maxHeight: 220)
+		.frame(maxHeight: 280)
 	}
 
 	private var emptySelectionContent: some View {

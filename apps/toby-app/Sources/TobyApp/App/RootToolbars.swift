@@ -721,11 +721,29 @@ enum RootToolbars {
 		title: String = "Library",
 		isListLoading: Bool,
 		isSaving: Bool,
+		originFilter: Binding<LibraryOriginFilter>,
 		onAdd: @escaping () -> Void,
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model, header: RootHeaderTitle(title: title))
 		contextualActions {
+			Menu {
+				Picker("Show", selection: originFilter) {
+					ForEach(LibraryOriginFilter.allCases) { filter in
+						Text(filter.label).tag(filter)
+					}
+				}
+				.pickerStyle(.inline)
+			} label: {
+				Image(
+					systemName: originFilter.wrappedValue == .all
+						? "line.3.horizontal.decrease.circle"
+						: "line.3.horizontal.decrease.circle.fill"
+				)
+			}
+			.help("Choose which files to show")
+			.accessibilityIdentifier("library-origin-filter")
+			.accessibilityLabel("Filter library")
 			Button(action: onAdd) {
 				Image(systemName: "plus")
 			}

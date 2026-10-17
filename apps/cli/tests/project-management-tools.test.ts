@@ -7,6 +7,7 @@ import {
 	findProjectByReference,
 } from "@toby/core/ai/project-management-tools";
 import type { ValidatedChatAttachment } from "@toby/core/chat-pipeline/attachments";
+import { closeLibraryDbForTests } from "@toby/core/library/library-store";
 import {
 	createProject,
 	listProjects,
@@ -52,6 +53,7 @@ describe("project management tools", () => {
 		process.env.TOBY_DIR = dir;
 	});
 	afterEach(() => {
+		closeLibraryDbForTests();
 		closeChatDbForTests();
 		if (previous === undefined) Reflect.deleteProperty(process.env, "TOBY_DIR");
 		else process.env.TOBY_DIR = previous;

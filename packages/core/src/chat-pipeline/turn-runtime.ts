@@ -8,6 +8,7 @@ import {
 import type { ChatSessionSettings } from "../api/chat-api";
 import { resolveChatIntegrationModules } from "../chat-integrations";
 import type { IntegrationModule } from "../integrations/types";
+import { registerChatAttachments } from "../library/library-catalog";
 import { daemonLog } from "../logging/daemon-log";
 import {
 	listPersonas,
@@ -522,6 +523,18 @@ export async function runApiChatTurnWithPersistence(params: {
 			Date.now() - turnStartedAt,
 		).slice(startIdx),
 	);
+	if (attachments.length > 0) {
+		try {
+			await registerChatAttachments({
+				sessionId: params.sessionId,
+				attachments,
+			});
+		} catch (error) {
+			daemonLog("warn", "turn", "library_catalog_skipped", {
+				reason: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
 
 	return result;
 }

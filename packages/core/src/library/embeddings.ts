@@ -87,6 +87,8 @@ export async function storeLibraryEmbedding(
 	item: LibraryItem,
 	embedder: LibraryEmbedder,
 ): Promise<void> {
+	const epoch = store.libraryBackgroundEpoch();
+	const tobyDir = process.env.TOBY_DIR;
 	const text = formatLibraryEmbedText({
 		title: item.title,
 		description: item.description,
@@ -95,6 +97,7 @@ export async function storeLibraryEmbedding(
 	});
 	const vec = await embedLibraryText(embedder, text);
 	if (!vec) return;
+	if (!store.isLibraryWorkCurrent(epoch, tobyDir)) return;
 	store.insertEmbedding(item.id, vectorToBuffer(vec), embedder.modelId);
 }
 

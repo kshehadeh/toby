@@ -74,6 +74,80 @@ export function isLibraryPdfMediaType(mediaType: string): boolean {
 	return mediaType.trim().toLowerCase() === LIBRARY_PDF_MEDIA_TYPE;
 }
 
+const CATALOG_TEXT_EXTENSIONS = new Set([
+	".json",
+	".yaml",
+	".yml",
+	".csv",
+	".tsv",
+	".log",
+	".xml",
+	".html",
+	".htm",
+	".rst",
+	".css",
+	".js",
+	".ts",
+	".tsx",
+	".jsx",
+	".py",
+	".swift",
+	".rb",
+	".go",
+	".rs",
+	".toml",
+	".ini",
+	".sh",
+	".rtf",
+]);
+
+const CATALOG_TEXT_MEDIA_TYPES = new Set([
+	"application/json",
+	"application/xml",
+	"text/xml",
+	"text/csv",
+	"text/html",
+	"text/css",
+	"text/javascript",
+	"application/javascript",
+	"application/typescript",
+	"application/rtf",
+	"text/yaml",
+	"application/yaml",
+	"application/x-yaml",
+]);
+
+function bareMediaType(mediaType?: string): string {
+	return mediaType?.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+/**
+ * How a chat attachment or project file should be stored.
+ * Indexable text/images/PDFs are summarized. Other types are kept as files.
+ */
+export function resolveCatalogStorage(
+	filename: string,
+	mediaType?: string,
+): { readonly mimeType: string; readonly summarize: boolean } {
+	const detected = detectLibraryMediaType(filename, mediaType);
+	if (detected && isAcceptedLibraryMediaType(detected)) {
+		return { mimeType: detected, summarize: true };
+	}
+	const explicit = bareMediaType(mediaType);
+	const ext = path.extname(filename).toLowerCase();
+	if (
+		explicit.startsWith("text/") ||
+		CATALOG_TEXT_MEDIA_TYPES.has(explicit) ||
+		CATALOG_TEXT_EXTENSIONS.has(ext)
+	) {
+		return { mimeType: "text/plain", summarize: true };
+	}
+	return {
+		mimeType: explicit.length > 0 ? explicit : "application/octet-stream",
+		summarize: false,
+	};
+}
+
 export function titleFromFilename(filename: string): string {
 	const base = path.basename(filename, path.extname(filename)).trim();
 	const cleaned = base.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();

@@ -18,6 +18,8 @@ final class LibraryStore {
 	var hasMore: Bool = false
 	var isImporterPresented = false
 	var importerError: String?
+	var originFilter: LibraryOriginFilter = .all
+	var isCatalogSyncing = false
 
 	struct PendingDelete: Identifiable {
 		let ids: Set<String>
@@ -86,6 +88,8 @@ final class LibraryStore {
 		hasMore = false
 		isImporterPresented = false
 		importerError = nil
+		originFilter = .all
+		isCatalogSyncing = false
 		isDirty = false
 		isQuietRefreshing = false
 	}
@@ -96,7 +100,7 @@ final class LibraryStore {
 		errorMessage = nil
 		defer { isListLoading = false }
 		do {
-			try await loadListData()
+			try await loadListData(refreshCatalog: true)
 			if let selectedItemId {
 				selectedItem = items.first { $0.id == selectedItemId }
 			} else {
@@ -114,7 +118,7 @@ final class LibraryStore {
 		errorMessage = nil
 		defer { isListLoading = false }
 		do {
-			try await loadListData()
+			try await loadListData(refreshCatalog: true)
 			isDirty = false
 		} catch {
 			errorMessage = error.localizedDescription
@@ -131,7 +135,7 @@ final class LibraryStore {
 		isQuietRefreshing = true
 		defer { isQuietRefreshing = false }
 		do {
-			try await loadListData()
+			try await loadListData(refreshCatalog: false)
 			if let id = selectedItemId {
 				selectedItem = items.first { $0.id == id }
 			}
@@ -150,6 +154,24 @@ final class LibraryStore {
 		if pollTask != nil {
 			Task { await refreshQuietly() }
 		}
+	}
+
+	var emptyListTitle: String {
+		if !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			return "No matching files"
+		}
+		switch originFilter {
+		case .all: return "No library items"
+		case .chat: return "No files from chats"
+		case .project: return "No files from projects"
+		case .manual: return "No files added in the library"
+		}
+	}
+
+	func setOriginFilter(_ filter: LibraryOriginFilter) {
+		guard originFilter != filter else { return }
+		originFilter = filter
+		Task { await load() }
 	}
 
 	func search(_ query: String) async {
@@ -259,16 +281,19 @@ final class LibraryStore {
 		pollTask = nil
 	}
 
-	private func loadListData() async throws {
+	private func loadListData(refreshCatalog: Bool = false) async throws {
 		let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
 		let response = try await client.listLibraryItems(
 			limit: pageSize,
 			offset: 0,
-			query: query.isEmpty ? nil : query
+			query: query.isEmpty ? nil : query,
+			origin: originFilter.queryValue,
+			refreshCatalog: refreshCatalog
 		)
 		items = response.items
 		total = response.total
 		hasMore = response.hasMore
+		isCatalogSyncing = response.catalogSyncing ?? false
 		hasLoadedOnce = true
 		announceGatewayFunds(in: response.items)
 	}

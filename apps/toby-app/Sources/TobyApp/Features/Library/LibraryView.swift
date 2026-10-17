@@ -61,9 +61,9 @@ struct LibraryView: View {
 			}
 		} message: { pending in
 			if pending.count == 1, let title = pending.title {
-				Text("Are you sure you want to delete “\(title)” from the library? The stored file will be removed. This cannot be undone.")
+				Text("Are you sure you want to delete “\(title)” from the library? This removes Toby’s copy. The file stays in any chat or project that already has it. This cannot be undone.")
 			} else {
-				Text("Are you sure you want to delete \(pending.count) library items? Stored files will be removed. This cannot be undone.")
+				Text("Are you sure you want to delete \(pending.count) library items? This removes Toby’s copies. Files stay in any chat or project that already has them. This cannot be undone.")
 			}
 		}
 		.accessibilityIdentifier("library-view")
@@ -117,13 +117,29 @@ struct LibraryListView: View {
 
 	var body: some View {
 		if store.items.isEmpty, !store.isListLoading {
-			FeatureBrowserPlaceholder(
-				systemImage: DetailRoute.library.systemImage,
-				title: "No library items",
-				onCreate: { store.isImporterPresented = true },
-				createPhrase: "Add a file now",
-				createAccessibilityIdentifier: "library-empty-add-button"
-			)
+			if store.isCatalogSyncing, store.originFilter == .all, store.searchQuery.isEmpty {
+				FeatureBrowserList(
+					isLoading: true,
+					isEmpty: true,
+					loadingText: "Gathering files from chats and projects…",
+					emptyText: "No library items"
+				) {
+					EmptyView()
+				}
+			} else if store.originFilter == .all, store.searchQuery.isEmpty {
+				FeatureBrowserPlaceholder(
+					systemImage: DetailRoute.library.systemImage,
+					title: "No library items",
+					onCreate: { store.isImporterPresented = true },
+					createPhrase: "Add a file now",
+					createAccessibilityIdentifier: "library-empty-add-button"
+				)
+			} else {
+				FeatureBrowserPlaceholder(
+					systemImage: DetailRoute.library.systemImage,
+					title: store.emptyListTitle
+				)
+			}
 		} else {
 			FeatureBrowserList(
 				isLoading: store.isListLoading,
@@ -153,7 +169,7 @@ struct LibraryListView: View {
 		} label: {
 			FeatureBrowserRow(
 				title: item.title,
-				subtitle: item.description.isEmpty ? item.originalFilename : item.description,
+				subtitle: item.listSubtitle,
 				badge: item.isPending ? "Indexing" : (item.isFailed ? "Failed" : nil),
 				isSelected: store.selectedItemIds.contains(item.id),
 				accessibilityIdentifier: "library-row-\(item.id)",

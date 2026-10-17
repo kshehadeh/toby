@@ -5,7 +5,7 @@ title: Library
 
 # Library
 
-**Library** is Toby’s catalog of files you want to keep: notes, Markdown, PDFs, and images. Toby copies each file into its data folder, writes a short description, and lets chat search or open the file later.
+**Library** is Toby’s catalog of files it has seen: notes, documents, and images you add yourself, files you attach in chat, and files saved in a project. Toby keeps its own copy, writes a short description when it can, and lets you browse or ask about the file later.
 
 ![The Library with three saved documents and the details of the selected one](/img/toby-app-library.png)
 
@@ -16,19 +16,25 @@ file.
 
 Library is not a project folder and not a memory. Toby only looks in it when you ask, so it does not clutter every conversation. Ask Toby to find or add a file, or browse the list in the app.
 
+A file you attach in chat, or save into a project, shows up here on its own. Adding the same file in more than one place keeps a single copy.
+
 ## What you can add
 
 - Plain text and Markdown
 - PDF
 - Images (PNG, JPEG, WebP, GIF)
 
-Other types are rejected. Adding the same file twice keeps the existing item instead of creating a duplicate.
+The Add button rejects other types. Chat attachments and project files of other types are still listed so you can find them. Toby does not write a summary for those. Adding the same file twice keeps the existing item instead of creating a duplicate.
+
+Project instructions and skills stay on their own screens. They are not copied into the library.
 
 ## In the app
 
 Click **Library** in the sidebar (⌘0), or search for **Open Library** in the command palette (⌘K).
 
-The workspace is a searchable list. Nothing is selected until you choose a row. A details bar at the bottom shows title, description, type, size, indexing status, and dates. Use **Add** to import files, **Refresh** to reload, **Quick Look** or **Reveal** for the stored copy, and **Delete** to remove the item and its file.
+The workspace is a searchable list. Nothing is selected until you choose a row. Each row starts with where the file was seen: Chat, Project, Library, or more than one of those. The filter in the toolbar limits the list to one of those places.
+
+A details bar at the bottom shows title, description, and **Where it came from** (the chat name, the project and path, or that you added it in the library). It also shows type, size, indexing status, and dates. Use **Add** to import files, **Refresh** to reload and look for new chat and project files, **Quick Look** or **Reveal** for Toby’s copy, and **Delete** to remove that copy. Deleting here does not remove the file from a chat or a project.
 
 Rows that are still indexing show an outline while Toby writes the description. Failed items keep an error in the inspector.
 

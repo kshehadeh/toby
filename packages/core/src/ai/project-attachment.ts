@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ValidatedChatAttachment } from "../chat-pipeline/attachments";
+import { registerProjectFile } from "../library/library-catalog";
+import { log } from "../logging/chat-log";
 import type { Project } from "../projects/index";
 import { writeTextFileSuccessPayload } from "./write-text-file";
 
@@ -9,7 +11,7 @@ import { writeTextFileSuccessPayload } from "./write-text-file";
  * preserving its bytes. Shared by `saveProjectAttachment` (active project) and
  * `saveAttachmentToTobyProject` (any project).
  */
-export function executeSaveProjectAttachment(params: {
+export async function executeSaveProjectAttachment(params: {
 	readonly project: Project;
 	readonly filename: string;
 	readonly overwrite: boolean;
@@ -88,6 +90,22 @@ export function executeSaveProjectAttachment(params: {
 	}
 	const message = `Saved ${targetFile} (project attachments)`;
 	params.appliedActions.push(message);
+	const relativePath = `attachments/${attachment.filename}`;
+	try {
+		await registerProjectFile({
+			projectId: params.project.id,
+			projectName: params.project.name,
+			relativePath,
+			filename: attachment.filename,
+			bytes: Buffer.from(attachment.dataBase64, "base64"),
+			mediaType: attachment.mediaType,
+		});
+	} catch (error) {
+		log("warn", "general", "library_catalog_skipped", {
+			path: relativePath,
+			reason: error instanceof Error ? error.message : String(error),
+		});
+	}
 	return writeTextFileSuccessPayload({
 		absPath: targetFile,
 		dryRun: false,

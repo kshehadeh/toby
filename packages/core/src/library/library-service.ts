@@ -21,6 +21,7 @@ import {
 	LIBRARY_MAX_BYTES,
 	detectLibraryMediaType,
 	isAcceptedLibraryMediaType,
+	resolveCatalogStorage,
 	sanitizeLibraryFilename,
 	titleFromFilename,
 } from "./media";
@@ -29,6 +30,8 @@ import type {
 	LibraryItem,
 	LibraryItemSource,
 	LibraryOpenResult,
+	LibraryReferenceInput,
+	LibraryReferenceKind,
 } from "./types";
 
 export class LibraryError extends Error {
@@ -58,19 +61,47 @@ function assertSafeRelativePath(relativePath: string): void {
 export function listLibraryItems(opts?: {
 	readonly limit?: number;
 	readonly offset?: number;
+	readonly origin?: LibraryReferenceKind;
 }): LibraryItem[] {
-	return store.listItems(opts);
+	return attachReferences(store.listItems(opts));
 }
 
-export function countLibraryItems(): number {
-	return store.countItems();
+export function countLibraryItems(origin?: LibraryReferenceKind): number {
+	return store.countItems(origin);
 }
 
 export function getLibraryItem(id: string): LibraryItem | null {
-	return store.getItem(id);
+	const item = store.getItem(id);
+	return item ? attachReference(item) : null;
 }
 
-export async function searchLibrary(query: string): Promise<LibraryItem[]> {
+function attachReferences(items: readonly LibraryItem[]): LibraryItem[] {
+	if (items.length === 0) return [];
+	const grouped = store.listReferencesForItems(items.map((item) => item.id));
+	return items.map((item) => ({
+		...item,
+		references: grouped.get(item.id) ?? [],
+	}));
+}
+
+function attachReference(item: LibraryItem): LibraryItem {
+	return attachReferences([item])[0] ?? { ...item, references: [] };
+}
+
+function rememberReference(
+	itemId: string,
+	reference: LibraryReferenceInput | undefined,
+): void {
+	store.insertReference(
+		itemId,
+		reference ?? { kind: "manual", label: "Library" },
+	);
+}
+
+export async function searchLibrary(
+	query: string,
+	origin?: LibraryReferenceKind,
+): Promise<LibraryItem[]> {
 	const trimmed = query.trim();
 	if (!trimmed) return [];
 	const keywords = extractKeywords(trimmed);
@@ -83,7 +114,10 @@ export async function searchLibrary(query: string): Promise<LibraryItem[]> {
 				);
 	const semanticScores = await semanticLibraryHits({ query: trimmed });
 	if (semanticScores.size === 0) {
-		return rankLibraryItems(keywordItems, trimmed, keywords);
+		return filterByOrigin(
+			attachReferences(rankLibraryItems(keywordItems, trimmed, keywords)),
+			origin,
+		);
 	}
 	const byId = new Map(keywordItems.map((item) => [item.id, item]));
 	for (const id of semanticScores.keys()) {
@@ -91,11 +125,21 @@ export async function searchLibrary(query: string): Promise<LibraryItem[]> {
 		const item = store.getItem(id);
 		if (item) byId.set(id, item);
 	}
-	return rankLibraryItems(
-		[...byId.values()],
-		trimmed,
-		keywords,
-		semanticScores,
+	return filterByOrigin(
+		attachReferences(
+			rankLibraryItems([...byId.values()], trimmed, keywords, semanticScores),
+		),
+		origin,
+	);
+}
+
+function filterByOrigin(
+	items: readonly LibraryItem[],
+	origin?: LibraryReferenceKind,
+): LibraryItem[] {
+	if (!origin) return [...items];
+	return items.filter((item) =>
+		(item.references ?? []).some((reference) => reference.kind === origin),
 	);
 }
 
@@ -165,6 +209,8 @@ export interface AddLibraryBytesInput {
 	readonly source: LibraryItemSource;
 	/** Wait for summarize+embed (chat tools). UI callers leave this false. */
 	readonly waitForIndex?: boolean;
+	/** Extra place this file was seen. Manual adds record a Library reference. */
+	readonly reference?: LibraryReferenceInput;
 }
 
 export interface AddLibraryResult {
@@ -197,7 +243,9 @@ export async function addLibraryBytes(
 	const hash = contentHash(input.bytes);
 	const existing = store.findItemByContentHash(hash);
 	if (existing) {
-		return { item: existing, duplicate: true };
+		rememberReference(existing.id, input.reference);
+		const item = store.getItem(existing.id) ?? existing;
+		return { item: attachReference(item), duplicate: true };
 	}
 
 	const itemId = crypto.randomUUID();
@@ -218,18 +266,17 @@ export async function addLibraryBytes(
 		contentHash: hash,
 		source: input.source,
 	});
+	rememberReference(item.id, input.reference);
 
 	if (input.waitForIndex) {
 		item = await indexLibraryItem(item.id);
 	} else {
-		void indexLibraryItem(item.id).catch((error) => {
-			log("warn", "general", "library_index_failed", {
-				id: item.id,
-				reason: error instanceof Error ? error.message : String(error),
-			});
-		});
+		enqueueLibraryIndex(() => indexLibraryItem(item.id));
 	}
-	return { item, duplicate: false };
+	return {
+		item: attachReference(store.getItem(item.id) ?? item),
+		duplicate: false,
+	};
 }
 
 export async function addLibraryText(input: {
@@ -252,10 +299,12 @@ export async function addLibraryText(input: {
 }
 
 export async function indexLibraryItem(id: string): Promise<LibraryItem> {
+	const work = captureLibraryWork();
 	const item = store.getItem(id);
 	if (!item) {
 		throw new LibraryError("Library item not found.", 404);
 	}
+	if (!work.alive()) return item;
 	try {
 		const abs = libraryItemAbsolutePath(item);
 		const bytes = fs.readFileSync(abs);
@@ -263,12 +312,13 @@ export async function indexLibraryItem(id: string): Promise<LibraryItem> {
 			bytes,
 			mimeType: item.mimeType,
 		});
+		if (!work.alive()) return item;
 		if (extracted.error && extracted.text == null) {
 			const failed = store.updateItem(id, {
 				status: "failed",
 				error: extracted.error,
 			});
-			return failed ?? item;
+			return published(failed ?? item);
 		}
 		if (extracted.text) {
 			writeExtractedText(id, extracted.text);
@@ -279,6 +329,7 @@ export async function indexLibraryItem(id: string): Promise<LibraryItem> {
 			extractedText: extracted.text,
 			bytes,
 		});
+		if (!work.alive()) return item;
 		const ready = store.updateItem(id, {
 			description,
 			status: "ready",
@@ -289,14 +340,20 @@ export async function indexLibraryItem(id: string): Promise<LibraryItem> {
 		if (embedder) {
 			await storeLibraryEmbedding(next, embedder);
 		}
-		return store.getItem(id) ?? next;
+		if (!work.alive()) return next;
+		return published(store.getItem(id) ?? next);
 	} catch (error) {
+		if (!work.alive()) return item;
 		const message = error instanceof Error ? error.message : String(error);
 		log("warn", "general", "library_index_failed", { id, reason: message });
 		const failed = store.updateItem(id, { status: "failed", error: message });
 		if (error instanceof GatewayFundsError) throw error;
-		return failed ?? item;
+		return published(failed ?? item);
 	}
+}
+
+function published(item: LibraryItem): LibraryItem {
+	return attachReference(store.getItem(item.id) ?? item);
 }
 
 export async function updateLibraryItem(
@@ -363,13 +420,8 @@ export async function updateLibraryItem(
 		if (patch.waitForIndex !== false) {
 			return indexLibraryItem(id);
 		}
-		void indexLibraryItem(id).catch((error) => {
-			log("warn", "general", "library_index_failed", {
-				id,
-				reason: error instanceof Error ? error.message : String(error),
-			});
-		});
-		return store.getItem(id) ?? existing;
+		enqueueLibraryIndex(() => indexLibraryItem(id));
+		return published(store.getItem(id) ?? existing);
 	}
 
 	const nextTitle = patch.title?.trim();
@@ -385,7 +437,7 @@ export async function updateLibraryItem(
 			await storeLibraryEmbedding(item, embedder);
 		}
 	}
-	return store.getItem(id) ?? item;
+	return published(store.getItem(id) ?? item);
 }
 
 export function removeLibraryItem(id: string): boolean {
@@ -407,5 +459,129 @@ export function openLibraryItem(id: string): LibraryOpenResult {
 	}
 	const extractedText = readExtractedText(id) ?? undefined;
 	const bytes = fs.readFileSync(abs);
-	return { item, extractedText, bytes };
+	return { item: attachReference(item), extractedText, bytes };
+}
+
+const INDEX_CONCURRENCY = 2;
+const indexQueue: Array<() => Promise<void>> = [];
+let indexWorkers = 0;
+
+function captureLibraryWork(): { alive: () => boolean } {
+	const epoch = store.libraryBackgroundEpoch();
+	const tobyDir = process.env.TOBY_DIR;
+	return {
+		alive: () => store.isLibraryWorkCurrent(epoch, tobyDir),
+	};
+}
+
+function enqueueLibraryIndex(task: () => Promise<unknown>): void {
+	const work = captureLibraryWork();
+	indexQueue.push(async () => {
+		if (!work.alive()) return;
+		try {
+			await task();
+		} catch (error) {
+			log("warn", "general", "library_index_failed", {
+				reason: error instanceof Error ? error.message : String(error),
+			});
+		}
+	});
+	drainLibraryIndexQueue();
+}
+
+function drainLibraryIndexQueue(): void {
+	while (indexWorkers < INDEX_CONCURRENCY && indexQueue.length > 0) {
+		const task = indexQueue.shift();
+		if (!task) return;
+		indexWorkers += 1;
+		void task().finally(() => {
+			indexWorkers -= 1;
+			drainLibraryIndexQueue();
+		});
+	}
+}
+
+/** Wait until background library indexing has finished. Tests use this. */
+export async function flushLibraryIndexQueue(): Promise<void> {
+	while (indexWorkers > 0 || indexQueue.length > 0) {
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+}
+
+/**
+ * Copy a chat attachment or project file into the library.
+ * Supported documents are summarized. Other types are stored without a summary.
+ * Oversized or empty files are skipped.
+ */
+export async function catalogLibraryBytes(
+	input: AddLibraryBytesInput,
+): Promise<AddLibraryResult | null> {
+	const filename = input.filename.trim();
+	if (!filename || input.bytes.byteLength === 0) return null;
+	if (input.bytes.byteLength > LIBRARY_MAX_BYTES) {
+		log("warn", "general", "library_catalog_skipped", {
+			filename,
+			reason: "too_large",
+			byteSize: input.bytes.byteLength,
+		});
+		return null;
+	}
+	const storage = resolveCatalogStorage(filename, input.mediaType);
+	if (storage.summarize) {
+		return addLibraryBytes({
+			...input,
+			filename,
+			mediaType: storage.mimeType,
+		});
+	}
+	return addOpaqueLibraryBytes({
+		...input,
+		filename,
+		mimeType: storage.mimeType,
+	});
+}
+
+async function addOpaqueLibraryBytes(
+	input: AddLibraryBytesInput & { readonly mimeType: string },
+): Promise<AddLibraryResult> {
+	const hash = contentHash(input.bytes);
+	const existing = store.findItemByContentHash(hash);
+	if (existing) {
+		rememberReference(existing.id, input.reference);
+		return {
+			item: attachReference(store.getItem(existing.id) ?? existing),
+			duplicate: true,
+		};
+	}
+	const itemId = crypto.randomUUID();
+	const safeName = sanitizeLibraryFilename(input.filename);
+	const relativePath = `${itemId}/${safeName}`;
+	assertSafeRelativePath(relativePath);
+	const dir = libraryItemDir(itemId);
+	fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+	fs.writeFileSync(path.join(dir, safeName), input.bytes, { mode: 0o600 });
+	const description = `Original ${input.mimeType} file saved for reference.`;
+	const item = store.insertItem({
+		id: itemId,
+		title: titleFromFilename(input.filename),
+		originalFilename: input.filename,
+		relativePath,
+		mimeType: input.mimeType,
+		byteSize: input.bytes.byteLength,
+		contentHash: hash,
+		source: input.source,
+		status: "ready",
+		description,
+	});
+	rememberReference(item.id, input.reference);
+	enqueueLibraryIndex(async () => {
+		const embedder = resolveLibraryEmbedder();
+		if (!embedder) return;
+		const current = store.getItem(item.id);
+		if (current) await storeLibraryEmbedding(current, embedder);
+	});
+	return {
+		item: attachReference(store.getItem(item.id) ?? item),
+		duplicate: false,
+	};
 }

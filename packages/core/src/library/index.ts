@@ -27,4 +27,6 @@ export type {
 	LibraryItem,
 	LibraryItemSource,
 	LibraryItemStatus,
+	LibraryReference,
+	LibraryReferenceKind,
 } from "./types";

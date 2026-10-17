@@ -1212,7 +1212,13 @@ struct TobyClient {
 
 	// MARK: - Library
 
-	func listLibraryItems(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> LibraryListResponse {
+	func listLibraryItems(
+		limit: Int = 50,
+		offset: Int = 0,
+		query: String? = nil,
+		origin: String? = nil,
+		refreshCatalog: Bool = false
+	) async throws -> LibraryListResponse {
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/library"),
 			resolvingAgainstBaseURL: false,
@@ -1223,6 +1229,12 @@ struct TobyClient {
 		]
 		if let query, !query.isEmpty {
 			items.append(URLQueryItem(name: "q", value: query))
+		}
+		if let origin, !origin.isEmpty {
+			items.append(URLQueryItem(name: "origin", value: origin))
+		}
+		if refreshCatalog {
+			items.append(URLQueryItem(name: "refresh", value: "1"))
 		}
 		components.queryItems = items
 		let (data, response) = try await URLSession.shared.data(from: components.url!)

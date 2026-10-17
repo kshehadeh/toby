@@ -1121,6 +1121,8 @@ Query parameters:
 | Name | Default | Max | Description |
 | --- | ---: | ---: | --- |
 | `q` | none | n/a | Optional hybrid keyword + embedding search. |
+| `origin` | `all` | n/a | `all`, `manual`, `chat`, or `project`. |
+| `refresh` | omit | n/a | `1` scans chats and projects for files not yet cataloged. |
 | `limit` | `50` | `500` | Maximum number of items to return. |
 | `offset` | `0` | n/a | Number of items to skip. |
 
@@ -1133,6 +1135,7 @@ type LibraryListResponse = {
   offset: number;
   total: number;
   hasMore: boolean;
+  catalogSyncing: boolean;
 };
 
 type LibraryItem = {
@@ -1146,12 +1149,25 @@ type LibraryItem = {
   description: string;
   status: "pending" | "ready" | "failed";
   error?: string | null;
-  source: "ui" | "chat" | "tool";
+  source: "ui" | "chat" | "tool" | "project";
   createdAt: string;
   updatedAt: string;
   embeddingModel?: string;
+  references?: LibraryReference[];
+};
+
+type LibraryReference = {
+  id: string;
+  kind: "manual" | "chat" | "project";
+  label: string;
+  detail?: string | null;
+  sessionId?: string | null;
+  projectId?: string | null;
+  createdAt: string;
 };
 ```
+
+`catalogSyncing` is true while a background scan of chats and projects is still copying files into the catalog.
 
 ### `GET /api/library/:id`
 

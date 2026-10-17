@@ -894,6 +894,8 @@ Indexed file catalog. See [Library](../library). Add is asynchronous; chat tools
 | Query | Default | Description |
 | --- | ---: | --- |
 | `q` | — | Search query (keywords and meaning) |
+| `origin` | `all` | `all`, `manual`, `chat`, or `project` |
+| `refresh` | omit | `1` scans chats and projects for files not yet cataloged |
 | `limit` | `50` (max 500) | Page size |
 | `offset` | `0` | Skip count |
 
@@ -904,6 +906,7 @@ type LibraryListResponse = {
   offset: number;
   total: number;
   hasMore: boolean;
+  catalogSyncing: boolean;
 };
 
 type LibraryItem = {
@@ -917,12 +920,23 @@ type LibraryItem = {
   description: string;
   status: "pending" | "ready" | "failed";
   error?: string | null;
-  source: "ui" | "chat" | "tool";
+  source: "ui" | "chat" | "tool" | "project";
   createdAt: string;
   updatedAt: string;
   embeddingModel?: string;
+  references?: Array<{
+    id: string;
+    kind: "manual" | "chat" | "project";
+    label: string;
+    detail?: string | null;
+    sessionId?: string | null;
+    projectId?: string | null;
+    createdAt: string;
+  }>;
 };
 ```
+
+The list response also includes `catalogSyncing`. It is true while Toby is still copying chat attachments and project files into the library.
 
 ### `POST /api/library`
 

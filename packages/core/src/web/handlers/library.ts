@@ -1,5 +1,9 @@
 import { GatewayFundsError } from "../../ai/gateway-funds";
 import {
+	isLibraryCatalogSyncing,
+	scheduleLibraryCatalogSync,
+} from "../../library/library-catalog";
+import {
 	LibraryError,
 	addLibraryBytes,
 	countLibraryItems,
@@ -9,6 +13,10 @@ import {
 	searchLibrary,
 	updateLibraryItem,
 } from "../../library/library-service";
+import {
+	type LibraryReferenceKind,
+	LibraryReferenceKindValues,
+} from "../../library/types";
 import {
 	errorResponse,
 	jsonResponse,
@@ -39,15 +47,37 @@ function libraryErrorResponse(error: unknown): Response {
 	return errorResponse(message, statusForError(error));
 }
 
+function parseOrigin(
+	value: string | null,
+): LibraryReferenceKind | undefined | null {
+	const origin = value?.trim();
+	if (!origin || origin === "all") return undefined;
+	if ((LibraryReferenceKindValues as readonly string[]).includes(origin)) {
+		return origin as LibraryReferenceKind;
+	}
+	return null;
+}
+
 export async function handleLibraryList(url: URL): Promise<Response> {
 	const query = url.searchParams.get("q") ?? undefined;
+	const origin = parseOrigin(url.searchParams.get("origin"));
+	if (origin === null) {
+		return errorResponse(
+			"Query 'origin' must be all, manual, chat, or project.",
+			400,
+		);
+	}
 	const limit = parseIntParam(url.searchParams.get("limit"), 50, 500);
 	const offset = Math.max(
 		0,
 		Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0,
 	);
+	scheduleLibraryCatalogSync({
+		force: url.searchParams.get("refresh") === "1",
+	});
+	const catalogSyncing = isLibraryCatalogSyncing();
 	if (query?.trim()) {
-		const all = await searchLibrary(query);
+		const all = await searchLibrary(query, origin);
 		const sliced = all.slice(offset, offset + limit);
 		return jsonResponse({
 			items: sliced,
@@ -55,16 +85,18 @@ export async function handleLibraryList(url: URL): Promise<Response> {
 			offset,
 			total: all.length,
 			hasMore: offset + sliced.length < all.length,
+			catalogSyncing,
 		});
 	}
-	const items = listLibraryItems({ limit, offset });
-	const total = countLibraryItems();
+	const items = listLibraryItems({ limit, offset, origin });
+	const total = countLibraryItems(origin);
 	return jsonResponse({
 		items,
 		limit,
 		offset,
 		total,
 		hasMore: offset + items.length < total,
+		catalogSyncing,
 	});
 }
 

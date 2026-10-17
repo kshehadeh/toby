@@ -6,6 +6,9 @@ import type {
 	LibraryItem,
 	LibraryItemSource,
 	LibraryItemStatus,
+	LibraryReference,
+	LibraryReferenceInput,
+	LibraryReferenceKind,
 } from "./types";
 
 type SqliteDb = {
@@ -21,6 +24,19 @@ type SqliteDb = {
 };
 
 let dbSingleton: SqliteDb | null = null;
+let backgroundEpoch = 0;
+
+/** Bumps when the library database is closed so in-flight indexing can stop. */
+export function libraryBackgroundEpoch(): number {
+	return backgroundEpoch;
+}
+
+export function isLibraryWorkCurrent(
+	epoch: number,
+	tobyDir: string | undefined,
+): boolean {
+	return backgroundEpoch === epoch && process.env.TOBY_DIR === tobyDir;
+}
 
 export function closeLibraryDbForTests(): void {
 	closeLibraryDb();
@@ -28,6 +44,7 @@ export function closeLibraryDbForTests(): void {
 
 /** Close the shared handle before an on-disk database replacement. */
 export function closeLibraryDb(): void {
+	backgroundEpoch += 1;
 	if (dbSingleton) {
 		dbSingleton.close();
 		dbSingleton = null;
@@ -80,7 +97,66 @@ CREATE TABLE IF NOT EXISTS library_embeddings (
   created_at TEXT NOT NULL,
   FOREIGN KEY (item_id) REFERENCES library_items(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS library_references (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  session_id TEXT,
+  project_id TEXT,
+  label TEXT NOT NULL,
+  detail TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (item_id) REFERENCES library_items(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_library_references_origin
+  ON library_references(
+    item_id,
+    kind,
+    IFNULL(session_id, ''),
+    IFNULL(project_id, ''),
+    IFNULL(detail, '')
+  );
+
+CREATE INDEX IF NOT EXISTS idx_library_references_item
+  ON library_references(item_id, created_at);
+
+CREATE TABLE IF NOT EXISTS library_catalog_seen (
+  origin_key TEXT PRIMARY KEY,
+  fingerprint TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `);
+	backfillManualReferences(db);
+}
+
+function backfillManualReferences(db: SqliteDb): void {
+	const rows = db
+		.query(
+			`SELECT id, created_at AS createdAt
+       FROM library_items
+       WHERE id NOT IN (SELECT item_id FROM library_references)`,
+		)
+		.all() as Array<{ id: string; createdAt: string }>;
+	if (rows.length === 0) return;
+	const insert = db.query(
+		`INSERT INTO library_references (
+       id, item_id, kind, session_id, project_id, label, detail, created_at
+     ) VALUES (
+       $id, $itemId, 'manual', NULL, NULL, 'Library', NULL, $createdAt
+     )`,
+	);
+	const tx = db.transaction(() => {
+		for (const row of rows) {
+			insert.run({
+				$id: randomUUID(),
+				$itemId: row.id,
+				$createdAt: row.createdAt,
+			});
+		}
+	});
+	tx();
 }
 
 function nowIso(): string {
@@ -202,26 +278,42 @@ export function findItemByContentHash(hash: string): LibraryItem | null {
 	return row ? rowToItem(row) : null;
 }
 
+function originExistsClause(origin?: LibraryReferenceKind): string {
+	if (!origin) return "";
+	return `WHERE EXISTS (
+    SELECT 1 FROM library_references r
+    WHERE r.item_id = i.id AND r.kind = $origin
+  )`;
+}
+
 export function listItems(opts?: {
 	readonly limit?: number;
 	readonly offset?: number;
+	readonly origin?: LibraryReferenceKind;
 }): LibraryItem[] {
 	const db = getLibraryDb();
 	const limit = Math.max(1, Math.min(opts?.limit ?? 50, 500));
 	const offset = Math.max(0, opts?.offset ?? 0);
 	const rows = db
 		.query(
-			`${ITEM_SELECT} ORDER BY i.updated_at DESC LIMIT $limit OFFSET $offset`,
+			`${ITEM_SELECT} ${originExistsClause(opts?.origin)}
+       ORDER BY i.updated_at DESC LIMIT $limit OFFSET $offset`,
 		)
-		.all({ $limit: limit, $offset: offset }) as LibraryItemRow[];
+		.all({
+			$limit: limit,
+			$offset: offset,
+			...(opts?.origin ? { $origin: opts.origin } : {}),
+		}) as LibraryItemRow[];
 	return rows.map(rowToItem);
 }
 
-export function countItems(): number {
+export function countItems(origin?: LibraryReferenceKind): number {
 	const db = getLibraryDb();
-	const row = db.query("SELECT COUNT(*) AS n FROM library_items").get() as {
-		n: number;
-	};
+	const row = db
+		.query(
+			`SELECT COUNT(*) AS n FROM library_items i ${originExistsClause(origin)}`,
+		)
+		.get(origin ? { $origin: origin } : {}) as { n: number };
 	return Number(row.n ?? 0);
 }
 
@@ -394,6 +486,113 @@ export function listEmbeddings(): Array<{
 		vector: bufferToVector(row.embedding_blob),
 		model: row.model,
 	}));
+}
+
+type LibraryReferenceRow = {
+	id: string;
+	item_id: string;
+	kind: string;
+	session_id: string | null;
+	project_id: string | null;
+	label: string;
+	detail: string | null;
+	created_at: string;
+};
+
+function rowToReference(row: LibraryReferenceRow): LibraryReference {
+	return {
+		id: row.id,
+		itemId: row.item_id,
+		kind: row.kind as LibraryReferenceKind,
+		label: row.label,
+		detail: row.detail,
+		sessionId: row.session_id,
+		projectId: row.project_id,
+		createdAt: row.created_at,
+	};
+}
+
+export function insertReference(
+	itemId: string,
+	input: LibraryReferenceInput,
+): void {
+	const db = getLibraryDb();
+	db.query(
+		`INSERT OR IGNORE INTO library_references (
+       id, item_id, kind, session_id, project_id, label, detail, created_at
+     ) VALUES (
+       $id, $itemId, $kind, $sessionId, $projectId, $label, $detail, $createdAt
+     )`,
+	).run({
+		$id: randomUUID(),
+		$itemId: itemId,
+		$kind: input.kind,
+		$sessionId: input.sessionId?.trim() || null,
+		$projectId: input.projectId?.trim() || null,
+		$label: input.label.trim() || "Library",
+		$detail: input.detail?.trim() || null,
+		$createdAt: nowIso(),
+	});
+}
+
+export function listReferencesForItems(
+	ids: readonly string[],
+): Map<string, LibraryReference[]> {
+	const grouped = new Map<string, LibraryReference[]>();
+	if (ids.length === 0) return grouped;
+	const db = getLibraryDb();
+	for (let offset = 0; offset < ids.length; offset += 100) {
+		const chunk = ids.slice(offset, offset + 100);
+		const params: Record<string, unknown> = {};
+		const placeholders = chunk.map((id, index) => {
+			const key = `$id${index}`;
+			params[key] = id;
+			return key;
+		});
+		const rows = db
+			.query(
+				`SELECT id, item_id, kind, session_id, project_id, label, detail, created_at
+         FROM library_references
+         WHERE item_id IN (${placeholders.join(", ")})
+         ORDER BY created_at ASC`,
+			)
+			.all(params) as LibraryReferenceRow[];
+		for (const row of rows) {
+			const reference = rowToReference(row);
+			const list = grouped.get(reference.itemId) ?? [];
+			list.push(reference);
+			grouped.set(reference.itemId, list);
+		}
+	}
+	return grouped;
+}
+
+export function getCatalogSeen(originKey: string): string | null {
+	const db = getLibraryDb();
+	const row = db
+		.query(
+			"SELECT fingerprint FROM library_catalog_seen WHERE origin_key = $key",
+		)
+		.get({ $key: originKey }) as { fingerprint: string } | undefined;
+	return row?.fingerprint ?? null;
+}
+
+export function upsertCatalogSeen(
+	originKey: string,
+	fingerprint: string,
+): void {
+	const db = getLibraryDb();
+	db.query(
+		`INSERT INTO library_catalog_seen (origin_key, fingerprint, updated_at)
+     VALUES ($key, $fingerprint, $updatedAt)
+     ON CONFLICT(origin_key) DO UPDATE SET
+       fingerprint = excluded.fingerprint,
+       updated_at = excluded.updated_at`,
+	).run({
+		$key: originKey,
+		$fingerprint: fingerprint,
+		$updatedAt: nowIso(),
+	});
 }
 
 export function listItemsNeedingEmbedding(modelId: string): LibraryItem[] {

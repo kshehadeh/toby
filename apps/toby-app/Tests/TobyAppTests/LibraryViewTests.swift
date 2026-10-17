@@ -58,6 +58,35 @@ struct LibraryViewTests {
 		}
 	}
 
+	@Test("selected item shows where the file came from")
+	func selectedItemShowsOrigins() throws {
+		let store = LibraryStore()
+		store.items = [
+			sampleLibraryItem(
+				references: [
+					LibraryReference(
+						id: "ref-chat",
+						kind: "chat",
+						label: "Weekly planning",
+						detail: "quarterly-plan.md",
+						sessionId: "session-1",
+						projectId: nil,
+						createdAt: "2026-09-20T12:00:00Z"
+					)
+				]
+			)
+		]
+		store.selectItem(id: "lib-1")
+		let view = LibraryInspectorBar(store: store, onQuickLook: {}, onReveal: {})
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Where it came from")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(text: "Weekly planning")
+		}
+		#expect(store.items[0].originSummary == "Chat")
+	}
+
 	@Test("delete confirmation is staged from the inspector")
 	func deleteConfirmationIsStaged() {
 		let store = LibraryStore()
@@ -105,7 +134,8 @@ struct LibraryViewTests {
 
 private func sampleLibraryItem(
 	id: String = "lib-1",
-	title: String = "Quarterly plan"
+	title: String = "Quarterly plan",
+	references: [LibraryReference]? = nil
 ) -> LibraryAsset {
 	LibraryAsset(
 		id: id,
@@ -119,6 +149,7 @@ private func sampleLibraryItem(
 		status: "ready",
 		source: "ui",
 		createdAt: "2026-09-20T12:00:00Z",
-		updatedAt: "2026-09-20T12:00:00Z"
+		updatedAt: "2026-09-20T12:00:00Z",
+		references: references
 	)
 }

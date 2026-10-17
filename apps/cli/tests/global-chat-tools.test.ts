@@ -11,6 +11,7 @@ import {
 	searchProjectFileContents,
 } from "@toby/core/ai/global-chat-tools";
 import type { Persona } from "@toby/core/config/index";
+import { closeLibraryDbForTests } from "@toby/core/library/library-store";
 import type { Project } from "@toby/core/projects/index";
 
 const persona: Persona = {
@@ -39,6 +40,8 @@ describe("saveProjectAttachment", () => {
 		const folderPath = fs.mkdtempSync(
 			path.join(os.tmpdir(), "toby-project-attachment-"),
 		);
+		const previousTobyDir = process.env.TOBY_DIR;
+		process.env.TOBY_DIR = folderPath;
 		const project = {
 			id: "project-1",
 			name: "Test Project",
@@ -74,6 +77,12 @@ describe("saveProjectAttachment", () => {
 				),
 			).toBe("hello");
 		} finally {
+			closeLibraryDbForTests();
+			if (previousTobyDir === undefined) {
+				Reflect.deleteProperty(process.env, "TOBY_DIR");
+			} else {
+				process.env.TOBY_DIR = previousTobyDir;
+			}
 			fs.rmSync(folderPath, { recursive: true, force: true });
 		}
 	});

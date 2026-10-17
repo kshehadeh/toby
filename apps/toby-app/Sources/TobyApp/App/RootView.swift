@@ -588,6 +588,10 @@ struct RootView: View {
                                             ),
                                             isListLoading: libraryStore.isListLoading,
                                             isSaving: libraryStore.isSaving,
+                                            originFilter: Binding(
+                                                get: { libraryStore.originFilter },
+                                                set: { libraryStore.setOriginFilter($0) }
+                                            ),
                                             onAdd: {
                                                 libraryStore.isImporterPresented = true
                                             },

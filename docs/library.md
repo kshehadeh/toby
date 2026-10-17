@@ -10,12 +10,20 @@ The native UI is `apps/toby-app/Sources/TobyApp/Features/Library/`.
 
 ## Product rules
 
-- v1 ingest types: **text, Markdown, PDF, and images** (PNG, JPEG, WebP, GIF).
-  Other types are rejected with a clear error.
-- Each item is a real file Toby owns plus a short description.
-- Dedup is SHA-256 of the bytes: adding the same file returns the existing item.
+- The library is the catalog of files Toby has seen: added in the Library,
+  attached to a chat, or saved into a project.
+- Summarized types: **text, Markdown, PDF, and images** (PNG, JPEG, WebP, GIF).
+  Text-like project files (JSON, CSV, HTML, source, and similar) are indexed as
+  text. Other types are stored so they can be browsed, without a model summary.
+  Manual add still rejects types outside text, Markdown, PDF, and images.
+- Each item is a real file Toby owns plus a short description. The same bytes
+  stay one item. Each place the file was seen is a separate reference.
+- Dedup is SHA-256 of the bytes.
+- Project instructions (`AGENTS.md`) and skill files are not copied into the
+  library. They already have their own screens.
 - Chat uses four built-in tools. `find_in_library` is always available (same
   role as `memorySearch`). Catalog rows are **not** injected into assemble-messages.
+  List and search results include a `from` array (`kind`, `label`, `detail`).
 - Live iCloud/folder sync remains settings + credentials only. Library files
   ride **backup/restore** like projects and recordings.
 
@@ -29,6 +37,7 @@ Honor `TOBY_DIR`. Helpers: `getLibraryDir()` / `ensureLibraryDir()` in
 | `~/.toby/library/<uuid>/<filename>` | Copied original bytes |
 | `~/.toby/library/<uuid>/extracted.txt` | Sidecar extracted text (UTF-8 / PDF). Not stored in SQLite. |
 | `chat.sqlite` `library_items` | Metadata, description, status, content hash |
+| `chat.sqlite` `library_references` | Where the file was seen: Library, a chat, or a project |
 | `chat.sqlite` `library_embeddings` | One Float32 blob per item + model (same pattern as memory) |
 
 ### `library_items`
@@ -45,10 +54,27 @@ Honor `TOBY_DIR`. Helpers: `getLibraryDir()` / `ensureLibraryDir()` in
 | `description` | Model summary or caption |
 | `status` | `pending` \| `ready` \| `failed` |
 | `error` | Failure message when indexing fails |
-| `source` | `ui` \| `chat` \| `tool` |
+| `source` | First ingest channel: `ui` \| `chat` \| `tool` \| `project` |
 | `created_at` / `updated_at` | ISO timestamps |
 
+### `library_references`
+
+One row per place a file was seen. Deleting the library item deletes its references. The chat transcript and the project file are left in place.
+
+| Column | Description |
+| ------ | ----------- |
+| `id` | UUID |
+| `item_id` | Library item |
+| `kind` | `manual` (added in the Library) \| `chat` \| `project` |
+| `session_id` | Chat, when `kind` is `chat` |
+| `project_id` | Project, when `kind` is `project` |
+| `label` | Session title, project name, or `Library` |
+| `detail` | Attachment filename, or project-relative path |
+| `created_at` | When Toby recorded that place |
+
 ## Ingest
+
+Opening the library starts a background scan of existing chat attachments and project files. Later attachments and project writes are recorded as they happen. Unchanged files are skipped. Files larger than the library size cap are skipped.
 
 On add:
 

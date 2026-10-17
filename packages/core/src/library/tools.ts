@@ -30,6 +30,11 @@ function summarizeItem(item: LibraryItem) {
 		description: item.description,
 		status: item.status,
 		error: item.error ?? null,
+		from: (item.references ?? []).map((reference) => ({
+			kind: reference.kind,
+			label: reference.label,
+			detail: reference.detail ?? null,
+		})),
 	};
 }
 
@@ -60,7 +65,7 @@ function listCatalog() {
 		items: items.map(summarizeItem),
 		hint:
 			total === 0
-				? "The library is empty. Use add_to_library to save a file."
+				? "The library is empty. Files from chats and projects show up here, or use add_to_library to save a file."
 				: total > items.length
 					? `Showing the ${items.length} most recently updated of ${total} items (documents and images). Pass a more specific query to search, or an id to open one.`
 					: "Complete catalog (documents and images). Pass id to open an item.",
@@ -123,7 +128,7 @@ export function createLibraryTools(
 
 		find_in_library: tool({
 			description:
-				"List, search, or open items in the user's Library of saved files (documents and images). Omit query to list the catalog. Use a search query for keywords/meaning. Pass `id` to load one item (extracted text for documents, original image bytes for pictures). Use this when the user asks what is in the library, to list everything, or to find a saved file.",
+				"List, search, or open items in the user's Library. The catalog includes files added in the Library, files attached to chats, and files saved in projects. Omit query to list the catalog. Use a search query for keywords/meaning. Pass `id` to load one item (extracted text for documents, original image bytes for pictures). Each item's `from` list says where it was seen. Use this when the user asks what is in the library, to list everything, to find a saved file, or to see where a file came from.",
 			inputSchema: z.object({
 				query: z
 					.string()

@@ -6,8 +6,14 @@ import path from "node:path";
 import { runWithLibraryEmbedTestHooks } from "@toby/core/library/embeddings";
 import { formatLibraryEmbedText } from "@toby/core/library/extract";
 import {
+	isCatalogedProjectPath,
+	syncLibraryCatalog,
+} from "@toby/core/library/library-catalog";
+import {
 	addLibraryBytes,
 	addLibraryText,
+	catalogLibraryBytes,
+	flushLibraryIndexQueue,
 	getLibraryItem,
 	listLibraryItems,
 	openLibraryItem,
@@ -17,6 +23,11 @@ import {
 } from "@toby/core/library/library-service";
 import { closeLibraryDbForTests } from "@toby/core/library/library-store";
 import { runWithLibrarySummarizeTestHooks } from "@toby/core/library/summarize";
+import { createProject } from "@toby/core/projects/index";
+import {
+	appendTranscriptBatch,
+	createChatSession,
+} from "@toby/core/session-store";
 import { closeChatDb } from "@toby/core/session-store";
 import {
 	embedVectorByText,
@@ -108,6 +119,139 @@ describe.skipIf(!isBun)("library", () => {
 			expect(second.duplicate).toBe(true);
 			expect(second.item.id).toBe(first.item.id);
 			expect(listLibraryItems()).toHaveLength(1);
+			expect(
+				second.item.references?.map((reference) => reference.kind),
+			).toEqual(["manual"]);
+		});
+	});
+
+	it("keeps one copy and records each place a file was seen", async () => {
+		await withLibraryHooks(async () => {
+			const bytes = Buffer.from("# Lease\nBaltimore apartment.");
+			const fromChat = await catalogLibraryBytes({
+				filename: "lease.md",
+				bytes,
+				mediaType: "text/markdown",
+				source: "chat",
+				waitForIndex: true,
+				reference: {
+					kind: "chat",
+					sessionId: "session-1",
+					label: "Lease review",
+					detail: "lease.md",
+				},
+			});
+			const fromProject = await catalogLibraryBytes({
+				filename: "lease.md",
+				bytes,
+				mediaType: "text/markdown",
+				source: "project",
+				waitForIndex: true,
+				reference: {
+					kind: "project",
+					projectId: "project-1",
+					label: "Taxes",
+					detail: "attachments/lease.md",
+				},
+			});
+			expect(fromChat?.duplicate).toBe(false);
+			expect(fromProject?.duplicate).toBe(true);
+			expect(fromProject?.item.id).toBe(fromChat?.item.id);
+			expect(listLibraryItems({ origin: "chat" })).toHaveLength(1);
+			expect(listLibraryItems({ origin: "project" })).toHaveLength(1);
+			expect(listLibraryItems({ origin: "manual" })).toHaveLength(0);
+			const kinds = fromProject?.item.references?.map(
+				(reference) => reference.kind,
+			);
+			expect(kinds).toEqual(["chat", "project"]);
+		});
+	});
+
+	it("stores files the library cannot summarize", async () => {
+		await withLibraryHooks(async () => {
+			const result = await catalogLibraryBytes({
+				filename: "deck.pptx",
+				bytes: Buffer.from("PK fake deck"),
+				mediaType:
+					"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+				source: "chat",
+				reference: {
+					kind: "chat",
+					sessionId: "session-2",
+					label: "Slides",
+					detail: "deck.pptx",
+				},
+			});
+			expect(result?.item.status).toBe("ready");
+			expect(result?.item.mimeType).toContain("presentationml");
+			expect(result?.item.references?.[0]?.label).toBe("Slides");
+			await flushLibraryIndexQueue();
+		});
+	});
+
+	it("catalogs chat attachments and project files, skipping project machinery", async () => {
+		await withLibraryHooks(async () => {
+			const project = createProject({ name: "Taxes" });
+			fs.writeFileSync(
+				path.join(project.folderPath, "notes.md"),
+				"# Notes\nDeduct the camera.\n",
+			);
+			fs.mkdirSync(path.join(project.folderPath, "skills", "demo"), {
+				recursive: true,
+			});
+			fs.writeFileSync(
+				path.join(project.folderPath, "skills", "demo", "SKILL.md"),
+				"# Skill\n",
+			);
+			const session = createChatSession({ name: "Lease review" });
+			const body = "# Lease\nBaltimore";
+			appendTranscriptBatch(session.id, 0, [
+				{
+					kind: "user",
+					text: "See the lease",
+					attachments: [
+						{
+							filename: "lease.md",
+							mediaType: "text/markdown",
+							dataBase64: Buffer.from(body).toString("base64"),
+							byteSize: Buffer.byteLength(body),
+						},
+					],
+				},
+			]);
+			expect(isCatalogedProjectPath("AGENTS.md")).toBe(false);
+			expect(isCatalogedProjectPath("skills/demo/SKILL.md")).toBe(false);
+			expect(
+				isCatalogedProjectPath(".agent/skills/project-organization/SKILL.md"),
+			).toBe(false);
+			expect(isCatalogedProjectPath("notes.md")).toBe(true);
+
+			await syncLibraryCatalog();
+			await flushLibraryIndexQueue();
+			const names = listLibraryItems({ limit: 100 }).map(
+				(item) => item.originalFilename,
+			);
+			expect(names).toContain("notes.md");
+			expect(names).toContain("lease.md");
+			expect(names).not.toContain("AGENTS.md");
+			expect(names).not.toContain("SKILL.md");
+
+			const lease = listLibraryItems({ origin: "chat", limit: 100 }).find(
+				(item) => item.originalFilename === "lease.md",
+			);
+			expect(
+				lease?.references?.some(
+					(reference) => reference.label === "Lease review",
+				),
+			).toBe(true);
+			const notes = listLibraryItems({ origin: "project", limit: 100 }).find(
+				(item) => item.originalFilename === "notes.md",
+			);
+			expect(notes?.references?.[0]?.detail).toBe("notes.md");
+			expect(notes?.references?.[0]?.label).toBe("Taxes");
+
+			await syncLibraryCatalog();
+			expect(listLibraryItems({ limit: 100 })).toHaveLength(names.length);
 		});
 	});
 
