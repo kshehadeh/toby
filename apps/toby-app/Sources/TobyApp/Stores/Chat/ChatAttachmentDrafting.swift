@@ -97,6 +97,19 @@ enum ChatAttachmentDrafting {
 		return AddOutcome(pendingAttachments: next, toasts: toasts)
 	}
 
+	/// File URLs from a Finder drop. Skips links and directories. A path that is
+	/// not yet visible (security scope not started) is kept so reading can try.
+	static func attachableDroppedFileURLs(_ urls: [URL]) -> [URL] {
+		urls.filter { url in
+			guard url.isFileURL else { return false }
+			var isDirectory: ObjCBool = false
+			if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+				return !isDirectory.boolValue
+			}
+			return true
+		}
+	}
+
 	static func makeDraft(from url: URL) throws -> ChatAttachmentDraft {
 		let didAccess = url.startAccessingSecurityScopedResource()
 		defer {

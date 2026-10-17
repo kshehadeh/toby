@@ -33,6 +33,7 @@ protocol ChatClientable {
 			rawInput: String,
 			error: String?
 		))?,
+		onPosted: (@MainActor () -> Void)?,
 	) async throws -> TurnDonePayload
 	func cancelTurn(sessionId: String, turnId: String) async
 	func createIssue(type: String, details: String) async throws -> CreateIssueResponse

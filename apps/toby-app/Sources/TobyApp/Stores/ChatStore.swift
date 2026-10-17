@@ -869,12 +869,23 @@ final class ChatStore {
 		activeTurnId = turnId
 
 		do {
-			let done = try await client.streamTurn(sessionId: sessionId, text: text, attachments: attachments, saveAttachmentsToProject: saveAttachmentsToProject, clientTurnId: turnId, onEvent: { event in
-				self.applyTurnEvent(event)
-			}, onAskUser: { [weak self] prompt in
-				guard let self else { return (-1, "", "", "Prompt dismissed") }
-				return await self.promptForAskUser(prompt)
-			})
+			let done = try await client.streamTurn(
+				sessionId: sessionId,
+				text: text,
+				attachments: attachments,
+				saveAttachmentsToProject: saveAttachmentsToProject,
+				clientTurnId: turnId,
+				onEvent: { event in
+					self.applyTurnEvent(event)
+				},
+				onAskUser: { [weak self] prompt in
+					guard let self else { return (-1, "", "", "Prompt dismissed") }
+					return await self.promptForAskUser(prompt)
+				},
+				onPosted: { [weak self] in
+					self?.clearAttachments()
+				},
+			)
 			if !assistantBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 				commitTurnAssistantSegment(id: UUID().uuidString, interim: false)
 			}

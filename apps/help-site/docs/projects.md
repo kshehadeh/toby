@@ -106,8 +106,9 @@ When no project is active, generated files fall back to `~/.toby/generated-files
 
 ### Save an attached file to a project
 
-In a project chat, use the **+** button to attach a file, then explicitly ask
-Toby to save it to the project, for example: “Save this brief to the project.”
+In a project chat, use the **+** button or drag a file onto the message box,
+then explicitly ask Toby to save it to the project, for example: “Save this
+brief to the project.”
 Toby stores the original file in the project's `attachments` folder. This also
 works for files your selected AI model cannot read. Toby will not replace a file
 with the same name unless you explicitly ask it to overwrite the existing file.

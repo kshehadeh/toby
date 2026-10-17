@@ -41,6 +41,8 @@ final class MockChatClient: ChatClientable {
 
 	var error: Error?
 	var streamTurnError: Error?
+	/// When set with `streamTurnError`, the mock accepts the post before failing the stream.
+	var acceptTurnBeforeError = false
 	var deleteError: Error?
 
 	func fetchStatus() async throws -> AppStatus {
@@ -125,13 +127,20 @@ final class MockChatClient: ChatClientable {
 			rawInput: String,
 			error: String?
 		))?,
+		onPosted: (@MainActor () -> Void)?,
 	) async throws -> TurnDonePayload {
 		streamTurnCalls += 1
 		streamSessionIds.append(sessionId)
 		streamTexts.append(text)
 		saveAttachmentsToProjectValues.append(saveAttachmentsToProject)
-		if let streamTurnError { throw streamTurnError }
+		if let streamTurnError {
+			if acceptTurnBeforeError {
+				onPosted?()
+			}
+			throw streamTurnError
+		}
 		if let error { throw error }
+		onPosted?()
 		for event in streamEvents {
 			onEvent(event)
 		}

@@ -17,6 +17,7 @@ struct InputDock: View {
 	let onSubmit: () -> Void
 	let onCancel: () -> Void
 	@State private var isFileImporterPresented = false
+	@State private var isFileDropTargeted = false
 
 	init(
 		text: Binding<String>,
@@ -67,6 +68,7 @@ struct InputDock: View {
 				.lineLimit(2 ... 6)
 				.disabled(isLoading)
 				.accessibilityIdentifier("chat-input")
+				.accessibilityHint(dropAccessibilityHint)
 				.onKeyPress(.return, phases: .down) { press in
 					if press.modifiers.contains(.shift) {
 						text.append("\n")
@@ -140,6 +142,19 @@ struct InputDock: View {
 			.regular.interactive(),
 			in: AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
 		)
+		.overlay {
+			if isFileDropTargeted {
+				AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
+					.stroke(AppTheme.accent, lineWidth: 2)
+					.allowsHitTesting(false)
+					.accessibilityIdentifier("chat-input-drop-target")
+			}
+		}
+		.dropDestination(for: URL.self, action: { urls, _ in
+			receiveFileDrop(urls)
+		}, isTargeted: { targeted in
+			isFileDropTargeted = targeted && canUseAttachmentButton
+		})
 		.fileImporter(
 			isPresented: $isFileImporterPresented,
 			allowedContentTypes: pdfOnlyAttachments ? [.pdf] : [.item],
@@ -164,6 +179,19 @@ struct InputDock: View {
 
 	private var attachHelpText: String {
 		pdfOnlyAttachments ? "Add a PDF for Toby to read" : "Add files"
+	}
+
+	private var dropAccessibilityHint: String {
+		guard canUseAttachmentButton else { return "" }
+		return pdfOnlyAttachments ? "Drop a PDF to attach it." : "Drop files to attach them."
+	}
+
+	private func receiveFileDrop(_ urls: [URL]) -> Bool {
+		guard canUseAttachmentButton else { return false }
+		let files = ChatAttachmentDrafting.attachableDroppedFileURLs(urls)
+		guard !files.isEmpty else { return false }
+		onAttachFiles(files)
+		return true
 	}
 }
 
