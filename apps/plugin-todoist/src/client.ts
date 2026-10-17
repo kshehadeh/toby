@@ -87,6 +87,7 @@ function isActiveOpenTaskRow(task: Task): boolean {
 export async function fetchOpenTasks(
 	config: JsonRecord,
 	limit?: number,
+	onPage?: (page: number, collected: number) => void,
 ): Promise<TodoistTask[]> {
 	const api = getTodoistApiClient(config);
 	const collected: TodoistTask[] = [];
@@ -113,6 +114,7 @@ export async function fetchOpenTasks(
 				collected.push(mapSdkTaskToTodoistTask(task));
 			}
 		}
+		onPage?.(page + 1, collected.length);
 		if (!nextCursor || results.length === 0) {
 			break;
 		}

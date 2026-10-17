@@ -1,3 +1,4 @@
+import type { ToolPresentation } from "../../chat-pipeline/tool-presentation";
 import type { IntegrationCapability, ProviderCategory } from "../types";
 
 /** Supported plugin protocol versions (newest first). */
@@ -58,6 +59,13 @@ export interface PluginToolDefinition {
 	 * shapes must conform to the contract for that standard tool ID.
 	 */
 	readonly standardTool?: string;
+	/**
+	 * How Toby.app renders this tool's transcript step. See
+	 * `ToolPresentation` in `chat-pipeline/tool-presentation.ts`. Report live
+	 * sub-items while executing by writing `@@toby-progress {json}` lines to
+	 * stderr (`{ "items": [{ "id", "label", "state" }], "fraction"? }`).
+	 */
+	readonly presentation?: ToolPresentation;
 }
 
 export interface PluginToolHealth {

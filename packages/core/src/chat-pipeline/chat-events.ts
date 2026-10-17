@@ -1,4 +1,5 @@
 import type { PlanPhaseStatus, PlanStatus } from "../planning/types";
+import type { ToolPresentation, ToolProgressItem } from "./tool-presentation";
 
 /**
  * UI-agnostic events emitted during a chat turn (pretreatment, model, tools, plans).
@@ -86,6 +87,25 @@ export type ChatEvent =
 			readonly toolName: string;
 			readonly integrationLabel?: string;
 			readonly args: Record<string, unknown>;
+			/** How the client should render this step (added by the turn runner). */
+			readonly presentation?: ToolPresentation;
+			/**
+			 * True when this repeats an earlier start for the same `blockKey` only to
+			 * deliver args that finished streaming. Status-line consumers skip it.
+			 */
+			readonly argsUpdate?: boolean;
+	  }
+	| {
+			/**
+			 * Transient progress for a running tool call. Carries the full rail
+			 * (not a delta); clients replace their copy. Not persisted.
+			 */
+			readonly type: "tool_call_progress";
+			readonly blockKey: string;
+			readonly seq: number;
+			readonly toolName: string;
+			readonly items: readonly ToolProgressItem[];
+			readonly fraction?: number;
 	  }
 	| {
 			readonly type: "tool_call_complete";
@@ -99,6 +119,9 @@ export type ChatEvent =
 			readonly cacheHit?: boolean;
 			/** Elapsed time for the tool call in milliseconds. */
 			readonly durationMs?: number;
+			readonly presentation?: ToolPresentation;
+			/** Renderer-shaped one-line result summary (added by the turn runner). */
+			readonly summary?: string;
 	  }
 	| {
 			readonly type: "plan_created";

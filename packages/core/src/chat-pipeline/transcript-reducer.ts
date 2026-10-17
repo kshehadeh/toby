@@ -2,6 +2,11 @@ import type { AskUserToolResult } from "../ai/ask-user-tool";
 import { stripLoneSurrogates } from "../lone-surrogates";
 import { getToolDisplayLabel } from "../tool-labels";
 import type { ChatEvent } from "./chat-events";
+import {
+	formatToolPresentationSummary,
+	getToolPresentation,
+	sanitizeToolArgsForDisplay,
+} from "./tool-presentation";
 import type { ToolRunEntry, TranscriptEntry } from "./transcript-types";
 
 export type ToolOutputFormatContext = {
@@ -429,6 +434,11 @@ function toToolRuns(
 			body: entry.body,
 			...(entry.fullBody !== undefined ? { fullBody: entry.fullBody } : {}),
 			...(entry.cacheHit !== undefined ? { cacheHit: entry.cacheHit } : {}),
+			...(entry.durationMs !== undefined
+				? { durationMs: entry.durationMs }
+				: {}),
+			...(entry.args !== undefined ? { args: entry.args } : {}),
+			...(entry.failed === true ? { failed: true } : {}),
 		},
 	];
 }
@@ -461,13 +471,135 @@ export function shouldPersistChatEventInTranscript(ev: ChatEvent): boolean {
 	if (ev.type === "plan_amended" || ev.type === "plan_completed") {
 		return false;
 	}
-	if (ev.type === "ask_user_prompt") {
+	if (ev.type === "ask_user_prompt" || ev.type === "tool_call_progress") {
 		return false;
 	}
 	return true;
 }
 
 export function applyChatEvent(
+	entries: readonly TranscriptEntry[],
+	event: ChatEvent,
+): TranscriptEntry[] {
+	if (event.type === "tool_call_progress") {
+		// Live progress is transient; the persisted step keeps only the summary.
+		return [...entries];
+	}
+	if (event.type === "tool_call_start" && event.toolName !== "askUser") {
+		const idx = findLastBoxedToolIndex(entries, event.blockKey);
+		if (idx >= 0) {
+			// Repeat start for the same call (args finished streaming): update in place.
+			return patchToolCall(entries, idx, event.blockKey, {
+				args: sanitizeToolArgsForDisplay(event.args),
+				header: formatToolCallHeader(
+					event.toolName,
+					event.args,
+					event.integrationLabel,
+				),
+			});
+		}
+		const next = applyChatEventBase(entries, event);
+		const added = findLastBoxedToolIndex(next, event.blockKey);
+		if (added < 0) return next;
+		const presentation =
+			event.presentation ?? getToolPresentation(event.toolName);
+		const withPresentation = presentation
+			? replaceEntry(next, added, {
+					...(next[added] as BoxedStepEntry),
+					presentation,
+				})
+			: next;
+		return patchToolCall(withPresentation, added, event.blockKey, {
+			args: sanitizeToolArgsForDisplay(event.args),
+		});
+	}
+	if (event.type === "tool_call_complete" && event.toolName !== "askUser") {
+		const summary =
+			event.summary ??
+			(event.cacheHit === true
+				? undefined
+				: formatToolPresentationSummary(
+						event.toolName,
+						event.result,
+						event.error,
+					));
+		const next = applyChatEventBase(entries, event);
+		const idx = findLastBoxedToolIndex(next, event.blockKey);
+		if (idx < 0) return next;
+		const presentation =
+			event.presentation ?? getToolPresentation(event.toolName);
+		const cur = next[idx] as BoxedStepEntry;
+		const patched = presentation
+			? replaceEntry(next, idx, { ...cur, presentation })
+			: next;
+		return patchToolCall(patched, idx, event.blockKey, {
+			args: sanitizeToolArgsForDisplay(event.args),
+			failed: isFailedToolResult(event.result, event.error),
+			...(summary !== undefined ? { body: summary } : {}),
+		});
+	}
+	return applyChatEventBase(entries, event);
+}
+
+type BoxedStepEntry = Extract<TranscriptEntry, { kind: "boxed_step" }>;
+
+function isFailedToolResult(result: unknown, error: unknown): boolean {
+	if (error !== undefined && error !== null) return true;
+	if (result && typeof result === "object" && !Array.isArray(result)) {
+		const err = (result as Record<string, unknown>).error;
+		return typeof err === "string" && err.trim().length > 0;
+	}
+	return false;
+}
+
+/**
+ * Patch display fields on a single tool call, whether it is stored on the
+ * boxed step itself or as one of its grouped `toolRuns`.
+ */
+function patchToolCall(
+	entries: readonly TranscriptEntry[],
+	idx: number,
+	blockKey: string,
+	patch: {
+		readonly args?: ToolRunEntry["args"];
+		readonly failed?: boolean;
+		readonly body?: string;
+		readonly header?: string;
+	},
+): TranscriptEntry[] {
+	const cur = entries[idx];
+	if (cur?.kind !== "boxed_step") return [...entries];
+	const fields = {
+		...(patch.args !== undefined ? { args: patch.args } : {}),
+		...(patch.failed !== undefined ? { failed: patch.failed } : {}),
+		...(patch.body !== undefined ? { body: patch.body } : {}),
+	};
+	const runs = cur.toolRuns;
+	if (runs !== undefined && runs.length > 0) {
+		const runIndex = runs.findIndex((run) => run.blockKey === blockKey);
+		if (runIndex < 0) return [...entries];
+		const nextRuns = [...runs];
+		nextRuns[runIndex] = {
+			...nextRuns[runIndex],
+			...fields,
+			...(patch.header !== undefined ? { header: patch.header } : {}),
+		};
+		// A lone run mirrors the step itself; keep both in sync.
+		const mirror = nextRuns.length === 1 ? fields : {};
+		return replaceEntry(entries, idx, {
+			...cur,
+			...mirror,
+			toolRuns: nextRuns,
+		});
+	}
+	return replaceEntry(entries, idx, {
+		...cur,
+		...fields,
+		...(patch.header !== undefined ? { header: patch.header } : {}),
+	});
+}
+
+function applyChatEventBase(
 	entries: readonly TranscriptEntry[],
 	event: ChatEvent,
 ): TranscriptEntry[] {

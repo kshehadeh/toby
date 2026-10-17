@@ -25,6 +25,19 @@ describe("headlessProgressLineForChatEvent", () => {
 		).toBe("Waiting for your choice…");
 	});
 
+	it("skips repeat tool_call_start events that only deliver args", () => {
+		expect(
+			headlessProgressLineForChatEvent({
+				type: "tool_call_start",
+				blockKey: "t1",
+				seq: 3,
+				toolName: "askUser",
+				args: { query: "late" },
+				argsUpdate: true,
+			}),
+		).toBeNull();
+	});
+
 	it("returns null for assistant_text_delta", () => {
 		expect(
 			headlessProgressLineForChatEvent({

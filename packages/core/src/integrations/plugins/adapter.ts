@@ -2,10 +2,15 @@ import { tool } from "ai";
 import type { Tool } from "ai";
 import chalk from "chalk";
 import { globalChatToolsPromptSection } from "../../ai/global-chat-tools";
+import { currentToolProgressReporter } from "../../ai/tool-progress";
 import {
 	clearSessionToolBundleCache,
 	runSharedChatTurn,
 } from "../../chat-pipeline/run-turn";
+import {
+	parsePluginProgress,
+	registerPluginToolPresentations,
+} from "../../chat-pipeline/tool-presentation";
 import type { CredentialsFile, Persona } from "../../config/index";
 import {
 	ensurePluginDataDir,
@@ -442,6 +447,7 @@ function loadReadOnlyToolNames(
 		}
 	}
 	registerPluginToolLabels(tools);
+	registerPluginToolPresentations(tools);
 	// File references can resolve to different bytes on each turn; never cache
 	// these read-only results using only the model's arguments.
 	return tools.filter((t) => t.readOnly && !t.fileAccess).map((t) => t.name);
@@ -906,6 +912,7 @@ export function createPluginIntegrationModule(
 		}
 
 		registerPluginToolLabels(toolDefs);
+		registerPluginToolPresentations(toolDefs);
 
 		const tools: Record<string, Tool> = {};
 		for (const definition of toolDefs) {
@@ -914,6 +921,9 @@ export function createPluginIntegrationModule(
 				description: definition.description,
 				inputSchema,
 				execute: async (input) => {
+					// Capture before the credential lock / child-process callbacks,
+					// which run outside this call's async context.
+					const progress = currentToolProgressReporter();
 					return withPluginCredentialLock(name, async () => {
 						const envelope = buildPluginEnvelope(name);
 						const dataDir = ensurePluginDataDir(name);
@@ -927,15 +937,24 @@ export function createPluginIntegrationModule(
 								error: error instanceof Error ? error.message : String(error),
 							};
 						}
-						const execResult = await pluginToolsExecuteAsync(target, {
-							tool: definition.name,
-							input: input as Record<string, unknown>,
-							config: envelope.config,
-							state: envelope.state,
-							dryRun: params.dryRun,
-							paths: { dataDir },
-							files,
-						});
+						const execResult = await pluginToolsExecuteAsync(
+							target,
+							{
+								tool: definition.name,
+								input: input as Record<string, unknown>,
+								config: envelope.config,
+								state: envelope.state,
+								dryRun: params.dryRun,
+								paths: { dataDir },
+								files,
+							},
+							progress
+								? {
+										onProgress: (update) =>
+											progress(parsePluginProgress(update)),
+									}
+								: undefined,
+						);
 
 						forwardPluginStderr(name, execResult.stderr);
 

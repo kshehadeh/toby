@@ -22,6 +22,10 @@ import type { Project } from "../projects/index";
 import type { ValidatedChatAttachment } from "./attachments";
 import type { ChatEvent, ChatEventSink } from "./chat-events";
 import { loadIntegrationToolBundle } from "./tool-bundle-cache";
+import {
+	formatToolPresentationSummary,
+	getToolPresentation,
+} from "./tool-presentation";
 
 export { clearSessionToolBundleCache } from "./tool-bundle-cache";
 
@@ -595,16 +599,33 @@ export async function runSharedChatTurn(
 					assistantHeader:
 						chatWithToolsOptions.assistantHeader ?? options.persona.name,
 					onChatEvent: (event: ChatEvent) => {
-						if (
-							event.type === "tool_call_start" ||
-							event.type === "tool_call_complete"
-						) {
+						if (event.type === "tool_call_start") {
 							const integrationLabel = toolIntegrationLabels[event.toolName];
-							onChatEvent(
-								integrationLabel === undefined
-									? event
-									: { ...event, integrationLabel },
-							);
+							const presentation = getToolPresentation(event.toolName);
+							onChatEvent({
+								...event,
+								...(integrationLabel !== undefined ? { integrationLabel } : {}),
+								...(presentation !== undefined ? { presentation } : {}),
+							});
+							return;
+						}
+						if (event.type === "tool_call_complete") {
+							const integrationLabel = toolIntegrationLabels[event.toolName];
+							const presentation = getToolPresentation(event.toolName);
+							const summary =
+								event.cacheHit === true
+									? undefined
+									: formatToolPresentationSummary(
+											event.toolName,
+											event.result,
+											event.error,
+										);
+							onChatEvent({
+								...event,
+								...(integrationLabel !== undefined ? { integrationLabel } : {}),
+								...(presentation !== undefined ? { presentation } : {}),
+								...(summary !== undefined ? { summary } : {}),
+							});
 							return;
 						}
 						onChatEvent(event);
