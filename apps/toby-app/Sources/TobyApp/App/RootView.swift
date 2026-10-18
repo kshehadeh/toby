@@ -592,6 +592,10 @@ struct RootView: View {
                                                 get: { libraryStore.originFilter },
                                                 set: { libraryStore.setOriginFilter($0) }
                                             ),
+                                            layout: Binding(
+                                                get: { libraryStore.layout },
+                                                set: { libraryStore.setLayout($0) }
+                                            ),
                                             onAdd: {
                                                 libraryStore.isImporterPresented = true
                                             },

@@ -7,6 +7,15 @@ memory, and chat never dumps the catalog into the system prompt.
 
 Implementation lives in [`packages/core/src/library/`](../packages/core/src/library/).
 The native UI is `apps/toby-app/Sources/TobyApp/Features/Library/`.
+The window is a searchable list or an icon grid. A list row leads with a
+small thumbnail: an image preview, or the file’s icon. The grid uses a
+larger icon, or a thumbnail for images, with the name underneath. The switch sits in the upper-right
+contextual toolbar with the origin filter, Add, and Refresh. Nothing is
+selected until the user chooses a file. Double-click a file in either view
+to Quick Look Toby’s copy. The item’s context menu and the inspector offer
+the same preview. The layout choice is app-local
+(`UserDefaults` key `toby.library.layout`, default `list`) and is not part of
+library data or sync.
 
 ## Product rules
 

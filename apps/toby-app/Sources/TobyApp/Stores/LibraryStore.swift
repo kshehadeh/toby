@@ -20,6 +20,8 @@ final class LibraryStore {
 	var importerError: String?
 	var originFilter: LibraryOriginFilter = .all
 	var isCatalogSyncing = false
+	/// List or icon layout. Saved on this Mac; not part of library data.
+	var layout: LibraryLayout
 
 	struct PendingDelete: Identifiable {
 		let ids: Set<String>
@@ -34,6 +36,21 @@ final class LibraryStore {
 		"update_in_library",
 		"remove_from_library",
 	]
+
+	/// UserDefaults key for `layout`. App-local, like other window preferences.
+	static let layoutDefaultsKey = "toby.library.layout"
+
+	private let layoutDefaults: UserDefaults
+
+	init(defaults: UserDefaults = .standard) {
+		layoutDefaults = defaults
+		if let raw = defaults.string(forKey: Self.layoutDefaultsKey),
+			let stored = LibraryLayout(rawValue: raw) {
+			layout = stored
+		} else {
+			layout = .list
+		}
+	}
 
 	static let acceptedContentTypes: [UTType] = {
 		var types: [UTType] = [.plainText, .pdf, .png, .jpeg, .gif, .webP]
@@ -172,6 +189,27 @@ final class LibraryStore {
 		guard originFilter != filter else { return }
 		originFilter = filter
 		Task { await load() }
+	}
+
+	func setLayout(_ layout: LibraryLayout) {
+		guard layout != self.layout else { return }
+		self.layout = layout
+		layoutDefaults.set(layout.rawValue, forKey: Self.layoutDefaultsKey)
+	}
+
+	/// Pointer click on a file. Command-click toggles that file in the selection.
+	func selectFromPointerClick(id: String, extending: Bool) {
+		if extending {
+			var ids = selectedItemIds
+			if ids.contains(id) {
+				ids.remove(id)
+			} else {
+				ids.insert(id)
+			}
+			selectItems(ids: ids)
+		} else {
+			selectItem(id: id)
+		}
 	}
 
 	func search(_ query: String) async {

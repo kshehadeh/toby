@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 struct LibraryView: View {
 	@Bindable var store: LibraryStore
-	@State private var quickLookURL: URL?
 
 	var body: some View {
 		Group {
@@ -14,7 +13,7 @@ struct LibraryView: View {
 					Text(errorMessage)
 				}
 			} else {
-				LibraryListView(store: store, onQuickLook: previewItem)
+				LibraryCollectionView(store: store, onQuickLook: previewItem)
 					.safeAreaInset(edge: .bottom, spacing: 0) {
 						inspectorInset
 					}
@@ -36,7 +35,6 @@ struct LibraryView: View {
 				store.errorMessage = error.localizedDescription
 			}
 		}
-		.quickLookPreview($quickLookURL)
 		.task {
 			await store.load()
 			store.startPolling()
@@ -100,9 +98,7 @@ struct LibraryView: View {
 	}
 
 	private func previewItem(_ item: LibraryAsset) {
-		FileQuickLook.previewOrOpen(path: item.absolutePath) { url in
-			quickLookURL = url
-		}
+		FileQuickLook.present(path: item.absolutePath)
 	}
 
 	private func revealSelected() {
@@ -111,52 +107,68 @@ struct LibraryView: View {
 	}
 }
 
-struct LibraryListView: View {
+struct LibraryCollectionView: View {
 	@Bindable var store: LibraryStore
 	var onQuickLook: (LibraryAsset) -> Void = { _ in }
 
 	var body: some View {
 		if store.items.isEmpty, !store.isListLoading {
-			if store.isCatalogSyncing, store.originFilter == .all, store.searchQuery.isEmpty {
-				FeatureBrowserList(
-					isLoading: true,
-					isEmpty: true,
-					loadingText: "Gathering files from chats and projects…",
-					emptyText: "No library items"
-				) {
-					EmptyView()
-				}
-			} else if store.originFilter == .all, store.searchQuery.isEmpty {
-				FeatureBrowserPlaceholder(
-					systemImage: DetailRoute.library.systemImage,
-					title: "No library items",
-					onCreate: { store.isImporterPresented = true },
-					createPhrase: "Add a file now",
-					createAccessibilityIdentifier: "library-empty-add-button"
-				)
-			} else {
-				FeatureBrowserPlaceholder(
-					systemImage: DetailRoute.library.systemImage,
-					title: store.emptyListTitle
-				)
-			}
+			emptyCollection
+		} else if store.layout == .icons {
+			LibraryIconView(store: store, onQuickLook: onQuickLook)
 		} else {
+			listCollection
+		}
+	}
+
+	@ViewBuilder
+	private var emptyCollection: some View {
+		if store.isCatalogSyncing, store.originFilter == .all, store.searchQuery.isEmpty {
 			FeatureBrowserList(
-				isLoading: store.isListLoading,
-				isEmpty: store.items.isEmpty,
-				loadingText: "Loading library…",
-				emptyText: "No library items",
-				onClearSelection: { store.clearSelection() }
+				isLoading: true,
+				isEmpty: true,
+				loadingText: "Gathering files from chats and projects…",
+				emptyText: "No library items"
 			) {
-				ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
-					VStack(spacing: 0) {
-						libraryRow(item)
-						if index < store.items.count - 1 {
-							Divider()
-								.overlay(AppTheme.separator)
-								.opacity(0.5)
-								.padding(.leading, FeatureBrowserMetrics.glyphSize + FeatureBrowserMetrics.rowContentSpacing)
-						}
+				EmptyView()
+			}
+		} else if store.originFilter == .all, store.searchQuery.isEmpty {
+			FeatureBrowserPlaceholder(
+				systemImage: DetailRoute.library.systemImage,
+				title: "No library items",
+				onCreate: { store.isImporterPresented = true },
+				createPhrase: "Add a file now",
+				createAccessibilityIdentifier: "library-empty-add-button"
+			)
+		} else {
+			FeatureBrowserPlaceholder(
+				systemImage: DetailRoute.library.systemImage,
+				title: store.emptyListTitle
+			)
+		}
+	}
+
+	private var listCollection: some View {
+		FeatureBrowserList(
+			isLoading: store.isListLoading,
+			isEmpty: store.items.isEmpty,
+			loadingText: "Loading library…",
+			emptyText: "No library items",
+			onClearSelection: { store.clearSelection() }
+		) {
+			ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
+				VStack(spacing: 0) {
+					libraryRow(item)
+					if index < store.items.count - 1 {
+						Divider()
+							.overlay(AppTheme.separator)
+							.opacity(0.5)
+							.padding(
+								.leading,
+								FeatureBrowserMetrics.rowHorizontalPadding
+									+ LibraryIconMetrics.listThumbnailSide
+									+ FeatureBrowserMetrics.rowContentSpacing
+							)
 					}
 				}
 			}
@@ -165,7 +177,7 @@ struct LibraryListView: View {
 
 	private func libraryRow(_ item: LibraryAsset) -> some View {
 		Button {
-			handleRowClick(item)
+			activateLibraryItem(item, store: store, onQuickLook: onQuickLook)
 		} label: {
 			FeatureBrowserRow(
 				title: item.title,
@@ -174,8 +186,20 @@ struct LibraryListView: View {
 				isSelected: store.selectedItemIds.contains(item.id),
 				accessibilityIdentifier: "library-row-\(item.id)",
 				leading: {
-					FeatureBrowserRowGlyph(systemImage: item.systemImage, isSelected: store.selectedItemIds.contains(item.id))
-						.intelligenceOutline(isActive: item.isPending, in: Circle())
+					LibraryItemArtwork(item: item, side: LibraryIconMetrics.listThumbnailSide)
+						.clipShape(
+							RoundedRectangle(
+								cornerRadius: LibraryIconMetrics.listThumbnailCornerRadius,
+								style: .continuous
+							)
+						)
+						.intelligenceOutline(
+							isActive: item.isPending,
+							in: RoundedRectangle(
+								cornerRadius: LibraryIconMetrics.listThumbnailCornerRadius,
+								style: .continuous
+							)
+						)
 				},
 				trailing: {
 					Text(item.byteSizeLabel)
@@ -186,10 +210,71 @@ struct LibraryListView: View {
 			)
 		}
 		.buttonStyle(.plain)
-		.contextMenu {
+		.libraryItemDoubleClick {
+			previewLibraryItem(item, store: store, onQuickLook: onQuickLook)
+		}
+		.accessibilityAction(named: "Quick Look") {
+			previewLibraryItem(item, store: store, onQuickLook: onQuickLook)
+		}
+		.libraryItemMenu(item: item, store: store, onQuickLook: onQuickLook)
+	}
+}
+
+/// Pointer activation for a library file.
+///
+/// A SwiftUI button action does not receive the second click's count, so
+/// double-click Quick Look is delivered by ``libraryItemDoubleClick``.
+/// `clickCount` and `commandPressed` default to the current AppKit event so
+/// tests can describe a click without posting one.
+@MainActor
+func activateLibraryItem(
+	_ item: LibraryAsset,
+	clickCount: Int? = nil,
+	commandPressed: Bool? = nil,
+	store: LibraryStore,
+	onQuickLook: (LibraryAsset) -> Void
+) {
+	let clicks = clickCount ?? NSApp.currentEvent?.clickCount ?? 1
+	if clicks >= 2 {
+		previewLibraryItem(item, store: store, onQuickLook: onQuickLook)
+	} else {
+		let command = commandPressed ?? NSEvent.modifierFlags.contains(.command)
+		store.selectFromPointerClick(id: item.id, extending: command)
+	}
+}
+
+/// Select one file and preview it. Shared by double-click, VoiceOver, and the context menu.
+@MainActor
+func previewLibraryItem(
+	_ item: LibraryAsset,
+	store: LibraryStore,
+	onQuickLook: (LibraryAsset) -> Void
+) {
+	store.selectItem(id: item.id)
+	onQuickLook(item)
+}
+
+extension View {
+	/// Opens Quick Look on the second click without delaying the first click.
+	///
+	/// The catcher does not hit-test, so selection and the context menu stay
+	/// on the row. An `NSClickGestureRecognizer` on its container reads the
+	/// double-click AppKit already counted.
+	func libraryItemDoubleClick(perform action: @escaping () -> Void) -> some View {
+		background {
+			LibraryItemDoubleClickInstaller(onDoubleClick: action)
+				.accessibilityHidden(true)
+		}
+	}
+
+	func libraryItemMenu(
+		item: LibraryAsset,
+		store: LibraryStore,
+		onQuickLook: @escaping (LibraryAsset) -> Void
+	) -> some View {
+		contextMenu {
 			Button("Quick Look", systemImage: "eye") {
-				store.selectItem(id: item.id)
-				onQuickLook(item)
+				previewLibraryItem(item, store: store, onQuickLook: onQuickLook)
 			}
 			Button("Reveal in Finder", systemImage: "folder") {
 				RevealInFinder.reveal(path: item.absolutePath)
@@ -200,18 +285,117 @@ struct LibraryListView: View {
 			.disabled(store.isSaving)
 		}
 	}
+}
 
-	private func handleRowClick(_ item: LibraryAsset) {
-		if NSEvent.modifierFlags.contains(.command) {
-			var ids = store.selectedItemIds
-			if ids.contains(item.id) {
-				ids.remove(item.id)
-			} else {
-				ids.insert(item.id)
+/// Transparent monitor for a library row. Clicks pass through to the button.
+private struct LibraryItemDoubleClickInstaller: NSViewRepresentable {
+	var onDoubleClick: () -> Void
+
+	func makeNSView(context: Context) -> LibraryItemDoubleClickView {
+		let view = LibraryItemDoubleClickView()
+		view.onDoubleClick = onDoubleClick
+		return view
+	}
+
+	func updateNSView(_ nsView: LibraryItemDoubleClickView, context: Context) {
+		nsView.onDoubleClick = onDoubleClick
+		nsView.installRecognizerIfNeeded()
+	}
+
+	static func dismantleNSView(_ nsView: LibraryItemDoubleClickView, coordinator: ()) {
+		nsView.removeRecognizer()
+	}
+}
+
+/// Installs a two-click recognizer on its container and ignores clicks outside its frame.
+final class LibraryItemDoubleClickView: NSView, NSGestureRecognizerDelegate {
+	var onDoubleClick: () -> Void = {}
+	private var recognizer: NSClickGestureRecognizer?
+
+	override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+	override func viewWillMove(toSuperview newSuperview: NSView?) {
+		super.viewWillMove(toSuperview: newSuperview)
+		removeRecognizer()
+	}
+
+	override func viewDidMoveToSuperview() {
+		super.viewDidMoveToSuperview()
+		installRecognizerIfNeeded()
+	}
+
+	override func layout() {
+		super.layout()
+		installRecognizerIfNeeded()
+	}
+
+	func installRecognizerIfNeeded() {
+		guard let host = recognizerHost() else { return }
+		if let recognizer, recognizer.view === host { return }
+		removeRecognizer()
+		let recognizer = NSClickGestureRecognizer(target: self, action: #selector(handleDoubleClick(_:)))
+		recognizer.numberOfClicksRequired = 2
+		recognizer.delaysPrimaryMouseButtonEvents = false
+		recognizer.delaysSecondaryMouseButtonEvents = false
+		recognizer.delegate = self
+		host.addGestureRecognizer(recognizer)
+		self.recognizer = recognizer
+	}
+
+	/// SwiftUI hit-tests the hosting view, so the recognizer has to sit on that
+	/// ancestor. A recognizer on an intermediate wrapper never sees the click.
+	private func recognizerHost() -> NSView? {
+		var ancestor: NSView? = superview
+		var hosting: NSView?
+		while let view = ancestor {
+			if NSStringFromClass(type(of: view)).contains("HostingView") {
+				hosting = view
+				break
 			}
-			store.selectItems(ids: ids)
-		} else {
-			store.selectItem(id: item.id)
+			ancestor = view.superview
 		}
+		return hosting ?? superview
+	}
+
+	func removeRecognizer() {
+		guard let recognizer else { return }
+		recognizer.view?.removeGestureRecognizer(recognizer)
+		self.recognizer = nil
+	}
+
+	@objc private func handleDoubleClick(_ recognizer: NSClickGestureRecognizer) {
+		let local = convert(recognizer.location(in: nil), from: nil)
+		performDoubleClick(atLocalPoint: local)
+	}
+
+	func performDoubleClick(atLocalPoint point: NSPoint) {
+		guard bounds.contains(point) else { return }
+		onDoubleClick()
+	}
+
+	func gestureRecognizer(
+		_ gestureRecognizer: NSGestureRecognizer,
+		shouldAttemptToRecognizeWith event: NSEvent
+	) -> Bool {
+		let local = convert(event.locationInWindow, from: nil)
+		return bounds.contains(local)
+	}
+
+	func gestureRecognizer(
+		_ gestureRecognizer: NSGestureRecognizer,
+		shouldRecognizeSimultaneouslyWith otherGestureRecognizer: NSGestureRecognizer
+	) -> Bool {
+		true
+	}
+
+	static func instances(in root: NSView) -> [LibraryItemDoubleClickView] {
+		var found: [LibraryItemDoubleClickView] = []
+		if let match = root as? LibraryItemDoubleClickView {
+			found.append(match)
+		}
+		for subview in root.subviews {
+			found.append(contentsOf: instances(in: subview))
+		}
+		return found
 	}
 }

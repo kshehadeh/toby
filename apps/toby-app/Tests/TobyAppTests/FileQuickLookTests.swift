@@ -42,4 +42,21 @@ struct FileQuickLookTests {
 		FileQuickLook.previewOrOpen(path: file.path) { preview = $0 }
 		#expect(preview?.standardizedFileURL == file.standardizedFileURL)
 	}
+
+	@Test("staging a preview does not require the panel to be open")
+	@MainActor
+	func stagePreviewWithoutOpeningPanel() throws {
+		let file = FileManager.default.temporaryDirectory
+			.appendingPathComponent("toby-quicklook-\(UUID().uuidString).png")
+		try Data().write(to: file)
+		defer { try? FileManager.default.removeItem(at: file) }
+
+		let controller = QuickLookPanelController.shared
+		controller.stage(file)
+		#expect(controller.stagedURL == file.standardizedFileURL)
+		#expect(controller.numberOfPreviewItems(in: nil) == 1)
+		let item = controller.previewPanel(nil, previewItemAt: 0)
+		#expect((item as? URL)?.standardizedFileURL == file.standardizedFileURL)
+		#expect(controller.previewPanel(nil, previewItemAt: 1) == nil)
+	}
 }

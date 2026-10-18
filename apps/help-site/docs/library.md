@@ -32,11 +32,13 @@ Project instructions and skills stay on their own screens. They are not copied i
 
 Click **Library** in the sidebar (⌘0), or search for **Open Library** in the command palette (⌘K).
 
-The workspace is a searchable list. Nothing is selected until you choose a row. Each row starts with where the file was seen: Chat, Project, Library, or more than one of those. The filter in the toolbar limits the list to one of those places.
+The workspace is searchable. Nothing is selected until you choose a file. In the upper-right toolbar, switch between a **list** and **icons**. Icons show each file as its icon, or a picture for an image, with the name underneath. That choice is remembered on this Mac.
+
+In the list, each row starts with a small picture or file icon, then where the file was seen: Chat, Project, Library, or more than one of those. The filter in the toolbar limits either view to one of those places. Double-click a file in either view to Quick Look it.
 
 A details bar at the bottom shows title, description, and **Where it came from** (the chat name, the project and path, or that you added it in the library). It also shows type, size, indexing status, and dates. **Embedding** stays **None** until Toby stores a search vector. That uses your default AI provider, including OpenRouter. Opening the library fills in files that were summarized before a vector could be saved. Chutes does not create embeddings. Use **Add** to import files, **Refresh** to reload and look for new chat and project files, **Quick Look** or **Reveal** for Toby’s copy, and **Delete** to remove that copy. Deleting here does not remove the file from a chat or a project.
 
-Rows that are still indexing show an outline while Toby writes the description. Failed items keep an error in the inspector.
+Items that are still indexing show an outline while Toby writes the description. Failed items keep an error in the inspector. Icon view also labels those files Indexing or Failed.
 
 ## In chat
 

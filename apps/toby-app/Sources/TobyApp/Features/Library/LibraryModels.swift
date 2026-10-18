@@ -1,5 +1,35 @@
 import Foundation
 
+/// How the Library window lays out its files. Persisted per Mac.
+enum LibraryLayout: String, CaseIterable, Identifiable {
+	case list
+	case icons
+
+	var id: String { rawValue }
+
+	var label: String {
+		switch self {
+		case .list: "List"
+		case .icons: "Icons"
+		}
+	}
+
+	/// Spoken name for the toolbar segment.
+	var help: String {
+		switch self {
+		case .list: "List view"
+		case .icons: "Icon view"
+		}
+	}
+
+	var systemImage: String {
+		switch self {
+		case .list: "list.bullet"
+		case .icons: "square.grid.2x2"
+		}
+	}
+}
+
 enum LibraryOriginFilter: String, CaseIterable, Identifiable {
 	case all
 	case chat

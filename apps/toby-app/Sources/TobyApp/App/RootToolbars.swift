@@ -722,11 +722,13 @@ enum RootToolbars {
 		isListLoading: Bool,
 		isSaving: Bool,
 		originFilter: Binding<LibraryOriginFilter>,
+		layout: Binding<LibraryLayout>,
 		onAdd: @escaping () -> Void,
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(model, header: RootHeaderTitle(title: title))
 		contextualActions {
+			LibraryLayoutPicker(selection: layout)
 			Menu {
 				Picker("Show", selection: originFilter) {
 					ForEach(LibraryOriginFilter.allCases) { filter in
