@@ -101,12 +101,15 @@ export async function storeLibraryEmbedding(
 	store.insertEmbedding(item.id, vectorToBuffer(vec), embedder.modelId);
 }
 
-export async function backfillLibraryEmbeddings(): Promise<void> {
+export async function backfillLibraryEmbeddings(): Promise<boolean> {
+	const epoch = store.libraryBackgroundEpoch();
+	const tobyDir = process.env.TOBY_DIR;
 	const embedder = resolveLibraryEmbedder();
-	if (!embedder) return;
+	if (!embedder) return false;
 	const missing = store.listItemsNeedingEmbedding(embedder.modelId);
-	if (missing.length === 0) return;
+	if (missing.length === 0) return true;
 	for (let i = 0; i < missing.length; i += BACKFILL_BATCH) {
+		if (!store.isLibraryWorkCurrent(epoch, tobyDir)) return false;
 		const batch = missing.slice(i, i + BACKFILL_BATCH);
 		const texts = batch.map((item) =>
 			formatLibraryEmbedText({
@@ -124,8 +127,9 @@ export async function backfillLibraryEmbeddings(): Promise<void> {
 				count: batch.length,
 				reason: error instanceof Error ? error.message : String(error),
 			});
-			return;
+			return false;
 		}
+		if (!store.isLibraryWorkCurrent(epoch, tobyDir)) return false;
 		for (let j = 0; j < batch.length; j++) {
 			const item = batch[j];
 			const vec = vectors[j];
@@ -133,6 +137,43 @@ export async function backfillLibraryEmbeddings(): Promise<void> {
 			store.insertEmbedding(item.id, vectorToBuffer(vec), embedder.modelId);
 		}
 	}
+	return true;
+}
+
+let embeddingBackfill: Promise<void> | null = null;
+let embeddingBackfillNotBefore = 0;
+let loggedMissingEmbedder = false;
+
+/** Fill embeddings for ready items. Safe to call on each library list. */
+export function scheduleLibraryEmbeddingBackfill(): void {
+	if (embeddingBackfill || Date.now() < embeddingBackfillNotBefore) return;
+	const epoch = store.libraryBackgroundEpoch();
+	const tobyDir = process.env.TOBY_DIR;
+	embeddingBackfill = (async () => {
+		if (!store.isLibraryWorkCurrent(epoch, tobyDir)) return;
+		const embedder = resolveLibraryEmbedder();
+		if (!embedder) {
+			embeddingBackfillNotBefore = Date.now() + 60_000;
+			if (!loggedMissingEmbedder) {
+				loggedMissingEmbedder = true;
+				log("warn", "general", "library_embed_unavailable", {
+					reason: "no_embedding_model",
+				});
+			}
+			return;
+		}
+		const ok = await backfillLibraryEmbeddings();
+		if (!ok) embeddingBackfillNotBefore = Date.now() + 60_000;
+	})()
+		.catch((error) => {
+			embeddingBackfillNotBefore = Date.now() + 60_000;
+			log("warn", "general", "library_embed_backfill_failed", {
+				reason: error instanceof Error ? error.message : String(error),
+			});
+		})
+		.finally(() => {
+			embeddingBackfill = null;
+		});
 }
 
 export async function semanticLibraryHits(params: {

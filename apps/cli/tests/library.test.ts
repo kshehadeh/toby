@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { runWithLibraryEmbedTestHooks } from "@toby/core/library/embeddings";
+import {
+	backfillLibraryEmbeddings,
+	runWithLibraryEmbedTestHooks,
+} from "@toby/core/library/embeddings";
 import { formatLibraryEmbedText } from "@toby/core/library/extract";
 import {
 	isCatalogedProjectPath,
@@ -252,6 +255,25 @@ describe.skipIf(!isBun)("library", () => {
 
 			await syncLibraryCatalog();
 			expect(listLibraryItems({ limit: 100 })).toHaveLength(names.length);
+		});
+	});
+
+	it("backfills embeddings for items saved before an embedder existed", async () => {
+		await withLibraryHooks(async () => {
+			await runWithLibraryEmbedTestHooks(
+				{ resolveEmbedder: () => null },
+				async () => {
+					await addLibraryText({
+						filename: "note.md",
+						content: "Baltimore lease",
+						source: "project",
+						waitForIndex: true,
+					});
+				},
+			);
+			expect(listLibraryItems()[0]?.embeddingModel).toBeUndefined();
+			expect(await backfillLibraryEmbeddings()).toBe(true);
+			expect(listLibraryItems()[0]?.embeddingModel).toBe("test-embed-model");
 		});
 	});
 

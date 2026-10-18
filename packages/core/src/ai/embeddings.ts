@@ -7,11 +7,14 @@ import { readCredentials } from "../config/index";
 import {
 	buildAiGatewayAttributionHeaders,
 	createOllamaProvider,
+	createOpenRouterProvider,
 	isGatewayModelSlug,
+	resolveOpenRouterApiKey,
 } from "./model-factory";
 
 const OPENAI_EMBED_DEFAULT = "text-embedding-3-small";
 const VERCEL_EMBED_DEFAULT = "openai/text-embedding-3-small";
+const OPENROUTER_EMBED_DEFAULT = "openai/text-embedding-3-small";
 const OLLAMA_EMBED_DEFAULT = "nomic-embed-text";
 
 function resolveOpenAiToken(): string | null {
@@ -40,13 +43,20 @@ function canUseVercelGateway(): boolean {
 export function resolveEmbedModelId(persona: Persona): string {
 	const fromEnv = process.env.TOBY_ROUTING_EMBED_MODEL?.trim();
 	if (fromEnv && fromEnv.length > 0) {
-		if (persona.ai.provider === "vercel" && !fromEnv.includes("/")) {
+		if (
+			(persona.ai.provider === "vercel" ||
+				persona.ai.provider === "openrouter") &&
+			!fromEnv.includes("/")
+		) {
 			return `openai/${fromEnv}`;
 		}
 		return fromEnv;
 	}
 	if (persona.ai.provider === "vercel") {
 		return VERCEL_EMBED_DEFAULT;
+	}
+	if (persona.ai.provider === "openrouter") {
+		return OPENROUTER_EMBED_DEFAULT;
 	}
 	if (persona.ai.provider === "ollama") {
 		return OLLAMA_EMBED_DEFAULT;
@@ -84,6 +94,12 @@ export function createEmbeddingModelForPersona(
 		}
 		if (persona.ai.provider === "ollama") {
 			return createOllamaProvider().textEmbeddingModel(modelId);
+		}
+		if (persona.ai.provider === "openrouter") {
+			if (!resolveOpenRouterApiKey()) {
+				return null;
+			}
+			return createOpenRouterProvider().textEmbeddingModel(modelId);
 		}
 	} catch {
 		return null;

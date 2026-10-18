@@ -1,4 +1,5 @@
 import { GatewayFundsError } from "../../ai/gateway-funds";
+import { scheduleLibraryEmbeddingBackfill } from "../../library/embeddings";
 import {
 	isLibraryCatalogSyncing,
 	scheduleLibraryCatalogSync,
@@ -75,6 +76,7 @@ export async function handleLibraryList(url: URL): Promise<Response> {
 	scheduleLibraryCatalogSync({
 		force: url.searchParams.get("refresh") === "1",
 	});
+	scheduleLibraryEmbeddingBackfill();
 	const catalogSyncing = isLibraryCatalogSyncing();
 	if (query?.trim()) {
 		const all = await searchLibrary(query, origin);

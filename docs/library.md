@@ -82,8 +82,8 @@ On add:
 2. Insert `status=pending`.
 3. Extract: UTF-8 for text/markdown; `unpdf` for PDFs (same 80k char cap as `readPdf`); skip text for images.
 4. Summarize/caption with the **Library small model** (`config.library.provider` + `config.library.model`, defaulting to the default persona’s provider and `resolveAuxiliaryModelId`). Images without vision fall back to filename + mime + pixel size.
-5. Embed `title + description + extracted excerpt` with the same embedder as memory.
-6. `status=ready` (or `failed` with `error`).
+5. Embed `title + description + extracted excerpt` with the same embedder as memory (the default persona’s provider: OpenAI `text-embedding-3-small`, Vercel or OpenRouter `openai/text-embedding-3-small`, or Ollama `nomic-embed-text`). Chutes has no embedding model, so those items stay keyword-only.
+6. `status=ready` (or `failed` with `error`). Ready items that are still missing a vector are embedded in the background the next time the library is listed.
 
 UI add is **async** (the row appears immediately). Tool add **waits** for indexing so the model gets a description.
 

@@ -46,7 +46,7 @@ Every action (proposed, saved, rejected, updated, forgotten, retrieved, merged) 
 
 ### memory_embeddings
 
-One embedding vector per memory item (`embedding_blob` + `model`). Written on save/update when the user’s AI provider can embed (same models as tool routing: OpenAI `text-embedding-3-small`, Gateway `openai/text-embedding-3-small`, or Ollama `nomic-embed-text`). Missing or stale rows (wrong model) are backfilled on the next semantic search. If no embed model is configured, search stays keyword-only. The Memories window marks items that have a stored vector and shows the model in the details bar.
+One embedding vector per memory item (`embedding_blob` + `model`). Written on save/update when the user’s AI provider can embed (same models as tool routing and the library: OpenAI `text-embedding-3-small`, Vercel or OpenRouter `openai/text-embedding-3-small`, or Ollama `nomic-embed-text`). Chutes has no embedding model. Missing or stale rows (wrong model) are backfilled on the next semantic search. If no embed model is configured, search stays keyword-only. The Memories window marks items that have a stored vector and shows the model in the details bar.
 
 ## Proposal flow
 
