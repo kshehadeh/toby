@@ -18,29 +18,95 @@ struct RecordingDetailContent: View {
 	var isLoadingHeavyContent: Bool = false
 
 	var body: some View {
-		TabView(selection: $store.selectedDetailTab) {
-			Tab(value: RecordingDetailTab.summary) {
-				RecordingSummaryPane(
-					store: store,
-					detail: detail,
-					processingState: processingState,
-					isLoadingHeavyContent: isLoadingHeavyContent
-				)
-			} label: {
-				Text("Summary")
+		VStack(alignment: .leading, spacing: 16) {
+			RecordingDetailHeader(detail: detail)
+
+			TabView(selection: $store.selectedDetailTab) {
+				Tab(value: RecordingDetailTab.summary) {
+					RecordingSummaryPane(
+						store: store,
+						detail: detail,
+						processingState: processingState,
+						isLoadingHeavyContent: isLoadingHeavyContent
+					)
+				} label: {
+					Text("Summary")
+				}
+				Tab(value: RecordingDetailTab.transcript) {
+					RecordingTranscriptPane(
+						detail: detail,
+						isLoadingHeavyContent: isLoadingHeavyContent
+					)
+				} label: {
+					Text("Transcript")
+				}
 			}
-			Tab(value: RecordingDetailTab.transcript) {
-				RecordingTranscriptPane(
-					detail: detail,
-					isLoadingHeavyContent: isLoadingHeavyContent
-				)
-			} label: {
-				Text("Transcript")
-			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.accessibilityIdentifier("recording-detail-tabs")
 		}
 		.padding(AppTheme.contentPadding)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
-		.accessibilityIdentifier("recording-detail-tabs")
+	}
+}
+
+/// Title row with a recording icon and a line of audio detail (date, duration,
+/// sources) shown above the Summary / Transcript tabs.
+struct RecordingDetailHeader: View {
+	let detail: ListenRecordingDetail
+
+	private var metadata: ListenRecordingMetadata { detail.metadata }
+
+	private var title: String {
+		if let name = metadata.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+			return name
+		}
+		return friendlyRecordingDate(metadata.startedAt, fallback: metadata.createdAt)
+	}
+
+	private var hasName: Bool {
+		metadata.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+	}
+
+	/// Audio detail line, e.g. "Sep 16, 2026 at 1:01 PM · 39:51 · Microphone + System audio".
+	private var detailParts: [String] {
+		var parts: [String] = []
+		// Only repeat the date when the title is a custom name (otherwise the
+		// title already is the date and we'd show it twice).
+		if hasName {
+			parts.append(friendlyRecordingDate(metadata.startedAt, fallback: metadata.createdAt))
+		}
+		parts.append(durationText(metadata.durationMs))
+		parts.append(sourceText(metadata.sources))
+		return parts
+	}
+
+	var body: some View {
+		HStack(alignment: .center, spacing: 12) {
+			Image(systemName: "waveform")
+				.font(.system(size: 22, weight: .regular))
+				.foregroundStyle(AppTheme.primaryText)
+				.accessibilityHidden(true)
+
+			VStack(alignment: .leading, spacing: 2) {
+				Text(title)
+					.font(.title2.weight(.semibold))
+					.foregroundStyle(SettingsDesign.rowTitle)
+					.textSelection(.enabled)
+					.lineLimit(1)
+					.truncationMode(.tail)
+
+				Text(detailParts.joined(separator: " · "))
+					.font(.subheadline)
+					.foregroundStyle(SettingsDesign.rowDescription)
+					.lineLimit(1)
+					.truncationMode(.tail)
+			}
+
+			Spacer(minLength: 0)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityElement(children: .combine)
+		.accessibilityIdentifier("recording-detail-header")
 	}
 }
 

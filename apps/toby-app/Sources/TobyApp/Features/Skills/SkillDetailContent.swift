@@ -10,22 +10,44 @@ struct SkillDetailContent: View {
 	let skill: SkillDetail
 
 	var body: some View {
-		TabView(selection: $store.selectedDetailTab) {
-			Tab(value: SkillDetailTab.about) {
-				SkillAboutPane(skill: skill)
-			} label: {
-				Text("About")
+		VStack(alignment: .leading, spacing: 16) {
+			SkillDetailHeader(skill: skill)
+
+			TabView(selection: $store.selectedDetailTab) {
+				Tab(value: SkillDetailTab.about) {
+					SkillAboutPane(skill: skill)
+				} label: {
+					Text("About")
+				}
+				Tab(value: SkillDetailTab.instructions) {
+					SkillInstructionsPane(skill: skill)
+				} label: {
+					Text("Instructions")
+				}
 			}
-			Tab(value: SkillDetailTab.instructions) {
-				SkillInstructionsPane(skill: skill)
-			} label: {
-				Text("Instructions")
-			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.accessibilityIdentifier("skill-detail-tabs")
 		}
 		.padding(AppTheme.contentPadding)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
-		.accessibilityIdentifier("skill-detail-tabs")
+	}
+}
+
+/// Skill glyph and name shown above the About / Instructions tabs.
+private struct SkillDetailHeader: View {
+	let skill: SkillDetail
+
+	var body: some View {
+		HStack(alignment: .center, spacing: 12) {
+			SkillIconView(iconURL: skill.resolvedIconURL, size: 48, cornerRadius: 12)
+			DetailHeading(
+				title: skill.name,
+				accessibilityIdentifier: "skill-detail-name"
+			)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityIdentifier("skill-detail-header")
 	}
 }
 
@@ -35,14 +57,6 @@ struct SkillAboutPane: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 22) {
-				HStack(alignment: .center, spacing: 12) {
-					SkillIconView(iconURL: skill.resolvedIconURL, size: 48, cornerRadius: 12)
-					DetailHeading(
-						title: skill.name,
-						accessibilityIdentifier: "skill-detail-name"
-					)
-				}
-
 				if !skill.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 					DetailSection(title: "Summary") {
 						Text(skill.summary)

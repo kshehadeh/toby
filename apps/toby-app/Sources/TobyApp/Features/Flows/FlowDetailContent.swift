@@ -11,25 +11,30 @@ struct FlowDetailContent: View {
 	let flow: FlowListItem
 
 	var body: some View {
-		TabView(selection: $store.selectedDetailTab) {
-			Tab(value: FlowDetailTab.details) {
-				FlowDetailsPane(store: store, flow: flow)
-			} label: {
-				Text("Details")
+		VStack(alignment: .leading, spacing: 16) {
+			FlowOverviewHeader(flow: flow)
+
+			TabView(selection: $store.selectedDetailTab) {
+				Tab(value: FlowDetailTab.details) {
+					FlowDetailsPane(store: store, flow: flow)
+				} label: {
+					Text("Details")
+				}
+				Tab(value: FlowDetailTab.activity) {
+					FlowTriggerActivity(flowId: flow.id) { id in Task { await store.selectRun(id: id) } }
+				} label: { Text("Trigger activity") }
+				Tab(value: FlowDetailTab.recentRuns) {
+					FlowRecentRunsPane(store: store)
+				} label: {
+					Text("Recent runs")
+				}
 			}
-			Tab(value: FlowDetailTab.activity) {
-				FlowTriggerActivity(flowId: flow.id) { id in Task { await store.selectRun(id: id) } }
-			} label: { Text("Trigger activity") }
-			Tab(value: FlowDetailTab.recentRuns) {
-				FlowRecentRunsPane(store: store)
-			} label: {
-				Text("Recent runs")
-			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.accessibilityIdentifier("flow-detail-tabs")
 		}
 		.padding(AppTheme.contentPadding)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
-		.accessibilityIdentifier("flow-detail-tabs")
 	}
 }
 
@@ -48,7 +53,6 @@ struct FlowDetailsPane: View {
 		ScrollViewReader { proxy in
 			ScrollView {
 				VStack(alignment: .leading, spacing: 26) {
-					FlowOverviewHeader(flow: flow)
 	                DetailSection(title: "When") {
 	                    ForEach(flow.triggers ?? []) { trigger in
 	                        VStack(alignment: .leading, spacing: 6) {

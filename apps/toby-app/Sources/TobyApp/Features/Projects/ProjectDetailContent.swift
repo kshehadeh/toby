@@ -11,22 +11,49 @@ struct ProjectDetailContent: View {
 	var onSelectChat: ((String) -> Void)?
 
 	var body: some View {
-		TabView(selection: $store.selectedDetailTab) {
-			Tab(value: ProjectDetailTab.details) {
-				ProjectDetailsPane(store: store, project: project)
-			} label: {
-				Text("Details")
+		VStack(alignment: .leading, spacing: 16) {
+			ProjectDetailHeader(store: store, project: project)
+
+			TabView(selection: $store.selectedDetailTab) {
+				Tab(value: ProjectDetailTab.details) {
+					ProjectDetailsPane(store: store, project: project)
+				} label: {
+					Text("Details")
+				}
+				Tab(value: ProjectDetailTab.chats) {
+					ProjectChatsPane(store: store, onSelectChat: onSelectChat ?? { _ in })
+				} label: {
+					Text("Chats")
+				}
 			}
-			Tab(value: ProjectDetailTab.chats) {
-				ProjectChatsPane(store: store, onSelectChat: onSelectChat ?? { _ in })
-			} label: {
-				Text("Chats")
-			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.accessibilityIdentifier("project-detail-tabs")
 		}
 		.padding(AppTheme.contentPadding)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(SettingsDesign.canvasBackground)
-		.accessibilityIdentifier("project-detail-tabs")
+	}
+}
+
+/// Project glyph and name shown above the Details / Chats tabs.
+private struct ProjectDetailHeader: View {
+	@Bindable var store: ProjectsStore
+	let project: ProjectSummary
+
+	var body: some View {
+		HStack(alignment: .center, spacing: 12) {
+			Image(systemName: DetailRoute.projects.systemImage)
+				.font(.system(size: 22, weight: .regular))
+				.foregroundStyle(AppTheme.primaryText)
+				.accessibilityHidden(true)
+
+			DetailHeading(
+				title: store.selectedProject?.name ?? project.name,
+				accessibilityIdentifier: "project-detail-name"
+			)
+		}
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.accessibilityIdentifier("project-detail-header")
 	}
 }
 
@@ -37,11 +64,6 @@ struct ProjectDetailsPane: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 22) {
-				DetailHeading(
-					title: store.selectedProject?.name ?? project.name,
-					accessibilityIdentifier: "project-detail-name"
-				)
-
 				DetailMetadataStack {
 					DetailMetadataRow(
 						label: "Persona",
