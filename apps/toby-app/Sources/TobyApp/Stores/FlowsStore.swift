@@ -1,6 +1,13 @@
 import Foundation
 import Observation
 
+@MainActor
+protocol FlowsFetching {
+	func listFlows() async throws -> [FlowListItem]
+}
+
+extension TobyClient: FlowsFetching {}
+
 @Observable
 @MainActor
 final class FlowsStore {
@@ -35,6 +42,13 @@ final class FlowsStore {
 	}
 
 	private let client = TobyClient()
+	private let flowReader: any FlowsFetching
+	private var isQuietRefreshing = false
+	private var listGeneration = UUID()
+
+	init(flowReader: any FlowsFetching = TobyClient()) {
+		self.flowReader = flowReader
+	}
 
 	var selectedFlow: FlowListItem? {
 		guard let selectedFlowId else { return nil }
@@ -47,6 +61,7 @@ final class FlowsStore {
 
 	/// Clears flows state after a Toby home directory switch.
 	func resetForHomeSwitch() {
+		invalidateListRequests()
 		flows = []
 		selectedFlowId = nil
 		runs = []
@@ -72,32 +87,74 @@ final class FlowsStore {
 	}
 
 	func ensureLoaded() async {
-		if hasLoadedOnce { return }
-		await load()
+		if hasLoadedOnce {
+			await refreshQuietly()
+		} else {
+			await load()
+		}
 	}
 
 	func load() async {
-		guard !isListLoading else { return }
+		guard !isListLoading, !isQuietRefreshing, !isSaving else { return }
+		let generation = listGeneration
 		isListLoading = true
 		errorMessage = nil
-		defer { isListLoading = false }
+		defer { if listGeneration == generation { isListLoading = false } }
 		do {
-			flows = try await client.listFlows()
-			hasLoadedOnce = true
-			if let selectedFlowId, !flows.contains(where: { $0.id == selectedFlowId }) {
-				self.selectedFlowId = nil
-				runs = []
-			} else if let selectedFlowId {
+			let loaded = try await flowReader.listFlows()
+			guard listGeneration == generation, !Task.isCancelled else { return }
+			applyFlows(loaded)
+			if let selectedFlowId {
 				await loadRuns(for: selectedFlowId)
 			}
 		} catch {
+			guard listGeneration == generation, !Task.isCancelled else { return }
 			errorMessage = error.localizedDescription
 		}
+	}
+
+	/// Reconcile external writes without spinners, changing tabs, or replacing an editor draft.
+	func refreshQuietly() async {
+		guard !isListLoading, !isQuietRefreshing, !isSaving else { return }
+		let generation = listGeneration
+		isQuietRefreshing = true
+		defer { if listGeneration == generation { isQuietRefreshing = false } }
+		do {
+			let loaded = try await flowReader.listFlows()
+			guard listGeneration == generation, !Task.isCancelled, !isSaving else { return }
+			applyFlows(loaded)
+		} catch {
+			// Preserve content and visible errors; the next poll or manual refresh retries.
+		}
+	}
+
+	/// Owned by the view's task so leaving Flows cancels polling automatically.
+	func pollForChanges(interval: Duration = .seconds(5)) async {
+		while !Task.isCancelled {
+			do { try await Task.sleep(for: interval) } catch { return }
+			guard !Task.isCancelled else { return }
+			await refreshQuietly()
+		}
+	}
+
+	private func applyFlows(_ loaded: [FlowListItem]) {
+		if flows != loaded { flows = loaded }
+		hasLoadedOnce = true
+		if let selectedFlowId, !loaded.contains(where: { $0.id == selectedFlowId }) {
+			selectHome()
+		}
+	}
+
+	private func invalidateListRequests() {
+		listGeneration = UUID()
+		isListLoading = false
+		isQuietRefreshing = false
 	}
 
 	func selectHome() {
 		selectedFlowId = nil
 		runs = []
+		isRunsLoading = false
 		selectedDetailTab = .details
 		closeRunDetail()
 	}
@@ -112,10 +169,15 @@ final class FlowsStore {
 
 	func loadRuns(for flowId: String) async {
 		isRunsLoading = true
-		defer { isRunsLoading = false }
+		defer {
+			if selectedFlowId == flowId { isRunsLoading = false }
+		}
 		do {
-			runs = try await client.listFlowRuns(flowName: flowId, limit: 50)
+			let loaded = try await client.listFlowRuns(flowName: flowId, limit: 50)
+			guard selectedFlowId == flowId else { return }
+			runs = loaded
 		} catch {
+			guard selectedFlowId == flowId else { return }
 			// Keep prior runs visible; surface the error on the detail surface.
 			errorMessage = error.localizedDescription
 		}
@@ -131,10 +193,15 @@ final class FlowsStore {
 		selectedRunDetail = nil
 		runDetailError = nil
 		isRunDetailLoading = true
-		defer { isRunDetailLoading = false }
+		defer {
+			if selectedRunId == id { isRunDetailLoading = false }
+		}
 		do {
-			selectedRunDetail = try await client.fetchFlowRun(id: id)
+			let loaded = try await client.fetchFlowRun(id: id)
+			guard selectedRunId == id else { return }
+			selectedRunDetail = loaded
 		} catch {
+			guard selectedRunId == id else { return }
 			runDetailError = error.localizedDescription
 		}
 	}
@@ -210,6 +277,7 @@ final class FlowsStore {
 			} else {
 				response = try await client.createFlow(body: draft.jsonBody())
 			}
+			invalidateListRequests()
 			if let index = flows.firstIndex(where: { $0.id == response.flow.id }) {
 				flows[index] = response.flow
 			} else {
@@ -234,9 +302,13 @@ final class FlowsStore {
 	}
 
 	func deleteFlow(id: String) async {
+		guard !isSaving else { return }
+		isSaving = true
+		defer { isSaving = false }
 		pendingDeleteId = nil
 		do {
 			try await client.deleteFlow(id: id)
+			invalidateListRequests()
 			flows.removeAll { $0.id == id }
 			NotificationCenter.default.post(name: .flowDefinitionsDidChange, object: nil)
 			if selectedFlowId == id {

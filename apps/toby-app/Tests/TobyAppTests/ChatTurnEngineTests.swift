@@ -222,6 +222,37 @@ struct ChatTurnEngineTests {
 		#expect(!expectation.wasPosted)
 	}
 
+	@Test("saved flow tools notify Flows and Home")
+	func flowToolsNotifyChanges() throws {
+		for tool in ["createFlow", "updateFlow"] {
+			let expectation = expectationForNotification(.flowDefinitionsDidChange)
+			var state = makeState()
+			let event = try event(from: """
+				{"type":"tool_call_complete","toolName":"\(tool)","id":"flow-call","result":{"ok":true,"id":"flow.saved"}}
+				""")
+			ChatTurnEngine.apply(event: event, state: &state)
+			#expect(expectation.wasPosted)
+		}
+	}
+
+	@Test("unsaved or unrelated tools do not notify flow changes")
+	func unsavedFlowToolsDoNotNotifyChanges() throws {
+		for payload in [
+			#""toolName":"createFlow","result":{"ok":true,"dryRun":true}"#,
+			#""toolName":"updateFlow","result":{"ok":false,"error":"Revision conflict"}"#,
+			#""toolName":"createFlow","error":"Save failed""#,
+			#""toolName":"inspectFlow","result":{"ok":true}"#,
+		] {
+			let expectation = expectationForNotification(.flowDefinitionsDidChange)
+			var state = makeState()
+			let event = try event(from: """
+				{"type":"tool_call_complete","id":"flow-call",\(payload)}
+				""")
+			ChatTurnEngine.apply(event: event, state: &state)
+			#expect(!expectation.wasPosted)
+		}
+	}
+
 	/// Records whether a named notification is posted during the current runloop turn.
 	private final class NotificationExpectation: @unchecked Sendable {
 		private(set) var wasPosted = false

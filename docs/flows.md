@@ -30,8 +30,9 @@ The shipped `flow-builder` skill guides natural-language requests into custom
 flows. Chat tools `listFlowAuthoringCatalog` and `createFlow` inspect available
 steps and save a validated definition respectively. Creation uses generated
 `flow.<uuid>` IDs and the existing user-flow store/validator, with no execution
-or delivery. The tools support constants, automation-event references, earlier output references, a markdown or structured LLM step, conditional subsequent actions, result pointers, personas, and destinations. They do not update
-existing flows or create Script Tools. A Home action uses
+or delivery. The tools support constants, automation-event references, earlier output references, a markdown or structured LLM step, conditional subsequent actions, result pointers, personas, and destinations. They do not create
+Script Tools. Use `inspectFlow` and `updateFlow` to replace an existing custom
+flow using its current revision. A Home action uses
 `{ "type": "dashboard", "variant": "runner" }` alongside an optional modal.
 
 The native editor preserves standard-tool references, node output mappings,
@@ -39,6 +40,16 @@ result pointers, typed constants, and LLM settings when changing destinations
 or prompts. Flow create/update requests with malformed steps return validation
 errors rather than silently dropping those steps. Dashboard refresh runs the
 stored definition; it does not rewrite it.
+
+Toby.app refreshes the flow list whenever Flows opens and polls quietly every
+five seconds while it is visible, picking up additions, edits, and deletions
+from tools, HTTP clients, or other writers. Successful chat `createFlow` and
+`updateFlow` calls also post `flowDefinitionsDidChange`, which refreshes an open
+Flows view and synchronizes Home flow blocks. Dry runs and failed saves do not
+post this notification. Background list refreshes preserve the current tab,
+selection, and unsaved editor draft; deleting the selected flow clears its
+selection and run detail. Flow-list responses from before a Toby home switch
+are ignored.
 
 The editor shows each tool step's prompt references and offers **Insert step
 output** on the LLM step. These references use output bag keys, not node IDs.

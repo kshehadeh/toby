@@ -184,6 +184,12 @@ enum ChatTurnEngine {
 				if errorString == nil, ProjectsStore.mutatingProjectTools.contains(toolName) {
 					NotificationCenter.default.post(name: .projectsDidChange, object: nil)
 				}
+				if errorString == nil, ["createFlow", "updateFlow"].contains(toolName),
+					let result = event.result?.value as? [String: Any],
+					result["ok"] as? Bool == true, result["dryRun"] as? Bool != true
+				{
+					NotificationCenter.default.post(name: .flowDefinitionsDidChange, object: nil)
+				}
 			}
 			state.activityLine = "Thinking…"
 		case "prep_start":
