@@ -271,6 +271,8 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<string>Toby lists files in Documents when you ask it to find local files.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Toby reads your contacts when you use Apple Contacts integration.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Toby uses Bluetooth to check paired devices and change Bluetooth power when you ask.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Toby reads and manages your calendars when you use Apple Calendar integration.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

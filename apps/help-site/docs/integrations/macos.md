@@ -137,7 +137,7 @@ itself through this tool. No extra macOS permission is needed for either tool.
 | Area | Notes |
 | ---- | ----- |
 | Wi‑Fi scan | CoreWLAN may require Location Services authorization on first use. |
-| Bluetooth | Toby.app may prompt for Bluetooth access on first use. |
+| Bluetooth | Toby.app may prompt for Bluetooth access when you first check paired devices or change Bluetooth power. Allow access to use these tools. |
 | Window control | Minimize and restore tools route through Toby.app's native API server. Grant Accessibility to Toby.app in System Settings. |
 | Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
 | Low Power Mode | Changing Low Power Mode may require admin privileges on some Macs. |
