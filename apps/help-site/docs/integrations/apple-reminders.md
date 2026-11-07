@@ -66,16 +66,20 @@ Search defaults to **incomplete** reminders unless you ask for completed items o
 
 ## Example chat prompts
 
-- “What reminders do I have due this week?”
-- “Add a reminder: Call the dentist next Tuesday at 10am on my Personal list.”
-- “Mark ‘Submit expense report’ as done.”
-- “List my incomplete reminders on Work.”
+Name **Apple Reminders** to use this integration. Unqualified todo/task
+requests use [Toby Todos](../todos). Clear references to an existing Apple
+Reminders item stay there. Toby does not copy tasks between apps.
+
+- “What Apple Reminders do I have due this week?”
+- “In Apple Reminders, add Call the dentist next Tuesday at 10am on Personal.”
+- “Mark ‘Submit expense report’ in Apple Reminders as done.”
+- “List my incomplete Apple Reminders on Work.”
 
 ## Tips
 
 - Use **exact list names** from your list when filtering create/search.
 - Due and completion filters accept ISO 8601 or simple natural-language dates.
-- Apple Reminders is a **Task List Provider**. If you also use Todoist, set a default under **Settings → Providers** so schedules and multi-integration chat prefer the right one.
+- Apple Reminders is a **Task List Provider**. Its provider preference applies to the external Tasks Home card and standard-tool Flow steps, not unqualified todo requests.
 
 ## Related
 

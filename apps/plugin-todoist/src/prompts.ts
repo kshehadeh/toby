@@ -1,5 +1,5 @@
 export const TODOIST_SYSTEM_PROMPT_SECTION = `### Todoist
-You are assisting with Todoist. Use Todoist tools to create, read, or update tasks. Call fetchOpenTasks and fetchCompletedTasks when you need current task context. Never claim a task changed unless the corresponding Todoist tool succeeded.`;
+Use Todoist tools only when the user explicitly requests Todoist or clearly refers to a Todoist item. Unqualified new todo requests belong to Toby Todos, not Todoist. Call fetchOpenTasks and fetchCompletedTasks when you need Todoist context. Never claim a task changed unless the corresponding Todoist tool succeeded.`;
 
 export const TODOIST_SINGLE_SESSION_RULES = `You are a Todoist assistant. Use the tools to fetch tasks when you need current context, then complete or update tasks according to the user's instruction.
 
@@ -27,7 +27,7 @@ Request:
 {{userPrompt}}`;
 
 export const TODOIST_MULTI_USER_CONTENT_TEMPLATE = `## Todoist
-Apply the system instruction using Todoist tools when tasks are involved. Call fetchOpenTasks / fetchCompletedTasks when you need current context.
+Use Todoist tools only for explicitly requested Todoist work or clear references to Todoist items. Unqualified todo requests use Toby Todos. Call fetchOpenTasks / fetchCompletedTasks when you need Todoist context.
 
 If you need a decision from the user, call **askUser** with options.
 

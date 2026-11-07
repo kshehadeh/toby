@@ -30,7 +30,13 @@ macOS system controls are not a provider category; they are scoped as their own 
 
 1. **Scheduled runs** — Toby inspects the schedule prompt for category keywords (inbox, calendar, todo, Slack, wiki, …). If a category matches, it prefers your default provider for that category.
 2. **Multi-integration chat** — When several integrations are active, the system prompt lists your defaults so the model reaches for the right tools.
-3. **Ambiguous requests** — “What’s on my task list?” can mean Todoist or Reminders; the default resolves the preference.
+3. **External task summaries** — The Tasks Home card and explicit standard-tool Flow steps use your external task provider preference.
+
+Unqualified task/todo requests, including “What's on my task list?”, use
+[Toby Todos](../todos), not this preference. Name Todoist or Apple Reminders
+to use that provider. A clear reference to an external task stays external;
+ambiguous item matches require clarification. Toby does not copy tasks
+between apps automatically. This policy also applies to scheduled Agent Tasks.
 
 If you only connect **one** integration per category, defaults are optional—Toby can infer that integration.
 

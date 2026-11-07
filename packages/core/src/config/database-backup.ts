@@ -7,6 +7,7 @@ import { closeLibraryDb } from "../library/library-store";
 import { resolveListenRecordingsDir } from "../listen/recordings";
 import { closeMemoryDb, getDb as getMemoryDb } from "../memory/memory-store";
 import { closeChatDb, getDb as getChatDb } from "../session-store";
+import { pauseTodosAfterRestore } from "../todos/restore-state";
 import {
 	getChatDbPath,
 	getLibraryDir,
@@ -308,6 +309,7 @@ function applyPendingRestoreManifest(
 	closeMemoryDb();
 	closeLibraryDb();
 
+	if (manifest.databases) pauseTodosAfterRestore();
 	applySwapList(swaps);
 
 	// Project files were restored into Toby-managed folders; repoint the
@@ -382,6 +384,7 @@ function applyLegacyPendingRestore(manifestPath: string): boolean {
 		},
 	];
 	const replaced: (typeof backups)[number][] = [];
+	pauseTodosAfterRestore();
 	try {
 		for (const item of backups) {
 			if (fs.existsSync(item.live)) fs.renameSync(item.live, item.backup);

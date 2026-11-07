@@ -182,7 +182,7 @@ enum NativeICloudHandler {
 
 	// MARK: - Coordination
 
-	private static func ensureDownloaded(_ url: URL) throws {
+	static func ensureDownloaded(_ url: URL) throws {
 		let fm = FileManager.default
 		guard fm.isUbiquitousItem(at: url) else { return }
 		try fm.startDownloadingUbiquitousItem(at: url)
@@ -198,7 +198,7 @@ enum NativeICloudHandler {
 		}
 	}
 
-	private static func coordinatedRead(_ url: URL) throws -> Data {
+	static func coordinatedRead(_ url: URL) throws -> Data {
 		var result: Data?
 		var coordError: NSError?
 		NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordError) { readURL in

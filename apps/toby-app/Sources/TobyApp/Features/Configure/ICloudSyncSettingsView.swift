@@ -127,7 +127,7 @@ struct ICloudSyncSettingsView: View {
 			Button("Cancel", role: .cancel) {}
 			Button("Change destination") { Task { await enable() } }
 		} message: {
-			Text("If the destination has existing settings, they will replace settings and credentials on this Mac. Otherwise Toby uploads this Mac’s settings. Previous backups stay in the old destination; new backups use the new one. Other Macs must be configured separately.")
+			Text("If the destination has existing settings, they will replace settings and credentials on this Mac. Otherwise Toby uploads this Mac’s settings. Previous backups stay in the old destination; new backups use the new one. Other Macs must be configured separately. Toby todos on this Mac merge with todos already in the new destination; conflicting edits keep a recoverable history.")
 		}
 		.alert("Disable sync?", isPresented: $pendingDisable) {
 			Button("Cancel", role: .cancel) { pendingDisable = false }
@@ -135,7 +135,7 @@ struct ICloudSyncSettingsView: View {
 				Task { await disable() }
 			}
 		} message: {
-			Text("This Mac will stop syncing settings and creating automatic data backups. Existing settings and backups remain in the destination.")
+			Text("This Mac will stop syncing settings and todos and creating automatic data backups. Todos stay on this Mac. Existing settings, backups, and synced todo history remain in the destination.")
 		}
 		.alert(
 			"Stop automatic data backups?",
@@ -352,8 +352,10 @@ struct ICloudSyncSettingsView: View {
 	private var setupPane: some View {
 		destinationSection
 		enableSection
+		TodoNotificationSettingsSection()
 		if resolvedStatus?.enabled == true {
 			statusCard
+			TodoSyncSettingsSection()
 		}
 		Section {
 			inboundNote

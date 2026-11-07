@@ -115,7 +115,7 @@ describe("listFlowDashboardBlocks", () => {
 		}
 	});
 
-	it("lists only custom flows with a dashboard destination", () => {
+	it("lists dashboard-enabled custom flows alongside the built-in Todos card", () => {
 		saveUserFlowDocument(runnerDoc);
 		saveUserFlowDocument(infoDoc);
 		saveUserFlowDocument({
@@ -133,7 +133,17 @@ describe("listFlowDashboardBlocks", () => {
 				{ type: "dashboard", variant: "informational" },
 			],
 		});
-		const blocks = listFlowDashboardBlocks();
+		const allBlocks = listFlowDashboardBlocks();
+		expect(
+			allBlocks.find((block) => block.id === "dashboard.todos.summary"),
+		).toMatchObject({
+			title: "Toby Todos",
+			variant: "informational",
+			refresh: "asNeeded",
+		});
+		const blocks = allBlocks.filter(
+			(block) => block.id !== "dashboard.todos.summary",
+		);
 		expect(blocks.map((b) => b.id)).toEqual([
 			"flow.test.both",
 			"flow.test.info",

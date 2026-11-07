@@ -9,6 +9,7 @@ import {
 } from "../config/index";
 import { getDb } from "../session-store";
 import { type LocalSkill, loadLocalSkills } from "../skills/index";
+import { unlinkProjectTodos } from "../todos/service";
 
 export interface Project {
 	/** Stable SQLite id. */
@@ -415,10 +416,13 @@ export function deleteProject(idOrSlug: string): void {
 	const project = resolveProject(idOrSlug);
 	if (!project) return;
 	const db = getDb();
-	db.query(
-		"UPDATE chat_sessions SET project_id = NULL WHERE project_id = $id",
-	).run({ $id: project.id });
-	db.query("DELETE FROM projects WHERE id = $id").run({ $id: project.id });
+	db.transaction(() => {
+		unlinkProjectTodos(project.id);
+		db.query(
+			"UPDATE chat_sessions SET project_id = NULL WHERE project_id = $id",
+		).run({ $id: project.id });
+		db.query("DELETE FROM projects WHERE id = $id").run({ $id: project.id });
+	})();
 	if (getActiveProjectSlug() === project.slug) {
 		clearActiveProjectSlug();
 	}

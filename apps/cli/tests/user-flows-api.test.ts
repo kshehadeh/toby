@@ -419,10 +419,14 @@ describe("user flow HTTP API", () => {
 			const body = (await list.json()) as {
 				blocks: Array<{ id: string; variant: string; refresh: string }>;
 			};
-			expect(body.blocks).toHaveLength(1);
-			expect(body.blocks[0]?.id).toBe(createdBody.flow.id);
-			expect(body.blocks[0]?.variant).toBe("informational");
-			expect(body.blocks[0]?.refresh).toBe("asNeeded");
+			expect(body.blocks.map((block) => block.id).sort()).toEqual(
+				[createdBody.flow.id, "dashboard.todos.summary"].sort(),
+			);
+			const custom = body.blocks.find(
+				(block) => block.id === createdBody.flow.id,
+			);
+			expect(custom?.variant).toBe("informational");
+			expect(custom?.refresh).toBe("asNeeded");
 
 			const content = await handleWebRequest(
 				new Request(

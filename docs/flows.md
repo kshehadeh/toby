@@ -119,7 +119,7 @@ cheaper auxiliary model used by chat pretreatment).
 
 ### Tool Executor
 
-Runs **one** plugin tool **without** LLM intervention.
+Runs **one** core, plugin, standard, or Script Tool **without** LLM intervention.
 
 ```ts
 {
@@ -140,6 +140,7 @@ Runs **one** plugin tool **without** LLM intervention.
   moduleName: string;
   toolName: string;
   standardTool?: string;
+  coreTool?: string;
 }
 ```
 
@@ -150,12 +151,19 @@ the tool payload).
 
 | Form | Resolution |
 | --- | --- |
+| `{ coreTool: "todos.create" }` | Built-in Toby Todos service; no integration connection required |
 | `{ standardTool: "…" }` | Prefer category modules, then default provider, then first connected module that tags the tool |
 | `{ moduleName, toolName }` | Named module + tool (defs checked when available) |
 | `{ userToolId }` | Shared user-authored TypeScript or AppleScript tool, resolved by stable ID |
 
 Plugin tool execution uses the same plugin envelope as chat/dashboard hooks: credentials
 config, integration state, `dataDir`, and `pluginToolsExecuteAsync`.
+
+Core tools resolve through `flows/tool-resolve.ts` and the shared
+`core-tools/index.ts` registry. The native action picker lists **Toby Todos**
+without a connection. Outputs can feed later steps, including returned todo IDs.
+Mutation keys use `flow:<runId>:<nodeId>` so a step retry is idempotent.
+See [Todos](todos.md#core-tools).
 
 ### User script tools
 
@@ -612,6 +620,10 @@ appear when the daemon is ready. Custom informational cards with
 | Email | `dashboard.email.summary` | `email.unreadSummary` | `unread` |
 | Tasks | `dashboard.tasks.summary` | `tasks.openSummary` | `openTasks` |
 | Calendar | `dashboard.calendar.summary` | `calendar.upcomingSummary` | `upcoming` |
+| Toby Todos | `dashboard.todos.summary` | Core `todos.summary` | `summary` |
+
+The Toby Todos flow returns structured counts and item links directly, without
+an LLM step. It does not replace the external Tasks flow.
 
 Shared pipeline shape for each category:
 

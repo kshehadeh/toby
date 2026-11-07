@@ -11,13 +11,17 @@ import {
 } from "../ai/enable-tools-tool";
 import { createGlobalChatTools } from "../ai/global-chat-tools";
 import type { Persona } from "../config/index";
+import { createCoreChatTools } from "../core-tools";
 import { getIntegrationModule } from "../integrations/index";
 import { bindPluginFileContext } from "../integrations/plugins/file-context";
 import type { IntegrationModule } from "../integrations/types";
 import { createLibraryTools } from "../library/tools";
 import { log, logWithSession } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
-import { injectCurrentDateTimeIntoFirstSystemMessage } from "../prepare-messages";
+import {
+	injectCurrentDateTimeIntoFirstSystemMessage,
+	injectTodoPolicy,
+} from "../prepare-messages";
 import type { Project } from "../projects/index";
 import type { ValidatedChatAttachment } from "./attachments";
 import type { ChatEvent, ChatEventSink } from "./chat-events";
@@ -102,6 +106,9 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"delegateToSubAgent",
 	"memorySearch",
 	"find_in_library",
+	"listTobyTodos",
+	"getTobyTodo",
+	"createTobyTodo",
 ]);
 
 /**
@@ -292,6 +299,14 @@ function mergeAuxiliaryChatTools(
 		dryRun: options.dryRun,
 		appliedActions: options.memoryAppliedActions ?? [],
 	});
+	const coreTools = createCoreChatTools({
+		dryRun: options.dryRun,
+		appliedActions: options.globalAppliedActions ?? [],
+	});
+	Object.assign(mergedTools, coreTools);
+	for (const toolName of Object.keys(coreTools)) {
+		toolIntegrationLabels[toolName] = "Toby Todos";
+	}
 	Object.assign(mergedTools, memoryTools);
 	for (const toolName of Object.keys(memoryTools)) {
 		toolIntegrationLabels[toolName] ??= "Toby";
@@ -563,8 +578,9 @@ export async function runSharedChatTurn(
 		persona: options.persona,
 		moduleNames,
 	};
-	const messagesWithDateTime =
-		injectCurrentDateTimeIntoFirstSystemMessage(messages);
+	const messagesWithDateTime = injectCurrentDateTimeIntoFirstSystemMessage(
+		injectTodoPolicy(messages),
+	);
 	const messagesForModel = applyChatMessageCaching(
 		messagesWithDateTime,
 		cacheContext,

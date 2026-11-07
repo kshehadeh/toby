@@ -631,6 +631,33 @@ enum RootToolbars {
 		}
 	}
 
+	@ToolbarContentBuilder
+	static func todos(
+		common model: RootCommonToolbarModel,
+		hasSelection: Bool,
+		isSaving: Bool,
+		onNew: @escaping () -> Void,
+		onEdit: @escaping () -> Void,
+		onRefresh: @escaping () -> Void
+	) -> some ToolbarContent {
+		common(model, header: RootHeaderTitle(title: "Todos"))
+		contextualActions {
+			Button("New todo", systemImage: "plus", action: onNew)
+				.labelStyle(.iconOnly)
+				.disabled(isSaving)
+				.accessibilityIdentifier("toolbar-new-todo-button")
+			if hasSelection {
+				Button("Edit todo", systemImage: "square.and.pencil", action: onEdit)
+					.labelStyle(.iconOnly)
+					.disabled(isSaving)
+					.accessibilityIdentifier("toolbar-edit-todo-button")
+			}
+			Button("Refresh todos", systemImage: "arrow.clockwise", action: onRefresh)
+				.labelStyle(.iconOnly)
+				.accessibilityIdentifier("toolbar-refresh-todos-button")
+		}
+	}
+
 	enum FlowsToolbarMode: Equatable {
 		/// Card / home list: New + Refresh.
 		case home

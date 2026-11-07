@@ -14,6 +14,7 @@ struct TobyApp: App {
 	@State private var memoriesStore = MemoriesStore()
 	@State private var libraryStore = LibraryStore()
 	@State private var flowsStore = FlowsStore()
+	@State private var todosStore = TodosStore()
 	@State private var changelogStore = ChangelogStore()
 	@State private var pluginsStore = PluginsStore()
 	@State private var updateStore = UpdateStore()
@@ -51,12 +52,14 @@ struct TobyApp: App {
 				personaEditorCoordinator: personaEditorCoordinator,
 				updateStore: updateStore,
 				changelogStore: changelogStore,
-				pluginsStore: pluginsStore
+				pluginsStore: pluginsStore,
+				todosStore: todosStore
 			)
 				.frame(minWidth: 860, minHeight: 560)
 				.coordinateSpace(name: "TobyWindow")
 				.tobyAppearance(appearancePreferences)
 				.onAppear {
+					NativeNotificationCoordinator.install()
 					companion.restoreVisibility()
 					nativeServer.start()
 					requestNativePermissions()
@@ -86,6 +89,17 @@ struct TobyApp: App {
 				.onReceive(NotificationCenter.default.publisher(for: .tobyHomeDidChange)) { _ in
 					// Logs store is owned at the app scene level (not RootView).
 					logsStore.resetForHomeSwitch()
+					Task { await TodoNotificationScheduler.shared.homeDidChange() }
+				}
+				.task { await TodoNotificationScheduler.shared.run() }
+				.onReceive(NotificationCenter.default.publisher(for: .todosDidChange)) { _ in
+					Task { await TodoNotificationScheduler.shared.reconcile() }
+				}
+				.onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
+					Task { await TodoNotificationScheduler.shared.reconcile() }
+				}
+				.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+					Task { await TodoNotificationScheduler.shared.reconcile() }
 				}
 				.onDisappear {
 					nativeServer.stop()
@@ -299,6 +313,7 @@ struct TobyApp: App {
 		switch route {
 		case .dashboard: return KeyboardShortcut("1", modifiers: .command)
 		case .chat: return KeyboardShortcut("2", modifiers: .command)
+		case .todos: return KeyboardShortcut("7", modifiers: .command)
 		case .projects: return KeyboardShortcut("4", modifiers: .command)
 		case .library: return KeyboardShortcut("0", modifiers: .command)
 		case .skills: return KeyboardShortcut("5", modifiers: .command)

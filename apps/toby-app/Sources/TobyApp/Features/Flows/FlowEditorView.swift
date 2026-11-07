@@ -358,7 +358,7 @@ struct FlowEditorView: View {
 	// MARK: - Mutations
 
 	private func addTool(_ tool: FlowCatalogTool) {
-		draft.appendStep(.tool(moduleName: tool.moduleName, toolName: tool.toolName, required: tool.requiredFields))
+		draft.appendStep(.tool(tool))
 	}
 
 	private func addUserTool(_ tool: UserScriptTool) {

@@ -26,6 +26,7 @@ export type FlowInputMap = Readonly<Record<string, FlowInputSource>>;
 export type FlowOutputMap = Readonly<Record<string, string>>;
 
 export type ToolRef =
+	| { readonly coreTool: string }
 	| { readonly standardTool: string }
 	| { readonly userToolId: string; readonly displayName?: string }
 	| { readonly moduleName: string; readonly toolName: string };
@@ -239,6 +240,7 @@ export class FlowNodeError extends Error {
 
 /** Internal runtime passed to node implementations. */
 export type FlowNodeRuntime = {
+	readonly runId?: string;
 	readonly persona: Persona;
 	readonly bag: FlowContextBag;
 	readonly abortSignal?: AbortSignal;

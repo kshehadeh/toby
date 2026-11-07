@@ -3,6 +3,7 @@ import SwiftUI
 enum DetailRoute: String, CaseIterable, Identifiable {
 	case dashboard
 	case chat
+	case todos
 	case projects
 	case library
 	case flows
@@ -16,6 +17,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		switch self {
 		case .dashboard: return "Home"
 		case .chat: return "Chats"
+		case .todos: return "Todos"
 		case .projects: return "Projects"
 		case .library: return "Library"
 		case .skills: return "Skills"
@@ -29,6 +31,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		switch self {
 		case .dashboard: return "house"
 		case .chat: return "message"
+		case .todos: return "checklist"
 		case .projects: return "folder"
 		case .library: return "books.vertical"
 		case .skills: return "graduationcap"
@@ -38,7 +41,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	}
 
 	/// All destinations in the main sidebar list, in display order.
-	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .projects, .library, .recordings, .flows, .skills]
+	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .todos, .projects, .library, .recordings, .flows, .skills]
 
 	/// Spoken hint for the destination row.
 	var sidebarHint: String {
@@ -47,6 +50,8 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 			return "See what needs your attention: unread mail, open tasks, and setup steps at a glance."
 		case .chat:
 			return "Open your chat workspace, continue existing conversations, or start a new session with Toby."
+		case .todos:
+			return "Organize Toby todos, checklists, recurring work, and due dates."
 		case .projects:
 			return "Work inside project folders with scoped chats, local guidance, skills, and generated outputs."
 		case .library:

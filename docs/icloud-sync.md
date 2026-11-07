@@ -19,8 +19,9 @@ Same payload as [backup/restore](security.md#backup-and-restore):
 
 | Included | Not included |
 | -------- | ------------ |
-| `config.json` (personas, connection flags, AI/listen/inbound/search/weather/library prefs) | Live multi-Mac database sync |
+| `config.json` (personas, connection flags, AI/listen/inbound/search/weather/library prefs) | Live chat/memory database sync |
 | Full credentials bag (AI keys, plugin tokens) | Recordings, logs, library files |
+| Toby Todos operations, in a separate encrypted namespace | Todo replica identity and per-Mac notification state |
 | | `~/.toby/skills/`, persona image files, plugin packages |
 | | App `UserDefaults` (theme, menu bar, `TOBY_DIR`) |
 
@@ -33,6 +34,11 @@ Machine-local keys stripped from the snapshot and kept on pull:
 **one** Mac only; two daemons should not both Socket-Mode connect.
 
 ## Crypto
+
+**Todos are a separate merge-safe sync stream**, not part of the settings
+snapshot. Immutable batches under `todos/v1/<replica>/` merge independent edits
+and retain conflicting field values in history. They use the same destination
+and password. See [Todos sync](todos.md#sync) for the envelope and merge rules.
 
 The per-Mac Keychain DEK that wraps `credentials.json` is **never** uploaded.
 The vault uses the same AES-256-GCM + scrypt primitive as `.tbybak`, with a
@@ -144,7 +150,13 @@ Database data is deliberately **not** added to the settings vault: a
 last-write-wins live sync could discard newer chats or memories from another
 Mac. Instead, opt in under **Settings → Sync → Data backups** to write one
 encrypted snapshot per day, retaining the **latest 3 per Mac** and deleting
-older snapshots automatically:
+older snapshots automatically.
+
+Toby Todos are the exception to snapshot-only data: their operation journal
+syncs continuously and is also included in full/data backups. After database
+restore, todo sync and reminder replay pause until the user confirms **Review
+and merge…**. The **Todos** section shows last sync, pending changes, errors,
+and **Sync todos now**. Reminder enablement remains per Mac.
 
 ```
 <sync vault>/data-backups/<device-id>/<utc>.tbybak
@@ -181,6 +193,8 @@ Restore from History replaces the matching data. CLI:
 `toby config sync backup-data enable|disable|now|list|restore`.
 
 ## Tests
+
+- `apps/cli/tests/todo-sync.test.ts`, `todo-backup-reminders.test.ts` — operation sync, conflicts, backup/restore, and reminder suppression
 
 - `apps/cli/tests/config-sync-*.test.ts` — crypto, engine, HTTP (fake
   `TOBY_SYNC_DIR`, memory passphrase, folder backend)

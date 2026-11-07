@@ -5,6 +5,7 @@ import {
 	readConfig,
 	readCredentials,
 } from "../config/index";
+import { executeCoreTool } from "../core-tools";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../dashboard/types";
 import { getIntegrationModules } from "../integrations/index";
 import { forwardPluginStderr } from "../integrations/plugins/adapter";
@@ -299,7 +300,28 @@ export async function executeNamedTool(params: {
 export async function executeToolRef(
 	tool: ToolRef,
 	input: Record<string, unknown>,
+	context: { idempotencyKey?: string } = {},
 ): Promise<ExecuteToolResult> {
+	if ("coreTool" in tool) {
+		try {
+			return {
+				ok: true,
+				result: executeCoreTool(tool.coreTool, input, {
+					...context,
+					source: "flow",
+				}),
+				moduleName: "tobyTodos",
+				toolName: tool.coreTool,
+			};
+		} catch (error) {
+			return {
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+				moduleName: "tobyTodos",
+				toolName: tool.coreTool,
+			};
+		}
+	}
 	if ("userToolId" in tool) {
 		try {
 			const { result, revision } = await executeUserToolById(

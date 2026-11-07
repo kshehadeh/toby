@@ -99,7 +99,7 @@ enum FlowToolPickerModel {
 	/// SF Symbol for what a tool does, read from the verb its name starts
 	/// with (`searchCalendarEvents` → magnifying glass).
 	static func actionSymbol(for tool: FlowCatalogTool) -> String {
-		let name = tool.toolName
+		let name = tool.coreTool?.split(separator: ".").last.map(String.init) ?? tool.toolName
 		let lower = name.lowercased()
 		if tool.standardTool != nil || lower.contains("summary") {
 			return "text.alignleft"

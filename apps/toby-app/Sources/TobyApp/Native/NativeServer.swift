@@ -326,6 +326,8 @@ final class NativeServer {
 			return wrapHandlerData(await NativeAudioHandler.shared.combine(body: request.body))
 		case "/api/native/icloud/status":
 			return wrapHandlerData(NativeICloudHandler.status())
+		case "/api/native/icloud/todos/list", "/api/native/icloud/todos/read", "/api/native/icloud/todos/write":
+			return wrapHandlerData(NativeTodoSyncHandler.handle(String(path.split(separator: "/").last ?? ""), body: request.body))
 		case "/api/native/icloud/ensure":
 			return wrapHandlerData(NativeICloudHandler.ensure(body: request.body))
 		case "/api/native/icloud/read":

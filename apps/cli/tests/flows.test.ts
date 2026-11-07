@@ -276,7 +276,8 @@ describe("flow definition store + seed-on-miss", () => {
 		expect(names).toContain("dashboard.tasks.summary");
 		expect(names).toContain("dashboard.calendar.summary");
 		expect(names).not.toContain("dashboard.news.summary");
-		expect(Object.keys(BUILTIN_FLOWS)).toHaveLength(3);
+		expect(names).toContain("dashboard.todos.summary");
+		expect(Object.keys(BUILTIN_FLOWS)).toHaveLength(4);
 		for (const id of Object.keys(BUILTIN_FLOWS)) {
 			const triggers = parseFlowTriggers(loadFlowRecord(id)?.document.triggers);
 			expect(triggers).toHaveLength(1);

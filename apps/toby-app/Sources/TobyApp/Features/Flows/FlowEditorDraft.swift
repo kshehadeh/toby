@@ -190,6 +190,7 @@ struct FlowEditorOutputField: Identifiable, Equatable, Sendable {
 }
 
 struct FlowEditorNode: Identifiable, Equatable {
+	var coreTool: String? = nil
 	var id: String
 	var type: String
 	var moduleName: String
@@ -255,6 +256,12 @@ struct FlowEditorNode: Identifiable, Equatable {
 		)
 	}
 
+	static func tool(_ catalogTool: FlowCatalogTool) -> FlowEditorNode {
+		var node = tool(moduleName: catalogTool.moduleName, toolName: catalogTool.toolName, required: catalogTool.requiredFields)
+		node.coreTool = catalogTool.coreTool
+		return node
+	}
+
 	static func llm() -> FlowEditorNode {
 		FlowEditorNode(
 			id: "node-\(UUID().uuidString.prefix(8))",
@@ -288,6 +295,11 @@ struct FlowEditorNode: Identifiable, Equatable {
 		toolName = stored.tool?.toolName ?? ""
 		userToolId = stored.tool?.userToolId
 		standardTool = stored.tool?.standardTool
+		coreTool = stored.tool?.coreTool
+		if let coreTool {
+			moduleName = "tobyTodos"
+			toolName = coreTool
+		}
 		originalJSON = try? JSONSerialization.data(withJSONObject: stored.originalFields.mapValues(\.value), options: .sortedKeys)
 		outputs = stored.originalFields["outputs"]?.value as? [String: String]
 		outputKind = stored.schema?.kind ?? "markdown"
@@ -380,7 +392,8 @@ struct FlowEditorNode: Identifiable, Equatable {
 			if let path = source.path { reference["path"] = path }
 			inputs[key] = reference
 		}
-		if let userToolId { body["tool"] = ["userToolId": userToolId] }
+		if let coreTool { body["tool"] = ["coreTool": coreTool] }
+		else if let userToolId { body["tool"] = ["userToolId": userToolId] }
 		else if let standardTool { body["tool"] = ["standardTool": standardTool] }
 		else { body["tool"] = ["moduleName": moduleName, "toolName": toolName] }
 		body.removeValue(forKey: "inputs")

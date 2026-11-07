@@ -2,7 +2,7 @@ import Foundation
 
 /// Each section owns its ordered lessons and independent saved progress.
 enum TutorialSection: String, CaseIterable, Sendable {
-	case home, chats, projects, library, recordings, flows, skills
+	case home, chats, projects, library, recordings, flows, skills, todos
 
 	var title: String {
 		switch self {
@@ -13,6 +13,7 @@ enum TutorialSection: String, CaseIterable, Sendable {
 		case .recordings: "Recordings"
 		case .flows: "Flows"
 		case .skills: "Skills"
+		case .todos: "Todos"
 		}
 	}
 
@@ -26,6 +27,7 @@ enum TutorialSection: String, CaseIterable, Sendable {
 		case .flows: [.flows, .builtInFlow, .howItWorks, .flowSources, .flowAI, .flowSharing, .createFlow,
 			.editorTrigger, .editorSources, .editorAI, .editorOutput]
 		case .skills: [.skills]
+		case .todos: [.todos]
 		}
 	}
 
@@ -38,6 +40,7 @@ enum TutorialSection: String, CaseIterable, Sendable {
 		case .recordings: .recordings
 		case .flows: .flows
 		case .skills: .skills
+		case .todos: .todos
 		}
 	}
 }

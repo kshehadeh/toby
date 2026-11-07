@@ -261,6 +261,11 @@ their project and are not duplicated as chat rows.
 | `tasks` | `tasks.openSummary` | `dashboard.tasks.summary` |
 | `calendar` | `calendar.upcomingSummary` | `dashboard.calendar.summary` |
 
+The separate **Toby Todos** block (`dashboard.todos.summary`) uses core
+`todos.summary`, needs no connection or AI call, and displays open, overdue,
+and due-today counts with `toby://todos/<id>` links. It uses the flow-block
+renderer and leaves the external Tasks card intact. See [Todos](todos.md).
+
 Plugins declare `providerCategories` and tag a tool with `standardTool`. Core
 synthesizes a dashboard hook used by the aggregator / tool executor. See the
 [standard tools plan](dashboard-standard-tools-plan.md).

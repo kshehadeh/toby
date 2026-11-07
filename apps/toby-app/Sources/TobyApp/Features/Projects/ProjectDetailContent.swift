@@ -75,6 +75,7 @@ struct ProjectDetailsPane: View {
 				}
 
 				summarySection
+				ProjectTodosSection(project: project)
 				pathSection
 				ProjectFileTreeSection(store: store)
 			}

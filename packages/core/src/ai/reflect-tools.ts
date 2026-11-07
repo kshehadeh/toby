@@ -4,6 +4,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { Persona } from "../config/index";
 import { readConfig, readCredentials } from "../config/index";
+import { listCoreTools } from "../core-tools";
 import {
 	getIntegrationModule,
 	getIntegrationModules,
@@ -227,6 +228,10 @@ export function createReflectTools(
 				};
 				return {
 					byIntegration,
+					coreTools: listCoreTools().map((definition) => ({
+						name: definition.chatName,
+						description: definition.description,
+					})),
 					globalTools,
 					hint: "This is the full catalog. Call enableTools with exact names to use them in this conversation, or delegateToSubAgent for a one-shot task.",
 				};

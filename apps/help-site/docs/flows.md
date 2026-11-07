@@ -72,8 +72,14 @@ The flows that ship with Toby are **built-in** and power the Home cards:
 | **Email** | Loads unread-style email items from your email integration, then summarizes them for the card |
 | **Tasks** | Loads open tasks, then summarizes what needs attention |
 | **Calendar** | Loads upcoming events, then summarizes what’s coming up |
+| **Toby Todos** | Shows built-in open, overdue, and due-today counts and todo links, without an AI call or connection |
 
-Those pipelines use the **Home persona** (configured under **Settings → Home**) for their model and writing style. Connect the matching [integrations](./integrations/overview), leave Toby running, and Home can refresh those blurbs automatically.
+Email, Tasks, and Calendar use the **Home persona** (configured under **Settings → Home**) for their model and writing style. Connect the matching [integrations](./integrations/overview), leave Toby running, and Home can refresh those blurbs automatically.
+
+The action picker also includes **Toby Todos** actions without a connection.
+Create a todo, pass its returned ID to Update or Complete, and inspect the
+structured step results. Retrying a step does not duplicate its mutation.
+See [Todos](./todos).
 
 Their **When** section shows **Home refresh**. Home runs these flows when it needs a fresh summary or you explicitly refresh the card. Fresh cached summaries are reused for up to five minutes; a previous summary can stay visible while a replacement is generated. Empty cards skip the flow. Built-in flows remain read-only. For custom flows, choosing **Home refresh** automatically selects **Show it on Home → A card with the answer** and makes that location required. You can change its color and automatic/manual update setting. Disabling the trigger pauses updates; removing it removes the Home card. Choosing Home Screen Action instead switches to an Actions button.
 

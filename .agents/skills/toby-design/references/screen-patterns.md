@@ -22,6 +22,18 @@ implementation details, invoke `toby-native-window`.
 
 ## Ownership and async
 
+### Todos source map
+
+`Features/Todos/TodosView.swift` composes `FeatureWorkspaceSplit` and the shared
+browser rows with inspect-only `TodoDetailView` and `TodoEditorSheet`.
+`Stores/TodosStore.swift` owns filters, selection, revisions, and refresh;
+dirty editor drafts stay mounted during quiet refreshes. Lists/tags use
+`TodoOrganizationSheet`; checklist, reminders, and recoverable field history
+use `TodoDetailSections.swift`. `ProjectTodosSection.swift` reuses the same
+store/service in project details. Settings uses `TodoSyncSettingsSection` and
+`TodoNotificationSettingsSection`, with native controls and per-Mac permission
+requests. Root owns `openTodo` routing, including notification and Home links.
+
 - `@Observable @MainActor` stores own loaded data, selected IDs, requests, and
   error/loading state.
 - A feature `.task` loads its data. Inspect details do not autosave; entity

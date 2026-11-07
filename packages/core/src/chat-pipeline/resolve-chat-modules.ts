@@ -112,6 +112,16 @@ export function resolveChatModulesForPrompt(
 	const selectedNames = new Set<string>();
 
 	for (const cat of neededCategories) {
+		// Internal todos are always available. Keep external task tools reachable
+		// for explicit provider requests and follow-ups without selecting a default.
+		if (cat === "tasks") {
+			for (const module of chatModules.filter((m) =>
+				m.providerCategories?.includes("tasks"),
+			)) {
+				selectedNames.add(module.name);
+			}
+			continue;
+		}
 		const defaultName = getDefaultProvider(cat);
 		if (defaultName) {
 			const mod = chatModules.find((m) => m.name === defaultName);

@@ -73,8 +73,12 @@ Select Todoist in **Settings → Integrations** and click **Disconnect**.
 
 ## Example chat prompts
 
-- “What tasks are due today across all projects?”
-- “Add a task to follow up with Alex about the design review by Friday.”
+Name **Todoist** to use this integration. Unqualified task/todo requests use
+[Toby Todos](../todos), even when Todoist is connected. Existing Todoist item
+references stay in Todoist; there is no automatic copying between apps.
+
+- “What Todoist tasks are due today across all projects?”
+- “Add a task in Todoist to follow up about the design review by Friday.”
 
 ## Related
 

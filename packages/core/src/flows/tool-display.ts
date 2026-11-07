@@ -1,4 +1,5 @@
 import { getDefaultProvider } from "../config/index";
+import { getCoreTool } from "../core-tools";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../dashboard/types";
 import { getIntegrationModules } from "../integrations/index";
 import { listIntegrationTools } from "../integrations/list-tools";
@@ -96,6 +97,14 @@ function describeStandardTool(standardToolId: string): FlowToolDisplay {
 }
 
 export function describeFlowTool(tool: ToolRef): FlowToolDisplay {
+	if ("coreTool" in tool) {
+		const definition = getCoreTool(tool.coreTool);
+		return {
+			title: definition?.title ?? tool.coreTool,
+			description: definition?.description,
+			integrationDisplayName: "Toby Todos",
+		};
+	}
 	if ("userToolId" in tool) {
 		return tool.displayName ? { title: tool.displayName } : {};
 	}

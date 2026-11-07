@@ -107,7 +107,7 @@ API). Implementation: `AppearancePreferences` /
 
 The permanent main toolbar has a context-sensitive tutorial button. It starts or
 restarts only the currently displayed section's tutorial: Home, Chats, Projects,
-Library, Recordings, Flows, or Skills. Tutorials are requested explicitly and do
+Library, Recordings, Flows, Skills, or Todos. Tutorials are requested explicitly and do
 not start automatically on launch. `TutorialSection` owns each section's ordered
 lesson list; `TutorialStore` keeps progress independently by section. Home
 introduces dashboard controls and the sidebar workspaces; Flows walks through a
@@ -243,7 +243,7 @@ and disables talking motion. All layers reuse the existing visible-only timer.
 
 The main window uses shared `RootToolbars` builders for its native header.
 The main sidebar is one ungrouped destination list: Home, Chats, Projects, Library,
-Recordings, Flows, and Skills. There are no Automation or Tools category headings.
+Recordings, Flows, Skills, and Todos. There are no Automation or Tools category headings.
 
 Feature record lists (chats, recordings, skills, flows, integrations,
 projects, library) live in `FeatureWorkspaceSplit` under that header — the toolbar

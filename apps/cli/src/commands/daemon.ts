@@ -30,6 +30,7 @@ import {
 	getDetachedDaemonSpawnStdio,
 	getTobyExecPath,
 } from "@toby/core/toby-spawn";
+import { runTodoSyncLoop } from "@toby/core/todos/sync";
 import { getWebUiUrl, startWebServer } from "@toby/core/web/server";
 import chalk from "chalk";
 import type { Command } from "commander";
@@ -208,6 +209,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 				},
 			}),
 			runConfigSyncLoop({ signal: controller.signal }),
+			runTodoSyncLoop({ signal: controller.signal }),
 		];
 		if (webCfg.enabled) {
 			tasks.push(

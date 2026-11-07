@@ -15,6 +15,7 @@ struct RootView: View {
     @Bindable var updateStore: UpdateStore
     @Bindable var changelogStore: ChangelogStore
     @Bindable var pluginsStore: PluginsStore
+    @Bindable var todosStore: TodosStore = TodosStore()
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var appearancePreferences: AppearancePreferences = .shared
@@ -46,6 +47,20 @@ struct RootView: View {
     var body: some View {
         contentWithBackup
             .modifier(rootNotificationRouter)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == "toby", url.host == "todos" else { return .systemAction }
+                let reference = url.lastPathComponent
+                guard !reference.isEmpty else { return .discarded }
+                navigateToRoute(.todos)
+                Task { await todosStore.openTodo(reference) }
+                return .handled
+            })
+            .onReceive(NotificationCenter.default.publisher(for: .openTodo)) { notification in
+                guard let id = notification.object as? String else { return }
+                bringMainWindowToFront()
+                navigateToRoute(.todos)
+                Task { await todosStore.openTodo(id) }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .openFlowRun)) { notification in
                 guard let id = notification.object as? String else { return }
                 bringMainWindowToFront()
@@ -486,6 +501,8 @@ struct RootView: View {
             )
         case .projects:
             ProjectsView(projectsStore: projectsStore, chatStore: store)
+        case .todos:
+            TodosView(store: todosStore)
         case .library:
             LibraryView(store: libraryStore)
         case .recordings:
@@ -511,6 +528,15 @@ struct RootView: View {
     @ToolbarContentBuilder
     private var workspaceToolbar: some ToolbarContent {
         switch history.current {
+            case .todos:
+                RootToolbars.todos(
+                    common: commonToolbarModel,
+                    hasSelection: todosStore.selectedTodo?.state.status == "open" && todosStore.selectedTodo?.deleted == false,
+                    isSaving: todosStore.isSaving,
+                    onNew: { todosStore.startEditor() },
+                    onEdit: { todosStore.startEditor(todosStore.selectedTodo) },
+                    onRefresh: { Task { await todosStore.refresh() } }
+                )
             case .dashboard:
 
                                     RootToolbars.dashboard(
@@ -709,6 +735,8 @@ struct RootView: View {
 
     private var rootNavigationTitle: String {
         switch history.current {
+        case .todos:
+            RootToolbars.routeTitle(.todos, selectedItemName: todosStore.selectedTodo?.title)
         case .dashboard:
             "Home"
         case .chat:
@@ -736,6 +764,8 @@ struct RootView: View {
 
     private var rootNavigationSubtitle: String {
         switch history.current {
+        case .todos:
+            todosStore.selectedTodo?.dueLabel ?? ""
         case .dashboard:
             ""
         case .chat:
@@ -1034,6 +1064,8 @@ struct RootView: View {
             recordingsStore.showRecordingsOverview()
         case .skills:
             skillsStore.selectHome()
+        case .todos:
+            todosStore.selectedOccurrenceId = nil
         case .chat:
             preferChatSessionList = true
         case .dashboard:
@@ -1192,6 +1224,7 @@ struct RootView: View {
         memoriesStore.resetForHomeSwitch()
         libraryStore.resetForHomeSwitch()
         flowsStore.resetForHomeSwitch()
+        todosStore.resetForHomeSwitch()
         pluginsStore.resetForHomeSwitch()
         changelogStore.resetForHomeSwitch()
 

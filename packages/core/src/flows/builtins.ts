@@ -139,7 +139,30 @@ export const calendarDashboardSummaryDocument: FlowDocument =
 	});
 
 /** Built-in flow seed documents keyed by stable id. */
+export const todosDashboardSummaryDocument: FlowDocument = {
+	id: "dashboard.todos.summary",
+	name: "Toby Todos",
+	description:
+		"Open Toby todos, with overdue and due-today counts. No external account or AI call required.",
+	icon: "checklist",
+	triggers: [dashboardRefreshTrigger()],
+	destinations: [
+		{ type: "dashboard", variant: "informational", refresh: "asNeeded" },
+	],
+	nodes: [
+		{
+			id: "fetch-todos",
+			type: "tool_executor",
+			tool: { coreTool: "todos.summary" },
+			inputs: {},
+			outputs: { todos: "result" },
+		},
+	],
+	result: { from: "todos", path: "markdown" },
+};
+
 export const BUILTIN_FLOWS: Readonly<Record<string, FlowDocument>> = {
+	[todosDashboardSummaryDocument.id]: todosDashboardSummaryDocument,
 	[emailDashboardSummaryDocument.id]: emailDashboardSummaryDocument,
 	[tasksDashboardSummaryDocument.id]: tasksDashboardSummaryDocument,
 	[calendarDashboardSummaryDocument.id]: calendarDashboardSummaryDocument,

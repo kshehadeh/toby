@@ -111,6 +111,11 @@ Meeting and call recordings with transcripts and AI summaries. See
 step-by-step recipes that can power Home cards and one-click buttons. See
 [Schedules](./schedules) and [Flows](./flows).
 
+## Todos
+
+Choose **Todos** (⌘7) to manage built-in todos, repeating tasks, checklists, and
+reminders without connecting an account. See [Todos](./todos).
+
 ## Skills
 
 Instructions that teach Toby how to do a specific task your way. See
@@ -226,7 +231,7 @@ These preferences apply to this Mac only.
 Choose the **tutorial button** (question mark) in the permanent main toolbar to
 start or restart the tutorial for the section you are viewing. For example, in
 **Flows** it starts the Flows tutorial; in **Home** it starts the Home tutorial.
-Home, Chats, Projects, Library, Recordings, Flows, and Skills each have their own
+Home, Chats, Projects, Library, Recordings, Flows, Skills, and Todos each have their own
 tutorial. Replaying one section does not reset progress in the others.
 
 The Home tutorial introduces the dashboard and workspaces. The Flows tutorial

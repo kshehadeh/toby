@@ -23,6 +23,7 @@ Drive is off, blocked, or you prefer another service.
 | ------ | ----------------- |
 | Settings (personas, connected integrations, AI and tool preferences) | Chat history |
 | Secrets (AI keys, Email / Slack / Notion tokens, and other plugin credentials) | Live chat/memory sync, recordings, library files |
+| Toby Todos, including history, lists, tags, and reminders | Todo notification enablement and delivery state |
 | | Skills, installed plugins, theme / menu bar / home directory |
 
 ## Set up with iCloud Drive
@@ -74,6 +75,17 @@ Use **Back up settings now** to send this Mac’s settings immediately. Restore 
 previous copy from History if you need to roll settings back. CLI equivalent
 for an immediate upload: `toby config sync push`.
 
+## Todo sync
+
+[Toby Todos](../todos) use the same destination and password, but merge changes
+rather than replacing a snapshot. Independent field edits are kept; conflicting
+values remain recoverable in History. **Settings → Sync and Backup → Todos**
+shows pending changes, last sync, errors, and **Sync todos now**. Turn on
+**Todo reminders on this Mac** separately on each Mac that should notify you.
+
+Changing destinations also merges todos with the new destination. Turning sync
+off keeps local todos.
+
 ## Change the sync destination
 
 1. Open **Settings → Sync → Sync setup**.
@@ -107,16 +119,21 @@ Drive or selected folder as settings sync) and deletes older ones.
 Use **Back Up Now** at the bottom of the pane to create one immediately.
 History lists the latest copies. Dates are shown in your local format. Click a
 snapshot to show it in Finder. To restore, choose **Restore**.
-This replaces all local chat and memory data, project files, recordings, and library items on
+This replaces all local chat and memory data, todos, project files, recordings, and library items on
 this Mac and restarts Toby; it does not merge data or restore it automatically.
 Projects are restored inside Toby's data folder; original custom project
 folders are left untouched.
+
+Full and data backups include todos. After a restore, todo sync and reminders
+pause until you choose **Review and merge…** in Sync and Backup. Toby preserves
+the restored snapshot until you confirm, then merges it with the destination.
+It does not replay old individual reminders.
 
 ## If two Macs change settings at once
 
 The later snapshot replaces the earlier one. Restore an older snapshot from
 **History** on the Settings backups pane if you lost a change. Field-by-field
-merge is not supported yet.
+merge is not supported for settings. Todos merge separately and retain history.
 
 ## Inbound Slack
 

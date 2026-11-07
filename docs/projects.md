@@ -232,6 +232,11 @@ Older projects used:
 
 ## Implementation map
 
+Project details include linked open [Todos](todos.md) and **New todo**, which
+pre-fills the project. `deleteProject` calls `unlinkProjectTodos`: deleting a
+project keeps its todos but clears their link. Synced links to projects absent
+on this Mac retain their ID and display label.
+
 | Concern | Location |
 | ------- | -------- |
 | Model + CRUD + `AGENTS.md` load + organization skill seed | [`packages/core/src/projects/index.ts`](../packages/core/src/projects/index.ts) |
@@ -242,3 +247,4 @@ Older projects used:
 | HTTP API | [`packages/core/src/web/handlers/projects.ts`](../packages/core/src/web/handlers/projects.ts) |
 | Configure tree fields | [`packages/core/src/configure/tree.ts`](../packages/core/src/configure/tree.ts) |
 | Native UI | Toby.app Projects features / stores |
+| Project-linked todos | `todos/service.ts`, `Features/Todos/ProjectTodosSection.swift`, `Features/Projects/ProjectDetailContent.swift` |

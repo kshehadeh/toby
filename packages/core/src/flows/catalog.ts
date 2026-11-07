@@ -1,3 +1,4 @@
+import { coreFlowCatalog } from "../core-tools";
 import { getIntegrationModules } from "../integrations/index";
 import { listIntegrationTools } from "../integrations/list-tools";
 import type { FlowCatalogTool } from "./validate-user-flow";
@@ -19,7 +20,14 @@ export type FlowToolCatalog = {
  */
 export async function listFlowToolCatalog(): Promise<FlowToolCatalog> {
 	const modules = getIntegrationModules();
-	const out: FlowCatalogModule[] = [];
+	const out: FlowCatalogModule[] = [
+		{
+			name: "tobyTodos",
+			displayName: "Toby Todos",
+			connected: true,
+			tools: await coreFlowCatalog(),
+		},
+	];
 
 	for (const mod of modules) {
 		const tools = listIntegrationTools(mod.name);

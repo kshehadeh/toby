@@ -61,6 +61,14 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | --- | --- | --- |
 | `ANY` | `/api/health` | Basic daemon health check. |
 | `GET` | `/api/status` | Chat status: version, default persona, model, integrations, skills. |
+| `GET` | `/api/todos` | Paginated todo search and filters. See [todos.md](todos.md#api) for parameters and errors. |
+| `GET` | `/api/todos/:id` | Todo detail, optionally by occurrence sequence. |
+| `GET` | `/api/todos/:id/history` | Journal and restorable field edits. |
+| `GET` | `/api/todos/lists`, `/api/todos/tags`, `/api/todos/tools` | Organization and core tool catalog. |
+| `POST` | `/api/todos/actions/:action` | Shared todo mutations, with dry-run, idempotency, and revision checks. |
+| `GET` | `/api/todos/reminders/schedule` | Native reminder schedule. |
+| `GET`, `POST` | `/api/todos/sync` | Todo sync status or immediate exchange. |
+| `POST` | `/api/todos/reconcile` | Confirm merging a restored todo snapshot and resume sync. |
 | `GET` | `/api/dashboard` | Aggregator payload for all categories (internal / debug). |
 | `GET` | `/api/dashboard/flow-blocks` | Custom flows with a Dashboard destination (`id`, `title`, `variant`, `refresh`, `showsResultSheet`, …). |
 | `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (not used by home cards). Optional `?fresh=1` bypasses the 60s category cache. |

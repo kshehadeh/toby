@@ -134,13 +134,15 @@ struct FlowToolDisplay: Decodable, Equatable {
 }
 
 struct FlowToolRef: Decodable, Equatable {
+	let coreTool: String?
 	let standardTool: String?
 	let userToolId: String?
 	let displayName: String?
 	let moduleName: String?
 	let toolName: String?
 
-	init(standardTool: String?, userToolId: String? = nil, moduleName: String?, toolName: String?) {
+	init(standardTool: String?, userToolId: String? = nil, moduleName: String?, toolName: String?, coreTool: String? = nil) {
+		self.coreTool = coreTool
 		self.standardTool = standardTool
 		self.userToolId = userToolId
 		self.displayName = nil
@@ -149,6 +151,7 @@ struct FlowToolRef: Decodable, Equatable {
 	}
 
 	var displayLabel: String {
+		if let coreTool { return displayName ?? coreTool }
 		if let userToolId { return displayName ?? userToolId }
 		if let standardTool, !standardTool.isEmpty {
 			return standardTool
@@ -482,6 +485,7 @@ struct FlowCatalogModule: Equatable, Identifiable {
 }
 
 struct FlowCatalogTool: Equatable, Identifiable {
+	var coreTool: String? = nil
 	var id: String { "\(moduleName).\(toolName)" }
 	let moduleName: String
 	let toolName: String
@@ -513,8 +517,10 @@ struct FlowCatalogTool: Equatable, Identifiable {
 		description: String?,
 		readOnly: Bool?,
 		standardTool: String?,
-		inputSchema: FlowInputSchema
+		inputSchema: FlowInputSchema,
+		coreTool: String? = nil
 	) {
+		self.coreTool = coreTool
 		self.moduleName = moduleName
 		self.toolName = toolName
 		self.displayName = displayName
@@ -546,7 +552,8 @@ struct FlowCatalogTool: Equatable, Identifiable {
 			description: raw["description"] as? String,
 			readOnly: raw["readOnly"] as? Bool,
 			standardTool: raw["standardTool"] as? String,
-			inputSchema: FlowInputSchema.parse(raw["inputSchema"])
+			inputSchema: FlowInputSchema.parse(raw["inputSchema"]),
+			coreTool: raw["coreTool"] as? String
 		)
 	}
 }

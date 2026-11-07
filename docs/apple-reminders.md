@@ -14,6 +14,10 @@ First-party integration id: **`applereminders`**, shipped as the TypeScript bun-
 
 ## Chat tools
 
+Unqualified todo/task requests use [Toby Todos](todos.md). Use Apple Reminders
+only for explicit provider requests or clear references to its existing items.
+No automatic copying or synchronization with internal todos occurs.
+
 | Tool | Purpose |
 | ---- | ------- |
 | `listReminderLists` | List Reminders.app list names and colors; use exact names for the `list` filter. |

@@ -9,6 +9,7 @@ import { isWeatherAvailable } from "./ai/weather/weather-global-tools";
 import { isWebSearchAvailable } from "./ai/web-search-global-tools";
 import type { Persona } from "./config/index";
 import { getDefaultProvider } from "./config/index";
+import { TODO_POLICY } from "./core-tools";
 import {
 	ALL_PROVIDER_CATEGORIES,
 	PROVIDER_CATEGORY_LABELS,
@@ -114,6 +115,21 @@ export function injectCurrentDateTimeIntoFirstSystemMessage(
 	messages: readonly CoreMessage[],
 ): CoreMessage[] {
 	return injectCurrentDateTimeAsSeparateMessage(messages);
+}
+
+export function injectTodoPolicy(
+	messages: readonly CoreMessage[],
+): CoreMessage[] {
+	const result = [...messages];
+	const first = result[0];
+	if (
+		first?.role === "system" &&
+		typeof first.content === "string" &&
+		!first.content.includes("## Toby todos")
+	) {
+		result[0] = { ...first, content: `${first.content}\n${TODO_POLICY}` };
+	}
+	return result;
 }
 
 export function stripSkillInstructionsAppendix(systemContent: string): string {
@@ -252,6 +268,7 @@ export function injectMemoriesIntoFirstSystemMessage(
 function buildDefaultProvidersSection(): string {
 	const lines: string[] = [];
 	for (const cat of ALL_PROVIDER_CATEGORIES) {
+		if (cat === "tasks") continue;
 		const defaultName = getDefaultProvider(cat);
 		if (defaultName) {
 			lines.push(
@@ -301,6 +318,7 @@ Shared rules:
 - When listing emails, tasks, or options in assistant text, prefer markdown list items (\`- item\`) with one item per line.${searchRule}${weatherRule}${locationRule}
 ${defaultsSection ? `\n${defaultsSection}\n` : ""}
 ${integrationBlocks}
+${TODO_POLICY}
 ${globalChatToolsPromptSection(project, persona)}
 `;
 }
@@ -355,9 +373,17 @@ export async function prepareChatSessionMessages(
 	onProgress?: SessionPrepProgress,
 	project?: Project | null,
 ): Promise<CoreMessage[]> {
-	if (modules.length === 0) {
-		throw new Error("prepareChatSessionMessages: no modules");
-	}
+	if (modules.length === 0)
+		return injectCurrentDateTimeIntoFirstSystemMessage([
+			{
+				role: "system",
+				content: composeSystemPromptWithPersona(
+					buildCombinedChatBasePrompt([], project, persona),
+					persona,
+				),
+			},
+			{ role: "user", content: userPrompt },
+		]);
 
 	const report = async (detail: string): Promise<void> => {
 		await onProgress?.(detail);
@@ -458,9 +484,6 @@ export async function replaceSessionSystemMessageForPersona(
 ): Promise<CoreMessage[]> {
 	if (messages.length === 0) {
 		throw new Error("replaceSessionSystemMessageForPersona: empty messages");
-	}
-	if (modules.length === 0) {
-		throw new Error("replaceSessionSystemMessageForPersona: no modules");
 	}
 
 	if (modules.length === 1) {

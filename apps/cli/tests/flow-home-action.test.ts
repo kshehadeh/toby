@@ -147,7 +147,9 @@ describe("Home Screen Action triggers", () => {
 			...saved.document,
 			triggers: [{ ...homeActionTrigger(), enabled: false }],
 		});
-		expect(listFlowDashboardBlocks()).toHaveLength(0);
+		expect(
+			listFlowDashboardBlocks().some((block) => block.flowId === saved.id),
+		).toBe(false);
 	});
 	it("Home-only flows run from Home through shared history, and reject generic Run Now", async () => {
 		saveUserFlowDocument(runnableDocument());

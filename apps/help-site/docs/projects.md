@@ -66,6 +66,13 @@ The Projects area has a sidebar list and a main page:
 
 The project persona is optional. When set, new project chats use that persona by default, which is useful when a project always needs a specific voice or role.
 
+### Project todos
+
+Project details show linked open [Todos](./todos). Choose **New todo** to
+create one with the project already selected. Deleting a project unlinks its
+todos but keeps them. On another Mac, a link to a project not stored there
+keeps its display label.
+
 ## Add project instructions
 
 Every project starts with an `AGENTS.md` file:

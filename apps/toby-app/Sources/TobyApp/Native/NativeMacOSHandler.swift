@@ -17,32 +17,7 @@ func IOBluetoothPreferenceGetControllerPowerState() -> UInt32
 @_silgen_name("IODisplayGetFloatParameter")
 func IODisplayGetFloatParameterFunc(_ service: io_object_t, _ options: UInt32, _ paramName: CFString, _ value: UnsafeMutablePointer<Float32>) -> kern_return_t
 
-private final class NativeNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
-	func userNotificationCenter(
-		_ center: UNUserNotificationCenter,
-		willPresent notification: UNNotification,
-		withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-	) {
-		completionHandler([.banner, .list, .sound])
-	}
-
-	func userNotificationCenter(
-		_ center: UNUserNotificationCenter,
-		didReceive response: UNNotificationResponse,
-		withCompletionHandler completionHandler: @escaping () -> Void
-	) {
-		let userInfo = response.notification.request.content.userInfo
-		if userInfo["type"] as? String == "flowCompletion", let runId = userInfo["runId"] as? String {
-			DispatchQueue.main.async {
-				NotificationCenter.default.post(name: .openFlowRun, object: runId)
-			}
-		}
-		completionHandler()
-	}
-}
-
 enum NativeMacOSHandler {
-	private static let notificationDelegate = NativeNotificationDelegate()
 
 	// MARK: - Accessibility status
 
@@ -654,7 +629,7 @@ enum NativeMacOSHandler {
 		let limitedCTAs = Array(ctas.prefix(4))
 
 		let center = UNUserNotificationCenter.current()
-		center.delegate = notificationDelegate
+		await NativeNotificationCoordinator.install()
 		do {
 			let settings = await center.notificationSettings()
 			if settings.authorizationStatus == .notDetermined {
@@ -676,7 +651,7 @@ enum NativeMacOSHandler {
 						options: [.foreground]
 					)
 				}
-				center.setNotificationCategories([
+				await NativeNotificationCoordinator.register([
 					UNNotificationCategory(
 						identifier: categoryIdentifier,
 						actions: actions,

@@ -1,3 +1,4 @@
+import { getCoreTool } from "../core-tools";
 import { getUserTool } from "../user-tools/store";
 import { isBuiltinFlowId } from "./builtins";
 import type {
@@ -15,6 +16,7 @@ import { parseFlowTriggers } from "./triggers/types";
 import type { FlowInputSource, ToolRef } from "./types";
 
 export type FlowCatalogTool = {
+	readonly coreTool?: string;
 	readonly moduleName: string;
 	readonly toolName: string;
 	readonly displayName?: string;
@@ -61,6 +63,10 @@ function resolveCatalogTool(
 	tool: ToolRef,
 	tools: readonly FlowCatalogTool[],
 ): FlowCatalogTool | undefined {
+	if ("coreTool" in tool)
+		return getCoreTool(tool.coreTool)
+			? tools.find((t) => t.coreTool === tool.coreTool)
+			: undefined;
 	if ("userToolId" in tool) {
 		const userTool = getUserTool(tool.userToolId);
 		return userTool
@@ -150,11 +156,13 @@ function validateToolNode(
 	const catalogTool = resolveCatalogTool(node.tool, options.tools);
 	if (!catalogTool) {
 		const label =
-			"userToolId" in node.tool
-				? node.tool.userToolId
-				: "standardTool" in node.tool
-					? node.tool.standardTool
-					: `${node.tool.moduleName}.${node.tool.toolName}`;
+			"coreTool" in node.tool
+				? node.tool.coreTool
+				: "userToolId" in node.tool
+					? node.tool.userToolId
+					: "standardTool" in node.tool
+						? node.tool.standardTool
+						: `${node.tool.moduleName}.${node.tool.toolName}`;
 		issues.push(`Node "${node.id}" references unknown tool "${label}"`);
 		return;
 	}

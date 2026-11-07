@@ -139,6 +139,7 @@ import {
 	handleProjectsList,
 } from "./handlers/projects";
 import { handleSessionDetail, handleSessionsList } from "./handlers/sessions";
+import { handleTodos } from "./handlers/todos";
 import {
 	handleUserToolDelete,
 	handleUserToolDetail,
@@ -238,6 +239,9 @@ export async function handleWebRequest(
 			if (req.method === "GET") return handleUserToolDetail(id);
 			if (req.method === "PUT") return handleUserToolSave(req, id);
 			if (req.method === "DELETE") return handleUserToolDelete(id);
+		}
+		if (pathname === "/api/todos" || pathname.startsWith("/api/todos/")) {
+			return handleTodos(req, url);
 		}
 		if (pathname === "/api/health") {
 			return jsonResponse({

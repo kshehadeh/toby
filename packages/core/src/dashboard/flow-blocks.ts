@@ -77,7 +77,7 @@ function isFreshRun(
 export function listFlowDashboardBlocks(): readonly FlowDashboardBlock[] {
 	const out: FlowDashboardBlock[] = [];
 	for (const record of listFlowRecords()) {
-		if (record.builtin) continue;
+		if (record.builtin && record.id !== "dashboard.todos.summary") continue;
 		const dest = dashboardDest(record.document);
 		if (!dest || dest.type !== "dashboard") continue;
 		if (
@@ -242,7 +242,8 @@ export async function getFlowDashboardContent(
 	},
 ): Promise<DashboardBlockContent | null> {
 	const record = getFlowRecord(flowId);
-	if (!record || record.builtin) return null;
+	if (!record || (record.builtin && record.id !== "dashboard.todos.summary"))
+		return null;
 	const dest = dashboardDest(record.document);
 	if (!dest || dest.type !== "dashboard") return null;
 

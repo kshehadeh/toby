@@ -24,12 +24,17 @@ export function defaultToolExecutorOutputs(): typeof DEFAULT_OUTPUTS {
 export async function runToolExecutorNode(
 	node: ToolExecutorNodeDefinition,
 	inputs: Readonly<Record<string, unknown>>,
-	_runtime: FlowNodeRuntime,
+	runtime: FlowNodeRuntime,
 ): Promise<ToolExecutorNodeResult> {
 	const started = Date.now();
 	const exec = await executeToolRef(
 		node.tool,
 		inputs as Record<string, unknown>,
+		{
+			idempotencyKey: runtime.runId
+				? `flow:${runtime.runId}:${node.id}`
+				: undefined,
+		},
 	);
 	const durationMs = Date.now() - started;
 

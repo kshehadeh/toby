@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Persona } from "../config/index";
 import { resolveDefaultPersona, resolvePersona } from "../personas/index";
 import { buildDefinitionSnapshot } from "./definition-snapshot";
@@ -116,6 +117,7 @@ export async function runFlowDefinition(
 				startedAt,
 			})
 		: null;
+	const invocationId = runId ?? randomUUID();
 
 	let order = 0;
 	for (const node of definition.nodes) {
@@ -181,6 +183,7 @@ export async function runFlowDefinition(
 			}
 			const inputs = resolveNodeInputs(node.id, node.inputs, bag);
 			const runtime = {
+				runId: invocationId,
 				persona,
 				bag,
 				abortSignal: options.abortSignal,
