@@ -67,6 +67,7 @@ define(
 	false,
 	todos.createTodoSchema,
 	todos.createTodo,
+	"When the user asks to be reminded, set remind: true; it schedules a macOS notification at the due date/time and requires a due date with a time.",
 );
 define(
 	"update",
@@ -129,7 +130,7 @@ define(
 	}),
 	(input, ctx) =>
 		todos.setReminder(input.id, input.reminder, input.remove, ctx),
-	"Reminder definitions sync. Snoozing changes snoozedUntil, never the due date.",
+	'Reminder definitions sync. Snoozing changes snoozedUntil, never the due date. Use id "due" with offsetMinutes 0 to remind at the due time; a date-only todo needs an absolute "at" time.',
 );
 for (const kind of ["list", "tag"] as const) {
 	const plural = kind === "list" ? "Lists" : "Tags";
@@ -291,5 +292,5 @@ export const TODO_POLICY = `
 Unqualified requests to create, list, update, complete, or remove todos/tasks use Toby's internal todo tools by default, even when an external task provider is configured.
 Use an external provider only when the user explicitly requests it or clearly refers to an external item from context. Preserve that item's provider identity on follow-ups; do not copy between providers.
 Find current records before editing, use stable IDs and occurrence sequence, and askUser when multiple matches are possible. Do not guess identifiers or claim a change before a tool succeeds.
-Lists, tags, dates, and projects are separate concepts. Ask for an explicit reminder time for date-only todos. Creating a todo records intent; it does not authorize executing the task.
+Lists, tags, dates, and projects are separate concepts. When the user asks to be reminded, set remind: true on createTobyTodo (or call setTobyTodoReminder with offsetMinutes 0); never claim a reminder exists without one. Ask for an explicit reminder time for date-only todos. Creating a todo records intent; it does not authorize executing the task.
 `;

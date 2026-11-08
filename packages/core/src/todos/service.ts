@@ -278,6 +278,7 @@ export const createTodoSchema = todoFieldsSchema.extend({
 	due: dueSchema.nullable().default(null),
 	tags: z.array(idSchema).max(100).default([]),
 	checklist: z.array(z.string().trim().min(1).max(2000)).max(200).default([]),
+	remind: z.boolean().default(false),
 });
 export const updateTodoSchema = todoFieldsSchema.partial().extend({
 	due: dueSchema.nullable().optional(),
@@ -346,6 +347,11 @@ export function createTodo(raw: unknown, ctx: MutationContext = {}) {
 			"due_required",
 			"A repeating todo needs an initial due date.",
 		);
+	if (input.remind && !input.due?.time)
+		throw new TodoError(
+			"time_required",
+			"A reminder needs a due date with a time. Ask for a time first.",
+		);
 	return transact("create", input, ctx, () => {
 		namedAvailable("list", input.listId);
 		for (const tag of input.tags) namedAvailable("tag", tag);
@@ -365,6 +371,13 @@ export function createTodo(raw: unknown, ctx: MutationContext = {}) {
 			const key = randomUUID();
 			fields[`check:${key}`] = { id: key, text, order, checked: false };
 		}
+		if (input.remind)
+			fields["reminder:due"] = {
+				id: "due",
+				at: null,
+				offsetMinutes: 0,
+				snoozedUntil: null,
+			};
 		return {
 			changes: [{ kind: "todo", id, fields }],
 			result: () => getTodo(id),

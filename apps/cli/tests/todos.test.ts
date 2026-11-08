@@ -161,6 +161,35 @@ describe("Toby todo domain", () => {
 		setReminder(item.id, { id: "reminder", at: "2027-01-02T09:00:00Z" });
 		expect(getTodo(item.id).reminders).toHaveLength(1);
 	});
+	it("attaches a due-time reminder when create asks to be reminded", () => {
+		const item = create({
+			due: due("2027-01-02", "09:00"),
+			remind: true,
+		});
+		expect(getTodo(item.id).reminders).toEqual([
+			{ id: "due", at: null, offsetMinutes: 0, snoozedUntil: null },
+		]);
+		// The reminder is part of the create operation, so a retry cannot duplicate it.
+		expect(todoHistory(item.id)).toHaveLength(1);
+	});
+	it("refuses remind on date-only or undated todos instead of inventing a time", () => {
+		expect(() => create({ due: due("2027-01-02"), remind: true })).toThrow(
+			"due date with a time",
+		);
+		expect(() => create({ remind: true })).toThrow("due date with a time");
+		expect(listTodos().total).toBe(0);
+	});
+	it("attaches the reminder through the chat/flow tool adapter too", () => {
+		const created = executeCoreTool("todos.create", {
+			title: "Tool path",
+			due: due("2027-01-03", "08:30"),
+			remind: true,
+		}) as Todo;
+		expect(getTodo(created.id).reminders[0]).toMatchObject({
+			id: "due",
+			offsetMinutes: 0,
+		});
+	});
 	it("keeps completed checklist and deadline snapshots and carries relative reminders forward", () => {
 		const item = create({
 			due: due("2027-01-01", "09:00"),

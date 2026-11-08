@@ -138,6 +138,12 @@ never advances a later occurrence. Flow steps use the key
 `flow:<runId>:<nodeId>`, so retrying a step does not repeat it, while a new run
 is a new operation.
 
+`create` also accepts `remind: true`, which attaches the `due` reminder
+(`offsetMinutes: 0`, notification at the due date/time) inside the same
+operation, so a chat request to be reminded cannot lose its reminder to a
+failed follow-up call. It requires a due date with a time (`time_required`
+otherwise).
+
 Restoring a field from history (`restoreField`) applies the old value as a new
 edit; it never rewrites the journal. Definition fields restore with series
 scope; fields stored on the current occurrence restore with occurrence scope.

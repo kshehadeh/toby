@@ -18,6 +18,10 @@ You can ask Toby things like:
 - "Remind me every other Monday at 9 AM to review the budget."
 - "Mark the dentist todo done."
 
+If you ask to be reminded ("remind me to call the dentist tomorrow at
+9 AM"), Toby attaches a reminder at the due date/time as part of creating the
+todo. For a date without a time, Toby asks for a reminder time first.
+
 When you say "todo" or "task" without naming an app, Toby uses Toby Todos, even
 if Todoist or Apple Reminders is connected. To use another app, name it ("add
 this to Todoist"). If more than one todo could match, Toby asks which one you
