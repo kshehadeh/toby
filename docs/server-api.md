@@ -350,8 +350,11 @@ Stops the active helper-backed recording. The JSON body is optional; an empty
 body or object saves by default. Use `{ "action": "discard" }` to discard.
 
 On save, the manager finalizes metadata, transcribes combined audio when
-available, and returns the output directory plus transcript or transcription
-error.
+available, auto-summarizes a successful transcript (and titles the recording
+when it has no name), and returns the output directory plus transcript or
+transcription error. Toby.app capture does not use this endpoint; it
+transcribes through `POST /api/listen/recordings/:id/transcribe`, which
+performs the same auto-summary.
 
 Errors:
 
@@ -438,6 +441,14 @@ reuses only a complete persisted Apple live transcript, then applies the usual
 metadata update and audio-retention policy. The default is `false`, so manual
 re-transcription always processes the audio again.
 
+After a successful transcription (JSON or `text/event-stream`), the handler
+writes an AI summary and, when `metadata.name` is empty, a short title. The
+SSE stream emits `Summarizing recording…` and `Naming recording…` status
+events before `done`. The `done` payload is the recording detail, including
+`summary` when generation succeeded. A summary or title failure is appended to
+`metadata.errors` and does not fail the transcription response. This is the
+path Toby.app uses after Stop; `ListenManager.stop()` is not on that path.
+
 Pass `recordingsDir` when the recording lives outside the default
 `~/.toby/listen/recordings` directory. The endpoint uses this directory as the
 search root for `:id`.
@@ -449,9 +460,10 @@ Errors:
 - `500` when plugin transcription fails. The error is also appended to the
   recording metadata.
 
-Re-transcribe clears any previously stored AI summary for the recording and
-clears prior `metadata.errors` so a successful retry does not leave a stale
-failure message on the recording.
+Re-transcribe clears any previously stored AI summary and prior
+`metadata.errors`, then auto-summarizes the new transcript. A name already
+set on the recording is kept. A failed auto-summary leaves the transcript in
+place and records the failure on `metadata.errors`.
 
 When Settings → Transcription → **Delete audio after transcription** is on (the
 default), a successful transcription also deletes the recording's audio files

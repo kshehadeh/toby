@@ -18,10 +18,10 @@ or Meet call are captured.
    menu bar icon or a global shortcut you set in **Settings → General**.
 2. The first time, allow the **Microphone** and **Screen & System Audio
    Recording** permissions when macOS asks.
-3. Click the button again to stop. Toby saves the recording and writes the
-   transcript.
-4. Open **Recordings** in the sidebar, select the recording, and click
-   **Summarize**.
+3. Click the button again to stop. Toby saves the recording, writes the
+   transcript, then writes a summary and a short title.
+4. Open **Recordings** in the sidebar. The recording uses that title instead
+   of the date. **Summarize** is still there if you want a new summary.
 
 Want to dig deeper? Click the chat button in the Recordings toolbar and ask
 questions such as "What did we decide about the launch date?" or "Turn the
@@ -80,7 +80,11 @@ When you stop and save:
    can also delete just the audio at any time with **Delete Audio** in the
    Recordings toolbar (disabled when the recording has no audio). A recording
    without audio cannot be re-transcribed.
-5. The result appears in the **Recordings** window (transcript, summary, delete).
+5. Toby then writes a summary from the transcript and, when you have not
+   named the recording, a short title that replaces the date in the sidebar.
+   If summarizing fails, the transcript is still kept and the error is stored
+   with the recording. The result appears in the **Recordings** window
+   (transcript, summary, delete).
    Opening a long recording shows the window title and date subtitle immediately;
    the transcript, summary, and player fill in after a short skeleton so the window
    stays responsive. Use **Edit Recording** to rename the take, inspect metadata,
@@ -92,14 +96,19 @@ When you stop and save:
 
 ## Summarize a recording
 
-After a recording is transcribed, open it in **Recordings** and use **Summarize**
+Toby writes the summary automatically after you stop and the transcript
+succeeds. It also replaces the date title with a short name taken from that
+summary, unless you already named the recording.
+
+To write the summary again, open the recording and use **Summarize**
 (or **Re-Summarize** if a summary already exists) in the toolbar, or the
-**Summarize** link on the Summary tab when no summary exists yet. Toby generates
-a concise markdown summary with the persona you choose under **Settings →
-Transcription → Persona for recording summaries** (or your default persona). The
-summary is stored with the recording and shown on the Summary tab. While Toby
-is generating the summary, the Summary card shows a rainbow outline; if a
-summary already exists, that text stays visible until the new one arrives.
+**Summarize** link on the Summary tab when no summary exists yet. That does
+not change a name you set. Toby generates a concise markdown summary with the
+persona you choose under **Settings → Transcription → Persona for recording
+summaries** (or your default persona). The summary is stored with the
+recording and shown on the Summary tab. While Toby is generating the summary,
+the Summary card shows a rainbow outline; if a summary already exists, that
+text stays visible until the new one arrives.
 
 You can still start a chat about a recording for deeper Q&A.
 
@@ -111,8 +120,8 @@ If a recording failed to transcribe or you changed your transcription settings:
 2. Select the recording.
 3. Use **Transcribe** / **Re-Transcribe** in the Recordings toolbar (or ask in chat to re-transcribe that recording).
 
-Re-transcribing clears any existing summary so it cannot outlive a new transcript.
-Run **Summarize** again after re-transcription if you still want a summary.
+Re-transcribing clears the old summary, then writes a new one from the new
+transcript. A name you already set stays as it is.
 
 ## Permissions
 

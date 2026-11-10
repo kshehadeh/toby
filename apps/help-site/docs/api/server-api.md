@@ -392,8 +392,12 @@ while keeping the recording entry, transcript, summary, and metadata. Records
 ### `POST /api/listen/recordings/:id/transcribe`
 
 Runs transcription against the recording’s audio and updates artifacts.
-A successful run clears any prior AI summary and prior `metadata.errors` so a
-retry after a failure does not leave a stale error on the recording.
+A successful run clears any prior AI summary and prior `metadata.errors`, then
+writes a new summary and, when the recording has no name, a short title. A
+summary or title failure stays on `metadata.errors` and does not fail the
+transcription. Toby.app calls this endpoint (as an event stream, with
+`reuseLiveTranscript: true`) after Stop; that is what auto-summarizes a
+recording.
 
 Optional body:
 
