@@ -1,4 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveTobyDir } from "../config";
 import { type SqliteDb, getDb } from "../session-store";
 import { parseTodoOperation } from "./operation";
 import type { Change, EntityKind, TodoOperation } from "./types";
@@ -78,10 +81,32 @@ export function setLocalValue(key: string, value: string): void {
 		.query("INSERT OR REPLACE INTO todo_local(key,value) VALUES($key,$value)")
 		.run({ $key: key, $value: value });
 }
+
+/**
+ * Notify that todos have changed by touching a file the app can watch.
+ * This allows the macOS app to immediately reconcile notifications when
+ * todos are created or modified via chat/CLI/daemon instead of waiting
+ * up to 30 seconds for the next poll interval.
+ */
+function notifyTodosChanged(): void {
+	try {
+		const notifyPath = path.join(resolveTobyDir(), ".todos-changed");
+		const now = new Date();
+		fs.utimesSync(notifyPath, now, now);
+	} catch {
+		// File doesn't exist yet; create it
+		try {
+			const notifyPath = path.join(resolveTobyDir(), ".todos-changed");
+			fs.writeFileSync(notifyPath, String(Date.now()), "utf-8");
+		} catch {
+			// Ignore errors; this is a best-effort notification
+		}
+	}
+}
 export function applyOperation(op: TodoOperation): boolean {
 	parseTodoOperation(op);
 	const db = todoDb();
-	return db.transaction(() => {
+	const applied = db.transaction(() => {
 		const existing = db
 			.query("SELECT data FROM todo_operations WHERE id=$id")
 			.get({ $id: op.id }) as { data: string } | null;
@@ -125,6 +150,12 @@ export function applyOperation(op: TodoOperation): boolean {
 		if (op.clock > previous) setLocalValue("clock", String(op.clock));
 		return true;
 	})();
+
+	if (applied) {
+		notifyTodosChanged();
+	}
+
+	return applied;
 }
 export function operations(): TodoOperation[] {
 	return (
