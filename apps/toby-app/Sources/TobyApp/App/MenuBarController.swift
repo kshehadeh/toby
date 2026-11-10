@@ -226,7 +226,7 @@ final class MenuBarController: NSObject {
 	}
 
 	private func libraryItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.library.menuTitle, route: .library, keyEquivalent: "6")
+		viewMenuItem(title: DetailRoute.library.menuTitle, route: .library, keyEquivalent: "0")
 	}
 
 	private func skillsItem() -> NSMenuItem {
@@ -237,7 +237,7 @@ final class MenuBarController: NSObject {
 		let item = NSMenuItem(
 			title: "Memories",
 			action: #selector(openMemoriesWindow),
-			keyEquivalent: "0"
+			keyEquivalent: "6"
 		)
 		item.target = self
 		item.keyEquivalentModifierMask = .command
