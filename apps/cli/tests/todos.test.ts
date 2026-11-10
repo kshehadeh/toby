@@ -421,4 +421,30 @@ describe("shared tool adapters", () => {
 		expect(listTodos().total).toBe(0);
 		expect(() => executeCoreTool("todos.create", { title: "" })).toThrow();
 	});
+	it("creates a notification file when todos are created or modified", () => {
+		const notifyPath = path.join(dir, ".todos-changed");
+		expect(fs.existsSync(notifyPath)).toBe(false);
+
+		// Create a todo
+		const item = createTodo({ title: "Test notification" });
+		expect(fs.existsSync(notifyPath)).toBe(true);
+
+		// Read the initial timestamp
+		const stat1 = fs.statSync(notifyPath);
+		const mtime1 = stat1.mtimeMs;
+
+		// Wait a bit to ensure timestamp would change
+		const start = Date.now();
+		while (Date.now() - start < 10) {
+			// Busy wait for 10ms
+		}
+
+		// Update the todo
+		updateTodo(item.id, { title: "Updated" });
+		const stat2 = fs.statSync(notifyPath);
+		const mtime2 = stat2.mtimeMs;
+
+		// Timestamp should have changed
+		expect(mtime2).toBeGreaterThan(mtime1);
+	});
 });

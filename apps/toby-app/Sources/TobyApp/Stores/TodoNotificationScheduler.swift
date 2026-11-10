@@ -14,6 +14,7 @@ final class TodoNotificationScheduler {
 	private var working = false
 	private var generation = UUID()
 	private var home = ""
+	private var lastChangedTimestamp: TimeInterval = 0
 
 	init(client: TobyClient = TobyClient(), defaults: UserDefaults = .standard) {
 		self.client = client
@@ -52,6 +53,7 @@ final class TodoNotificationScheduler {
 		let oldPrefix = prefix
 		generation = UUID()
 		loadHome()
+		lastChangedTimestamp = 0
 		let center = UNUserNotificationCenter.current()
 		let pending = await center.pendingNotificationRequests()
 		center.removePendingNotificationRequests(withIdentifiers: pending.filter { $0.identifier.hasPrefix(oldPrefix) }.map(\.identifier))
@@ -62,8 +64,29 @@ final class TodoNotificationScheduler {
 		NativeNotificationCoordinator.install()
 		while !Task.isCancelled {
 			await reconcile()
-			do { try await Task.sleep(for: .seconds(30)) } catch { break }
+			// Sleep in shorter intervals to check for file changes more frequently
+			for _ in 0..<6 {
+				do { try await Task.sleep(for: .seconds(5)) } catch { return }
+				if Task.isCancelled { return }
+				if await checkForChanges() {
+					await reconcile()
+				}
+			}
 		}
+	}
+	
+	private func checkForChanges() async -> Bool {
+		let changedPath = ConfigReader.resolveTobyDir().appending("/.todos-changed")
+		guard let attrs = try? FileManager.default.attributesOfItem(atPath: changedPath),
+			  let modDate = attrs[.modificationDate] as? Date else {
+			return false
+		}
+		let timestamp = modDate.timeIntervalSince1970
+		if timestamp > lastChangedTimestamp {
+			lastChangedTimestamp = timestamp
+			return true
+		}
+		return false
 	}
 
 	func reconcile() async {
