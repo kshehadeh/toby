@@ -113,6 +113,7 @@ final class MenuBarController: NSObject {
 			.separator(),
 			dashboardItem(),
 			chatsItem(),
+			todosItem(),
 			integrationsItem(),
 			projectsItem(),
 			libraryItem(),
@@ -191,6 +192,10 @@ final class MenuBarController: NSObject {
 		viewMenuItem(title: DetailRoute.chat.menuTitle, route: .chat, keyEquivalent: "2")
 	}
 
+	private func todosItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.todos.menuTitle, route: .todos, keyEquivalent: "4")
+	}
+
 	private func recordingsItem() -> NSMenuItem {
 		viewMenuItem(title: DetailRoute.recordings.menuTitle, route: .recordings, keyEquivalent: "9")
 	}
@@ -217,22 +222,22 @@ final class MenuBarController: NSObject {
 	}
 
 	private func projectsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.projects.menuTitle, route: .projects, keyEquivalent: "4")
+		viewMenuItem(title: DetailRoute.projects.menuTitle, route: .projects, keyEquivalent: "5")
 	}
 
 	private func libraryItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.library.menuTitle, route: .library, keyEquivalent: "0")
+		viewMenuItem(title: DetailRoute.library.menuTitle, route: .library, keyEquivalent: "6")
 	}
 
 	private func skillsItem() -> NSMenuItem {
-		viewMenuItem(title: DetailRoute.skills.menuTitle, route: .skills, keyEquivalent: "5")
+		viewMenuItem(title: DetailRoute.skills.menuTitle, route: .skills, keyEquivalent: "7")
 	}
 
 	private func memoriesItem() -> NSMenuItem {
 		let item = NSMenuItem(
 			title: "Memories",
 			action: #selector(openMemoriesWindow),
-			keyEquivalent: "6"
+			keyEquivalent: "0"
 		)
 		item.target = self
 		item.keyEquivalentModifierMask = .command

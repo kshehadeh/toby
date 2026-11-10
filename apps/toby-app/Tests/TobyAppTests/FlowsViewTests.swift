@@ -170,15 +170,8 @@ struct FlowsViewTests {
 		store.flows = [flow]
 		store.selectedFlowId = flow.id
 		let pane = detailsPane(store: store, flow: flow)
-		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Fetch unread inbox items and summarize them.")
-		}
-		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Built-in flows are read-only. Create a custom flow if you want to change the steps.")
-		}
-		#expect(throws: Never.self) {
-			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-overview-header")
-		}
+		// After commit c94edd55, flow-overview-header moved outside the tab pane
+		// to FlowDetailContent, so we no longer check for it here
 		#expect(throws: Never.self) {
 			try pane.inspect().find(viewWithAccessibilityIdentifier: "flow-node-pipeline")
 		}
@@ -354,7 +347,7 @@ struct FlowsViewTests {
 		#expect(store.selectedDetailTab == .details)
 		let view = FlowDetailContent(store: store, flow: flow)
 		#expect(throws: Never.self) {
-			try view.inspect().tabView()
+			try view.inspect().vStack().tabView(1)
 		}
 		#expect(throws: Never.self) {
 			try detailsPane(store: store, flow: flow).inspect().find(text: "How it works")
