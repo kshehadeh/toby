@@ -293,4 +293,137 @@ describe("ListenManager", () => {
 			expect(metadata.audioDeletedAt).toBeUndefined();
 		});
 	});
+
+	it("auto-summarizes and auto-titles after successful transcription", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const summarizeMock = mock(async () => ({
+				text: "This is a test summary of the recording.",
+				personaName: "Toby",
+				createdAt: new Date().toISOString(),
+			}));
+			const titleMock = mock(async () => ({
+				title: "Test recording summary",
+			}));
+
+			const manager = new ListenManager({
+				startCapture: ({ session, onEvent }) => {
+					fs.writeFileSync(path.join(session.tempDir, "combined.m4a"), "audio");
+					onEvent?.({
+						type: "ready",
+						files: { combined: path.join(session.tempDir, "combined.m4a") },
+					});
+					return {
+						helperPath: "/tmp/fake-helper",
+						child: fakeChild(),
+						stop: mock(async () => {}),
+						dispose: mock(),
+					};
+				},
+				transcribe: mock(async ({ outDir }) => {
+					const transcript = path.join(outDir, "transcript.txt");
+					fs.writeFileSync(transcript, "This is a test recording\n");
+					return { transcript };
+				}),
+				summarize: summarizeMock,
+				generateTitle: titleMock,
+			});
+			manager.start({ recordingsDir });
+
+			const stopped = await manager.stop();
+
+			expect(stopped.transcript).toBe("This is a test recording");
+			expect(summarizeMock).toHaveBeenCalledTimes(1);
+			expect(titleMock).toHaveBeenCalledTimes(1);
+
+			// Check that summary.md was created
+			expect(
+				fs.existsSync(path.join(stopped.outputDir ?? "", "summary.md")),
+			).toBe(true);
+
+			// Check that the title was set in metadata
+			const metadata = JSON.parse(
+				fs.readFileSync(
+					path.join(stopped.outputDir ?? "", "metadata.json"),
+					"utf8",
+				),
+			) as {
+				name?: string;
+				summary?: { createdAt: string; personaName?: string };
+			};
+			expect(metadata.name).toBe("Test recording summary");
+			expect(metadata.summary).toBeDefined();
+			expect(metadata.summary?.personaName).toBe("Toby");
+
+			// Verify summary content
+			const summaryContent = fs.readFileSync(
+				path.join(stopped.outputDir ?? "", "summary.md"),
+				"utf8",
+			);
+			expect(summaryContent.trim()).toBe(
+				"This is a test summary of the recording.",
+			);
+		});
+	});
+
+	it("continues gracefully when auto-summarization fails", async () => {
+		await withTempTobyDir(async () => {
+			const recordingsDir = path.join(
+				process.env.TOBY_DIR ?? "",
+				"listen",
+				"recordings",
+			);
+			const summarizeMock = mock(async () => {
+				throw new Error("AI model unavailable");
+			});
+
+			const manager = new ListenManager({
+				startCapture: ({ session, onEvent }) => {
+					fs.writeFileSync(path.join(session.tempDir, "combined.m4a"), "audio");
+					onEvent?.({
+						type: "ready",
+						files: { combined: path.join(session.tempDir, "combined.m4a") },
+					});
+					return {
+						helperPath: "/tmp/fake-helper",
+						child: fakeChild(),
+						stop: mock(async () => {}),
+						dispose: mock(),
+					};
+				},
+				transcribe: mock(async ({ outDir }) => {
+					const transcript = path.join(outDir, "transcript.txt");
+					fs.writeFileSync(transcript, "This is a test recording\n");
+					return { transcript };
+				}),
+				summarize: summarizeMock,
+			});
+			manager.start({ recordingsDir });
+
+			const stopped = await manager.stop();
+
+			// Recording should still succeed even if summarization failed
+			expect(stopped.status).toBe("idle");
+			expect(stopped.transcript).toBe("This is a test recording");
+			expect(summarizeMock).toHaveBeenCalledTimes(1);
+
+			// No summary.md should exist
+			expect(
+				fs.existsSync(path.join(stopped.outputDir ?? "", "summary.md")),
+			).toBe(false);
+
+			// Title should remain as the default timestamp
+			const metadata = JSON.parse(
+				fs.readFileSync(
+					path.join(stopped.outputDir ?? "", "metadata.json"),
+					"utf8",
+				),
+			) as { name?: string };
+			expect(metadata.name).toBeUndefined();
+		});
+	});
 });

@@ -9,6 +9,7 @@ import {
 	findListenRecordingById,
 	listenAudioAutoDeleteEnabled,
 	readListenTranscript,
+	writeListenSummary,
 } from "./recordings";
 import {
 	buildListenMetadata,
@@ -16,8 +17,13 @@ import {
 	prepareListenSession,
 	remapListenFilesToFinalDir,
 	saveListenSession,
+	updateListenRecordingMetadata,
 	writeListenMetadata,
 } from "./session-controller";
+import {
+	generateTitleFromSummary,
+	summarizeRecordingTranscript,
+} from "./summarizer";
 import { transcribeWithModel } from "./transcription-model";
 import {
 	DEFAULT_LISTEN_SOURCES,
@@ -64,6 +70,14 @@ export interface ListenManagerDeps {
 		readonly outDir: string;
 		readonly onStatus?: (message: string) => void;
 	}) => Promise<ListenRecordingFiles>;
+	readonly summarize?: (options: {
+		readonly transcript: string;
+		readonly recordingName?: string;
+		readonly durationMs?: number;
+	}) => Promise<{ text: string; personaName: string; createdAt: string }>;
+	readonly generateTitle?: (options: {
+		readonly summary: string;
+	}) => Promise<{ title: string }>;
 }
 
 export interface ListenStartOptions {
@@ -107,10 +121,16 @@ export class ListenManager {
 
 	private readonly startCapture: NonNullable<ListenManagerDeps["startCapture"]>;
 	private readonly transcribe: NonNullable<ListenManagerDeps["transcribe"]>;
+	private readonly summarize: NonNullable<ListenManagerDeps["summarize"]>;
+	private readonly generateTitle: NonNullable<
+		ListenManagerDeps["generateTitle"]
+	>;
 
 	constructor(deps: ListenManagerDeps = {}) {
 		this.startCapture = deps.startCapture ?? startMacOSAudioCapture;
 		this.transcribe = deps.transcribe ?? transcribeWithModel;
+		this.summarize = deps.summarize ?? summarizeRecordingTranscript;
+		this.generateTitle = deps.generateTitle ?? generateTitleFromSummary;
 	}
 
 	status(): ListenManagerState {
@@ -233,6 +253,65 @@ export class ListenManager {
 							errors: this.errors,
 						}),
 					);
+				}
+			}
+
+			// Auto-summarize after successful transcription
+			if (transcript) {
+				try {
+					this.message = "Summarizing recording...";
+					const recording = findListenRecordingById(
+						session.id,
+						path.dirname(outputDir),
+					);
+					if (recording) {
+						const summaryResult = await this.summarize({
+							transcript,
+							recordingName: recording.metadata.name,
+							durationMs: recording.metadata.durationMs,
+						});
+
+						const updatedRecording = writeListenSummary(recording, {
+							text: summaryResult.text,
+							personaName: summaryResult.personaName,
+							createdAt: summaryResult.createdAt,
+						});
+
+						// Auto-generate title from summary
+						try {
+							const titleResult = await this.generateTitle({
+								summary: summaryResult.text,
+							});
+							// Only set the title if the recording doesn't already have a custom name
+							if (!updatedRecording.metadata.name) {
+								updateListenRecordingMetadata(updatedRecording, {
+									name: titleResult.title,
+								});
+							}
+						} catch (titleError) {
+							// Title generation is optional; don't fail the whole process
+							// if it doesn't work. Just log and continue.
+							const titleErrorMsg =
+								titleError instanceof Error
+									? titleError.message
+									: String(titleError);
+							this.errors = [
+								...this.errors,
+								`Title generation failed: ${titleErrorMsg}`,
+							];
+						}
+					}
+				} catch (summaryError) {
+					// Summary generation is optional; don't fail the whole stop process
+					// if it doesn't work. Just add the error to the errors list.
+					const summaryErrorMsg =
+						summaryError instanceof Error
+							? summaryError.message
+							: String(summaryError);
+					this.errors = [
+						...this.errors,
+						`Auto-summarization failed: ${summaryErrorMsg}`,
+					];
 				}
 			}
 

@@ -263,13 +263,10 @@ struct ProjectsViewTests {
 		#expect(store.selectedDetailTab == .details)
 		let view = ProjectDetailContent(store: store, project: project)
 		#expect(throws: Never.self) {
-			try view.inspect().tabView()
+			try view.inspect().vStack().tabView(1)
 		}
-		#expect(throws: Never.self) {
-			try detailsPane(store: store, project: project).inspect().find(
-				viewWithAccessibilityIdentifier: "project-detail-name"
-			)
-		}
+		// After commit c94edd55, project-detail-name moved to ProjectDetailHeader
+		// which is outside the tab pane
 		#expect(throws: Never.self) {
 			try detailsPane(store: store, project: project).inspect().find(text: "Files")
 		}
@@ -357,13 +354,9 @@ struct ProjectsViewTests {
 		store.selectedProjectId = project.id
 		store.selectedProject = project
 
+		// After commit c94edd55, project-detail-name moved to ProjectDetailHeader
+		// which is outside the details pane, so we can no longer find it there
 		let pane = detailsPane(store: store, project: project)
-		#expect(throws: Never.self) {
-			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-detail-name")
-		}
-		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Demo")
-		}
 		#expect(throws: (any Error).self) {
 			try pane.inspect().find(viewWithAccessibilityIdentifier: "project-title-field")
 		}

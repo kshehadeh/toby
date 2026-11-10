@@ -338,12 +338,8 @@ struct SkillsViewTests {
 		)
 		store.selectedDetailTab = .about
 		let pane = aboutPane(store: store)
-		#expect(throws: Never.self) {
-			try pane.inspect().find(viewWithAccessibilityIdentifier: "skill-detail-name")
-		}
-		#expect(throws: Never.self) {
-			try pane.inspect().find(text: "Research")
-		}
+		// After commit c94edd55, skill-detail-name moved to SkillDetailHeader
+		// which is outside the tab pane, so we no longer check for it here
 		#expect(throws: Never.self) {
 			try pane.inspect().find(text: "Summary")
 		}
@@ -403,7 +399,7 @@ struct SkillsViewTests {
 		#expect(store.selectedDetailTab == .about)
 		let view = SkillDetailContent(store: store, skill: store.selectedSkill!)
 		#expect(throws: Never.self) {
-			try view.inspect().tabView()
+			try view.inspect().vStack().tabView(1)
 		}
 		#expect(throws: Never.self) {
 			try aboutPane(store: store).inspect().find(text: "Research assistant")

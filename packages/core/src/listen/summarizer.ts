@@ -120,3 +120,79 @@ export async function summarizeRecordingTranscript(
 		clearTimeout(timer);
 	}
 }
+
+const TITLE_GENERATION_PROMPT = `You are generating a very short title for a recording based on its summary.
+
+Create a concise title (3-6 words) that captures the main topic or purpose:
+- Be specific and descriptive
+- Use sentence case (capitalize first word only, except proper nouns)
+- NO quotes, NO punctuation at the end
+- Keep it brief and scannable
+- Output ONLY the title text, nothing else`;
+
+const TITLE_TIMEOUT_MS = 20_000;
+const TITLE_MAX_TOKENS = 50;
+
+export interface GenerateTitleFromSummaryParams {
+	readonly summary: string;
+}
+
+export interface GenerateTitleResult {
+	readonly title: string;
+}
+
+/**
+ * Generate a short title (3-6 words) from a recording summary using the same
+ * AI model that created the summary. Falls back gracefully on errors.
+ */
+export async function generateTitleFromSummary(
+	params: GenerateTitleFromSummaryParams,
+): Promise<GenerateTitleResult> {
+	const summary = params.summary.trim();
+	if (!summary) {
+		throw new Error("Cannot generate a title from an empty summary.");
+	}
+
+	const persona = resolveListenSummaryPersona();
+	const system = composeSystemPromptWithPersona(
+		TITLE_GENERATION_PROMPT,
+		persona,
+	);
+	const userPrompt = `Summary:\n\n${summary}`;
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), TITLE_TIMEOUT_MS);
+
+	try {
+		const model = createModelForPersona(persona);
+		const result = await generateText({
+			model,
+			instructions: system,
+			prompt: userPrompt,
+			abortSignal: controller.signal,
+			temperature: 0.3,
+			maxOutputTokens: TITLE_MAX_TOKENS,
+		});
+
+		let title = result.text.trim();
+		// Strip any surrounding quotes that the model might have added
+		title = title.replace(/^["']|["']$/g, "");
+		// Remove trailing punctuation
+		title = title.replace(/[.!?;,]+$/, "");
+		title = title.trim();
+
+		if (!title || title.length === 0) {
+			throw new Error("Model returned an empty title.");
+		}
+
+		return { title };
+	} catch (error) {
+		daemonLog("warn", "general", "listen_title_generation_error", {
+			error: error instanceof Error ? error.message : String(error),
+			persona: persona.name,
+		});
+		throw error;
+	} finally {
+		clearTimeout(timer);
+	}
+}

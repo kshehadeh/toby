@@ -439,7 +439,7 @@ struct RecordingsViewTests {
 		store.detail = makeRecordingDetail(id: "r1", transcript: nil, hasAudio: true)
 		let view = RecordingDetailContent(store: store, detail: store.detail!)
 		#expect(throws: Never.self) {
-			try view.inspect().tabView()
+			try view.inspect().vStack().tabView(1)
 		}
 		#expect(store.selectedDetailTab == .summary)
 		store.selectedDetailTab = .transcript
