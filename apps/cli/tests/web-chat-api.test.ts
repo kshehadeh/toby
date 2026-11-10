@@ -13,6 +13,7 @@ import {
 	prepareListenSession,
 	saveListenSession,
 } from "@toby/core/listen/session-controller";
+import * as actualSummarizer from "@toby/core/listen/summarizer";
 import { transcribeWithModel } from "@toby/core/listen/transcription-model";
 import {
 	closeChatDbForTests,
@@ -29,6 +30,20 @@ mock.module("@toby/core/listen/transcription-model", () => ({
 		fs.writeFileSync(path.join(outDir, "transcript.txt"), "mock transcript\n");
 		return { transcript: "transcript.txt" };
 	}),
+}));
+
+// Keep these route tests offline. Auto-summary now runs after transcription;
+// the app stop-path coverage lives in listen-auto-summary.test.ts.
+mock.module("@toby/core/listen/summarizer", () => ({
+	...actualSummarizer,
+	summarizeRecordingTranscript: mock(async () => ({
+		text: "Mock summary",
+		personaName: "Toby",
+		createdAt: "2026-11-10T00:00:00.000Z",
+	})),
+	generateTitleFromSummary: mock(async () => ({
+		title: "Mock title",
+	})),
 }));
 
 function canUseBunSqlite(): boolean {

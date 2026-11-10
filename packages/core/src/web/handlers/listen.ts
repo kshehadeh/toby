@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { gatewayFundsErrorBody } from "../../ai/gateway-funds";
+import { autoSummarizeListenRecording } from "../../listen/auto-summary";
 import { listenManager } from "../../listen/manager";
 import {
 	clearListenSummary,
@@ -245,7 +246,9 @@ async function handleListenRecordingTranscribeJson(
 			outDir: recording.dir,
 			reuseLiveTranscript: body?.reuseLiveTranscript === true,
 		});
-		return jsonResponse(finalizeTranscription(recording, transcriptFiles));
+		const saved = finalizeTranscription(recording, transcriptFiles);
+		const summarized = await autoSummarizeListenRecording(saved);
+		return jsonResponse(recordingDetailPayload(summarized));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		if (
@@ -311,8 +314,13 @@ async function handleListenRecordingTranscribeStream(
 						controller.enqueue(encode("status", { message }));
 					},
 				});
-				const detail = finalizeTranscription(recording, transcriptFiles);
-				controller.enqueue(encode("done", detail));
+				const saved = finalizeTranscription(recording, transcriptFiles);
+				const summarized = await autoSummarizeListenRecording(saved, {
+					onStatus: (message) => {
+						controller.enqueue(encode("status", { message }));
+					},
+				});
+				controller.enqueue(encode("done", recordingDetailPayload(summarized)));
 			} catch (error) {
 				const funds = gatewayFundsErrorBody(
 					error,
@@ -369,9 +377,8 @@ export async function handleListenRecordingSummarize(
 			personaName: result.personaName,
 			createdAt: result.createdAt,
 		});
-		// The manual Summarize button can be used to regenerate a summary,
-		// so we don't generate a title here to avoid overwriting user edits.
-		// Title generation only happens during auto-summarization after stop.
+		// Regenerating from the Summarize button must not rename a recording.
+		// Titles are applied only by autoSummarizeListenRecording, after stop.
 		return jsonResponse(recordingDetailPayload(updated));
 	} catch (error) {
 		const funds = gatewayFundsErrorBody(
@@ -416,10 +423,9 @@ function finalizeTranscription(
 	};
 	// Audio auto-delete after a successful transcription is on by default; the
 	// transcript, summary, and metadata stay behind.
-	const final = listenAudioAutoDeleteEnabled()
+	return listenAudioAutoDeleteEnabled()
 		? deleteListenRecordingAudio(updated)
 		: updated;
-	return recordingDetailPayload(final);
 }
 
 function writeRecordingError(

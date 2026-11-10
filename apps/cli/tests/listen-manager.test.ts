@@ -416,14 +416,18 @@ describe("ListenManager", () => {
 				fs.existsSync(path.join(stopped.outputDir ?? "", "summary.md")),
 			).toBe(false);
 
-			// Title should remain as the default timestamp
+			// Title should remain as the default timestamp, and the failure is
+			// stored on the recording so the Recordings inspector can show it.
 			const metadata = JSON.parse(
 				fs.readFileSync(
 					path.join(stopped.outputDir ?? "", "metadata.json"),
 					"utf8",
 				),
-			) as { name?: string };
+			) as { name?: string; errors?: string[] };
 			expect(metadata.name).toBeUndefined();
+			expect(metadata.errors).toEqual([
+				"Auto-summarization failed: AI model unavailable",
+			]);
 		});
 	});
 });

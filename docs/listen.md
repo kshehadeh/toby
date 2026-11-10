@@ -57,8 +57,10 @@ still use the separately configured AI persona.
   **Delete Audio** in the Recordings toolbar
   (`DELETE /api/listen/recordings/:id/audio`); after that, re-transcription is
   no longer possible because the source audio is gone.
-- Optionally generate `summary.md` via the configured summary persona after
-  transcription (on demand from the Recordings window).
+- After transcription succeeds, generate `summary.md` with the configured
+  summary persona and, when the recording has no name, a short title that
+  replaces the timestamp in the sidebar. The Recordings **Summarize** button
+  can regenerate the summary without renaming.
 - Write `metadata.json` next to each recording (includes optional `combine`
   diagnostics: mode / channel layout).
 
@@ -106,7 +108,12 @@ Stopping performs these steps:
    (and any prior AI summary). On success, when **Delete audio after
    transcription** is on (default), the daemon deletes the recording's audio
    files and records `metadata.audioDeletedAt`.
-5. Toby.app shows a success/error toast and the result becomes available in
+5. When that transcription succeeds, the same request writes `summary.md` and,
+   if the recording has no name yet, a short AI title on `metadata.name`.
+   A summary or title failure is appended to `metadata.errors` and does not
+   fail the transcription. Toby.app does not stop through `ListenManager.stop()`;
+   this transcribe request is the path that auto-summarizes.
+6. Toby.app shows a success/error toast and the result becomes available in
    the **Recordings** window.
 
 The Recordings window fetches list and detail data from the daemon. Reselecting
@@ -127,13 +134,16 @@ directories directly.
 
 ### Recording summaries
 
-When a recording has a non-empty transcript, the Recordings toolbar shows a
-**Summarize** button (or **Re-Summarize** when a summary already exists). The
-Summary tab shows the markdown when present, or an empty state with a
-**Summarize** link. While a summary is generating, the Summary card keeps any
-existing text (or a Summarizing… placeholder) and applies the shared
-`intelligenceOutline` rainbow ring. The app calls
-`POST /api/listen/recordings/:id/summarize`.
+Stopping a recording auto-summarizes once transcription succeeds (step 5
+above). The Recordings toolbar still shows a **Summarize** button (or
+**Re-Summarize** when a summary already exists) so a summary can be
+regenerated. The Summary tab shows the markdown when present, or an empty
+state with a **Summarize** link. While a summary is generating, the Summary
+card keeps any existing text (or a Summarizing… placeholder) and applies the
+shared `intelligenceOutline` rainbow ring. The button calls
+`POST /api/listen/recordings/:id/summarize`, which does not change
+`metadata.name`. Auto-summary after transcription is the only path that sets
+a title, and only when the name is still empty.
 The daemon:
 
 1. Reads `transcript.txt` for the recording.
@@ -144,8 +154,10 @@ The daemon:
 4. Writes `summary.md` and updates `metadata.json` (`files.summary`,
    `summary.createdAt`, `summary.personaName`).
 
-Re-summarize replaces the existing `summary.md`. Re-transcribe clears any
-persisted summary so it cannot outlive a new transcript.
+Re-summarize replaces the existing `summary.md` and leaves a custom name in
+place. Re-transcribe clears any persisted summary, then auto-summarizes the
+new transcript the same way a fresh stop does. A name already stored on the
+recording is kept.
 
 ```mermaid
 sequenceDiagram
@@ -173,7 +185,8 @@ sequenceDiagram
     Model-->>Daemon: text + segments
     Daemon->>Files: Write transcript.txt / transcript.json
     Daemon->>Files: Update metadata.json
-    Daemon-->>App: Transcription result
+    Daemon->>Files: Write summary.md and title when the transcript is non-empty
+    Daemon-->>App: Transcription result (includes summary when it succeeded)
     App-->>User: Show success / error toast
 ```
 

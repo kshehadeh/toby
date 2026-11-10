@@ -16,7 +16,7 @@ Open **Toby.app → Settings → Transcription**.
 | **Provider** | Transcription backend (Apple — On Device, OpenAI, Groq, Vercel AI Gateway, or OpenRouter) |
 | **Model** | Model id offered by that provider |
 | **API Key** | Optional dedicated key for transcription |
-| **Persona for recording summaries** | Persona used when you summarize a recording transcript (falls back to the default persona) |
+| **Persona for recording summaries** | Persona used for the summary Toby writes after a recording is transcribed, and when you summarize again (falls back to the default persona) |
 | **Record microphone** | Capture the mic during **Record Audio** (default on) |
 | **Record system audio** | Capture other apps during **Record Audio** (default on) |
 | **Delete audio after transcription** | Delete a recording's audio files once transcription succeeds (default on); the transcript, summary, and recording entry are kept |
@@ -102,9 +102,10 @@ Capture itself uses Toby.app’s [Native API](../api/native-api) (microphone / s
 
 ## Recording summaries
 
-Once a recording has a transcript, **Summarize** / **Re-Summarize** in the
-Recordings toolbar generates an AI summary using the persona selected here.
-See [Recordings](../listen).
+After you stop a recording and transcription succeeds, Toby writes a summary
+with the persona selected here and a short title when the recording is still
+unnamed. **Summarize** / **Re-Summarize** in the Recordings toolbar generates
+the summary again without changing a name you set. See [Recordings](../listen).
 
 ## If transcription fails
 
