@@ -369,6 +369,9 @@ export async function handleListenRecordingSummarize(
 			personaName: result.personaName,
 			createdAt: result.createdAt,
 		});
+		// The manual Summarize button can be used to regenerate a summary,
+		// so we don't generate a title here to avoid overwriting user edits.
+		// Title generation only happens during auto-summarization after stop.
 		return jsonResponse(recordingDetailPayload(updated));
 	} catch (error) {
 		const funds = gatewayFundsErrorBody(
