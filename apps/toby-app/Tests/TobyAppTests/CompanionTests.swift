@@ -155,17 +155,28 @@ struct CompanionTests {
 
 	@Test("Surface exposes an accessible multiline composer and send shortcut")
 	func composer() throws {
-		let view = CompanionBubbleView(store: CompanionStore(), close: {}, hide: {})
+		let view = CompanionBubbleView(store: CompanionStore(), close: {}, showMain: {}, hide: {})
 		let inspected = try view.inspect()
 		#expect(try inspected.find(text: "⌘Return to send").string() == "⌘Return to send")
 		_ = try inspected.find(viewWithAccessibilityIdentifier: "companion-composer").textEditor()
+	}
+
+	@Test("Options menu offers Show Main Window and Hide Toby's Head")
+	func optionsMenu() throws {
+		var shown = false, hidden = false
+		let view = CompanionBubbleView(store: CompanionStore(), close: {}, showMain: { shown = true }, hide: { hidden = true })
+		let menu = try view.inspect().find(ViewType.Menu.self)
+		try menu.button(0).tap()
+		try menu.button(2).tap()
+		#expect(shown)
+		#expect(hidden)
 	}
 
 	@Test("Companion renders conversation entries")
 	func conversationTranscript() throws {
 		let store = CompanionStore()
 		store.chat.transcript = [.user(text: "Question"), .assistant(text: "Answer")]
-		let view = CompanionBubbleView(store: store, close: {}, hide: {})
+		let view = CompanionBubbleView(store: store, close: {}, showMain: {}, hide: {})
 		let transcript = try view.inspect().find(TranscriptView.self).actualView()
 		#expect(transcript.entries == store.chat.transcript)
 	}

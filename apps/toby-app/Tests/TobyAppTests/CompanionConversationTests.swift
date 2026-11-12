@@ -34,7 +34,7 @@ struct CompanionConversationTests {
 		]
 		#expect(store.conversationEntries == [question, answer])
 		#expect(store.chat.transcript.count == 14) // Full saved chat remains intact.
-		let view = CompanionBubbleView(store: store, close: {}, hide: {})
+		let view = CompanionBubbleView(store: store, close: {}, showMain: {}, hide: {})
 		let transcript = try view.inspect().find(TranscriptView.self).actualView()
 		#expect(transcript.entries == [question, answer])
 		let groups = TranscriptGrouping.groupedItems(from: transcript.entries, isLoading: true)

@@ -94,7 +94,9 @@ final class CompanionPanelController: NSObject {
 			panel.title = "Ask Toby"
 			panel.onDismiss = { [weak self] in self?.closeConversation() }
 			panel.contentView = Self.makeBubbleHostingView(rootView: CompanionBubbleView(store: store,
-				close: { [weak self] in self?.closeConversation() }, hide: { [weak self] in self?.hide() })
+				close: { [weak self] in self?.closeConversation() },
+				showMain: { MainWindowCoordinator.shared.bringToFront() },
+				hide: { [weak self] in self?.hide() })
 				.tobyAppearance(AppearancePreferences.shared))
 			bubble = panel
 		}

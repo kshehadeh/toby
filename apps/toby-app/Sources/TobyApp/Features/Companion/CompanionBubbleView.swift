@@ -3,6 +3,7 @@ import SwiftUI
 struct CompanionBubbleView: View {
 	@Bindable var store: CompanionStore
 	let close: () -> Void
+	let showMain: () -> Void
 	let hide: () -> Void
 	@FocusState private var composerFocused: Bool
 
@@ -14,9 +15,12 @@ struct CompanionBubbleView: View {
 				Button("Start over", systemImage: "plus.bubble") { store.reset() }
 					.labelStyle(.iconOnly).help("Start a new chat").disabled(store.isThinking)
 				Menu {
-					Button("Hide Toby's Head", action: hide)
-				} label: { Image(systemName: "ellipsis") }
-					.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Companion options")
+					Button("Show Main Window", systemImage: "macwindow", action: showMain)
+					Divider()
+					Button("Hide Toby's Head", systemImage: "eye.slash", action: hide)
+				} label: { Image(systemName: "eye") }
+					.menuStyle(.borderlessButton).menuIndicator(.visible).fixedSize()
+					.help("Show or hide Toby").accessibilityLabel("Companion options")
 				Button("Close conversation", systemImage: "xmark", action: close)
 					.labelStyle(.iconOnly).help("Close conversation")
 			}
