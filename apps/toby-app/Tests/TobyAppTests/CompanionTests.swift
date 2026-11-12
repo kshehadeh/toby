@@ -25,6 +25,22 @@ struct CompanionTests {
 		#expect(controller.store.draft == "Keep this question")
 	}
 
+	@Test("Right-click menu offers showing the main window and hiding the head")
+	func contextMenu() throws {
+		let view = CompanionPortraitView(frame: NSRect(origin: .zero, size: CompanionGeometry.faceSize))
+		var showed = 0, hid = 0
+		view.showMain = { showed += 1 }
+		view.hide = { hid += 1 }
+		let menu = view.makeContextMenu()
+		#expect(menu.items.filter { !$0.isSeparatorItem }.map(\.title) == ["Show Main Window", "Hide Toby's Head"])
+		for item in menu.items where !item.isSeparatorItem {
+			let action = try #require(item.action)
+			_ = try #require(item.target).perform(action)
+		}
+		#expect(showed == 1)
+		#expect(hid == 1)
+	}
+
 	@Test("Animation base portrait renders visible pixels with transparent margins")
 	func portraitDrawing() throws {
 		_ = try #require(CompanionPortraitArtwork.image)

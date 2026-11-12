@@ -5,6 +5,7 @@ final class CompanionPortraitView: NSView {
 	var open: (() -> Void)?
 	var moved: (() -> Void)?
 	var hide: (() -> Void)?
+	var showMain: (() -> Void)?
 	private var dragStart: NSPoint?
 	private var originalOrigin: NSPoint?
 	private var didDrag = false
@@ -20,7 +21,7 @@ final class CompanionPortraitView: NSView {
 		setAccessibilityRole(.button)
 		setAccessibilityLabel("Toby's Head")
 		setAccessibilityHelp("Open the conversation. Drag to move Toby.")
-		toolTip = "Click to ask Toby · Drag to move · Right-click to hide"
+		toolTip = "Click to ask Toby · Drag to move · Right-click for more"
 	}
 
 	required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -88,12 +89,21 @@ final class CompanionPortraitView: NSView {
 	}
 
 	override func rightMouseDown(with event: NSEvent) {
-		let menu = NSMenu()
-		let item = NSMenuItem(title: "Hide Toby's Head", action: #selector(hideCompanion), keyEquivalent: "")
-		item.target = self
-		menu.addItem(item)
-		NSMenu.popUpContextMenu(menu, with: event, for: self)
+		NSMenu.popUpContextMenu(makeContextMenu(), with: event, for: self)
 	}
 
+	func makeContextMenu() -> NSMenu {
+		let menu = NSMenu()
+		let show = NSMenuItem(title: "Show Main Window", action: #selector(showMainWindow), keyEquivalent: "")
+		show.target = self
+		menu.addItem(show)
+		menu.addItem(.separator())
+		let hide = NSMenuItem(title: "Hide Toby's Head", action: #selector(hideCompanion), keyEquivalent: "")
+		hide.target = self
+		menu.addItem(hide)
+		return menu
+	}
+
+	@objc private func showMainWindow() { showMain?() }
 	@objc private func hideCompanion() { hide?() }
 }

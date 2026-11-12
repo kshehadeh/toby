@@ -43,6 +43,7 @@ final class CompanionPanelController: NSObject {
 			view.open = { [weak self] in self?.toggleConversation() }
 			view.moved = { [weak self] in self?.faceMoved() }
 			view.hide = { [weak self] in self?.hide() }
+			view.showMain = { MainWindowCoordinator.shared.bringToFront() }
 			panel.contentView = view
 			face = panel
 			let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1024, height: 768)

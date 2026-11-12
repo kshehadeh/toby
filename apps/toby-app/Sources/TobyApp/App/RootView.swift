@@ -213,6 +213,7 @@ struct RootView: View {
         contentWithSheets
             .background(WindowAccessor { window in
                 mainWindow = window
+                MainWindowCoordinator.shared.window = window
             })
             .onChange(of: history.current) { _, route in
                 TutorialStore.shared.setContext(TutorialSection.forRoute(route))
