@@ -1,6 +1,6 @@
 {
 	"name": "@toby/cli",
-	"version": "0.193.3",
+	"version": "0.193.4",
 	"description": "CLI-based tool for managing your life — email, calendar, todos, and more",
 	"type": "module",
 	"bin": {
