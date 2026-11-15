@@ -55,7 +55,7 @@
     "release:dry": "release-it --dry-run",
     "release:ci": "bun ./scripts/release-ci.mjs",
     "docs:install": "bun install",
-    "docs:start": "bun run --cwd apps/help-site start",
+    "docs:start": "bun run --cwd apps/help-site dev",
     "docs:build": "turbo run build --filter @toby/help-site"
   },
   "devDependencies": {

@@ -1,0 +1,170 @@
+---
+sidebar_position: 10
+title: macOS
+---
+
+<BrandTitle icon="/img/integrations/macos.png">macOS</BrandTitle>
+Connect Toby to local macOS system controls. The macOS plugin delegates all
+macOS-native operations to **Toby.app's native API server** — CoreWLAN,
+CoreAudio, IOBluetooth, IOKit, and AppKit run inside Toby.app, which holds the
+TCC permissions. No third-party tools or Homebrew packages are required.
+
+<Callout type="info" title="Platform">
+
+
+**macOS only.** The plugin is included automatically with Toby.app installs
+under `~/.toby/plugins/`.
+
+
+</Callout>
+
+## Prerequisites
+
+- macOS 26 or later with Toby running locally on the Mac you want to control
+- Toby.app running for macOS system tools (the plugin auto-launches Toby.app in the background if needed)
+
+## Connect
+
+Open **Toby.app → Settings → Integrations → macOS** and click **Connect**.
+
+Toby probes native system APIs and stores a connected flag in `~/.toby/config.json`.
+
+If chat says **macOS context unavailable** while Settings shows it connected,
+that can indicate a chat preparation error even when the native connection is
+healthy. Update Toby and start a new chat. In development, rebuild the macOS
+plugin and restart the daemon so it reloads the plugin's chat templates.
+
+## Find local files
+
+Ask “Show me the image files in Downloads” or “Find files with invoice in the
+name in Documents.” Toby can list a folder, filter image files or filenames,
+and fetch additional pages of results. Listings include filenames, paths,
+sizes, and modification dates. They cover the selected folder's direct
+children and omit hidden files. Listing images shows file details; image
+previews and reading file contents are separate operations.
+
+macOS may ask you to allow Toby to access Downloads, Desktop, or Documents.
+If access is denied, enable the relevant folder under **System Settings →
+Privacy & Security → Files and Folders → Toby**, then retry. Development builds
+appear as **Toby (Dev)**. The permission belongs to Toby.app.
+
+## Optional setup (bundled shortcuts)
+
+The macOS plugin can install signed **Toby Focus On** and **Toby Focus Off**
+shortcuts. Apple requires you to confirm each import in Shortcuts.app.
+
+If the integration offers a **Setup** action on its detail page (or during
+onboarding), run it once. Setup is idempotent — shortcuts already on your Mac
+are skipped.
+
+## Configure
+
+Open **Toby.app → Settings → Integrations → macOS**. There are no credential fields —
+connect is a one-time session flag on this Mac.
+
+## Verify
+
+Return to **Settings → Integrations**. macOS should show as connected and healthy.
+
+## Capabilities
+
+| Capability | Tool | Native framework |
+| ---------- | ---- | ---------------- |
+| Battery status | `macBatteryStatus` | IOKit PowerSources + AppleSmartBattery |
+| Wi‑Fi status and power | `macWifiStatus` / `macWifiSetPower` | CoreWLAN |
+| Nearby Wi‑Fi networks | `macWifiScanNearby` | CoreWLAN |
+| Audio inputs and outputs | `macAudioListOutputs` | CoreAudio |
+| Switch audio output | `macAudioSwitchOutput` | CoreAudio |
+| Audio volume | `macAudioVolume` | CoreAudio |
+| Set audio volume | `macAudioSetVolume` | CoreAudio |
+| Mute / unmute | `macAudioSetMute` | CoreAudio |
+| Bluetooth status | `macBluetoothStatus` | IOBluetooth |
+| Bluetooth power | `macBluetoothSetPower` | IOBluetooth |
+| Display brightness | `macDisplayBrightness` | IOKit IODisplay |
+| Set display brightness | `macDisplaySetBrightness` | IOKit IODisplay |
+| Read clipboard | `macClipboardRead` | AppKit NSPasteboard |
+| Write clipboard | `macClipboardWrite` | AppKit NSPasteboard |
+| Low Power Mode status | `macLowPowerModeStatus` | system power settings |
+| Low Power Mode set | `macLowPowerModeSet` | system power settings |
+| Run Shortcut | `macShortcutRun` | Shortcuts |
+| Quit an application normally | `macAppQuit` | AppKit |
+| Running application information | `macAppsRunning` | AppKit |
+| Local folder and image-file listing | `macFilesList` | Toby.app folder permissions |
+| System information | `macSystemInfo` | system info |
+| Notifications | `macNotificationsPeek` | **Not supported** |
+
+Mutating calls respect **dry run** when the chat session has dry-run enabled.
+
+## Running and quitting apps
+
+Ask Toby which apps are running, or ask about a particular app. Toby can show
+app names, bundle IDs, process IDs, locations, launch times, and whether an app
+is active or hidden. The default list includes regular apps; ask to include
+background apps to see menu bar and other background applications too.
+
+Toby can also tell you how long it has been since an app last had focus. The
+currently active app reports zero seconds; other apps report the time since
+they lost focus. Focus history starts when Toby launches and resets when Toby
+restarts. Apps Toby has not observed with focus report an unknown time, which
+does not mean they have never been used.
+
+Ask Toby to quit an app by its exact name or bundle ID. Toby requests a normal
+quit, so the app may show a save prompt or cancel quitting. A successful request
+does not mean the app has exited. Toby does not force quit apps and cannot quit
+itself through this tool. No extra macOS permission is needed for either tool.
+
+## Example chat prompts
+
+- "List my audio inputs and outputs."
+- "Switch my audio output to Plugable Audio."
+- "What's my current volume?"
+- "Set volume to 50."
+- "Mute the audio."
+- "Turn Wi‑Fi off."
+- "Show nearby Wi‑Fi networks."
+- "What's my display brightness?"
+- "Set brightness to 80."
+- "Read my clipboard."
+- "Copy this to my clipboard: Hello world."
+- "Show system info."
+- "Which applications are running?"
+- "Show information about Safari."
+- "List running apps, including background apps."
+- "Quit Safari."
+- "Run my Focus on shortcut."
+
+## Permissions
+
+| Area | Notes |
+| ---- | ----- |
+| Wi‑Fi scan | CoreWLAN may require Location Services authorization on first use. |
+| Bluetooth | Toby.app may prompt for Bluetooth access when you first check paired devices or change Bluetooth power. Allow access to use these tools. |
+| Window control | Minimize and restore tools route through Toby.app's native API server. Grant Accessibility to Toby.app in System Settings. |
+| Shortcuts | macOS may prompt for Automation permissions when Shortcuts access other apps. |
+| Low Power Mode | Changing Low Power Mode may require admin privileges on some Macs. |
+
+Toby never escalates privileges for you without an explicit system prompt.
+
+## Limitations
+
+- **Display brightness** on some Apple Silicon Macs may not be readable or adjustable through the IODisplay APIs.
+- **Notification Center** is not exposed through a stable public API, so Toby does not list notifications.
+
+## Disconnect
+
+Select macOS in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag; it does not modify system settings.
+
+## Related
+
+- [Integrations overview](overview)
+- [Apple Calendar](apple-calendar)
+- [Apple Reminders](apple-reminders)
+- [Apple Contacts](apple-contacts)
+- [Toby.app](../toby-app)
+- [Configure and connect](../getting-started/configure-and-status)
+
+## Event-triggered workflows
+
+[Event automations](../automations.md) can run saved flows when input resumes
+after inactivity or the Mac wakes. Configure them in **Flows → When**; Toby.app
+must remain running to observe the events.

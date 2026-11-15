@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { buildSlackManifest } from "../apps/plugin-slack/src/setup";
 
 await Bun.write(
-	new URL("../apps/help-site/static/slack-app-manifest.json", import.meta.url),
+	new URL("../apps/help-site/public/slack-app-manifest.json", import.meta.url),
 	`${JSON.stringify(buildSlackManifest(), null, "\t")}\n`,
 );
 
@@ -13,7 +13,7 @@ const result = Bun.spawnSync([
 	"--write",
 	fileURLToPath(
 		new URL(
-			"../apps/help-site/static/slack-app-manifest.json",
+			"../apps/help-site/public/slack-app-manifest.json",
 			import.meta.url,
 		),
 	),

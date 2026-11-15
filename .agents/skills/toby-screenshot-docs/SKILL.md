@@ -1,6 +1,6 @@
 ---
 name: toby-screenshot-docs
-description: Reliably capture Toby.app UI screenshots for the help site—discover what changed, navigate the live app with cua-driver, crop to the subject region, and publish PNGs under apps/help-site/static/img/. Use when the native UI changed or docs screenshots are stale.
+description: Reliably capture Toby.app UI screenshots for the help site—discover what changed, navigate the live app with cua-driver, crop to the subject region, and publish PNGs under apps/help-site/public/img/. Use when the native UI changed or docs screenshots are stale.
 ---
 
 # Capture Toby.app screenshots reliably
@@ -8,7 +8,7 @@ description: Reliably capture Toby.app UI screenshots for the help site—discov
 ## Goal
 
 Produce **accurate, region-focused** PNGs of the live Toby native macOS app for
-the help site (`apps/help-site/static/img/toby-app-*.png`).
+the help site (`apps/help-site/public/img/toby-app-*.png`).
 
 This skill is about **how to capture**, not a fixed catalog of doc pages.
 Documentation paths and filenames change; the app’s navigation and window model
@@ -80,7 +80,7 @@ routes appear without this skill being edited.
 
 ```bash
 # All published app screenshots
-ls apps/help-site/static/img/toby-app-*.png
+ls apps/help-site/public/img/toby-app-*.png
 
 # Where each is referenced
 rg -n 'toby-app-.*\.png' apps/help-site/docs/
@@ -375,7 +375,7 @@ For each final file:
 ## Step 7 — Publish and wire docs
 
 ```bash
-IMG_DIR="apps/help-site/static/img"
+IMG_DIR="apps/help-site/public/img"
 for f in "${RUN_DIR}"/toby-app-*.png; do
   cp "$f" "${IMG_DIR}/$(basename "$f")"
 done

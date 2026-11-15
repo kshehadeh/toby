@@ -141,12 +141,17 @@ guide for usage details.
 - Daemon and schedules: [docs/daemon.md](docs/daemon.md)
 - Agent/contributor guide: [AGENTS.md](AGENTS.md)
 
-The Docusaurus help site lives in `apps/help-site/`:
+The help site (Next.js static export, MDX content, Tailwind) lives in
+`apps/help-site/`. Pages are `apps/help-site/docs/**/*.mdx`; the sidebar is
+`apps/help-site/src/lib/sidebar.ts`.
 
 ```bash
-bun run docs:start
-bun run docs:build
+bun run docs:start   # dev server
+bun run docs:build   # static export to apps/help-site/out/
 ```
+
+It deploys to the Vercel project `toby-docs` (https://toby.iwonderdesigns.com)
+automatically when changes to `apps/help-site/` merge to `main`.
 
 ## Development
 

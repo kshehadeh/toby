@@ -13,14 +13,14 @@
 			"project": ["src/**/*.ts"]
 		},
 		"apps/help-site": {
-			"entry": ["src/pages/**/*.{tsx,jsx,mdx}", "sidebars.ts"],
-			"project": ["src/**/*.{ts,tsx,js,jsx}"]
+			"entry": [
+				"src/app/**/*.{ts,tsx}",
+				"next.config.ts",
+				"postcss.config.mjs"
+			],
+			"project": ["src/**/*.{ts,tsx}"]
 		}
 	},
-	"ignoreDependencies": [
-		"react",
-		"@docusaurus/plugin-content-docs",
-		"lint-staged"
-	],
+	"ignoreDependencies": ["react", "lint-staged"],
 	"ignoreBinaries": ["swift"]
 }

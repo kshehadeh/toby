@@ -4,8 +4,10 @@
 		"ignore": [
 			".build/**",
 			"dist/**",
-			"apps/help-site/build/**",
-			"apps/help-site/.docusaurus/**",
+			".vercel/**",
+			"apps/help-site/out/**",
+			"apps/help-site/.next/**",
+			"apps/help-site/next-env.d.ts",
 			"apps/toby-app/**",
 			".turbo/**",
 			".agents/**",

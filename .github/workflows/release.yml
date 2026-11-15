@@ -405,21 +405,23 @@ jobs:
         if: hashFiles('release-assets/appcast.xml') != ''
         uses: actions/configure-pages@v5
 
-      - name: Setup Bun for Pages appcast deploy
-        if: hashFiles('release-assets/appcast.xml') != ''
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.10"
-
-      - name: Install dependencies for Pages appcast deploy
-        if: hashFiles('release-assets/appcast.xml') != ''
-        run: bun install --frozen-lockfile
-
-      - name: Build help site with Sparkle appcast
+      # GitHub Pages now hosts only the Sparkle feed. Installed apps read
+      # SUFeedURL https://kshehadeh.github.io/toby/appcast.xml, so this must
+      # keep publishing. The help site deploys separately to the Vercel
+      # project `toby-docs` on merge to main (apps/help-site/vercel.json).
+      - name: Prepare Pages appcast site
         if: hashFiles('release-assets/appcast.xml') != ''
         run: |
-          bunx turbo run build --filter @toby/help-site
-          cp release-assets/appcast.xml apps/help-site/build/appcast.xml
+          mkdir -p pages
+          cp release-assets/appcast.xml pages/appcast.xml
+          touch pages/.nojekyll
+          cat > pages/index.html <<'EOF'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Toby</title>
+          <meta http-equiv="refresh" content="0; url=https://toby.iwonderdesigns.com/">
+          <a href="https://toby.iwonderdesigns.com/">Toby documentation</a>
+          EOF
 
       # Re-running this job (e.g. "Re-run failed jobs") leaves the previous
       # `github-pages` artifact in place. deploy-pages@v5 fails if it finds
@@ -446,7 +448,7 @@ jobs:
         if: hashFiles('release-assets/appcast.xml') != ''
         uses: actions/upload-pages-artifact@v4
         with:
-          path: apps/help-site/build
+          path: pages
 
       - name: Deploy Pages appcast artifact
         id: deployment
