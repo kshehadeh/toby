@@ -130,8 +130,42 @@ Create a concise title (3-6 words) that captures the main topic or purpose:
 - Keep it brief and scannable
 - Output ONLY the title text, nothing else`;
 
-const TITLE_TIMEOUT_MS = 20_000;
-const TITLE_MAX_TOKENS = 50;
+const TITLE_TIMEOUT_MS = 30_000;
+/**
+ * Output budget for the title call. The title is only a few words, but
+ * reasoning models (e.g. OpenRouter `openai/gpt-5.x`) count hidden reasoning
+ * against `maxOutputTokens`; a tight cap is exhausted before any visible text
+ * is emitted and the call returns an empty string.
+ */
+const TITLE_MAX_TOKENS = 1024;
+const TITLE_MAX_LENGTH = 120;
+
+/**
+ * Turn raw model output into a recording title: strip reasoning tags, take the
+ * first non-empty line, drop a "Title:" label, surrounding quotes, markdown
+ * emphasis/heading markers, and trailing punctuation. Returns "" when nothing
+ * usable remains.
+ */
+export function normalizeGeneratedTitle(raw: string): string {
+	const cleaned = extractDashboardSummaryText(raw);
+	const firstLine =
+		cleaned
+			.split("\n")
+			.map((line) => line.trim())
+			.find((line) => line.length > 0) ?? "";
+	let title = firstLine
+		.replace(/^#+\s*/, "")
+		.replace(/^[-*]\s+/, "")
+		.replace(/^title\s*:\s*/i, "")
+		.replace(/^\*\*(.*)\*\*$/, "$1")
+		.trim();
+	title = title.replace(/^["'“‘`]+|["'”’`]+$/g, "").trim();
+	title = title.replace(/[.!?;,:]+$/, "").trim();
+	if (title.length > TITLE_MAX_LENGTH) {
+		title = title.slice(0, TITLE_MAX_LENGTH).trim();
+	}
+	return title;
+}
 
 export interface GenerateTitleFromSummaryParams {
 	readonly summary: string;
@@ -174,15 +208,20 @@ export async function generateTitleFromSummary(
 			maxOutputTokens: TITLE_MAX_TOKENS,
 		});
 
-		let title = result.text.trim();
-		// Strip any surrounding quotes that the model might have added
-		title = title.replace(/^["']|["']$/g, "");
-		// Remove trailing punctuation
-		title = title.replace(/[.!?;,]+$/, "");
-		title = title.trim();
-
-		if (!title || title.length === 0) {
-			throw new Error("Model returned an empty title.");
+		const title = normalizeGeneratedTitle(result.text);
+		if (!title) {
+			daemonLog("warn", "general", "listen_title_empty", {
+				finishReason: result.finishReason,
+				outputTokens: result.usage?.outputTokens,
+				reasoningTokens: result.usage?.outputTokenDetails?.reasoningTokens,
+				rawLength: result.text.length,
+				persona: persona.name,
+			});
+			throw new Error(
+				result.finishReason === "length"
+					? "Model ran out of output tokens before returning a title."
+					: "Model returned an empty title.",
+			);
 		}
 
 		return { title };
