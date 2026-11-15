@@ -30,7 +30,7 @@ The installer places `toby` on your PATH, installs helper binaries under
 `~/.toby/helpers/`, installs first-party plugins under `~/.toby/plugins/`, and
 runs `toby whisper setup` for the default local transcription model.
 
-See the help-site [Install Toby](https://toby.iwonderdesigns.com/docs/getting-started/install)
+See the help-site [Install Toby](https://www.tobyai.app/docs/getting-started/install)
 guide for manual release installs, source installs, and optional installer
 settings.
 
@@ -79,7 +79,7 @@ work from the CLI, daemon, headless scripts, or tests without importing
 React or Commander.
 
 See [docs/architecture.md](docs/architecture.md) and the help-site
-[Architecture](https://toby.iwonderdesigns.com/docs/architecture/overview)
+[Architecture](https://www.tobyai.app/docs/architecture/overview)
 page for more detail.
 
 ## Integrations and Plugins
@@ -108,8 +108,8 @@ backward compatibility.
 
 See:
 
-- [Integrations overview](https://toby.iwonderdesigns.com/docs/integrations/overview)
-- [Creating a plugin](https://toby.iwonderdesigns.com/docs/plugins/creating-a-plugin)
+- [Integrations overview](https://www.tobyai.app/docs/integrations/overview)
+- [Creating a plugin](https://www.tobyai.app/docs/plugins/creating-a-plugin)
 - [Plugin protocol](docs/plugin-protocol.md)
 
 ## Core Commands
@@ -128,12 +128,12 @@ See:
 | `toby upgrade` | Download and install the latest release. |
 
 See [docs/commands.md](docs/commands.md) and the help-site
-[Your first chat](https://toby.iwonderdesigns.com/docs/getting-started/first-chat)
+[Your first chat](https://www.tobyai.app/docs/getting-started/first-chat)
 guide for usage details.
 
 ## Documentation
 
-- Help site: <https://toby.iwonderdesigns.com/docs/intro>
+- Help site: <https://www.tobyai.app/docs/intro>
 - Source docs index: [docs/README.md](docs/README.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Integrations: [docs/integrations.md](docs/integrations.md)
@@ -150,7 +150,7 @@ bun run docs:start   # dev server
 bun run docs:build   # static export to apps/help-site/out/
 ```
 
-It deploys to the Vercel project `toby-docs` (https://toby.iwonderdesigns.com)
+It deploys to the Vercel project `toby-docs` (https://www.tobyai.app)
 automatically when changes to `apps/help-site/` merge to `main`.
 
 ## Development

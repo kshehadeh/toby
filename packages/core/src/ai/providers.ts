@@ -24,8 +24,7 @@ export interface AIProviderInfo {
 }
 
 /** Public Toby docs base for AI provider setup guides. */
-const AI_PROVIDER_DOCS_BASE =
-	"https://toby.iwonderdesigns.com/docs/ai-providers";
+const AI_PROVIDER_DOCS_BASE = "https://www.tobyai.app/docs/ai-providers";
 
 export const AI_PROVIDERS: AIProviderInfo[] = [
 	{

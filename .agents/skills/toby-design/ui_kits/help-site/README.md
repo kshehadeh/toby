@@ -1,7 +1,7 @@
 # Toby help site — UI kit
 
 Recreation of the Docusaurus documentation site at
-https://toby.iwonderdesigns.com, built from `toby/apps/help-site`
+https://www.tobyai.app, built from `toby/apps/help-site`
 (`src/css/custom.css`, `src/pages/index.tsx`, `src/pages/index.module.css`,
 `src/components/DownloadTobyButton.tsx`, `docs/**`).
 

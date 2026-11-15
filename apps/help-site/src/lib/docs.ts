@@ -9,7 +9,7 @@ export const DOCS_DIR = path.join(process.cwd(), "docs");
 export const SITE = {
 	title: "Toby",
 	tagline: "Native macOS AI assistant for personal productivity workflows.",
-	url: "https://toby.iwonderdesigns.com",
+	url: "https://www.tobyai.app",
 	github: "https://github.com/kshehadeh/toby",
 	editBase: "https://github.com/kshehadeh/toby/tree/main/apps/help-site/docs/",
 } as const;

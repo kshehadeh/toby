@@ -419,8 +419,8 @@ jobs:
           <!doctype html>
           <meta charset="utf-8">
           <title>Toby</title>
-          <meta http-equiv="refresh" content="0; url=https://toby.iwonderdesigns.com/">
-          <a href="https://toby.iwonderdesigns.com/">Toby documentation</a>
+          <meta http-equiv="refresh" content="0; url=https://www.tobyai.app/">
+          <a href="https://www.tobyai.app/">Toby documentation</a>
           EOF
 
       # Re-running this job (e.g. "Re-run failed jobs") leaves the previous

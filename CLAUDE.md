@@ -94,6 +94,7 @@ Window chrome: `toby-native-window`. See `Agents.md` → **Swift review skills**
   read `https://kshehadeh.github.io/toby/appcast.xml`)
 - Help site — Vercel project `toby-docs` (Git integration) deploys production on
   every merge to `main` that touches `apps/help-site/` (config in
-  `apps/help-site/vercel.json`); serves `toby.iwonderdesigns.com`
+  `apps/help-site/vercel.json`); serves `www.tobyai.app` (`tobyai.app` redirects
+  there; shipped app builds still link to the legacy `toby.iwonderdesigns.com`)
 - `e2e.yml` (`.github/workflows/e2e.yml`) — runs Swift UI tests on every PR
 - Requires Xcode on the runner: workflow selects it with `xcode-select` before testing
