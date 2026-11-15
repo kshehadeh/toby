@@ -26,7 +26,7 @@ creating an app and installing an existing app are separate operations.
   returns a user token in the normal flow, not the inbound bot/app token pair.
 - `getSlackInboundCredentials` requires bot and app-level tokens. Ordinary chat
   readiness is separate and currently does not prove inbound readiness.
-- `apps/help-site/static/slack-app-manifest.json` already provides a starting
+- `apps/help-site/public/slack-app-manifest.json` already provides a starting
   manifest, but its scopes differ from `OAUTH_USER_SCOPES` and it should explicitly
   configure the App Home messages experience for supported DMs.
 - Earlier work in this thread corrects startup errors being reported as connected.

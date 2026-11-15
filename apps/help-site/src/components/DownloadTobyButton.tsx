@@ -1,4 +1,5 @@
-import type React from "react";
+"use client";
+
 import { useEffect, useState } from "react";
 
 /** Direct asset from the latest GitHub release (Apple Silicon DMG). */
@@ -10,7 +11,6 @@ const LATEST_RELEASE_API =
 
 type DownloadTobyButtonProps = {
 	readonly className?: string;
-	/** Infima size: large (default) or normal. */
 	readonly size?: "lg" | "md";
 };
 
@@ -18,19 +18,16 @@ type DownloadTobyButtonProps = {
  * Primary install CTA. Fetches the latest release tag from GitHub so the
  * button can show the current version (falls back if the request fails).
  */
-export default function DownloadTobyButton({
+export function DownloadTobyButton({
 	className,
 	size = "lg",
-}: DownloadTobyButtonProps): React.JSX.Element {
+}: DownloadTobyButtonProps) {
 	const [version, setVersion] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
-
 		fetch(LATEST_RELEASE_API, {
-			headers: {
-				Accept: "application/vnd.github+json",
-			},
+			headers: { Accept: "application/vnd.github+json" },
 		})
 			.then((response) => (response.ok ? response.json() : null))
 			.then((data: { tag_name?: string } | null) => {
@@ -41,7 +38,6 @@ export default function DownloadTobyButton({
 			.catch(() => {
 				/* keep fallback label */
 			});
-
 		return () => {
 			cancelled = true;
 		};
@@ -50,20 +46,14 @@ export default function DownloadTobyButton({
 	const label = version
 		? `⬇ Download Toby v${version}`
 		: "⬇ Download Toby for macOS";
-
-	const sizeClass = size === "lg" ? "button--lg" : undefined;
-	const classes = [
-		"button",
-		"button--primary",
-		"downloadTobyButton",
-		sizeClass,
-		className,
-	]
-		.filter(Boolean)
-		.join(" ");
+	const sizeClass =
+		size === "lg" ? "px-9 py-[0.5625rem] text-xl" : "px-6 py-1.5 text-sm";
 
 	return (
-		<a className={classes} href={TOBY_DMG_DOWNLOAD_URL}>
+		<a
+			href={TOBY_DMG_DOWNLOAD_URL}
+			className={`inline-block rounded-lg border border-accent bg-accent text-center font-bold leading-normal text-fg no-underline transition-colors hover:border-accent-dim hover:bg-accent-dim hover:text-fg ${sizeClass} ${className ?? ""}`}
+		>
 			{label}
 		</a>
 	);

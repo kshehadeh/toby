@@ -35,7 +35,7 @@ Root scripts of interest: `build`, `build:plugins` / `build:plugin:*`, `build:ex
 apps/
   cli/                    @toby/cli — Commander CLI (apps/cli/src/cli.ts, commands/)
   toby-app/               Toby.app — Swift 6 / SwiftUI, macOS 26+ (Sources/TobyApp/, Tests/)
-  help-site/              Docusaurus user docs (apps/help-site/docs/)
+  help-site/              Next.js static user docs (MDX in apps/help-site/docs/)
   plugin-email/           toby-plugin-email  (bun-package plugin)
   plugin-slack/           toby-plugin-slack  (chat + inbound)
   plugin-jira/            toby-plugin-jira
@@ -197,7 +197,7 @@ See [`docs/architecture.md`](docs/architecture.md), [`docs/security.md`](docs/se
 | [`atomic-conventional-commit`](.agents/skills/atomic-conventional-commit/) | Commits (`feat`/`fix`/`docs`/`refactor`/`test`/`chore`, atomic per feature/bug) |
 | [`release-toby`](.agents/skills/release-toby/) | Releases (`release-it`, archives, DMG, installer, self-upgrade) |
 | [`toby-design`](.agents/skills/toby-design/) | Required for native UI work: source-backed design contract, component/state recipes, Figma map, prototypes, mocks |
-| [`toby-screenshot-docs`](.agents/skills/toby-screenshot-docs/) | Native UI screenshots for help-site (`apps/help-site/static/img/`) |
+| [`toby-screenshot-docs`](.agents/skills/toby-screenshot-docs/) | Native UI screenshots for help-site (`apps/help-site/public/img/`) |
 | `resolve-github-issue` | End-to-end GitHub issue resolution (`gh`, plan in spec mode) |
 | Swift pipeline (below) | SwiftUI/macOS reviews |
 | Reference only: [`swiftui-pro`](.agents/skills/swiftui-pro/), [`swiftui-expert-skill`](.agents/skills/swiftui-expert-skill/), [`toby-native-window`](.agents/skills/toby-native-window/) | Deep SwiftUI topic refs, Instruments, window chrome |
@@ -296,6 +296,6 @@ Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
 - Daemon: [`packages/core/src/daemon/`](packages/core/src/daemon/) + [`docs/daemon.md`](docs/daemon.md)
 - Native app: [`apps/toby-app/`](apps/toby-app/) (`Sources/TobyApp/Native/`, `Sources/TobyApp/Features/`, `Tests/`)
 - Plugin example: [`apps/plugin-sample-ts/`](apps/plugin-sample-ts/) (`manifest.json`, `src/index.ts`)
-- Help site: [`apps/help-site/`](apps/help-site/) (`docs/`, `static/img/`)
+- Help site: [`apps/help-site/`](apps/help-site/) (`docs/*.mdx`, `public/img/`, sidebar in `src/lib/sidebar.ts`)
 - Build/release: [`scripts/build-app.sh`](scripts/build-app.sh), [`scripts/build-release-artifacts.sh`](scripts/build-release-artifacts.sh), [`scripts/build-dmg.sh`](scripts/build-dmg.sh)
 - Config: `package.json` (workspaces, scripts), `turbo.json`, `biome.json`, `knip.json`, `tsconfig.base.json`

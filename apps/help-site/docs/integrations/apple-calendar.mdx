@@ -1,0 +1,69 @@
+---
+sidebar_position: 7
+title: Apple Calendar
+---
+
+<BrandTitle icon="/img/integrations/apple-calendar.png">Apple Calendar</BrandTitle>
+Connect Toby to **Calendar.app** on your Mac to search, create, and update events.
+
+The Apple Calendar plugin ships with Toby.app under `~/.toby/plugins/`.
+
+<Callout type="info" title="Platform">
+
+
+**macOS only.** Calendar tools require Calendar.app on a Mac.
+
+
+</Callout>
+
+## Prerequisites
+
+- macOS with **Calendar.app** and at least one calendar (iCloud, Exchange, Google via CalDAV, etc.)
+- **Toby.app** installed and launched (the plugin auto-launches it when not running)
+- Calendar permission granted to **Toby.app** in System Settings → Privacy & Security → Calendars
+
+## Configure
+
+Open **Toby.app → Settings → Integrations → Apple Calendar**. Optional **Notes** are for your own reference only. Save.
+
+## Connect
+
+Click **Connect** on the Apple Calendar detail page. Toby runs a Calendar.app health check and stores a connected flag.
+
+The plugin delegates all calendar operations to Toby.app's native API server,
+which uses EventKit to access Calendar.app. When Toby.app is not running, the
+plugin auto-launches it in the background. Calendar permission is granted to
+Toby.app, not the plugin itself.
+
+## Verify
+
+Return to **Settings → Integrations**. Apple Calendar should show as connected. The first time you use calendar tools, macOS may prompt you to grant Calendar access to Toby.app.
+
+## Home
+
+When Apple Calendar is connected (and set as the default calendar provider under
+**Settings → Providers**, if you use more than one calendar integration),
+the Home **Upcoming** card shows events for the next 7 days. You can
+hide or show that card under **Settings → Home**.
+
+## Disconnect
+
+Select Apple Calendar in **Settings → Integrations** and click **Disconnect**.
+
+## Example chat prompts
+
+- “What meetings do I have tomorrow between 9am and 5pm?”
+- “Create a 30-minute focus block called Deep work tomorrow at 10am on my Work calendar.”
+
+## Tips
+
+- Use exact calendar names from your calendar list when filtering.
+- Event UIDs are Calendar.app string identifiers returned by search or create tools.
+
+## Related
+
+- [Integrations overview](overview)
+- [Apple Reminders](apple-reminders)
+- [Apple Contacts](apple-contacts)
+- [Toby.app](../toby-app)
+- [Configure and connect](../getting-started/configure-and-status)

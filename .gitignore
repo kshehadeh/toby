@@ -4,11 +4,13 @@ dist/
 .toby/
 .factory/settings.json
 .vscode/settings.json
-apps/help-site/build/
-apps/help-site/.docusaurus/
+apps/help-site/out/
+apps/help-site/.next/
 .build/
 apps/plugin-macos/.build/
 .env
 .DS_Store
 .swiftpm
 .last-temp-dir
+.vercel
+.env*

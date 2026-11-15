@@ -89,6 +89,11 @@ Window chrome: `toby-native-window`. See `Agents.md` → **Swift review skills**
 
 ## CI
 
-- `release.yml` — triggered on version tags; builds, signs, notarizes, and publishes
+- `release.yml` — triggered on version tags; builds, signs, notarizes, and publishes;
+  its GitHub Pages job now only publishes the Sparkle `appcast.xml` (installed apps
+  read `https://kshehadeh.github.io/toby/appcast.xml`)
+- Help site — Vercel project `toby-docs` (Git integration) deploys production on
+  every merge to `main` that touches `apps/help-site/` (config in
+  `apps/help-site/vercel.json`); serves `toby.iwonderdesigns.com`
 - `e2e.yml` (`.github/workflows/e2e.yml`) — runs Swift UI tests on every PR
 - Requires Xcode on the runner: workflow selects it with `xcode-select` before testing
