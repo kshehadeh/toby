@@ -68,3 +68,13 @@ folder paths (they include the username).
 
 The Recordings tile uses an HTML mock instead of a screenshot so no real
 transcript content is published.
+
+## Doc screenshots
+
+The `toby-app-*.png` images used by the doc pages follow the same rules: dark
+mode, orange accent, generic data home. Capture them on a Retina display with
+cua-driver's `max_image_dimension` raised to 2048 so full-window shots land at
+2x (2048×1440 for the main window). Blur the folder path in the Projects and
+Settings > General shots, since both show the macOS username. The
+`toby-app-home-color-{light,dark}.png` pair intentionally shows both
+appearances.

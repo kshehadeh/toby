@@ -420,6 +420,9 @@ cua-driver end_session "{\"session\":\"$SESSION\"}"
 | Overlay in image | `set_agent_cursor_enabled` false for the session before capture |
 | Daemon/permissions | `cua-driver doctor` / `permissions status` |
 | Personal data in UI | App launched without `TOBY_DIR`; re-run `bun run app:screenshots -- --reseed` |
+| AX `elements` have no labels | Labels and ids live in `tree_markdown` (`[N] AXButton (Save) [id=…]`); match lines there to find the index |
+| Settings sidebar, toolbar, or segmented control ignores pixel clicks | Use AX presses (row/button ids such as `settings-ai-row-ai.openai`, `settings-nav-back`, `AXRadioButton (Model)`). For the sidebar, re-select **Settings…** from the app menu so the sidebar takes focus, then send Up/Down keys |
+| Every action prints `session ended; tool call ignored` | The session expired; `start_session` again with a new id |
 | Empty / wrong integrations | `bun run app:screenshots -- --reseed` (copies connection flags from real config) |
 
 ---
