@@ -8,7 +8,6 @@ import "./globals.css";
 
 const inter = Inter({
 	subsets: ["latin"],
-	weight: ["400", "500", "600", "700"],
 	variable: "--font-inter",
 	display: "swap",
 	adjustFontFallback: false,
@@ -23,18 +22,33 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-	themeColor: "#000000",
+	themeColor: "#08090a",
 	colorScheme: "dark",
 };
+
+// Runs before paint so scroll-reveal content is only hidden when JS can show it.
+const markJs = "document.documentElement.classList.add('js')";
 
 export default function RootLayout({
 	children,
 }: { readonly children: ReactNode }) {
 	return (
-		<html lang="en" className={inter.variable}>
+		<html lang="en" className={inter.variable} suppressHydrationWarning>
+			<head>
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline flag */}
+				<script dangerouslySetInnerHTML={{ __html: markJs }} />
+			</head>
 			<body className="flex min-h-screen flex-col">
+				<a
+					href="#main"
+					className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface-raised focus:px-3 focus:py-2 focus:text-fg"
+				>
+					Skip to content
+				</a>
 				<Navbar nav={getNavTree()} />
-				<div className="flex flex-1 flex-col">{children}</div>
+				<div id="main" className="flex flex-1 flex-col">
+					{children}
+				</div>
 				<Footer />
 			</body>
 		</html>

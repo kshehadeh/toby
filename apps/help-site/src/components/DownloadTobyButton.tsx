@@ -1,6 +1,8 @@
 "use client";
 
+import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
+import { buttonClass } from "./Button";
 
 /** Direct asset from the latest GitHub release (Apple Silicon DMG). */
 export const TOBY_DMG_DOWNLOAD_URL =
@@ -9,19 +11,8 @@ export const TOBY_DMG_DOWNLOAD_URL =
 const LATEST_RELEASE_API =
 	"https://api.github.com/repos/kshehadeh/toby/releases/latest";
 
-type DownloadTobyButtonProps = {
-	readonly className?: string;
-	readonly size?: "lg" | "md";
-};
-
-/**
- * Primary install CTA. Fetches the latest release tag from GitHub so the
- * button can show the current version (falls back if the request fails).
- */
-export function DownloadTobyButton({
-	className,
-	size = "lg",
-}: DownloadTobyButtonProps) {
+/** Latest release version without the `v` prefix, or null until known. */
+export function useLatestVersion(): string | null {
 	const [version, setVersion] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -43,17 +34,40 @@ export function DownloadTobyButton({
 		};
 	}, []);
 
-	const label = version
-		? `⬇ Download Toby v${version}`
-		: "⬇ Download Toby for macOS";
-	const sizeClass =
-		size === "lg" ? "px-9 py-[0.5625rem] text-xl" : "px-6 py-1.5 text-sm";
+	return version;
+}
+
+type DownloadTobyButtonProps = {
+	readonly className?: string;
+	readonly size?: "sm" | "md" | "lg";
+	readonly variant?: "accent" | "primary";
+	/** Short label ("Download") for tight spaces such as the navbar. */
+	readonly compact?: boolean;
+};
+
+/**
+ * Primary install CTA. Fetches the latest release tag from GitHub so the
+ * button can show the current version (falls back if the request fails).
+ */
+export function DownloadTobyButton({
+	className,
+	size = "lg",
+	variant = "accent",
+	compact = false,
+}: DownloadTobyButtonProps) {
+	const version = useLatestVersion();
+	const label = compact
+		? "Download"
+		: version
+			? `Download Toby v${version}`
+			: "Download Toby for macOS";
 
 	return (
 		<a
 			href={TOBY_DMG_DOWNLOAD_URL}
-			className={`inline-block rounded-lg border border-accent bg-accent text-center font-bold leading-normal text-fg no-underline transition-colors hover:border-accent-dim hover:bg-accent-dim hover:text-fg ${sizeClass} ${className ?? ""}`}
+			className={buttonClass(variant, size, className)}
 		>
+			<Download aria-hidden size={size === "sm" ? 14 : 16} strokeWidth={2.2} />
 			{label}
 		</a>
 	);

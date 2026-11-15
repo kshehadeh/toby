@@ -43,6 +43,7 @@ Human- and flow-oriented docs for this repository.
 | [ai-caching.md](ai-caching.md) | Provider prompt caching adapters and token telemetry. |
 | [acp-backends-plan.md](acp-backends-plan.md) | Proposed implementation: selectable API/ACP backends for chat, summaries, flows, and auxiliary generation. |
 | [memory.md](memory.md) | Durable user memory subsystem (`memory.sqlite`). |
+| [help-site.md](help-site.md) | www.tobyai.app: landing page, docs routes, design tokens, landing screenshots. |
 | [build-executable.md](build-executable.md) | Bun `bun build --compile` standalone binary and releases. |
 | [recent-changes-2026-06-12-to-18.md](recent-changes-2026-06-12-to-18.md) | Dated snapshot of major changes (June 12–18, 2026). |
 

@@ -4,43 +4,57 @@
 @source "../../docs";
 
 /*
- * Factory-inspired dark documentation theme for Toby. Dark only — there is
- * no light mode or theme switch.
+ * Linear-inspired dark theme for Toby: a near-black canvas, layered surfaces,
+ * alpha-white hairlines, and Toby orange used sparingly. Dark only.
  */
 @theme {
-	--color-toby-black: #000000;
-	--color-surface: #0a0a0a;
-	--color-surface-raised: #141414;
-	--color-surface-hover: #1a1a1a;
-	--color-line: #262626;
-	--color-line-subtle: #1a1a1a;
-	--color-fg: #fafafa;
-	--color-muted: #a3a3a3;
-	--color-faint: #737373;
+	--color-canvas: #08090a;
+	--color-toby-black: #08090a;
+	--color-surface: #0f1011;
+	--color-surface-raised: #151618;
+	--color-surface-hover: #1b1c1f;
+	--color-line: rgb(255 255 255 / 0.08);
+	--color-line-subtle: rgb(255 255 255 / 0.05);
+	--color-line-strong: rgb(255 255 255 / 0.14);
+	--color-fg: #f7f8f8;
+	--color-muted: #9b9ea4;
+	--color-faint: #6b6f76;
 	--color-accent: #f97316;
 	--color-accent-dim: #ea580c;
+	--color-accent-soft: rgb(249 115 22 / 0.14);
 
 	--font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
 		"Segoe UI", sans-serif;
 	--font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
 
+	--text-display-xl: clamp(2.75rem, 6.5vw, 4.75rem);
+	--text-display-xl--line-height: 1.02;
+	--text-display-xl--letter-spacing: -0.045em;
+	--text-display-lg: clamp(2.25rem, 4.5vw, 3.5rem);
+	--text-display-lg--line-height: 1.06;
+	--text-display-lg--letter-spacing: -0.04em;
+	--text-display-md: clamp(1.75rem, 3vw, 2.5rem);
+	--text-display-md--line-height: 1.1;
+	--text-display-md--letter-spacing: -0.032em;
+
 	/* Same desktop breakpoint Docusaurus used for sidebar + TOC. */
 	--breakpoint-lg: 62.3125rem;
 
-	--spacing-navbar: 3.75rem;
+	--spacing-navbar: 3.5rem;
 }
 
 @layer base {
 	html {
 		color-scheme: dark;
-		background-color: var(--color-toby-black);
+		background-color: var(--color-canvas);
 		scroll-padding-top: calc(var(--spacing-navbar) + 0.5rem);
 	}
 
 	body {
-		background-color: var(--color-toby-black);
+		background-color: var(--color-canvas);
 		color: var(--color-muted);
 		font-family: var(--font-sans);
+		font-feature-settings: "cv01", "ss03";
 		line-height: 1.65;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
@@ -49,5 +63,130 @@
 	::selection {
 		background-color: rgb(249 115 22 / 0.3);
 		color: var(--color-fg);
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
+	}
+}
+
+/* Headline fill that fades from white into gray, like Linear's display type. */
+@utility text-gradient {
+	background-image: linear-gradient(
+		180deg,
+		#ffffff 0%,
+		rgb(255 255 255 / 0.92) 40%,
+		rgb(255 255 255 / 0.55) 100%
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+@utility text-gradient-accent {
+	background-image: linear-gradient(90deg, #fdba74 0%, #f97316 55%, #ea580c);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+@utility mask-fade-b {
+	mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+
+@utility mask-fade-x {
+	mask-image: linear-gradient(
+		to right,
+		transparent,
+		#000 12%,
+		#000 88%,
+		transparent
+	);
+}
+
+@utility bg-grid {
+	background-image: linear-gradient(
+			to right,
+			rgb(255 255 255 / 0.035) 1px,
+			transparent 1px
+		), linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+	background-size: 64px 64px;
+}
+
+@utility glow-accent {
+	background: radial-gradient(
+		closest-side,
+		rgb(249 115 22 / 0.32),
+		rgb(249 115 22 / 0.08) 55%,
+		transparent
+	);
+}
+
+/*
+ * Scroll reveal. Content is only hidden once JS has marked <html class="js">,
+ * so the page stays readable without scripts and with Reduce Motion.
+ */
+@layer components {
+	.js [data-reveal] {
+		opacity: 0;
+		transform: translateY(16px);
+		transition: opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1), transform 700ms
+			cubic-bezier(0.2, 0.7, 0.2, 1);
+		transition-delay: var(--reveal-delay, 0ms);
+	}
+
+	.js [data-reveal][data-visible] {
+		opacity: 1;
+		transform: none;
+	}
+
+	/* Cursor-following highlight on bento tiles (see SpotlightCard). */
+	.spotlight {
+		position: relative;
+		isolation: isolate;
+	}
+
+	.spotlight::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		border-radius: inherit;
+		background: radial-gradient(
+			420px circle at var(--x, 50%) var(--y, -20%),
+			rgb(255 255 255 / 0.06),
+			transparent 60%
+		);
+		opacity: 0;
+		transition: opacity 200ms ease;
+	}
+
+	.spotlight:hover::before {
+		opacity: 1;
+	}
+
+	.hero-shot {
+		transform: perspective(2400px) rotateX(14deg) scale(0.96);
+		transform-origin: 50% 0%;
+		transition: transform 1100ms cubic-bezier(0.2, 0.7, 0.2, 1);
+	}
+
+	.hero-shot[data-visible] {
+		transform: perspective(2400px) rotateX(0deg) scale(1);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.js [data-reveal] {
+			opacity: 1;
+			transform: none;
+			transition: none;
+		}
+
+		.hero-shot,
+		.hero-shot[data-visible] {
+			transform: none;
+			transition: none;
+		}
 	}
 }

@@ -15,7 +15,7 @@ import {
 } from "./brand";
 
 const linkClass =
-	"text-fg underline decoration-line underline-offset-[3px] transition-colors hover:text-accent hover:decoration-accent";
+	"text-fg underline decoration-line-strong underline-offset-[3px] transition-colors hover:text-accent hover:decoration-accent";
 
 function HashLink({
 	id,
@@ -74,14 +74,14 @@ function DocLink({
 export const mdxComponents: MDXComponents = {
 	h1: (props) => (
 		<h1
-			className="mb-3 text-4xl font-bold leading-tight tracking-[-0.025em] text-fg"
+			className="mb-4 text-[2.25rem] font-semibold leading-[1.15] tracking-[-0.035em] text-fg"
 			{...props}
 		/>
 	),
 	h2: ({ id, children, ...props }) => (
 		<h2
 			id={id}
-			className="group mt-10 mb-5 scroll-mt-20 border-b border-line-subtle pb-2 text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-fg"
+			className="group mt-12 mb-4 scroll-mt-20 text-[1.5rem] font-semibold leading-tight tracking-[-0.025em] text-fg"
 			{...props}
 		>
 			{children}
@@ -91,7 +91,7 @@ export const mdxComponents: MDXComponents = {
 	h3: ({ id, children, ...props }) => (
 		<h3
 			id={id}
-			className="group mt-8 mb-4 scroll-mt-20 text-[1.1rem] font-semibold leading-snug text-fg"
+			className="group mt-8 mb-3 scroll-mt-20 text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-fg"
 			{...props}
 		>
 			{children}
@@ -108,57 +108,59 @@ export const mdxComponents: MDXComponents = {
 			<HashLink id={id} label={textOf(children)} />
 		</h4>
 	),
-	p: (props) => <p className="mb-5 leading-[1.7] text-muted" {...props} />,
+	p: (props) => (
+		<p className="mb-5 text-[0.9375rem] leading-[1.75] text-muted" {...props} />
+	),
 	a: DocLink,
-	strong: (props) => <strong className="font-bold text-fg" {...props} />,
+	strong: (props) => <strong className="font-semibold text-fg" {...props} />,
 	ul: (props) => (
 		<ul
-			className="mb-5 list-disc pl-8 [&_ol]:mb-0 [&_ul]:mb-0 [&_ul]:list-[circle]"
+			className="mb-5 list-disc pl-6 [&_ol]:mb-0 [&_ul]:mb-0 [&_ul]:list-[circle]"
 			{...props}
 		/>
 	),
 	ol: (props) => (
-		<ol className="mb-5 list-decimal pl-8 [&_ol]:mb-0 [&_ul]:mb-0" {...props} />
+		<ol className="mb-5 list-decimal pl-6 [&_ol]:mb-0 [&_ul]:mb-0" {...props} />
 	),
 	li: (props) => (
 		<li
-			className="mt-1 leading-[1.7] text-muted [&>p]:mb-2 [&>p:last-child]:mb-0"
+			className="mt-1.5 text-[0.9375rem] leading-[1.75] text-muted marker:text-faint [&>p]:mb-2 [&>p:last-child]:mb-0"
 			{...props}
 		/>
 	),
 	blockquote: (props) => (
 		<blockquote
-			className="mb-5 border-l-4 border-line pl-4 text-muted [&>p:last-child]:mb-0"
+			className="mb-5 border-l-2 border-line-strong pl-4 text-muted [&>p:last-child]:mb-0"
 			{...props}
 		/>
 	),
-	hr: (props) => <hr className="my-6 border-line" {...props} />,
+	hr: (props) => <hr className="my-10 border-line-subtle" {...props} />,
 	img: ({ alt, ...props }) => (
 		<img
 			{...props}
 			alt={alt ?? ""}
 			loading="lazy"
-			className="h-auto max-w-full"
+			className="my-2 h-auto max-w-full rounded-lg border border-line"
 		/>
 	),
 	table: (props) => (
-		<div className="mb-5 max-w-full overflow-x-auto rounded-lg border border-line">
+		<div className="mb-6 max-w-full overflow-x-auto rounded-xl border border-line">
 			<table
-				className="border-separate border-spacing-0 text-left"
+				className="w-full border-separate border-spacing-0 text-left text-sm"
 				{...props}
 			/>
 		</div>
 	),
-	thead: (props) => <thead className="bg-surface-raised" {...props} />,
+	thead: (props) => <thead className="bg-white/[0.02]" {...props} />,
 	th: (props) => (
 		<th
-			className="border-b border-l border-line p-3 text-center text-[0.8125rem] font-semibold text-fg first:border-l-0"
+			className="border-b border-line px-4 py-2.5 text-[0.8125rem] font-medium text-fg"
 			{...props}
 		/>
 	),
 	td: (props) => (
 		<td
-			className="border-l border-t border-line-subtle p-3 text-muted first:border-l-0 [tr:first-child>&]:border-t-0"
+			className="border-t border-line-subtle px-4 py-2.5 align-top text-muted [tr:first-child>&]:border-t-0"
 			{...props}
 		/>
 	),
@@ -168,17 +170,17 @@ export const mdxComponents: MDXComponents = {
 	}: ComponentPropsWithoutRef<"code"> & { "data-inline"?: unknown }) =>
 		inline ? (
 			<code
-				className="rounded-md border border-line-subtle bg-surface-raised px-[0.4em] py-[0.15em] font-mono text-[0.875em] break-words"
+				className="rounded-[5px] border border-line bg-white/[0.04] px-[0.35em] py-[0.1em] font-mono text-[0.85em] text-fg break-words"
 				{...props}
 			/>
 		) : (
 			<code {...props} />
 		),
 	pre: (props) => (
-		<div data-code-block className="group relative mb-5">
+		<div data-code-block className="group relative mb-6">
 			<pre
 				{...props}
-				className="overflow-x-auto rounded-lg border border-line p-4 font-mono text-[0.95rem] leading-[1.45] [&_code]:font-mono"
+				className="overflow-x-auto rounded-xl border border-line bg-surface! p-4 font-mono text-[0.8125rem] leading-[1.65] [&_code]:font-mono"
 			/>
 			<CopyButton />
 		</div>

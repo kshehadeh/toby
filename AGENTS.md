@@ -272,6 +272,7 @@ Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
 | [`docs/location.md`](docs/location.md) | Global `getMyLocation` via Toby.app CoreLocation. |
 | [`docs/listen.md`](docs/listen.md) | Recording / transcription lifecycle. |
 | [`docs/native-helpers.md`](docs/native-helpers.md) | Toby.app native API pattern for platform bridges. |
+| [`docs/help-site.md`](docs/help-site.md) | Help site (www.tobyai.app): landing page, design tokens, landing screenshots. |
 | [`docs/build-executable.md`](docs/build-executable.md) | Bun compile binary and release packaging. |
 | [`docs/image-generation-plan.md`](docs/image-generation-plan.md) | Unimplemented plan: capability-gated `generateImage` tool. |
 | [`docs/image-manipulation.md`](docs/image-manipulation.md) | Bundled Images integration: local edits, conversion, compression, and scoped file access. |

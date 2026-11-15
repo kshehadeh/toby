@@ -43,15 +43,15 @@ function DocItem({
 	readonly onNavigate?: () => void;
 }) {
 	return (
-		<li className="mt-1 first:mt-0">
+		<li className="mt-px first:mt-0">
 			<Link
 				href={node.href}
 				onClick={onNavigate}
 				aria-current={active ? "page" : undefined}
-				className={`block rounded-lg px-[0.65rem] py-[0.4rem] text-sm leading-[1.4] transition-colors duration-100 ${
+				className={`block rounded-md px-[0.65rem] py-[0.3rem] text-[0.8125rem] leading-[1.45] transition-colors duration-100 ${
 					active
-						? "bg-surface-hover font-medium text-fg"
-						: "text-muted hover:bg-surface-hover hover:text-fg"
+						? "bg-white/[0.06] font-medium text-fg"
+						: "text-muted hover:bg-white/[0.03] hover:text-fg"
 				}`}
 			>
 				{node.label}
@@ -81,7 +81,7 @@ function CategoryItem({
 
 	const Icon = node.icon ? categoryIcons[node.icon] : undefined;
 	const labelClass =
-		"flex flex-1 items-center gap-[0.45rem] px-[0.65rem] pt-3 pb-[0.35rem] text-left text-[0.6875rem] font-semibold uppercase leading-[1.4] tracking-[0.08em] text-faint transition-colors hover:text-muted";
+		"flex flex-1 items-center gap-[0.45rem] px-[0.65rem] pt-4 pb-[0.35rem] text-left text-xs font-medium leading-[1.4] text-faint transition-colors hover:text-fg";
 	const label = (
 		<>
 			{Icon ? (
@@ -104,7 +104,7 @@ function CategoryItem({
 	return (
 		<li className={level === 1 ? "mt-1 first:mt-0" : "mt-1"}>
 			<div
-				className={`flex items-end rounded-lg ${containsActive ? "bg-surface-hover" : ""}`}
+				className={`flex items-end rounded-md ${containsActive ? "[&>a]:text-fg [&>button]:text-fg" : ""}`}
 			>
 				{node.href ? (
 					<>
@@ -124,7 +124,7 @@ function CategoryItem({
 							onClick={() => setOpen((v) => !v)}
 							aria-expanded={open}
 							aria-label={`${open ? "Collapse" : "Expand"} sidebar category '${node.label}'`}
-							className="mb-0.5 rounded-md px-[0.65rem] py-[0.4rem] text-faint transition-colors hover:bg-surface-hover hover:text-muted"
+							className="mb-0.5 rounded-md px-[0.65rem] py-[0.3rem] text-faint transition-colors hover:bg-white/[0.04] hover:text-fg"
 						>
 							{caret}
 						</button>
@@ -142,7 +142,7 @@ function CategoryItem({
 				)}
 			</div>
 			{open ? (
-				<ul className="mt-1 pl-3">
+				<ul className="mt-0.5 ml-[0.9rem] border-l border-line-subtle pl-1.5">
 					<NavList
 						nodes={node.children}
 						current={current}
@@ -196,7 +196,7 @@ export function Sidebar({
 }) {
 	const current = activeDocId(usePathname() ?? "");
 	return (
-		<nav aria-label="Docs sidebar" className="px-2 pt-3 pb-6 font-[450]">
+		<nav aria-label="Docs sidebar" className="px-3 pt-4 pb-8">
 			<ul>
 				<NavList
 					nodes={nodes}

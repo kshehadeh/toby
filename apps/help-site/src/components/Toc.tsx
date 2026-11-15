@@ -16,7 +16,7 @@ function useActiveHeading(key: string): string | undefined {
 			frame = 0;
 			const offset =
 				Number.parseFloat(getComputedStyle(document.documentElement).fontSize) *
-					3.75 +
+					3.5 +
 				24;
 			let current: string | undefined;
 			for (const id of ids) {
@@ -51,16 +51,18 @@ function TocList({
 	active,
 }: { readonly toc: readonly TocEntry[]; readonly active?: string }) {
 	return (
-		<ul className="text-[0.8125rem] leading-[1.65]">
+		<ul className="text-[0.8125rem] leading-[1.5]">
 			{toc.map((entry) => (
 				<li
 					key={entry.id}
-					className={`mx-2 my-2 ${entry.depth === 3 ? "pl-4" : ""}`}
+					className={`py-1 ${entry.depth === 3 ? "pl-3" : ""}`}
 				>
 					<a
 						href={`#${entry.id}`}
-						className={`transition-colors hover:text-fg ${
-							entry.id === active ? "font-medium text-fg" : "text-faint"
+						className={`-ml-px block border-l py-0.5 pl-3 transition-colors hover:text-fg ${
+							entry.id === active
+								? "border-accent text-fg"
+								: "border-transparent text-faint"
 						}`}
 					>
 						{entry.parts.map((part, i) =>
@@ -88,8 +90,11 @@ export function Toc({ toc }: { readonly toc: readonly TocEntry[] }) {
 	const active = useActiveHeading(toc.map((t) => t.id).join("\n"));
 	if (toc.length === 0) return null;
 	return (
-		<div className="sticky top-[calc(var(--spacing-navbar)+1rem)] max-h-[calc(100vh-var(--spacing-navbar)-2rem)] overflow-y-auto border-l border-line-subtle py-2 pl-2">
-			<TocList toc={toc} active={active} />
+		<div className="sticky top-[calc(var(--spacing-navbar)+1rem)] max-h-[calc(100vh-var(--spacing-navbar)-2rem)] overflow-y-auto py-2">
+			<div className="mb-3 text-xs font-medium text-fg">On this page</div>
+			<div className="border-l border-line-subtle">
+				<TocList toc={toc} active={active} />
+			</div>
 		</div>
 	);
 }
@@ -98,7 +103,7 @@ export function Toc({ toc }: { readonly toc: readonly TocEntry[] }) {
 export function TocMobile({ toc }: { readonly toc: readonly TocEntry[] }) {
 	if (toc.length === 0) return null;
 	return (
-		<details className="group mb-4 rounded-lg bg-surface-hover lg:hidden">
+		<details className="group mb-6 rounded-lg border border-line bg-surface lg:hidden">
 			<summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
 				On this page
 				<ChevronDown

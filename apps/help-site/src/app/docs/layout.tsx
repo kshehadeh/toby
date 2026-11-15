@@ -7,7 +7,7 @@ export default function DocsLayout({
 }: { readonly children: ReactNode }) {
 	return (
 		<div className="flex w-full flex-1">
-			<aside className="hidden w-[300px] shrink-0 border-r border-line-subtle bg-surface lg:block">
+			<aside className="hidden w-[272px] shrink-0 border-r border-line-subtle lg:block">
 				<div className="sticky top-navbar max-h-[calc(100vh-var(--spacing-navbar))] overflow-y-auto">
 					<Sidebar nodes={getNavTree()} />
 				</div>

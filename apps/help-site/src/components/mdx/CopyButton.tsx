@@ -27,12 +27,12 @@ export function CopyButton() {
 			onClick={copy}
 			aria-label={copied ? "Copied" : "Copy code to clipboard"}
 			title="Copy"
-			className="absolute top-2 right-2 inline-flex size-8 items-center justify-center rounded-md border border-line bg-surface-raised/90 text-muted opacity-0 transition hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
+			className="absolute top-2.5 right-2.5 inline-flex size-7 items-center justify-center rounded-md border border-line bg-surface-raised/90 text-muted backdrop-blur opacity-0 transition hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
 		>
 			{copied ? (
-				<Check size={16} className="text-[#4ade80]" />
+				<Check size={14} className="text-emerald-400" />
 			) : (
-				<Copy size={16} />
+				<Copy size={14} />
 			)}
 		</button>
 	);

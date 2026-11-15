@@ -1,13 +1,27 @@
 "use client";
 
 import type { NavNode } from "@/lib/docs";
-import { ExternalLink, Menu, X } from "lucide-react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DownloadTobyButton } from "./DownloadTobyButton";
 import { Sidebar } from "./Sidebar";
 
 const GITHUB = "https://github.com/kshehadeh/toby";
+
+type NavLink = {
+	readonly label: string;
+	readonly href: string;
+	readonly match?: string;
+};
+
+const links: readonly NavLink[] = [
+	{ label: "Features", href: "/#features" },
+	{ label: "Integrations", href: "/#integrations" },
+	{ label: "Docs", href: "/docs", match: "/docs" },
+	{ label: "Changelog", href: `${GITHUB}/releases` },
+];
 
 function Brand({ onClick }: { readonly onClick?: () => void }) {
 	return (
@@ -15,16 +29,16 @@ function Brand({ onClick }: { readonly onClick?: () => void }) {
 			href="/"
 			prefetch={false}
 			onClick={onClick}
-			className="mr-4 flex min-w-0 items-center"
+			className="flex min-w-0 items-center gap-2"
 		>
 			<img
 				src="/img/128x128.png"
-				alt="Toby"
-				width={32}
-				height={32}
-				className="mr-2 size-8 shrink-0"
+				alt=""
+				width={24}
+				height={24}
+				className="size-6 shrink-0"
 			/>
-			<span className="text-[0.95rem] font-bold uppercase tracking-[0.06em] text-fg">
+			<span className="text-[0.9375rem] font-semibold tracking-[-0.01em] text-fg">
 				Toby
 			</span>
 		</Link>
@@ -32,9 +46,47 @@ function Brand({ onClick }: { readonly onClick?: () => void }) {
 }
 
 const itemClass =
-	"rounded-md px-[0.65rem] py-[0.35rem] text-sm font-medium text-muted transition-colors hover:bg-surface-hover hover:text-fg";
+	"inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-[0.8125rem] text-muted transition-colors hover:text-fg";
 
-/** Sticky top bar; below the desktop breakpoint the docs sidebar moves into a drawer. */
+function NavItem({
+	link,
+	active,
+	onClick,
+	className = itemClass,
+}: {
+	readonly link: NavLink;
+	readonly active: boolean;
+	readonly onClick?: () => void;
+	readonly className?: string;
+}) {
+	const external = link.href.startsWith("http");
+	if (external) {
+		return (
+			<a
+				href={link.href}
+				target="_blank"
+				rel="noopener noreferrer"
+				onClick={onClick}
+				className={className}
+			>
+				{link.label}
+				<ArrowUpRight aria-hidden size={12} className="opacity-60" />
+			</a>
+		);
+	}
+	return (
+		<Link
+			href={link.href}
+			onClick={onClick}
+			aria-current={active ? "page" : undefined}
+			className={`${className} ${active ? "text-fg" : ""}`}
+		>
+			{link.label}
+		</Link>
+	);
+}
+
+/** Translucent sticky top bar; below the desktop breakpoint links and the docs tree move into a drawer. */
 export function Navbar({ nav }: { readonly nav: readonly NavNode[] }) {
 	const pathname = usePathname() ?? "";
 	const inDocs = pathname.startsWith("/docs");
@@ -53,43 +105,49 @@ export function Navbar({ nav }: { readonly nav: readonly NavNode[] }) {
 	}, [open]);
 
 	const close = () => setOpen(false);
+	const isActive = (link: NavLink) =>
+		link.match ? pathname.startsWith(link.match) : false;
 
 	return (
 		<>
-			<header className="sticky top-0 z-40 h-navbar border-b border-line-subtle bg-[#242526] px-2 shadow-[0_1px_2px_0_rgba(0,0,0,0.1)] lg:backdrop-blur-md">
-				<div className="flex h-full items-center">
-					<button
-						type="button"
-						aria-label="Toggle navigation bar"
-						aria-expanded={open}
-						onClick={() => setOpen(true)}
-						className="mr-2 rounded-md p-1.5 text-fg hover:bg-surface-hover lg:hidden"
-					>
-						<Menu size={22} />
-					</button>
-					<Brand />
+			<header className="sticky top-0 z-40 h-navbar border-b border-line-subtle bg-canvas/70 backdrop-blur-xl backdrop-saturate-150">
+				<div
+					className={`mx-auto flex h-full items-center px-4 ${inDocs ? "" : "max-w-[1200px] sm:px-6"}`}
+				>
+					<div className="flex flex-1 items-center">
+						<Brand />
+					</div>
 					<nav aria-label="Main" className="hidden items-center lg:flex">
-						<Link
-							href="/docs/intro"
-							className={
-								inDocs
-									? "rounded-none border-b-2 border-fg px-[0.65rem] pt-[0.35rem] pb-[calc(0.35rem-2px)] text-sm font-medium text-fg"
-									: itemClass
-							}
-						>
-							Docs
-						</Link>
+						{links.map((link) => (
+							<NavItem key={link.label} link={link} active={isActive(link)} />
+						))}
 					</nav>
-					<div className="ml-auto hidden lg:flex">
-						<a
-							href={GITHUB}
-							target="_blank"
-							rel="noopener noreferrer"
-							className={`${itemClass} inline-flex items-center gap-1`}
+					<div className="flex flex-1 items-center justify-end gap-1">
+						<span className="hidden lg:contents">
+							<a
+								href={GITHUB}
+								target="_blank"
+								rel="noopener noreferrer"
+								className={itemClass}
+							>
+								GitHub
+							</a>
+						</span>
+						<DownloadTobyButton
+							compact
+							size="sm"
+							variant="primary"
+							className="ml-1 hidden sm:inline-flex"
+						/>
+						<button
+							type="button"
+							aria-label="Open navigation"
+							aria-expanded={open}
+							onClick={() => setOpen(true)}
+							className="ml-1 rounded-md p-1.5 text-fg hover:bg-white/5 lg:hidden"
 						>
-							GitHub
-							<ExternalLink aria-hidden size={13} />
-						</a>
+							<Menu size={20} />
+						</button>
 					</div>
 				</div>
 			</header>
@@ -100,36 +158,42 @@ export function Navbar({ nav }: { readonly nav: readonly NavNode[] }) {
 						type="button"
 						aria-label="Close navigation"
 						onClick={close}
-						className="absolute inset-0 cursor-default bg-black/70"
+						className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
 					/>
-					<div className="absolute inset-y-0 left-0 flex w-[83vw] max-w-[20rem] flex-col bg-toby-black shadow-2xl">
+					<div className="absolute inset-y-0 right-0 flex w-[85vw] max-w-[22rem] flex-col border-l border-line bg-canvas shadow-2xl">
 						<div className="flex h-navbar shrink-0 items-center justify-between border-b border-line-subtle px-4">
 							<Brand onClick={close} />
 							<button
 								type="button"
 								aria-label="Close navigation bar"
 								onClick={close}
-								className="rounded-md p-1.5 text-muted hover:bg-surface-hover hover:text-fg"
+								className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-fg"
 							>
 								<X size={20} />
 							</button>
 						</div>
 						<div className="min-h-0 flex-1 overflow-y-auto">
-							<div className="flex flex-col gap-1 border-b border-line-subtle px-2 py-3">
-								<Link href="/docs/intro" onClick={close} className={itemClass}>
-									Docs
-								</Link>
-								<a
-									href={GITHUB}
-									target="_blank"
-									rel="noopener noreferrer"
-									className={`${itemClass} inline-flex items-center gap-1`}
-								>
-									GitHub
-									<ExternalLink aria-hidden size={13} />
-								</a>
+							<div className="flex flex-col gap-0.5 border-b border-line-subtle px-2 py-3">
+								{links.map((link) => (
+									<NavItem
+										key={link.label}
+										link={link}
+										active={isActive(link)}
+										onClick={close}
+										className={`${itemClass} text-sm`}
+									/>
+								))}
+								<NavItem
+									link={{ label: "GitHub", href: GITHUB }}
+									active={false}
+									onClick={close}
+									className={`${itemClass} text-sm`}
+								/>
+								<div className="px-3 pt-3 pb-1">
+									<DownloadTobyButton size="md" className="w-full" />
+								</div>
 							</div>
-							<Sidebar nodes={nav} onNavigate={close} />
+							{inDocs ? <Sidebar nodes={nav} onNavigate={close} /> : null}
 						</div>
 					</div>
 				</div>

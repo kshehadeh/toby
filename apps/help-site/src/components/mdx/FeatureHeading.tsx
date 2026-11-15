@@ -46,10 +46,10 @@ type FeatureHeadingProps = {
 export function FeatureHeading({ icon, title, tone }: FeatureHeadingProps) {
 	const Icon = icons[icon];
 	return (
-		<h2 className="mt-10 mb-4 flex items-center gap-3 border-b border-line-subtle pb-2 text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-fg">
+		<h2 className="mt-12 mb-4 flex items-center gap-3 text-[1.5rem] font-semibold leading-tight tracking-[-0.025em] text-fg">
 			<span
 				aria-hidden="true"
-				className={`inline-flex size-[2.35rem] shrink-0 items-center justify-center rounded-full border border-line-subtle text-white ${
+				className={`inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-line-subtle text-white ${
 					tone ? tones[tone] : "bg-white/4"
 				}`}
 			>
