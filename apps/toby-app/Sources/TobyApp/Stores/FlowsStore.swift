@@ -128,7 +128,7 @@ final class FlowsStore {
 		}
 	}
 
-	/// Owned by the view's task so leaving Flows cancels polling automatically.
+	/// Owned by the app shell so shortcuts stay current outside the Flows workspace.
 	func pollForChanges(interval: Duration = .seconds(5)) async {
 		while !Task.isCancelled {
 			do { try await Task.sleep(for: interval) } catch { return }
@@ -326,12 +326,12 @@ final class FlowsStore {
 
 	/// Run a custom flow without changing the Flows selection.
 	@discardableResult
-	func runFlow(id: String, source: String = "manual") async -> FlowRunNowResponse? {
+	func runFlow(id: String, source: String = "manual", triggerId: String? = nil) async -> FlowRunNowResponse? {
 		isRunning = true
 		errorMessage = nil
 		defer { isRunning = false }
 		do {
-			let response = try await client.runFlow(id: id, source: source)
+			let response = try await client.runFlow(id: id, source: source, triggerId: triggerId)
 			lastRunResult = response
 			let wantsModal = response.destinations?.contains(where: { $0.type == "modal" }) ?? false
 			if response.ok, wantsModal {

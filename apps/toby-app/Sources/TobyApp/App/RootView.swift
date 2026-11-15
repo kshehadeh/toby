@@ -67,6 +67,22 @@ struct RootView: View {
                 navigateToRoute(.flows)
                 Task { await flowsStore.load(); await flowsStore.selectRun(id: id) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .runFlowShortcut)) { notification in
+                guard let binding = notification.object as? FlowShortcutBinding else { return }
+                Task {
+                    let result = await flowsStore.runFlow(id: binding.flowId, triggerId: binding.triggerId)
+                    if result?.ok != true {
+                        store.toast = AppToastState(style: .error, title: "Flow failed",
+                            message: flowsStore.errorMessage ?? "Couldn’t run \(binding.flowName).")
+                        bringMainWindowToFront()
+                    } else if flowsStore.showResultSheet {
+                        bringMainWindowToFront()
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .flowDefinitionsDidChange)) { _ in
+                Task { await flowsStore.refreshQuietly() }
+            }
             .onChange(of: history.current) { _, _ in
                 leaveProjectSessionIfMainChatVisible()
             }
@@ -304,6 +320,9 @@ struct RootView: View {
             }
             .task {
                 await store.daemonStatusRefreshLoop()
+            }
+            .task {
+                await flowsStore.pollForChanges()
             }
             .task {
                 await longRecordingPromptLoop()

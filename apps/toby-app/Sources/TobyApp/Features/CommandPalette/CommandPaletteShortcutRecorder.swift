@@ -11,11 +11,19 @@ import SwiftUI
 struct GlobalShortcutRecorder: View {
 	@Bindable var preferences: AppearancePreferences
 	let action: GlobalHotkeyAction
-	@State private var isRecording = false
 
-	private var shortcut: GlobalKeyboardShortcut? {
-		preferences.shortcut(for: action)
+	var body: some View {
+		KeyboardShortcutRecorder(shortcut: Binding(
+			get: { preferences.shortcut(for: action) },
+			set: { preferences.setShortcut($0, for: action) }
+		))
 	}
+}
+
+/// Shared recorder for app preferences and draft-only flow trigger settings.
+struct KeyboardShortcutRecorder: View {
+	@Binding var shortcut: GlobalKeyboardShortcut?
+	@State private var isRecording = false
 
 	var body: some View {
 		HStack(spacing: 10) {
@@ -36,7 +44,7 @@ struct GlobalShortcutRecorder: View {
 				Button("Record…") { isRecording = true }
 					.buttonStyle(.bordered)
 				Button("Clear") {
-					preferences.setShortcut(nil, for: action)
+					self.shortcut = nil
 				}
 				.buttonStyle(.bordered)
 			} else {
@@ -50,13 +58,14 @@ struct GlobalShortcutRecorder: View {
 		.overlay {
 			if isRecording {
 				ShortcutCaptureView { captured in
-					preferences.setShortcut(captured, for: action)
+					shortcut = captured
 					isRecording = false
 				} onCancel: {
 					isRecording = false
 				}
 			}
 		}
+		.onDisappear { isRecording = false }
 	}
 }
 
@@ -182,13 +191,20 @@ private struct ShortcutCaptureView: NSViewRepresentable {
 		let view = ShortcutCaptureNSView()
 		view.onCapture = onCapture
 		view.onCancel = onCancel
-		DispatchQueue.main.async {
-			view.beginCapture()
-		}
+		GlobalHotkeyController.shared.suspend()
+		view.beginCapture()
 		return view
 	}
 
-	func updateNSView(_ nsView: ShortcutCaptureNSView, context: Context) {}
+	func updateNSView(_ nsView: ShortcutCaptureNSView, context: Context) {
+		nsView.onCapture = onCapture
+		nsView.onCancel = onCancel
+	}
+
+	static func dismantleNSView(_ nsView: ShortcutCaptureNSView, coordinator: ()) {
+		nsView.stop()
+		GlobalHotkeyController.shared.resume()
+	}
 }
 
 private final class ShortcutCaptureNSView: NSView {
@@ -234,7 +250,7 @@ private final class ShortcutCaptureNSView: NSView {
 		onCapture?(shortcut)
 	}
 
-	private func stop() {
+	func stop() {
 		if let monitor {
 			NSEvent.removeMonitor(monitor)
 			self.monitor = nil

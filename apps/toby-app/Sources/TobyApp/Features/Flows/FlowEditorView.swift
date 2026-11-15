@@ -17,7 +17,8 @@ struct FlowEditorView: View {
 			ScrollView {
 				VStack(alignment: .leading, spacing: 30) {
 					FlowEditorIdentityCard(draft: $draft)
-					FlowTriggersEditor(triggers: $draft.triggers, invalidFields: $draft.invalidTriggerFields)
+					FlowTriggersEditor(triggers: $draft.triggers, invalidFields: $draft.invalidTriggerFields,
+						flowId: draft.existingId, savedFlows: store.flows)
 						.tutorialTip(.editorTrigger, available: draft.isNew)
 						.id(TutorialStep.editorTrigger)
 					if draft.nodes.contains(where: { $0.type == "agent_task" }) || !draft.projectId.isEmpty {

@@ -236,6 +236,23 @@ file-change triggers in **When**. Each has its own inputs, conditions, limits,
 and optional completion notification. Automatic triggers start disabled; enable
 them when you are ready for future runs. Keep a manual trigger to run on demand.
 
+### Run a flow with a global shortcut
+
+1. Edit the flow and find its **Manually** trigger under **When**.
+2. Beside **Shortcut**, click **Record…** and press a key combination with
+   Command, Option, Control, or Shift. Escape cancels recording.
+3. Save the flow.
+
+The shortcut runs that manual trigger with its saved inputs, even from another
+app, while Toby is open. Its usual result destinations still apply.
+Use **Clear** and save to remove it. Turning off or removing the trigger also
+disables its shortcut. Unsaved changes do not change the active shortcut.
+
+Choose a unique combination. Toby shows a warning for conflicts with shortcuts
+in **Settings → General**, other manual triggers, or combinations another app
+has reserved. App shortcuts take priority; duplicate flow shortcuts do not run.
+Changes made outside the editor are picked up within about five seconds.
+
 Use the **All**, **Manual**, **Home Actions**, **Scheduled**, and **Events** filters to find flows.
 **Trigger activity** shows runs and skipped events, with links to detailed traces.
 All trigger types share the Flow's steps, persona, result, and destinations.

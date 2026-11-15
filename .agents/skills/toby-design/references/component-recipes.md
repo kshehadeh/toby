@@ -37,6 +37,16 @@ SwiftUI is authoritative; Figma names describe the library catalog.
 
 ## Avoid
 
+### Keyboard shortcut recorder
+
+`Features/CommandPalette/CommandPaletteShortcutRecorder.swift` owns the shared
+`KeyboardShortcutRecorder` and its Carbon/NSEvent formatting helpers.
+`GlobalShortcutRecorder` binds it to General preferences; `FlowTriggersEditor`
+binds it to the manual trigger draft. Preserve Record/Cancel/Clear, Escape
+cancellation, modifier validation, and suspension of active global hotkeys while
+capturing. Saved, unset, and recording states reuse the same quiet badge/control
+treatment. Flow conflicts and registration failures use `InlineStatusMessage`.
+
 - Local `Color.gray`, fixed `Color.white`, unrelated radii, and card shadows.
 - Liquid Glass on content cards, list rows, or form canvases; custom fills on
   split-view sidebars, toolbars, or inspectors.

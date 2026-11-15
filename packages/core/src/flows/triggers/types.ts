@@ -12,7 +12,27 @@ export const flowTriggerSchema = z
 		name: z.string().trim().min(1).max(200),
 		enabled: z.boolean().default(false),
 		source: z.union([
-			z.object({ type: z.literal("manual") }).strict(),
+			z
+				.object({
+					type: z.literal("manual"),
+					shortcut: z
+						.object({
+							keyCode: z.number().int().min(0).max(127),
+							modifiers: z
+								.number()
+								.int()
+								.min(1)
+								.max(0x1b00)
+								.refine(
+									(value) => (value & ~0x1b00) === 0,
+									"Use Command, Option, Control, or Shift",
+								),
+							displayText: z.string().trim().min(1).max(100),
+						})
+						.strict()
+						.optional(),
+				})
+				.strict(),
 			z.object({ type: z.literal("home.action") }).strict(),
 			// Home owns cache invalidation and execution for built-in summaries.
 			z

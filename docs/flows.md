@@ -42,7 +42,7 @@ errors rather than silently dropping those steps. Dashboard refresh runs the
 stored definition; it does not rewrite it.
 
 Toby.app refreshes the flow list whenever Flows opens and polls quietly every
-five seconds while it is visible, picking up additions, edits, and deletions
+five seconds while the app shell is running, picking up additions, edits, and deletions
 from tools, HTTP clients, or other writers. Successful chat `createFlow` and
 `updateFlow` calls also post `flowDefinitionsDidChange`, which refreshes an open
 Flows view and synchronizes Home flow blocks. Dry runs and failed saves do not
@@ -50,6 +50,24 @@ post this notification. Background list refreshes preserve the current tab,
 selection, and unsaved editor draft; deleting the selected flow clears its
 selection and run detail. Flow-list responses from before a Toby home switch
 are ignored.
+
+### Global keyboard shortcuts
+
+A manual trigger may store `source.shortcut` with a Carbon `keyCode`, modifier
+bitmask (`modifiers`: Command, Shift, Option and/or Control), and `displayText`.
+The native editor reuses `KeyboardShortcutRecorder`; edits remain in the draft
+until Save. Changing trigger type clears the shortcut.
+
+`GlobalHotkeyController` registers enabled custom-flow manual triggers alongside
+app shortcuts. Changes, deletions, and home switches reconcile registrations
+without requiring the Flows workspace to be open. App shortcuts take priority;
+duplicate flow combinations are inactive, and the editor reports conflicts and
+OS registration failures. Recording temporarily releases registrations to
+prevent accidental execution. Shortcuts work only while Toby is running.
+
+Activation calls the existing `POST /api/flows/:id/run` with `source: "manual"`
+and the exact `triggerId`, preserving trigger inputs, busy checks, history, and
+destinations. Result windows come forward when requested; failures show a toast.
 
 The editor shows each tool step's prompt references and offers **Insert step
 output** on the LLM step. These references use output bag keys, not node IDs.

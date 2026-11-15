@@ -1,5 +1,6 @@
 import Carbon.HIToolbox
 import Foundation
+import Observation
 
 /// Registers system-wide keyboard shortcuts via Carbon's
 /// `RegisterEventHotKey` and posts the appropriate notification when the user
@@ -9,17 +10,40 @@ import Foundation
 /// posted notification happens on the main thread. Carbon event handlers run
 /// on the main run loop by default.
 @MainActor
+@Observable
 final class GlobalHotkeyController {
 	static let shared = GlobalHotkeyController()
 
 	/// Maps Carbon hotkey ID → action for dispatch.
 	private var registeredActions: [UInt32: GlobalHotkeyAction] = [:]
+	private var registeredFlows: [UInt32: FlowShortcutBinding] = [:]
+	private var appShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut] = [:]
+	private var flowBindings: [FlowShortcutBinding] = []
+	private var suspensionCount = 0
+	private var nextFlowHotkeyId: UInt32 = 100
+	private(set) var flowRegistrationErrors: [String: String] = [:]
 	/// Maps Carbon hotkey ID → ref for unregistration.
 	private var hotkeyRefs: [UInt32: EventHotKeyRef] = [:]
 	private var eventHandler: EventHandlerRef?
 	private var observer: NSObjectProtocol?
+	private let register: (GlobalKeyboardShortcut, UInt32) -> EventHotKeyRef?
+	private let unregister: (EventHotKeyRef) -> Void
 
-	private init() {}
+	init(
+		register: @escaping (GlobalKeyboardShortcut, UInt32) -> EventHotKeyRef? = { shortcut, hotkeyId in
+			var ref: EventHotKeyRef?
+			let status = RegisterEventHotKey(
+				shortcut.keyCode, shortcut.modifiers,
+				EventHotKeyID(signature: OSType(0x544f4259), id: hotkeyId),
+				GetApplicationEventTarget(), 0, &ref
+			)
+			return status == noErr ? ref : nil
+		},
+		unregister: @escaping (EventHotKeyRef) -> Void = { UnregisterEventHotKey($0) }
+	) {
+		self.register = register
+		self.unregister = unregister
+	}
 
 	/// Begins observing preference changes and registers all current shortcuts.
 	func start(prefs: AppearancePreferences) {
@@ -39,6 +63,13 @@ final class GlobalHotkeyController {
 	/// Removes any active hotkey registrations and stops observing changes.
 	func stop() {
 		unregisterAll()
+		flowBindings = []
+		appShortcuts = [:]
+		flowRegistrationErrors = [:]
+		if let eventHandler {
+			RemoveEventHandler(eventHandler)
+			self.eventHandler = nil
+		}
 		if let observer {
 			NotificationCenter.default.removeObserver(observer)
 			self.observer = nil
@@ -47,36 +78,68 @@ final class GlobalHotkeyController {
 
 	/// Re-registers all hotkeys from the given dictionary.
 	func registerAll(_ shortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut]) {
+		appShortcuts = shortcuts
+		rebuildRegistrations()
+	}
+
+	func updateFlows(_ flows: [FlowListItem]) {
+		let bindings = FlowShortcutBinding.bindings(in: flows)
+		guard bindings != flowBindings else { return }
+		flowBindings = bindings
+		rebuildRegistrations()
+	}
+
+	/// Temporarily release Carbon registrations so recording an existing
+	/// combination cannot execute an action or steal the captured key event.
+	func suspend() {
+		suspensionCount += 1
 		unregisterAll()
-		guard !shortcuts.isEmpty else { return }
+	}
+
+	func resume() {
+		suspensionCount = max(0, suspensionCount - 1)
+		if suspensionCount == 0 { rebuildRegistrations() }
+	}
+
+	private func rebuildRegistrations() {
+		unregisterAll()
+		guard suspensionCount == 0 else { return }
+		flowRegistrationErrors = [:]
+		guard !appShortcuts.isEmpty || !flowBindings.isEmpty else { return }
 		installEventHandlerIfNeeded()
 
-		for (action, shortcut) in shortcuts {
+		for action in GlobalHotkeyAction.allCases {
+			guard let shortcut = appShortcuts[action] else { continue }
 			guard shortcut.hasRequiredModifiers else { continue }
 			let hotkeyId = action.hotkeyId
-			var ref: EventHotKeyRef?
-			let id = EventHotKeyID(signature: OSType(0x544f4259), id: hotkeyId) // 'TOBY'
-			let status = RegisterEventHotKey(
-				shortcut.keyCode,
-				shortcut.modifiers,
-				id,
-				GetApplicationEventTarget(),
-				0,
-				&ref
-			)
-			if status == noErr, let ref {
+			if let ref = register(shortcut, hotkeyId) {
 				hotkeyRefs[hotkeyId] = ref
 				registeredActions[hotkeyId] = action
+			}
+		}
+		for binding in flowBindings {
+			if let conflict = binding.conflictMessage(appShortcuts: appShortcuts, bindings: flowBindings) {
+				flowRegistrationErrors[binding.id] = conflict
+				continue
+			}
+			let hotkeyId = nextFlowHotkeyId
+			nextFlowHotkeyId += 1
+			if let ref = register(binding.shortcut, hotkeyId) {
+				hotkeyRefs[hotkeyId] = ref
+				registeredFlows[hotkeyId] = binding
+			} else {
+				flowRegistrationErrors[binding.id] = "This shortcut is unavailable, possibly because another app uses it. Record another combination."
 			}
 		}
 	}
 
 	private func unregisterAll() {
 		for (_, ref) in hotkeyRefs {
-			UnregisterEventHotKey(ref)
+			unregister(ref)
 		}
 		hotkeyRefs.removeAll()
 		registeredActions.removeAll()
+		registeredFlows.removeAll()
 	}
 
 	/// Installs the one-shot Carbon event handler that dispatches notifications.
@@ -121,7 +184,12 @@ final class GlobalHotkeyController {
 		)
 	}
 
-	private func handleHotkeyPressed(id: UInt32) {
+	func handleHotkeyPressed(id: UInt32) {
+		guard suspensionCount == 0 else { return }
+		if let binding = registeredFlows[id] {
+			NotificationCenter.default.post(name: .runFlowShortcut, object: binding)
+			return
+		}
 		guard let action = registeredActions[id] else { return }
 		NotificationCenter.default.post(name: action.notificationName, object: nil)
 	}

@@ -1007,12 +1007,14 @@ struct TobyClient {
 		try validate(response: response, data: data)
 	}
 
-	func runFlow(id: String, source: String = "manual") async throws -> FlowRunNowResponse {
+	func runFlow(id: String, source: String = "manual", triggerId: String? = nil) async throws -> FlowRunNowResponse {
 		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)/run"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["source": source])
+		var body = ["source": source]
+		if let triggerId { body["triggerId"] = triggerId }
+		request.httpBody = try JSONSerialization.data(withJSONObject: body)
 		let (data, response) = try await URLSession.shared.data(for: request)
 		try validate(response: response, data: data)
 		if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {

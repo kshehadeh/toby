@@ -85,6 +85,86 @@ const occurrence = (id = "tick") => ({
 	payload: {},
 });
 describe("Flow trigger dispatch", () => {
+	it("persists optional manual shortcuts and validates the key combination", () => {
+		const shortcut = { keyCode: 40, modifiers: 0x1900, displayText: "⌃⌥⌘K" };
+		const manual = {
+			...manualTrigger(),
+			source: { type: "manual" as const, shortcut },
+		};
+		expect(save(flow([manual])).trigger.source).toEqual(manual.source);
+		expect(parseFlowTriggers([manual])[0].source).toEqual(manual.source);
+		for (const invalid of [
+			{ ...shortcut, keyCode: -1 },
+			{ ...shortcut, keyCode: 128 },
+			{ ...shortcut, keyCode: 1.5 },
+			{ ...shortcut, modifiers: 0 },
+			{ ...shortcut, modifiers: 1 },
+			{ ...shortcut, modifiers: 0x2000 },
+			{ ...shortcut, displayText: "" },
+		]) {
+			expect(() =>
+				parseFlowTriggers([
+					{ ...manual, source: { type: "manual", shortcut: invalid } },
+				]),
+			).toThrow();
+		}
+		expect(() =>
+			parseFlowTriggers([
+				{ ...manual, source: { type: "home.action", shortcut } },
+			]),
+		).toThrow();
+	});
+
+	it("shortcut dispatch selects its exact manual trigger and saved inputs", async () => {
+		const tool = saveUserTool({
+			name: "Shortcut echo",
+			description: "",
+			language: "typescript",
+			inputNames: ["value"],
+			outputKind: "json",
+			source: "export default input => input",
+		});
+		const shortcut = { keyCode: 40, modifiers: 0x1900, displayText: "⌃⌥⌘K" };
+		const target: FlowTrigger = {
+			...manualTrigger(),
+			id: "shortcut",
+			name: "Shortcut",
+			source: { type: "manual", shortcut },
+			inputs: { value: "right trigger" },
+		};
+		save({
+			...flow([
+				{ ...manualTrigger(), inputs: { value: "wrong trigger" } },
+				target,
+			]),
+			nodes: [
+				{
+					id: "echo",
+					type: "tool_executor",
+					tool: { userToolId: tool.id },
+					inputs: { value: { from: "value" } },
+					outputs: { answer: "result" },
+				},
+			],
+			result: { from: "answer", path: "value" },
+		});
+		const run = (triggerId: string) =>
+			handleWebRequest(
+				new Request("http://localhost/api/flows/flow.test/run", {
+					method: "POST",
+					body: JSON.stringify({ source: "manual", triggerId }),
+				}),
+			);
+		const response = required(await run("shortcut"));
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.ok).toBe(true);
+		expect(body.result.text).toBe("right trigger");
+		expect(listTriggerDecisions()[0].binding.trigger.id).toBe("shortcut");
+		save({ ...flow([manualTrigger(), { ...target, enabled: false }]) });
+		expect(required(await run("shortcut")).status).toBe(400);
+		expect(required(await run("deleted")).status).toBe(400);
+	});
 	it("defaults to manual and rejects duplicate ids, invalid cron, timezone, and reserved input", () => {
 		expect(parseFlowTriggers(undefined)[0].source.type).toBe("manual");
 		expect(() => parseFlowTriggers([trigger(), trigger()])).toThrow();

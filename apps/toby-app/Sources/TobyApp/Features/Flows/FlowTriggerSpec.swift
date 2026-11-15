@@ -3,6 +3,7 @@ import Foundation
 struct FlowTriggerSpec: Decodable, Equatable, Identifiable {
     struct Source: Codable, Equatable {
         var type: String
+        var shortcut: GlobalKeyboardShortcut?
         var cron: String?
         var missedRuns: String?
         var minimumIdleSeconds: Int?

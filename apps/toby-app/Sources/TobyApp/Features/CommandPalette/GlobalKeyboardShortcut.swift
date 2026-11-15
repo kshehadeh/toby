@@ -16,6 +16,11 @@ struct GlobalKeyboardShortcut: Codable, Equatable, Hashable, Sendable {
 	/// `true` when at least one modifier is set (required for a global hotkey).
 	var hasRequiredModifiers: Bool { modifiers != 0 }
 
+	/// Display labels are not part of a keyboard combination's identity.
+	func matches(_ other: Self) -> Bool {
+		keyCode == other.keyCode && modifiers == other.modifiers
+	}
+
 	/// Encodes this shortcut as a stable UserDefaults JSON string.
 	var persistedValue: String? {
 		let data = try? JSONEncoder().encode(self)

@@ -7,6 +7,8 @@ import AppKit
 struct FlowTriggersEditor: View {
     @Binding var triggers: [FlowTriggerSpec]
     @Binding var invalidFields: Set<String>
+    var flowId: String? = nil
+    var savedFlows: [FlowListItem] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -19,7 +21,7 @@ struct FlowTriggersEditor: View {
                     .foregroundStyle(SettingsDesign.rowDescription)
             }
             ForEach($triggers) { $trigger in
-                FlowTriggerCard(trigger: $trigger, invalidFields: $invalidFields) {
+                FlowTriggerCard(trigger: $trigger, invalidFields: $invalidFields, shortcutWarning: shortcutWarning(for: trigger)) {
                     let id = trigger.id
                     invalidFields = invalidFields.filter { !$0.hasPrefix(id + ":") }
                     triggers.removeAll { $0.id == id }
@@ -42,13 +44,30 @@ struct FlowTriggersEditor: View {
         }
         .accessibilityIdentifier("flow-triggers-editor")
     }
+
+    private func shortcutWarning(for trigger: FlowTriggerSpec) -> String? {
+        guard trigger.enabled, let shortcut = trigger.source.shortcut else { return nil }
+        let draftId = flowId ?? "unsaved"
+        let binding = FlowShortcutBinding(flowId: draftId, triggerId: trigger.id, flowName: "this flow", shortcut: shortcut)
+        let peers = triggers.compactMap { peer -> FlowShortcutBinding? in
+            guard peer.enabled, peer.source.type == "manual", let shortcut = peer.source.shortcut else { return nil }
+            return FlowShortcutBinding(flowId: draftId, triggerId: peer.id, flowName: "another manual trigger in this flow", shortcut: shortcut)
+        } + FlowShortcutBinding.bindings(in: savedFlows.filter { $0.id != flowId })
+        if let conflict = binding.conflictMessage(
+            appShortcuts: AppearancePreferences.shared.globalShortcuts, bindings: peers
+        ) { return conflict }
+        let saved = FlowShortcutBinding.bindings(in: savedFlows).first { $0.id == binding.id }
+        guard saved?.shortcut.matches(shortcut) == true else { return nil }
+        return GlobalHotkeyController.shared.flowRegistrationErrors[binding.id]
+    }
 }
 
 // MARK: - Trigger card
 
-private struct FlowTriggerCard: View {
+struct FlowTriggerCard: View {
     @Binding var trigger: FlowTriggerSpec
     @Binding var invalidFields: Set<String>
+    var shortcutWarning: String? = nil
     let onRemove: () -> Void
 
     @State private var showsLimits = false
@@ -249,13 +268,24 @@ private struct FlowTriggerCard: View {
     // MARK: Main fields
 
     private var hasMainFields: Bool {
-        trigger.source.type != "manual"
+        true
     }
 
     @ViewBuilder
     private var mainFields: some View {
         VStack(alignment: .leading, spacing: 10) {
             switch trigger.source.type {
+            case "manual":
+                row("Shortcut") {
+                    KeyboardShortcutRecorder(shortcut: $trigger.source.shortcut)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("flow-trigger-shortcut")
+                }
+                caption("Optional. Runs this trigger with its saved inputs from any app while Toby is open. Changes apply when you save the flow.")
+                if let shortcutWarning {
+                    InlineStatusMessage(message: shortcutWarning, tone: .error, font: .caption)
+                        .accessibilityIdentifier("flow-trigger-shortcut-warning")
+                }
             case "home.action":
                 caption("Adds a button to Home’s Actions. Its Home location stays selected until you change or remove this trigger.")
             case "dashboard.refresh":

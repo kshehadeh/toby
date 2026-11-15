@@ -78,10 +78,14 @@ struct TobyApp: App {
 					}
 					// Register the system-wide command palette hotkey (if set).
 					GlobalHotkeyController.shared.start(prefs: appearancePreferences)
+					GlobalHotkeyController.shared.updateFlows(flowsStore.flows)
 					activateDebugPreviewWindow()
 				}
 				.onChange(of: appearancePreferences.showMenuBarIcon) { _, show in
 					menuBarController?.setStatusItemVisible(show)
+				}
+				.onChange(of: flowsStore.flows, initial: true) {
+					GlobalHotkeyController.shared.updateFlows(flowsStore.flows)
 				}
 				.onReceive(NotificationCenter.default.publisher(for: .companionSessionDidChange)) { _ in
 					Task { await store.refreshSessions() }

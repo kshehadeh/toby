@@ -56,10 +56,6 @@ struct FlowsView: View {
 					await store.startCreate()
 				}
 			}
-			await store.pollForChanges()
-		}
-		.onReceive(NotificationCenter.default.publisher(for: .flowDefinitionsDidChange)) { _ in
-			Task { await store.refreshQuietly() }
 		}
 		.sheet(isPresented: $showScriptTools) {
 			UserScriptToolsView(store: scriptToolsStore)
