@@ -90,8 +90,11 @@ Window chrome: `toby-native-window`. See `Agents.md` → **Swift review skills**
 ## CI
 
 - `release.yml` — triggered on version tags; builds, signs, notarizes, and publishes;
-  its GitHub Pages job now only publishes the Sparkle `appcast.xml` (installed apps
-  read `https://kshehadeh.github.io/toby/appcast.xml`)
+  its GitHub Pages job now only publishes the Sparkle `appcast.xml`. Builds from
+  v0.194.3 read `https://www.tobyai.app/appcast.xml` (Vercel redirects it to the
+  latest release asset); v0.194.2 and earlier read
+  `https://kshehadeh.github.io/toby/appcast.xml`, so keep the Pages job until
+  those installs have updated
 - Help site — Vercel project `toby-docs` (Git integration) deploys production on
   every merge to `main` that touches `apps/help-site/` (config in
   `apps/help-site/vercel.json`); serves `www.tobyai.app` (`tobyai.app` redirects

@@ -23,7 +23,7 @@ case "${APP_VARIANT}" in
 	production)
 		APP_DISPLAY_NAME="Toby"
 		APP_BUNDLE_ID="${TOBY_APP_BUNDLE_ID:-dev.karim.toby.app}"
-		SPARKLE_FEED_URL="${TOBY_SPARKLE_FEED_URL:-https://kshehadeh.github.io/toby/appcast.xml}"
+		SPARKLE_FEED_URL="${TOBY_SPARKLE_FEED_URL:-https://www.tobyai.app/appcast.xml}"
 		SPARKLE_PUBLIC_KEY="${TOBY_SPARKLE_PUBLIC_KEY:-}"
 		;;
 	*)

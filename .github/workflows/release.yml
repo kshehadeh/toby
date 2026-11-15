@@ -405,10 +405,11 @@ jobs:
         if: hashFiles('release-assets/appcast.xml') != ''
         uses: actions/configure-pages@v5
 
-      # GitHub Pages now hosts only the Sparkle feed. Installed apps read
-      # SUFeedURL https://kshehadeh.github.io/toby/appcast.xml, so this must
-      # keep publishing. The help site deploys separately to the Vercel
-      # project `toby-docs` on merge to main (apps/help-site/vercel.json).
+      # GitHub Pages now hosts only the Sparkle feed for installs of v0.194.2
+      # and earlier, whose SUFeedURL is https://kshehadeh.github.io/toby/appcast.xml.
+      # Newer builds read https://www.tobyai.app/appcast.xml, which the Vercel
+      # project `toby-docs` redirects to this release's appcast.xml asset
+      # (apps/help-site/vercel.json). Keep this job until old installs update.
       - name: Prepare Pages appcast site
         if: hashFiles('release-assets/appcast.xml') != ''
         run: |
