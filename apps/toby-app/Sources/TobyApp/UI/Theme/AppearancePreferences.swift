@@ -125,6 +125,8 @@ enum AppearanceDefaultsKey {
 	static let accent = "toby.appearance.accent"
 	/// Home onboarding visibility (Settings → Home; still app-local).
 	static let hideOnboarding = "toby.appearance.hideOnboarding"
+	/// Whether The Feed section is shown on Home. Default on.
+	static let showFeed = "toby.appearance.showFeed"
 	/// Whether the unread-mail dashboard card is visible. Default on.
 	static let showDashboardEmail = "toby.appearance.showDashboardEmail"
 	/// Whether the tasks dashboard card is visible. Default on.
@@ -158,6 +160,7 @@ final class AppearancePreferences {
 	static let modeDefaultsKey = AppearanceDefaultsKey.mode
 	static let accentDefaultsKey = AppearanceDefaultsKey.accent
 	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
+	static let showFeedDefaultsKey = AppearanceDefaultsKey.showFeed
 	static let showDashboardEmailDefaultsKey = AppearanceDefaultsKey.showDashboardEmail
 	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
 	static let showDashboardCalendarDefaultsKey = AppearanceDefaultsKey.showDashboardCalendar
@@ -202,6 +205,26 @@ final class AppearancePreferences {
 			guard hideOnboarding != oldValue else { return }
 			defaults.set(hideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
 		}
+	}
+
+	/// When true, The Feed section appears above the Home cards.
+	var showFeed: Bool {
+		didSet {
+			guard showFeed != oldValue else { return }
+			defaults.set(showFeed, forKey: Self.showFeedDefaultsKey)
+		}
+	}
+
+	/// Binding for the Show The Feed Settings toggle, animated like card visibility.
+	var showFeedBinding: Binding<Bool> {
+		Binding(
+			get: { self.showFeed },
+			set: { newValue in
+				withAnimation(DashboardSectionMotion.animation) {
+					self.showFeed = newValue
+				}
+			}
+		)
 	}
 
 	/// App-local card order, hidden ids, and Actions rail. Source of truth for home layout.
@@ -375,6 +398,7 @@ final class AppearancePreferences {
 		mode: AppearanceMode? = nil,
 		accent: AccentPreset? = nil,
 		hideOnboarding: Bool? = nil,
+		showFeed: Bool? = nil,
 		showDashboardEmail: Bool? = nil,
 		showDashboardTasks: Bool? = nil,
 		showDashboardCalendar: Bool? = nil,
@@ -410,6 +434,15 @@ final class AppearancePreferences {
 			resolvedAccent = stored
 		} else {
 			resolvedAccent = .orange
+		}
+
+		let resolvedShowFeed: Bool
+		if let showFeed {
+			resolvedShowFeed = showFeed
+		} else if defaults.object(forKey: Self.showFeedDefaultsKey) != nil {
+			resolvedShowFeed = defaults.bool(forKey: Self.showFeedDefaultsKey)
+		} else {
+			resolvedShowFeed = true
 		}
 
 		let resolvedHideOnboarding: Bool
@@ -494,6 +527,7 @@ final class AppearancePreferences {
 		self.mode = resolvedMode
 		self.accent = resolvedAccent
 		self.hideOnboarding = resolvedHideOnboarding
+		self.showFeed = resolvedShowFeed
 		self.dashboardLayout = resolvedLayout
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
@@ -510,6 +544,9 @@ final class AppearancePreferences {
 		}
 		if hideOnboarding != nil {
 			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
+		}
+		if showFeed != nil {
+			defaults.set(resolvedShowFeed, forKey: Self.showFeedDefaultsKey)
 		}
 		if showDashboardEmail != nil || showDashboardTasks != nil || showDashboardCalendar != nil {
 			persistDashboardLayout()

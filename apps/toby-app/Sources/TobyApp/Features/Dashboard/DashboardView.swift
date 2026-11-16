@@ -107,12 +107,14 @@ struct DashboardView: View {
 	private var sectionVisibilityKey: String {
 		let hiddenKey = isEditing ? hiddenBlocks.map { "h:\($0.id.rawValue)" } : []
 		let railKey = isActionsInspectorPresented ? "actions" : ""
-		return ([shouldShowOnboarding ? "onboarding" : ""]
+		return ([shouldShowOnboarding ? "onboarding" : "", showsFeed ? "feed" : ""]
 			+ visibleHomeItems.map(\.id.rawValue)
 			+ visibleRunners.map { "r:\($0.id.rawValue)" }
 			+ [railKey]
 			+ hiddenKey).joined(separator: "|")
 	}
+
+	private var showsFeed: Bool { appearancePreferences.showFeed }
 
 	private var sectionAnimation: Animation? {
 		reduceMotion ? nil : DashboardSectionMotion.animation
@@ -211,6 +213,10 @@ struct DashboardView: View {
 					)
 						.transition(DashboardSectionMotion.transition)
 				}
+				if showsFeed {
+					feedSection
+						.transition(DashboardSectionMotion.transition)
+				}
 				cardGrid
 				if isEditing, !hiddenBlocks.isEmpty {
 					DashboardHiddenBlocksTray(
@@ -256,6 +262,35 @@ struct DashboardView: View {
 			ideal: actionsInspectorIdealWidth ?? layoutSource.actionsWidth,
 			max: DashboardBlockLayout.actionsRailMaxWidth
 		)
+	}
+
+	private var feedSection: some View {
+		FeedCardView(
+			store: store.feed,
+			onPerform: performFeedAction,
+			onOpenSettings: { onOpenSettings("dashboard") },
+			onHide: { appearancePreferences.showFeedBinding.wrappedValue = false }
+		)
+		.allowsHitTesting(!isEditing)
+		.opacity(isEditing ? 0.6 : 1)
+		.task(id: isServerReady) {
+			guard isServerReady, store.feed.content == nil else { return }
+			await store.feed.update(force: false)
+		}
+	}
+
+	/// Chat actions open a seeded chat; open actions launch the item URL.
+	private func performFeedAction(_ action: FeedAction) {
+		switch action.kind {
+		case .chat:
+			guard let prompt = action.prompt, !prompt.isEmpty else { return }
+			actionContext.startChatWithPrompt(prompt)
+		case .open:
+			guard let raw = action.url, let url = URL(string: raw) else { return }
+			NSWorkspace.shared.open(url)
+		case .tool, .local:
+			break
+		}
 	}
 
 	private var cardGrid: some View {

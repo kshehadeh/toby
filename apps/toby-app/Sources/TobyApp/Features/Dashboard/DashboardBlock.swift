@@ -55,6 +55,8 @@ struct DashboardBlockSnapshot: Sendable {
 /// App shell hooks that block actions may invoke (chat, navigation).
 struct DashboardBlockActionContext {
 	var startChat: @MainActor () -> Void = {}
+	/// Opens a new chat seeded with a prompt (The Feed chat actions).
+	var startChatWithPrompt: @MainActor (String) -> Void = { _ in }
 	var summarizeEmail: @MainActor () -> Void = {}
 	var planInChat: @MainActor () -> Void = {}
 	var openFlow: @MainActor (String) -> Void = { _ in }

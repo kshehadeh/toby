@@ -263,3 +263,25 @@ Findings / still open:
 - How a background run reaches `NativeNotificationCoordinator` (phase 3).
 - Native Settings rendering of the new Home rows is unverified until the app
   is run (rows use the generic `select`/`hint` kinds).
+
+## Phase 2 status
+
+Done:
+- `FeedModels.swift`, `TobyClient.fetchDashboardFeed`, `FeedStore` (owned by
+  `DashboardStore`; included in global refresh and home-switch reset).
+- `Features/Dashboard/Feed/FeedCardView.swift` — full-width section above the
+  card grid: tiers, reason, primary + secondary CTA buttons, overflow menu,
+  setup / no-sources / empty / error states, Feed settings + Hide in the menu.
+- Chat actions → `startChatWithPrompt`; open actions → `NSWorkspace.open`.
+  Tool actions (archive, add todo, complete) are filtered out until phase 3.
+- Dismiss hides an item for the session only (daemon persistence is phase 3).
+- Settings → Home → "Show The Feed" (`toby.appearance.showFeed`, default on).
+- Tests: `apps/toby-app/Tests/TobyAppTests/FeedTests.swift`.
+
+Notes:
+- ViewInspector crashes ("Can't unsafeBitCast between types of different
+  sizes") traversing `CardHeader` on the current toolchain — pre-existing, the
+  `DashboardBlockCard` title test crashes on a clean tree too, and the full
+  Swift suite aborts. Feed view tests target `FeedCardBody` to avoid it.
+- The Feed is not part of the reorderable card grid (the waterfall layout has
+  no full-width span); hide/show is the Settings toggle or the card menu.

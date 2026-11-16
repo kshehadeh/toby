@@ -1140,6 +1140,21 @@ struct TobyClient {
 		try await fetchDashboardBlockContent(category, fresh: fresh)
 	}
 
+	/// The Feed: ranked cross-connection items with reasons and actions.
+	/// - Parameter fresh: When true, re-collects and re-ranks on the daemon.
+	func fetchDashboardFeed(fresh: Bool = false) async throws -> FeedContent {
+		var components = URLComponents(
+			url: baseURL.appendingPathComponent("api/dashboard/feed"),
+			resolvingAgainstBaseURL: false
+		)!
+		if fresh {
+			components.queryItems = [URLQueryItem(name: "fresh", value: "1")]
+		}
+		let (data, response) = try await URLSession.shared.data(from: components.url!)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(FeedContent.self, from: data)
+	}
+
 	private func dashboardURL(category: String, content: Bool, fresh: Bool) -> URL {
 		var allowed = CharacterSet.urlPathAllowed
 		allowed.remove(charactersIn: "/")

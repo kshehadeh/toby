@@ -317,7 +317,7 @@ private struct CardActionsMenu<Content: View>: View {
 }
 
 /// Refresh + actions menu for the top-right of a dashboard card header.
-private struct CardHeaderTrailingControls<MenuContent: View>: View {
+struct CardHeaderTrailingControls<MenuContent: View>: View {
 	@Environment(\.dashboardIsEditing) private var isEditing
 	let isRefreshing: Bool
 	let onRefresh: () -> Void

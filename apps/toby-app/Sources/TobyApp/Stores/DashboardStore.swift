@@ -5,6 +5,8 @@ import Observation
 @MainActor
 final class DashboardStore {
 	let registry: DashboardBlockRegistry
+	/// The Feed (full-width Home section above the card grid).
+	let feed: FeedStore
 
 	var hasLoadedOnce = false
 
@@ -16,6 +18,7 @@ final class DashboardStore {
 	init(client: TobyClient = TobyClient()) {
 		self.client = client
 		self.registry = DashboardBlockRegistry(client: client)
+		self.feed = FeedStore(client: client)
 	}
 
 	/// Convenience for tests / registry access.
@@ -100,10 +103,14 @@ final class DashboardStore {
 			}
 		}
 
-		let tasks = blocks.map { block in
+		var tasks = blocks.map { block in
 			Task { @MainActor in
 				await block.update(force: force)
 			}
+		}
+		if AppearancePreferences.shared.showFeed {
+			let feed = feed
+			tasks.append(Task { @MainActor in await feed.update(force: force) })
 		}
 		for task in tasks {
 			await task.value
@@ -115,6 +122,7 @@ final class DashboardStore {
 		hasLoadedOnce = false
 		isGlobalUpdating = false
 		registry.syncFlowBlocks([], client: client)
+		feed.reset()
 		for block in blocks {
 			block.content = nil
 			block.error = nil

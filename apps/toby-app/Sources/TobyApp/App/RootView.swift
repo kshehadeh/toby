@@ -494,6 +494,7 @@ struct RootView: View {
                 onOpenPermissions: { openWindow(id: "permissions") },
                 actionContext: DashboardBlockActionContext(
                     startChat: startNewChat,
+                    startChatWithPrompt: startChatWithPromptFromDashboard,
                     summarizeEmail: summarizeUnreadEmailInChat,
                     planInChat: planCalendarInChat,
                     openFlow: openDashboardFlow,
@@ -1022,6 +1023,11 @@ struct RootView: View {
     private func summarizeUnreadEmailInChat() {
         navigateToRoute(.chat)
         Task { await store.startChatWithPrompt("Show me a summary of all my unread email") }
+    }
+
+    private func startChatWithPromptFromDashboard(_ prompt: String) {
+        navigateToRoute(.chat)
+        Task { await store.startChatWithPrompt(prompt) }
     }
 
     private func planCalendarInChat() {

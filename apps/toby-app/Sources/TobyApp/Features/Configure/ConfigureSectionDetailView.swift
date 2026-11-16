@@ -163,6 +163,18 @@ struct ConfigureSectionDetailView: View {
 							.toggleStyle(.switch)
 							.accessibilityIdentifier(block.accessibilityIdentifier)
 						}
+						Toggle(isOn: appearancePreferences.showFeedBinding) {
+							VStack(alignment: .leading, spacing: 2) {
+								Text("Show The Feed")
+								Text(
+									"A prioritized list of what needs your attention across email, calendar, and tasks. Stored only on this Mac."
+								)
+								.font(.caption)
+								.foregroundStyle(.secondary)
+							}
+						}
+						.toggleStyle(.switch)
+						.accessibilityIdentifier("dashboard-show-feed-toggle")
 						Toggle(isOn: appearancePreferences.hideOnboardingBinding) {
 							VStack(alignment: .leading, spacing: 2) {
 								Text("Hide onboarding checklist")
