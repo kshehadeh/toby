@@ -11,7 +11,17 @@ function modelsUrl(baseUrl: string): string {
 	return `${trimmed}/models`;
 }
 
-function parseChutesModels(body: unknown): AIModelListItem[] {
+/** Catalog lists `structured_outputs` in the model's `supported_features`. */
+export function chutesModelSupportsStructuredOutput(rec: {
+	readonly supported_features?: unknown;
+}): boolean {
+	const features = Array.isArray(rec.supported_features)
+		? rec.supported_features
+		: [];
+	return features.includes("structured_outputs");
+}
+
+export function parseChutesModels(body: unknown): AIModelListItem[] {
 	const root =
 		body && typeof body === "object" && !Array.isArray(body)
 			? (body as { data?: unknown })
@@ -28,6 +38,7 @@ function parseChutesModels(body: unknown): AIModelListItem[] {
 			id?: unknown;
 			owned_by?: unknown;
 			context_length?: unknown;
+			supported_features?: unknown;
 		};
 		if (typeof rec.id !== "string" || !rec.id.trim()) {
 			continue;
@@ -42,6 +53,9 @@ function parseChutesModels(body: unknown): AIModelListItem[] {
 			...(typeof rec.owned_by === "string" ? { ownedBy: rec.owned_by } : {}),
 			...(typeof rec.context_length === "number"
 				? { contextWindowTokens: rec.context_length }
+				: {}),
+			...(chutesModelSupportsStructuredOutput(rec)
+				? { structuredOutput: true }
 				: {}),
 		});
 	}

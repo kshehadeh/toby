@@ -57,6 +57,7 @@ import {
 	handleDashboard,
 	handleDashboardCategory,
 	handleDashboardCategorySummary,
+	handleDashboardFeed,
 	handleDashboardFlowBlocks,
 } from "./handlers/dashboard";
 import { handleFlowTriggers } from "./handlers/flow-triggers";
@@ -255,6 +256,9 @@ export async function handleWebRequest(
 		}
 		if (pathname === "/api/dashboard/flow-blocks" && req.method === "GET") {
 			return handleDashboardFlowBlocks();
+		}
+		if (pathname === "/api/dashboard/feed" && req.method === "GET") {
+			return handleDashboardFeed(url);
 		}
 		if (pathname.startsWith("/api/dashboard/") && req.method === "GET") {
 			const rest = decodeURIComponent(pathname.slice("/api/dashboard/".length));

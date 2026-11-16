@@ -6,6 +6,7 @@ import {
 } from "../../dashboard/flow-blocks";
 import { getDashboardBlockContent } from "../../dashboard/summarizer";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
+import { getFeedContent } from "../../feed/index";
 import { jsonResponse } from "../http-utils";
 
 /** True when the client asked for a cache-bypassing refresh (`?fresh=1`). */
@@ -83,4 +84,23 @@ export async function handleDashboardCategorySummary(
 	url?: URL,
 ): Promise<Response> {
 	return handleDashboardBlockContent(category, url);
+}
+
+/**
+ * GET /api/dashboard/feed — The Feed (ranked items with reasons + actions).
+ * `?fresh=1` re-collects and re-ranks. 402 when the AI gateway is out of funds.
+ */
+export async function handleDashboardFeed(url?: URL): Promise<Response> {
+	try {
+		const content = await getFeedContent({
+			force: isFreshRequest(url),
+			trigger: "dashboard.feed:api",
+		});
+		return jsonResponse(content);
+	} catch (error) {
+		if (error instanceof GatewayFundsError) {
+			return jsonResponse(error.toBody(), 402);
+		}
+		throw error;
+	}
 }

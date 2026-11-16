@@ -173,7 +173,8 @@ export async function runLlmPrompterNode(
 
 	try {
 		const model = createModelForPersona(runtime.persona);
-		const markdownOnly = isMarkdownOnlyObjectSchema(node.schema);
+		const required = node.structuredOutput === "required";
+		const markdownOnly = !required && isMarkdownOnlyObjectSchema(node.schema);
 
 		// 1) Structured output — skip for simple { markdown } schemas (dashboard)
 		//    where free-form is more reliable on many gateway models (e.g. DeepSeek).
@@ -181,10 +182,9 @@ export async function runLlmPrompterNode(
 		// reasoning_effort=none as invalid. CoT leaks are stripped post-hoc by
 		// extractDashboardSummaryText for dashboard consumers.
 		if (!markdownOnly) {
-			const structuredTimeout = Math.min(
-				STRUCTURED_ATTEMPT_TIMEOUT_MS,
-				timeoutMs,
-			);
+			const structuredTimeout = required
+				? timeoutMs
+				: Math.min(STRUCTURED_ATTEMPT_TIMEOUT_MS, timeoutMs);
 			try {
 				const structured = await withTimeout(
 					structuredTimeout,
@@ -223,7 +223,7 @@ export async function runLlmPrompterNode(
 					};
 				}
 			} catch (structuredError) {
-				if (runtime.abortSignal?.aborted) {
+				if (runtime.abortSignal?.aborted || required) {
 					throw structuredError;
 				}
 				daemonLog("info", "general", "flow_llm_structured_fallback", {
@@ -239,6 +239,14 @@ export async function runLlmPrompterNode(
 				nodeId: node.id,
 				reason: "markdown_only_schema",
 			});
+		}
+
+		if (required) {
+			throw new FlowNodeError(
+				node.id,
+				"Model returned no structured output",
+				"structured_output_null",
+			);
 		}
 
 		// 2) Free-form generation with a **fresh full** timeout budget.

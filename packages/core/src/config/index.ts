@@ -127,6 +127,11 @@ export function getPluginsDir(): string {
 	return path.join(resolveTobyDir(), "plugins");
 }
 
+/** Persisted Feed content: `~/.toby/dashboard-feed.json`. */
+export function getDashboardFeedPath(): string {
+	return path.join(resolveTobyDir(), "dashboard-feed.json");
+}
+
 /** Persisted dashboard AI summaries: `~/.toby/dashboard-summaries.json`. */
 export function getDashboardSummariesPath(): string {
 	return path.join(resolveTobyDir(), "dashboard-summaries.json");
@@ -235,9 +240,19 @@ export interface AISettings {
 	readonly customModels?: Record<string, string[]>;
 }
 
+/** The Feed home block: its own model, independent of the dashboard persona. */
+export interface DashboardFeedConfig {
+	/** AI provider id for Feed ranking. */
+	readonly provider?: string;
+	/** Model id; must support structured output (enforced at pick + run time). */
+	readonly model?: string;
+}
+
 export interface DashboardConfig {
 	/** Persona used for dashboard section summaries; falls back to default persona. */
 	readonly persona?: string;
+	/** The Feed ranking model. */
+	readonly feed?: DashboardFeedConfig;
 }
 
 /** Small-model settings used to summarize and caption library items. */

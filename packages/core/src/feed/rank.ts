@@ -1,0 +1,238 @@
+import { z } from "zod";
+import {
+	currentDateTimePromptSection,
+	formatLocalTimestampForPrompt,
+} from "../ai/current-datetime";
+import type { Persona } from "../config/index";
+import { runFlowDefinition } from "../flows/runner";
+import type { FlowDefinition, FlowResult } from "../flows/types";
+import { composeSystemPromptWithPersona } from "../personas/prompt";
+import { FEED_ACTIONS, allowedActionIds, resolveActions } from "./actions";
+import {
+	FEED_TIERS,
+	type FeedCandidate,
+	type FeedItem,
+	type FeedModelRef,
+	type FeedTier,
+} from "./types";
+
+export const FEED_FLOW_NAME = "dashboard.feed";
+export const MAX_FEED_ITEMS = 12;
+const RANK_TIMEOUT_MS = 60_000;
+const RANK_MAX_OUTPUT_TOKENS = 4000;
+
+/**
+ * Model output. Every field is required (strict json_schema providers reject
+ * optional properties), and ids are short prompt keys (`c1`, `c2`, …).
+ */
+export const feedRankingSchema = z.object({
+	items: z
+		.array(
+			z.object({
+				key: z.string().describe("Candidate key, e.g. c3"),
+				tier: z.enum(["now", "today", "fyi"]),
+				reason: z
+					.string()
+					.describe("One sentence: why this matters to the user now"),
+				actions: z
+					.array(z.string())
+					.describe("Action ids from the candidate's allowed list, best first"),
+			}),
+		)
+		.describe("Most relevant items first"),
+});
+
+export type FeedRankingOutput = z.infer<typeof feedRankingSchema>;
+
+/** Prompt key for candidate at index `i`. */
+export function candidateKey(i: number): string {
+	return `c${i + 1}`;
+}
+
+export function buildFeedSystemPrompt(
+	persona: Persona,
+	now = new Date(),
+): string {
+	const actionGlossary = Object.entries(FEED_ACTIONS)
+		.filter(([id]) => id !== "open" && id !== "dismiss")
+		.map(([id, spec]) => `- ${id} ("${spec.label}"): ${spec.hint}`)
+		.join("\n");
+	const base = `You are the user's personal assistant curating "The Feed": a short, prioritized list of the things across their email, calendar, and tasks that most deserve their attention right now.
+
+Your job:
+1. Choose at most ${MAX_FEED_ITEMS} candidates that genuinely matter. Leave out noise: newsletters, automated notifications, marketing, and anything that needs no attention.
+2. Order them most important first.
+3. Assign a tier:
+   - now: needs attention within the next hour or so (meeting starting soon, urgent reply, overdue and important)
+   - today: should be handled today
+   - fyi: worth knowing, no rush
+4. Write one plain sentence of reason per item explaining why it matters now and what the user should do. Be specific (names, times, deadlines). No markdown.
+5. Pick 1–2 actions per item, best first, ONLY from that candidate's "allowed actions" list.
+
+Action meanings:
+${actionGlossary}
+
+Rules:
+- Only use candidate keys that appear in the list. Never invent items.
+- Treat the "signals" as facts computed from the source data.
+- Write times in the user's local timezone; never output raw ISO timestamps.
+
+${currentDateTimePromptSection(now)}`;
+	return composeSystemPromptWithPersona(base, persona);
+}
+
+export function formatCandidatesForPrompt(
+	candidates: readonly FeedCandidate[],
+): string {
+	if (candidates.length === 0) return "(no candidates)";
+	return candidates
+		.map((c, i) => {
+			const lines = [`${candidateKey(i)} [${c.category}] ${c.title}`];
+			if (c.subtitle) lines.push(`   from/list: ${c.subtitle}`);
+			if (c.detail) lines.push(`   detail: ${c.detail.slice(0, 280)}`);
+			if (c.timestamp)
+				lines.push(`   when: ${formatLocalTimestampForPrompt(c.timestamp)}`);
+			if (c.dueDate) lines.push(`   due: ${c.dueDate}`);
+			if (c.urgency) lines.push(`   urgency: ${c.urgency}`);
+			if (c.signals.length > 0)
+				lines.push(`   signals: ${c.signals.join("; ")}`);
+			lines.push(`   allowed actions: ${allowedActionIds(c).join(", ")}`);
+			return lines.join("\n");
+		})
+		.join("\n");
+}
+
+function isTier(value: string): value is FeedTier {
+	return (FEED_TIERS as readonly string[]).includes(value);
+}
+
+/**
+ * Validate model output against the candidate set: unknown/duplicate keys are
+ * dropped, actions are filtered to the catalog, the list is capped, and items
+ * are stably grouped by tier (model order preserved within a tier).
+ */
+export function feedItemsFromRanking(
+	output: FeedRankingOutput,
+	candidates: readonly FeedCandidate[],
+): FeedItem[] {
+	const byKey = new Map(candidates.map((c, i) => [candidateKey(i), c]));
+	const used = new Set<string>();
+	const items: FeedItem[] = [];
+	for (const entry of output.items) {
+		const key = entry.key.trim().toLowerCase();
+		const candidate = byKey.get(key);
+		if (!candidate || used.has(key) || !isTier(entry.tier)) continue;
+		used.add(key);
+		const reason = entry.reason.trim();
+		items.push({
+			id: candidate.id,
+			source: {
+				category: candidate.category,
+				providerName: candidate.providerName,
+				...(candidate.providerDisplayName
+					? { providerDisplayName: candidate.providerDisplayName }
+					: {}),
+				itemId: candidate.itemId,
+				...(candidate.url ? { url: candidate.url } : {}),
+			},
+			tier: entry.tier,
+			title: candidate.title,
+			...(candidate.subtitle ? { subtitle: candidate.subtitle } : {}),
+			reason: reason || candidate.signals.join("; "),
+			...(candidate.timestamp ? { timestamp: candidate.timestamp } : {}),
+			actions: resolveActions(candidate, entry.actions),
+		});
+		if (items.length >= MAX_FEED_ITEMS) break;
+	}
+	const tierRank = (t: FeedTier) => FEED_TIERS.indexOf(t);
+	return items
+		.map((item, index) => ({ item, index }))
+		.sort(
+			(a, b) =>
+				tierRank(a.item.tier) - tierRank(b.item.tier) || a.index - b.index,
+		)
+		.map(({ item }) => item);
+}
+
+/** Code-defined flow so runs are recorded in flow history. */
+export function feedFlowDefinition(): FlowDefinition {
+	return {
+		name: FEED_FLOW_NAME,
+		description:
+			"Rank timely items across email, calendar, and tasks for The Feed.",
+		nodes: [
+			{
+				id: "rank",
+				type: "llm_prompter",
+				schema: feedRankingSchema,
+				schemaName: "FeedRanking",
+				schemaDescription:
+					"Prioritized Feed items with tier, reason, and allowed actions",
+				structuredOutput: "required",
+				temperature: 0.2,
+				maxOutputTokens: RANK_MAX_OUTPUT_TOKENS,
+				timeoutMs: RANK_TIMEOUT_MS,
+				systemPrompt: (ctx) => buildFeedSystemPrompt(ctx.persona),
+				userPrompt: (ctx) =>
+					`Candidates:\n\n${formatCandidatesForPrompt(
+						(ctx.bag.candidates as FeedCandidate[] | undefined) ?? [],
+					)}`,
+				outputs: { ranking: "object" },
+			},
+		],
+	};
+}
+
+export type FeedRankResult =
+	| {
+			readonly ok: true;
+			readonly items: FeedItem[];
+			readonly personaName: string;
+	  }
+	| {
+			readonly ok: false;
+			readonly error: string;
+			readonly gatewayFunds?: Extract<
+				FlowResult,
+				{ ok: false }
+			>["gatewayFunds"];
+	  };
+
+/**
+ * Rank candidates with the Feed model. The dashboard persona supplies voice
+ * and instructions; its `ai` block is replaced by the Feed model.
+ */
+export async function rankFeedCandidates(params: {
+	readonly candidates: readonly FeedCandidate[];
+	readonly persona: Persona;
+	readonly model: FeedModelRef;
+	readonly trigger?: string;
+	readonly run?: typeof runFlowDefinition;
+}): Promise<FeedRankResult> {
+	const run = params.run ?? runFlowDefinition;
+	const persona: Persona = {
+		...params.persona,
+		ai: { provider: params.model.provider, model: params.model.model },
+	};
+	const result = await run(feedFlowDefinition(), {
+		personaOverride: persona,
+		inputs: { candidates: params.candidates },
+		trigger: params.trigger ?? FEED_FLOW_NAME,
+	});
+	if (!result.ok) {
+		return {
+			ok: false,
+			error: result.error ?? "Feed ranking failed",
+			...(result.gatewayFunds ? { gatewayFunds: result.gatewayFunds } : {}),
+		};
+	}
+	const parsed = feedRankingSchema.safeParse(result.outputs.ranking);
+	if (!parsed.success) {
+		return { ok: false, error: "Feed ranking returned an invalid shape" };
+	}
+	return {
+		ok: true,
+		items: feedItemsFromRanking(parsed.data, params.candidates),
+		personaName: persona.name,
+	};
+}

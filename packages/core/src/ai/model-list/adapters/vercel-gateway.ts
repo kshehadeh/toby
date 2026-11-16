@@ -1,7 +1,10 @@
 import type { AIModelListItem, ModelListAdapter } from "../types";
 import { fetchVercelGatewayCatalog } from "../vercel-catalog";
 
-function toListItems(
+/** Vercel AI Gateway catalog tag for schema-constrained output support. */
+export const VERCEL_STRUCTURED_OUTPUT_TAG = "structured-output";
+
+export function vercelCatalogToListItems(
 	catalog: Awaited<ReturnType<typeof fetchVercelGatewayCatalog>>,
 ): AIModelListItem[] {
 	const items: AIModelListItem[] = [];
@@ -17,6 +20,8 @@ function toListItems(
 		}
 		seen.add(model.id);
 		const reasoning = model.tags?.includes("reasoning") === true;
+		const structuredOutput =
+			model.tags?.includes(VERCEL_STRUCTURED_OUTPUT_TAG) === true;
 		items.push({
 			id: model.id,
 			...(model.name ? { displayName: model.name } : {}),
@@ -25,6 +30,7 @@ function toListItems(
 				: {}),
 			...(model.ownedBy ? { ownedBy: model.ownedBy } : {}),
 			...(reasoning ? { reasoning: true } : {}),
+			...(structuredOutput ? { structuredOutput: true } : {}),
 		});
 	}
 
@@ -41,7 +47,7 @@ export const vercelGatewayModelListAdapter: ModelListAdapter = {
 			return {
 				providerId: "vercel",
 				remote: true,
-				models: toListItems(catalog),
+				models: vercelCatalogToListItems(catalog),
 				fetchedAt,
 			};
 		} catch (error) {

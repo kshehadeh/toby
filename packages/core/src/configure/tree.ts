@@ -1,4 +1,7 @@
-import { resolveAuxiliaryModelId } from "../ai/model-factory";
+import {
+	isAIProviderConfigured,
+	resolveAuxiliaryModelId,
+} from "../ai/model-factory";
 import type { AIProviderForUI } from "../ai/model-list";
 import { formatModelChoiceLabel } from "../ai/model-list";
 import { AI_PROVIDERS } from "../ai/providers";
@@ -7,6 +10,7 @@ import {
 	getWebSearchProvider,
 } from "../ai/web-search-providers";
 import { getDefaultPersonaName } from "../config/index";
+import { eligibleFeedProviders } from "../feed/model";
 import { listFlowRecords } from "../flows/definition-store";
 import {
 	getIntegrationModules,
@@ -813,6 +817,7 @@ export function buildSettingsTree(
 						description:
 							"Persona used to summarize Home cards (email, tasks, calendar, news). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
 					},
+					...buildFeedModelItems(availableProviders, values),
 				],
 			},
 			{
@@ -853,4 +858,66 @@ export function buildSettingsTree(
 			weatherSection,
 		],
 	};
+}
+
+/**
+ * Home → The Feed model rows. Only configured providers with at least one
+ * structured-output model are offered, and only those models; there is no
+ * custom-model entry because unknown models are ineligible.
+ */
+export function buildFeedModelItems(
+	availableProviders: readonly AIProviderForUI[],
+	values: Record<string, string>,
+	isConfigured: (providerId: string) => boolean = isAIProviderConfigured,
+): SettingsItem[] {
+	const eligible = eligibleFeedProviders({
+		providers: availableProviders,
+		isProviderConfigured: isConfigured,
+	});
+	const hint: SettingsItem = {
+		label:
+			eligible.length > 0
+				? "The Feed ranks timely items across your connections. It needs a model with structured output — only those models are listed. Automatic uses the Home persona's model when it qualifies."
+				: "The Feed needs a model with structured output, and no connected AI provider offers one. Connect OpenAI, OpenRouter, Vercel AI Gateway, or Chutes.",
+		kind: "hint",
+		key: "dashboard.feed._hint",
+	};
+	if (eligible.length === 0) return [hint];
+
+	const providerValue = values["dashboard.feed.provider"]?.trim() || "(auto)";
+	const selected = eligible.find((p) => p.id === providerValue);
+	const providerItem: SettingsItem = {
+		label: "Feed provider",
+		kind: "select",
+		key: "dashboard.feed.provider",
+		options: ["(auto)", ...eligible.map((p) => p.id)],
+		selectChoices: [
+			{ value: "(auto)", label: "Automatic" },
+			...eligible.map((p) => ({ value: p.id, label: p.displayName })),
+		],
+		currentValue: selected ? selected.id : "(auto)",
+	};
+	if (!selected) return [hint, providerItem];
+
+	const configuredModel = values["dashboard.feed.model"]?.trim() ?? "";
+	const modelValue = selected.models.some((m) => m.id === configuredModel)
+		? configuredModel
+		: (selected.models[0]?.id ?? "");
+	const modelItem: SettingsItem = {
+		label: "Feed model",
+		kind: "select",
+		key: "dashboard.feed.model",
+		options: selected.models.map((m) => m.id),
+		selectChoices: selected.models.map((m) => ({
+			value: m.id,
+			label: formatModelChoiceLabel(m),
+		})),
+		currentValue: modelValue,
+		...(configuredModel && configuredModel !== modelValue
+			? {
+					description: `"${configuredModel}" doesn't support structured output, so The Feed is paused until you pick a model here.`,
+				}
+			: {}),
+	};
+	return [hint, providerItem, modelItem];
 }

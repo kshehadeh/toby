@@ -46,7 +46,20 @@ export function isOpenAiChatModelId(id: string): boolean {
 	return false;
 }
 
-function parseOpenAiModels(body: unknown): AIModelListItem[] {
+/**
+ * OpenAI's `/v1/models` exposes no capability metadata, so structured-output
+ * support is a curated family list (json_schema response format):
+ * gpt-4o*, gpt-4.1*, gpt-5*, o3*, o4*. Excludes chat-latest aliases and
+ * search-preview variants, which reject `response_format: json_schema`.
+ */
+export function isOpenAiStructuredOutputModelId(id: string): boolean {
+	const lower = id.trim().toLowerCase();
+	if (!isOpenAiChatModelId(lower)) return false;
+	if (lower.includes("search") || lower.includes("chat-latest")) return false;
+	return /^(gpt-4o|gpt-4\.1|gpt-5|o3|o4)(?![0-9])/.test(lower);
+}
+
+export function parseOpenAiModels(body: unknown): AIModelListItem[] {
 	const root =
 		body && typeof body === "object" && !Array.isArray(body)
 			? (body as { data?: unknown })
@@ -71,6 +84,9 @@ function parseOpenAiModels(body: unknown): AIModelListItem[] {
 		items.push({
 			id,
 			...(typeof rec.owned_by === "string" ? { ownedBy: rec.owned_by } : {}),
+			...(isOpenAiStructuredOutputModelId(id)
+				? { structuredOutput: true }
+				: {}),
 		});
 	}
 

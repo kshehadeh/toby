@@ -10,6 +10,14 @@ export type AIModelListItem = {
 	 * Omitted when the catalog does not expose that signal.
 	 */
 	readonly reasoning?: boolean;
+	/**
+	 * True when the provider catalog says the model supports schema-constrained
+	 * structured output (OpenRouter `supported_parameters: structured_outputs`,
+	 * Vercel tag `structured-output`, Chutes `supported_features`, or the curated
+	 * OpenAI family list). Omitted = unknown, which callers must treat as
+	 * unsupported.
+	 */
+	readonly structuredOutput?: boolean;
 };
 
 /** Normalized model list for one AI provider. */
@@ -36,4 +44,14 @@ export function formatModelChoiceLabel(
 	const id = item.id.trim();
 	if (!id) return id;
 	return item.reasoning ? `${id} · reasoning` : id;
+}
+
+/**
+ * Whether a model may be used where schema-constrained output is required
+ * (e.g. The Feed). Unknown capability is treated as unsupported.
+ */
+export function modelSupportsStructuredOutput(
+	item: Pick<AIModelListItem, "structuredOutput"> | undefined,
+): boolean {
+	return item?.structuredOutput === true;
 }

@@ -339,6 +339,11 @@ export function createChutesProvider() {
 	return createOpenAICompatible({
 		name: "chutes",
 		baseURL: CHUTES_DEFAULT_BASE_URL,
+		// Send Output.object as json_schema so schema-constrained callers (The
+		// Feed) get real constrained decoding instead of plain JSON mode. Models
+		// without support fail the structured attempt; llm_prompter nodes that
+		// allow it fall back to free-form.
+		supportsStructuredOutputs: true,
 		...(apiKey ? { apiKey } : {}),
 	});
 }

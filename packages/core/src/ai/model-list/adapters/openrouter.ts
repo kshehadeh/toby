@@ -31,7 +31,17 @@ function openRouterModelIsReasoning(rec: {
 	);
 }
 
-function parseOpenRouterModels(body: unknown): AIModelListItem[] {
+/** Catalog lists `structured_outputs` (json_schema) as a supported parameter. */
+export function openRouterModelSupportsStructuredOutput(rec: {
+	readonly supported_parameters?: unknown;
+}): boolean {
+	const params = Array.isArray(rec.supported_parameters)
+		? rec.supported_parameters
+		: [];
+	return params.includes("structured_outputs");
+}
+
+export function parseOpenRouterModels(body: unknown): AIModelListItem[] {
 	const root =
 		body && typeof body === "object" && !Array.isArray(body)
 			? (body as { data?: unknown })
@@ -60,6 +70,7 @@ function parseOpenRouterModels(body: unknown): AIModelListItem[] {
 		}
 		seen.add(id);
 		const reasoning = openRouterModelIsReasoning(rec);
+		const structuredOutput = openRouterModelSupportsStructuredOutput(rec);
 		items.push({
 			id,
 			...(typeof rec.name === "string" ? { displayName: rec.name } : {}),
@@ -67,6 +78,7 @@ function parseOpenRouterModels(body: unknown): AIModelListItem[] {
 				? { contextWindowTokens: rec.context_length }
 				: {}),
 			...(reasoning ? { reasoning: true } : {}),
+			...(structuredOutput ? { structuredOutput: true } : {}),
 		});
 	}
 

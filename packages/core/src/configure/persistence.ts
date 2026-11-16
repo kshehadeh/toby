@@ -173,6 +173,9 @@ export function seedConfigureValues(): Record<string, string> {
 	}
 	values["dashboard.persona"] =
 		config.dashboard?.persona?.trim() || "(default)";
+	values["dashboard.feed.provider"] =
+		config.dashboard?.feed?.provider?.trim() || FEED_AUTO_PROVIDER;
+	values["dashboard.feed.model"] = config.dashboard?.feed?.model?.trim() || "";
 	values["listen.summaryPersona"] =
 		config.listen?.summaryPersona?.trim() || "(default)";
 	values["listen.recordMic"] =
@@ -365,7 +368,38 @@ export function rebuildDashboardConfig(
 	const personaRaw = values["dashboard.persona"]?.trim();
 	const persona =
 		personaRaw && personaRaw !== "(default)" ? personaRaw : undefined;
-	return persona ? { persona } : undefined;
+	const feedProviderRaw = values["dashboard.feed.provider"]?.trim();
+	const feedProvider =
+		feedProviderRaw && feedProviderRaw !== FEED_AUTO_PROVIDER
+			? feedProviderRaw
+			: undefined;
+	const feedModel = feedProvider
+		? values["dashboard.feed.model"]?.trim() || undefined
+		: undefined;
+	const feed = feedProvider
+		? { provider: feedProvider, ...(feedModel ? { model: feedModel } : {}) }
+		: undefined;
+	if (!persona && !feed) return undefined;
+	return {
+		...(persona ? { persona } : {}),
+		...(feed ? { feed } : {}),
+	};
+}
+
+/** Settings value meaning "use the dashboard persona's model when eligible". */
+export const FEED_AUTO_PROVIDER = "(auto)";
+
+/**
+ * When the Feed provider changes, drop the old model so the Feed uses the new
+ * provider's first structured-output model until the user picks one.
+ */
+export function normalizeFeedConfigureValues(
+	values: Record<string, string>,
+	options?: { readonly providerJustChanged?: boolean },
+): void {
+	if (options?.providerJustChanged) {
+		values["dashboard.feed.model"] = "";
+	}
 }
 
 export function rebuildListenConfig(
@@ -781,6 +815,11 @@ export function applyConfigureValuesPatch(
 		});
 		normalizeLibraryConfigureValues(merged, {
 			providerJustChanged: Object.hasOwn(config, "library.provider"),
+		});
+		normalizeFeedConfigureValues(merged, {
+			providerJustChanged:
+				Object.hasOwn(config, "dashboard.feed.provider") &&
+				!Object.hasOwn(config, "dashboard.feed.model"),
 		});
 		// When a persona model is set to a value not in the provider's built-in
 		// list, automatically append it to the custom model list so it appears in

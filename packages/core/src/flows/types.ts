@@ -61,6 +61,13 @@ export type LlmPrompterNodeDefinition<
 	readonly temperature?: number;
 	readonly maxOutputTokens?: number;
 	readonly timeoutMs?: number;
+	/**
+	 * `"preferred"` (default): try `Output.object`, fall back to free-form
+	 * coercion. `"required"`: structured attempt only, with the full timeout
+	 * budget; no free-form fallback (a miss is a node error). Use only with
+	 * models known to support structured output.
+	 */
+	readonly structuredOutput?: "preferred" | "required";
 };
 
 export type AgentTaskNodeDefinition = {

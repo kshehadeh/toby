@@ -1,6 +1,8 @@
 import { readConfig } from "../../config/index";
 import { isAIProviderConfigured } from "../model-factory";
 import { type AIProviderInfo, AI_PROVIDERS, getAIProvider } from "../providers";
+import { isOpenAiStructuredOutputModelId } from "./adapters/openai";
+import { VERCEL_STRUCTURED_OUTPUT_TAG } from "./adapters/vercel-gateway";
 import { getModelListAdapter } from "./registry";
 import type { AIModelListItem, AIProviderModelList } from "./types";
 import {
@@ -15,26 +17,32 @@ export type AIProviderForUI = Omit<AIProviderInfo, "models"> & {
 
 /**
  * When the live model list fell back to curated ids (no tags), re-apply
- * Vercel catalog `reasoning` tags so pickers still show the indicator.
+ * Vercel catalog `reasoning` / `structured-output` tags so pickers still show
+ * the indicator and capability filters (e.g. The Feed model) keep working.
  */
-async function enrichVercelReasoningFlags(
+async function enrichVercelCatalogFlags(
 	models: readonly AIModelListItem[],
 ): Promise<AIModelListItem[]> {
 	if (models.length === 0) return [...models];
-	// Live catalog path already stamped reasoning on tagged models.
-	if (models.some((m) => m.reasoning === true)) {
+	// Live catalog path already stamped tags on tagged models.
+	if (models.some((m) => m.reasoning === true || m.structuredOutput === true)) {
 		return [...models];
 	}
 	try {
 		const catalog = await fetchVercelGatewayCatalog();
-		const reasoningIds = new Set(
-			catalog.models
-				.filter((m) => m.tags?.includes("reasoning") === true)
-				.map((m) => m.id),
-		);
-		return models.map((m) =>
-			reasoningIds.has(m.id) ? { ...m, reasoning: true } : m,
-		);
+		const tagsById = new Map(catalog.models.map((m) => [m.id, m.tags ?? []]));
+		return models.map((m) => {
+			const tags = tagsById.get(m.id);
+			if (!tags) return m;
+			const reasoning = tags.includes("reasoning");
+			const structuredOutput = tags.includes(VERCEL_STRUCTURED_OUTPUT_TAG);
+			if (!reasoning && !structuredOutput) return m;
+			return {
+				...m,
+				...(reasoning ? { reasoning: true } : {}),
+				...(structuredOutput ? { structuredOutput: true } : {}),
+			};
+		});
 	} catch {
 		return [...models];
 	}
@@ -53,7 +61,11 @@ const inFlight = new Map<string, Promise<AIProviderModelList>>();
 
 function curatedItems(providerId: string): AIModelListItem[] {
 	const provider = getAIProvider(providerId);
-	return (provider?.models ?? []).map((id) => ({ id }));
+	return (provider?.models ?? []).map((id) =>
+		providerId === "openai" && isOpenAiStructuredOutputModelId(id)
+			? { id, structuredOutput: true }
+			: { id },
+	);
 }
 
 function staticList(
@@ -209,7 +221,7 @@ export async function resolveAIProvidersForUI(): Promise<AIProviderForUI[]> {
 			// Curated Vercel fallbacks omit tags; re-apply reasoning from the
 			// public catalog when possible so pickers stay informative.
 			if (provider.id === "vercel") {
-				remoteItems = await enrichVercelReasoningFlags(remoteItems);
+				remoteItems = await enrichVercelCatalogFlags(remoteItems);
 			}
 			const remoteSet = new Set(remoteItems.map((m) => m.id));
 			// Only append custom entries that are not already in the provider list.
