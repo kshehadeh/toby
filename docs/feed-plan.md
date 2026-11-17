@@ -285,3 +285,48 @@ Notes:
   Swift suite aborts. Feed view tests target `FeedCardBody` to avoid it.
 - The Feed is not part of the reorderable card grid (the waterfall layout has
   no full-width span); hide/show is the Settings toggle or the card menu.
+
+## Phase 3 status
+
+Done:
+- **Item-action contract** (`dashboard/types.ts`): standard tools
+  `email.archiveItem`, `email.markItemRead`, `tasks.completeItem` take
+  `{ id }` (the plugin's own `DashboardItem.id`) and return `{ ok, message }`.
+  The plugin adapter exposes them as `dashboard.supportsItemAction` /
+  `runItemAction` and hides them from chat tool sets (chat keeps the richer
+  tools). Implemented by email (`archiveDashboardItem`,
+  `markDashboardItemRead`), Todoist and Apple Reminders
+  (`completeDashboardItem`).
+- **Capability gating**: candidates carry `providerActions`; the ranking prompt
+  and `resolveActions` only offer archive / mark read / complete when the
+  source plugin implements them. Toby todos complete via `transitionTodo`.
+- **Feed state** (`feed/state.ts`, `~/.toby/dashboard-feed-state.json`):
+  dismissed / snoozed (until 8:00 next day) / done, plus `notified`; pruned
+  after 30 days. Hidden items are filtered from responses and excluded from
+  ranking (the changed signature triggers a background re-rank to refill).
+- **`POST /api/dashboard/feed/actions`** `{ itemId, actionId }`
+  (`feed/execute.ts`): dismiss, snooze, `todo.add` (`createTodo`, source
+  `feed`, calendar items due on the event day), provider actions, todo
+  complete. Validates the action is on the item; 404 unknown item, 400 bad
+  action, 409 todo conflicts, 502 provider failures (item stays visible).
+- **Background refresh** (`feed/scheduler.ts`, started by the daemon when the
+  web API is on): every `intervalMinutes` (default 15) between 07:00–22:00,
+  60 s after start; re-collects sources and re-ranks inline only when the
+  candidate set changed or the ranking is >15 min old.
+- **Notifications**: new "Now" items → `POST /api/native/feed/notification`
+  (one item directly, several as a summary); marked notified only once the app
+  accepts it. Clicking opens Home and refreshes The Feed.
+- **Settings → Home**: background refresh on/off, interval (5/15/30/60 min),
+  notifications on/off (`dashboard.feed.backgroundRefresh`,
+  `intervalMinutes`, `notifications`; only non-defaults are persisted).
+- **App**: tool actions shown as CTAs; snooze + dismiss in the overflow menu;
+  optimistic hide with restore + error toast on failure; success toast; soft
+  Feed poll every 5 min while Home is open.
+- Tests: `apps/cli/tests/feed-actions.test.ts`, `feed-service.test.ts`
+  (state filtering), Swift `FeedTests.swift`.
+
+Notes / open:
+- Active hours (07–22) are fixed; not yet configurable.
+- No undo for dismiss/snooze/done yet (state lives in the JSON file).
+- `notified` is per item id, so a recurring event instance with a new id
+  notifies again.

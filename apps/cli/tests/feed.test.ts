@@ -218,7 +218,7 @@ describe("feed collection mapping", () => {
 });
 
 describe("feed actions", () => {
-	it("filters to the category allow-list, keeps order, appends open + dismiss", () => {
+	it("filters to the category allow-list, keeps order, appends open + snooze + dismiss", () => {
 		const c = candidate({
 			category: "email",
 			itemId: "1",
@@ -235,6 +235,7 @@ describe("feed actions", () => {
 			"todo.add",
 			"email.draftReply",
 			"open",
+			"snooze",
 			"dismiss",
 		]);
 		expect(actions.find((a) => a.id === "open")?.url).toBe("message://1");
@@ -245,7 +246,11 @@ describe("feed actions", () => {
 			candidate({ category: "calendar", itemId: "e" }),
 			[],
 		);
-		expect(actions.map((a) => a.id)).toEqual(["calendar.prep", "dismiss"]);
+		expect(actions.map((a) => a.id)).toEqual([
+			"calendar.prep",
+			"snooze",
+			"dismiss",
+		]);
 	});
 
 	it("chat actions carry a seeded prompt with the item id and never send", () => {
@@ -322,6 +327,34 @@ describe("feed ranking validation", () => {
 		expect(items).toHaveLength(MAX_FEED_ITEMS);
 	});
 
+	it("orders by model priority within a tier, not by source type", () => {
+		const items = feedItemsFromRanking(
+			{
+				items: [
+					{ key: "c2", tier: "today", priority: 40, reason: "r", actions: [] },
+					{ key: "c1", tier: "today", priority: 85, reason: "r", actions: [] },
+					{ key: "c3", tier: "now", priority: 10, reason: "r", actions: [] },
+				],
+			},
+			candidates,
+		);
+		expect(items.map((i) => i.source.itemId)).toEqual(["t1", "e1", "c1"]);
+	});
+
+	it("prompt interleaves categories but keeps index keys", () => {
+		const mixed = [
+			candidate({ category: "calendar", itemId: "a", title: "Cal A" }),
+			candidate({ category: "calendar", itemId: "b", title: "Cal B" }),
+			candidate({ category: "tasks", itemId: "c", title: "Task C" }),
+			candidate({ category: "email", itemId: "d", title: "Mail D" }),
+		].map((c) => ({ ...c, signals: [] }) as FeedCandidate);
+		const keys = formatCandidatesForPrompt(mixed)
+			.split("\n")
+			.filter((l) => /^c\d/.test(l))
+			.map((l) => l.split(" ")[0]);
+		expect(keys).toEqual(["c1", "c3", "c4", "c2"]);
+	});
+
 	it("prompt lists keys, signals, and allowed actions", () => {
 		const text = formatCandidatesForPrompt([
 			{ ...candidates[0], signals: ["flagged"] } as FeedCandidate,
@@ -351,7 +384,15 @@ describe("feed ranking validation", () => {
 					ok: true,
 					outputs: {
 						ranking: {
-							items: [{ key: "c1", tier: "now", reason: "r", actions: [] }],
+							items: [
+								{
+									key: "c1",
+									tier: "now",
+									priority: 80,
+									reason: "r",
+									actions: [],
+								},
+							],
 						},
 					},
 				};

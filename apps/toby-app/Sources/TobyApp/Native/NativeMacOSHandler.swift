@@ -687,6 +687,23 @@ enum NativeMacOSHandler {
 			ctas: ["View result"], userInfo: ["type": "flowCompletion", "runId": runId])
 	}
 
+	/// The Feed found new "Now" items during a background refresh.
+	@MainActor
+	static func feedNotification(body: Data?) async -> Data {
+		guard let title = stringValue(body, key: "title")?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else {
+			return json(["ok": false, "error": "title is required"])
+		}
+		let description = stringValue(body, key: "body")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		var userInfo: [String: Any] = ["type": "feed"]
+		if let itemId = stringValue(body, key: "itemId"), !itemId.isEmpty { userInfo["itemId"] = itemId }
+		return await displayNotification(
+			title: title,
+			description: description.isEmpty ? "Open The Feed to see what needs attention." : description,
+			ctas: ["Open The Feed"],
+			userInfo: userInfo
+		)
+	}
+
 	// MARK: - Window minimize all
 
 	static func minimizeAll() -> Data {

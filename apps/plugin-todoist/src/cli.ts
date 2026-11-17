@@ -112,7 +112,12 @@ async function validateTodoistTools(
 			? "Project ID -> name resolution is available."
 			: "Tool is not available in the Todoist toolset.",
 	});
-	for (const tool of ["completeTask", "updateTask", "createTask"]) {
+	for (const tool of [
+		"completeTask",
+		"completeDashboardItem",
+		"updateTask",
+		"createTask",
+	]) {
 		checks.push({
 			tool,
 			ok: availableTools.has(tool),

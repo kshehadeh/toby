@@ -18,6 +18,10 @@ import {
 	writeConfig,
 	writeCredentials,
 } from "../config/index";
+import {
+	DEFAULT_FEED_INTERVAL_MINUTES,
+	resolveFeedSchedule,
+} from "../feed/schedule-config";
 import { listMcpConnections } from "../integrations/connections";
 import { getIntegrationModules } from "../integrations/index";
 import {
@@ -176,6 +180,13 @@ export function seedConfigureValues(): Record<string, string> {
 	values["dashboard.feed.provider"] =
 		config.dashboard?.feed?.provider?.trim() || FEED_AUTO_PROVIDER;
 	values["dashboard.feed.model"] = config.dashboard?.feed?.model?.trim() || "";
+	values["dashboard.feed.backgroundRefresh"] =
+		config.dashboard?.feed?.backgroundRefresh === false ? "false" : "true";
+	values["dashboard.feed.intervalMinutes"] = String(
+		resolveFeedSchedule(config.dashboard?.feed).intervalMinutes,
+	);
+	values["dashboard.feed.notifications"] =
+		config.dashboard?.feed?.notifications === false ? "false" : "true";
 	values["listen.summaryPersona"] =
 		config.listen?.summaryPersona?.trim() || "(default)";
 	values["listen.recordMic"] =
@@ -376,9 +387,23 @@ export function rebuildDashboardConfig(
 	const feedModel = feedProvider
 		? values["dashboard.feed.model"]?.trim() || undefined
 		: undefined;
-	const feed = feedProvider
-		? { provider: feedProvider, ...(feedModel ? { model: feedModel } : {}) }
-		: undefined;
+	const backgroundOff = values["dashboard.feed.backgroundRefresh"] === "false";
+	const notificationsOff = values["dashboard.feed.notifications"] === "false";
+	const interval = Number(values["dashboard.feed.intervalMinutes"]);
+	const intervalMinutes =
+		Number.isFinite(interval) &&
+		interval >= 1 &&
+		interval !== DEFAULT_FEED_INTERVAL_MINUTES
+			? Math.round(interval)
+			: undefined;
+	const feedFields = {
+		...(feedProvider ? { provider: feedProvider } : {}),
+		...(feedModel ? { model: feedModel } : {}),
+		...(backgroundOff ? { backgroundRefresh: false } : {}),
+		...(intervalMinutes ? { intervalMinutes } : {}),
+		...(notificationsOff ? { notifications: false } : {}),
+	};
+	const feed = Object.keys(feedFields).length > 0 ? feedFields : undefined;
 	if (!persona && !feed) return undefined;
 	return {
 		...(persona ? { persona } : {}),

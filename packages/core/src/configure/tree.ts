@@ -11,6 +11,11 @@ import {
 } from "../ai/web-search-providers";
 import { getDefaultPersonaName } from "../config/index";
 import { eligibleFeedProviders } from "../feed/model";
+import {
+	DEFAULT_FEED_INTERVAL_MINUTES,
+	FEED_ACTIVE_HOURS,
+	FEED_INTERVAL_CHOICES,
+} from "../feed/schedule-config";
 import { listFlowRecords } from "../flows/definition-store";
 import {
 	getIntegrationModules,
@@ -818,6 +823,7 @@ export function buildSettingsTree(
 							"Persona used to summarize Home cards (email, tasks, calendar, news). Falls back to the default persona. Prefer a non-reasoning model for this persona — reasoning models often fail or time out on short structured summaries.",
 					},
 					...buildFeedModelItems(availableProviders, values),
+					...buildFeedScheduleItems(values),
 				],
 			},
 			{
@@ -865,6 +871,59 @@ export function buildSettingsTree(
  * structured-output model are offered, and only those models; there is no
  * custom-model entry because unknown models are ineligible.
  */
+const ON_OFF_CHOICES = [
+	{ value: "true", label: "On" },
+	{ value: "false", label: "Off" },
+];
+
+/** Background refresh + notification rows for The Feed (Settings → Home). */
+export function buildFeedScheduleItems(
+	values: Record<string, string>,
+): SettingsItem[] {
+	const background = values["dashboard.feed.backgroundRefresh"] ?? "true";
+	const items: SettingsItem[] = [
+		{
+			label: "Refresh The Feed in the background",
+			kind: "select",
+			key: "dashboard.feed.backgroundRefresh",
+			options: ["true", "false"],
+			selectChoices: ON_OFF_CHOICES,
+			currentValue: background,
+			description: `Toby re-checks your connections between ${FEED_ACTIVE_HOURS.start}:00 and ${FEED_ACTIVE_HOURS.end}:00, and only asks the model to re-rank when something changed.`,
+		},
+	];
+	if (background === "false") return items;
+	const interval =
+		values["dashboard.feed.intervalMinutes"] ||
+		String(DEFAULT_FEED_INTERVAL_MINUTES);
+	const intervalChoices = FEED_INTERVAL_CHOICES.map(String);
+	if (!intervalChoices.includes(interval)) intervalChoices.push(interval);
+	items.push(
+		{
+			label: "Refresh every",
+			kind: "select",
+			key: "dashboard.feed.intervalMinutes",
+			options: intervalChoices,
+			selectChoices: intervalChoices.map((m) => ({
+				value: m,
+				label: m === "60" ? "1 hour" : `${m} minutes`,
+			})),
+			currentValue: interval,
+		},
+		{
+			label: 'Notify me about new "Now" items',
+			kind: "select",
+			key: "dashboard.feed.notifications",
+			options: ["true", "false"],
+			selectChoices: ON_OFF_CHOICES,
+			currentValue: values["dashboard.feed.notifications"] ?? "true",
+			description:
+				"Sends a notification when a background refresh finds something new that needs attention now. Each item notifies once.",
+		},
+	);
+	return items;
+}
+
 export function buildFeedModelItems(
 	availableProviders: readonly AIProviderForUI[],
 	values: Record<string, string>,

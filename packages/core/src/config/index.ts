@@ -132,6 +132,11 @@ export function getDashboardFeedPath(): string {
 	return path.join(resolveTobyDir(), "dashboard-feed.json");
 }
 
+/** Feed state: dismissed / snoozed / acted-on / notified item ids. */
+export function getDashboardFeedStatePath(): string {
+	return path.join(resolveTobyDir(), "dashboard-feed-state.json");
+}
+
 /** Persisted dashboard AI summaries: `~/.toby/dashboard-summaries.json`. */
 export function getDashboardSummariesPath(): string {
 	return path.join(resolveTobyDir(), "dashboard-summaries.json");
@@ -246,6 +251,12 @@ export interface DashboardFeedConfig {
 	readonly provider?: string;
 	/** Model id; must support structured output (enforced at pick + run time). */
 	readonly model?: string;
+	/** Refresh in the daemon on a schedule (default true). */
+	readonly backgroundRefresh?: boolean;
+	/** Minutes between background refreshes (default 15). */
+	readonly intervalMinutes?: number;
+	/** Notify when new "Now" items appear after a background refresh (default true). */
+	readonly notifications?: boolean;
 }
 
 export interface DashboardConfig {

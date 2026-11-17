@@ -4,8 +4,10 @@ import SwiftUI
 /// connections, grouped by tier, each with a reason and calls to action.
 struct FeedCardView: View {
 	@Bindable var store: FeedStore
-	/// Runs a chat / open action. Dismiss is handled by the store.
+	/// Runs a chat / open action (daemon actions go through the store).
 	var onPerform: (FeedAction) -> Void = { _ in }
+	/// Reports a daemon action's result (toast).
+	var onOutcome: (FeedActionOutcome) -> Void = { _ in }
 	/// Opens Settings → Home (model setup).
 	var onOpenSettings: () -> Void = {}
 	/// Hides the section (Settings → Home → Show The Feed).
@@ -37,6 +39,7 @@ struct FeedCardView: View {
 			FeedCardBody(
 				store: store,
 				onPerform: onPerform,
+				onOutcome: onOutcome,
 				onOpenSettings: onOpenSettings
 			)
 		}
@@ -51,6 +54,7 @@ struct FeedCardView: View {
 struct FeedCardBody: View {
 	@Bindable var store: FeedStore
 	var onPerform: (FeedAction) -> Void = { _ in }
+	var onOutcome: (FeedActionOutcome) -> Void = { _ in }
 	var onOpenSettings: () -> Void = {}
 
 	private var content: FeedContent? { store.content }
@@ -77,6 +81,18 @@ struct FeedCardBody: View {
 		}
 	}
 
+	/// Chat / open run in the app; tool / snooze / dismiss run in the daemon.
+	private func run(_ action: FeedAction, _ item: FeedItem) {
+		guard action.runsInDaemon else {
+			onPerform(action)
+			return
+		}
+		Task {
+			let outcome = await store.perform(action, on: item)
+			onOutcome(outcome)
+		}
+	}
+
 	@ViewBuilder
 	private func itemsOrEmpty(_ content: FeedContent) -> some View {
 		let groups = store.groupedItems
@@ -97,8 +113,8 @@ struct FeedCardBody: View {
 					FeedTierSection(
 						tier: group.tier,
 						items: group.items,
-						onPerform: onPerform,
-						onDismiss: { store.dismiss($0) }
+						busyIDs: store.busyIDs,
+						onPerform: run
 					)
 				}
 			}
@@ -125,8 +141,8 @@ struct FeedSetupPrompt: View {
 struct FeedTierSection: View {
 	let tier: FeedTier
 	let items: [FeedItem]
-	let onPerform: (FeedAction) -> Void
-	let onDismiss: (FeedItem) -> Void
+	var busyIDs: Set<String> = []
+	let onPerform: (FeedAction, FeedItem) -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 6) {
@@ -142,8 +158,8 @@ struct FeedTierSection: View {
 					}
 					FeedItemRow(
 						item: item,
-						onPerform: onPerform,
-						onDismiss: { onDismiss(item) }
+						isBusy: busyIDs.contains(item.id),
+						onPerform: { onPerform($0, item) }
 					)
 				}
 			}
@@ -155,10 +171,11 @@ struct FeedTierSection: View {
 /// A Feed row: source icon, title, reason, and calls to action.
 struct FeedItemRow: View {
 	let item: FeedItem
+	var isBusy = false
 	let onPerform: (FeedAction) -> Void
-	let onDismiss: () -> Void
 
 	private var actions: [FeedAction] { item.performableActions }
+	private var stateActions: [FeedAction] { item.stateActions }
 
 	var body: some View {
 		HStack(alignment: .top, spacing: 12) {
@@ -199,6 +216,7 @@ struct FeedItemRow: View {
 		}
 		.padding(.vertical, 10)
 		.contentShape(Rectangle())
+		.opacity(isBusy ? 0.6 : 1)
 		.accessibilityElement(children: .contain)
 		.accessibilityIdentifier("feed-item-\(item.id)")
 	}
@@ -209,15 +227,22 @@ struct FeedItemRow: View {
 				actionButton(action, prominent: index == 0)
 			}
 			Spacer(minLength: 0)
-			if actions.count > 2 || item.canDismiss {
+			if isBusy {
+				ProgressView()
+					.controlSize(.small)
+					.accessibilityLabel("Working")
+			}
+			if actions.count > 2 || !stateActions.isEmpty {
 				Menu {
 					ForEach(actions.dropFirst(2)) { action in
 						Button(action.label) { onPerform(action) }
 					}
-					if item.canDismiss {
+					if !stateActions.isEmpty {
 						if actions.count > 2 { Divider() }
-						Button("Dismiss", action: onDismiss)
-							.accessibilityIdentifier("feed-dismiss-\(item.id)")
+						ForEach(stateActions) { action in
+							Button(action.label) { onPerform(action) }
+								.accessibilityIdentifier("feed-\(action.id)-\(item.id)")
+						}
 					}
 				} label: {
 					Image(systemName: "ellipsis")
@@ -229,6 +254,7 @@ struct FeedItemRow: View {
 				.menuStyle(.borderlessButton)
 				.menuIndicator(.hidden)
 				.fixedSize()
+				.disabled(isBusy)
 				.help("More")
 				.accessibilityLabel("More actions")
 			}
@@ -239,6 +265,7 @@ struct FeedItemRow: View {
 	private func actionButton(_ action: FeedAction, prominent: Bool) -> some View {
 		let button = Button(action.label) { onPerform(action) }
 			.controlSize(.small)
+			.disabled(isBusy)
 			.accessibilityIdentifier("feed-action-\(action.id)")
 		if prominent {
 			button.buttonStyle(.borderedProminent)

@@ -1,8 +1,11 @@
 import { getDashboardCategory } from "../dashboard/index";
-import type {
-	DashboardBlockContentSource,
-	DashboardCategorySummary,
+import {
+	type DashboardBlockContentSource,
+	type DashboardCategorySummary,
+	STANDARD_ITEM_ACTION_IDS,
+	type StandardItemActionId,
 } from "../dashboard/types";
+import { getIntegrationModule } from "../integrations/index";
 import { daemonLog } from "../logging/daemon-log";
 import { listTodos } from "../todos/service";
 import type { Todo } from "../todos/types";
@@ -89,6 +92,21 @@ function tomorrowKey(now: Date): string {
 	return localDateKey(d);
 }
 
+/** Standard item actions a provider's plugin implements (empty on failure). */
+export function providerItemActions(
+	providerName: string,
+): StandardItemActionId[] {
+	try {
+		const hook = getIntegrationModule(providerName)?.dashboard;
+		if (!hook?.supportsItemAction) return [];
+		return STANDARD_ITEM_ACTION_IDS.filter((id) =>
+			hook.supportsItemAction?.(id),
+		);
+	} catch {
+		return [];
+	}
+}
+
 /**
  * Gather raw candidates from every connected source. A failing source is
  * logged and skipped — it never blanks the Feed.
@@ -122,9 +140,26 @@ export async function collectFeedCandidates(params?: {
 		}),
 	);
 
+	const actionsByProvider = new Map<string, StandardItemActionId[]>();
+	const actionsFor = (providerName: string) => {
+		let actions = actionsByProvider.get(providerName);
+		if (!actions) {
+			actions = providerItemActions(providerName);
+			actionsByProvider.set(providerName, actions);
+		}
+		return actions;
+	};
+
 	for (const { category, data } of results) {
 		if (!data) continue;
-		candidates.push(...candidatesFromCategory(category, data));
+		for (const candidate of candidatesFromCategory(category, data)) {
+			const providerActions = actionsFor(candidate.providerName);
+			candidates.push(
+				providerActions.length > 0
+					? { ...candidate, providerActions }
+					: candidate,
+			);
+		}
 		for (const s of data.sources) {
 			sources.push({
 				providerName: s.providerName,

@@ -23,6 +23,7 @@ private let feedJSON = """
 			"actions": [
 				{ "id": "email.draftReply", "label": "Draft a reply", "kind": "chat", "prompt": "Draft a reply to 42" },
 				{ "id": "todo.add", "label": "Add to my todo list", "kind": "tool" },
+				{ "id": "snooze", "label": "Snooze until tomorrow", "kind": "local" },
 				{ "id": "dismiss", "label": "Dismiss", "kind": "local" }
 			]
 		},
@@ -69,37 +70,75 @@ struct FeedTests {
 		#expect(feed.groupedItems(excluding: ["calendar:applecalendar:e1"]).map(\.tier) == [.today])
 	}
 
-	@Test("only chat and open actions are performable; tool and dismiss are not")
+	@Test("chat, open, and tool actions are calls to action; snooze and dismiss go to the menu")
 	func performableActions() throws {
 		let feed = try decodeFeed()
 		let email = try #require(feed.items.first { $0.source.category == "email" })
-		#expect(email.performableActions.map(\.id) == ["email.draftReply"])
+		#expect(email.performableActions.map(\.id) == ["email.draftReply", "todo.add"])
+		#expect(email.stateActions.map(\.id) == ["snooze", "dismiss"])
+		#expect(email.performableActions.map(\.runsInDaemon) == [false, true])
 		#expect(email.canDismiss)
 		#expect(email.systemImage == "envelope")
 		let event = try #require(feed.items.first { $0.source.category == "calendar" })
 		#expect(event.performableActions.map(\.id) == ["calendar.prep", "open"])
 	}
 
-	@Test("store loads, dismisses for the session, and forgets dismissals for vanished items")
-	func storeDismissal() async throws {
-		var payload = try decodeFeed()
-		var forcedCalls: [Bool] = []
-		let store = FeedStore { fresh in
-			forcedCalls.append(fresh)
-			return payload
-		}
+	@Test("store hides an item while its action runs and adopts the daemon's feed")
+	func storeActionSuccess() async throws {
+		let payload = try decodeFeed()
+		var calls: [String] = []
+		let store = FeedStore(
+			fetch: { _ in payload },
+			perform: { itemID, actionID in
+				calls.append("\(itemID)|\(actionID)")
+				let remaining = payload.items.filter { $0.id != itemID }
+				return FeedActionResponse(
+					ok: true,
+					message: "Added to your todos.",
+					content: FeedContent(status: .ok, items: remaining, generatedAt: payload.generatedAt)
+				)
+			}
+		)
 		await store.update(force: false)
-		#expect(store.groupedItems.flatMap(\.items).count == 2)
+		let email = try #require(store.content?.items.first { $0.source.category == "email" })
+		let addTodo = try #require(email.actions.first { $0.id == "todo.add" })
+		let outcome = await store.perform(addTodo, on: email)
+		#expect(outcome == .success("Added to your todos."))
+		#expect(calls == ["email:email:42|todo.add"])
+		#expect(store.groupedItems.map(\.tier) == [.now])
+		#expect(store.busyIDs.isEmpty)
 
-		let event = try #require(store.content?.items.first { $0.tier == .now })
-		store.dismiss(event)
-		#expect(store.groupedItems.map(\.tier) == [.today])
-
-		payload = try decodeFeed(feedJSON.replacingOccurrences(of: "calendar:applecalendar:e1", with: "calendar:applecalendar:e2"))
+		// A later refresh that no longer lists the item keeps it gone.
 		await store.update(force: true)
-		#expect(store.dismissedIDs.isEmpty)
+		#expect(store.hiddenIDs.isEmpty)
+	}
+
+	@Test("store restores an item when its action fails")
+	func storeActionFailure() async throws {
+		struct Boom: LocalizedError { var errorDescription: String? { "IMAP is down" } }
+		let payload = try decodeFeed()
+		let store = FeedStore(fetch: { _ in payload }, perform: { _, _ in throw Boom() })
+		await store.update(force: false)
+		let event = try #require(store.content?.items.first { $0.tier == .now })
+		let dismiss = try #require(event.actions.first { $0.isDismiss })
+		let outcome = await store.perform(dismiss, on: event)
+		#expect(outcome == .failure("IMAP is down"))
 		#expect(store.groupedItems.map(\.tier) == [.now, .today])
-		#expect(forcedCalls == [false, true])
+	}
+
+	@Test("store refuses client-side actions")
+	func storeRejectsChatActions() async throws {
+		let payload = try decodeFeed()
+		var called = false
+		let store = FeedStore(fetch: { _ in payload }, perform: { _, _ in
+			called = true
+			return FeedActionResponse(ok: true)
+		})
+		await store.update(force: false)
+		let email = try #require(store.content?.items.first { $0.source.category == "email" })
+		let reply = try #require(email.actions.first { $0.id == "email.draftReply" })
+		if case .success = await store.perform(reply, on: email) { Issue.record("chat action ran in daemon") }
+		#expect(!called)
 	}
 
 	@Test("store keeps the last feed when a refresh fails")
@@ -134,16 +173,16 @@ struct FeedTests {
 		#expect(performed == ["email.draftReply"])
 	}
 
-	@Test("row shows chat/open actions but not unwired tool actions")
-	func rowHidesToolActions() throws {
+	@Test("row shows the primary actions as buttons and snooze / dismiss in the menu")
+	func rowActions() throws {
 		let feed = try decodeFeed()
 		let email = try #require(feed.items.first { $0.source.category == "email" })
-		var dismissed = false
-		let row = FeedItemRow(item: email, onPerform: { _ in }, onDismiss: { dismissed = true })
-		#expect(throws: Never.self) { try row.inspect().find(button: "Draft a reply") }
-		#expect(throws: (any Error).self) { try row.inspect().find(button: "Add to my todo list") }
+		var performed: [String] = []
+		let row = FeedItemRow(item: email, onPerform: { performed.append($0.id) })
+		try row.inspect().find(button: "Add to my todo list").tap()
+		try row.inspect().find(button: "Snooze until tomorrow").tap()
 		try row.inspect().find(button: "Dismiss").tap()
-		#expect(dismissed)
+		#expect(performed == ["todo.add", "snooze", "dismiss"])
 	}
 
 	@Test("setup state explains the model requirement and links to settings")

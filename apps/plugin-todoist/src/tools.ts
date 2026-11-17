@@ -135,6 +135,24 @@ export const TOOL_DEFINITIONS = [
 		},
 	},
 	{
+		name: "completeDashboardItem",
+		displayName: "Complete (Home item)",
+		description:
+			"Complete one open-tasks summary item by its dashboard item id. Used by The Feed; chat uses completeTask.",
+		readOnly: false,
+		standardTool: "tasks.completeItem",
+		inputSchema: {
+			type: "object",
+			properties: {
+				id: {
+					type: "string",
+					description: "Dashboard item id from getOpenTasksSummary (task id)",
+				},
+			},
+			required: ["id"],
+		},
+	},
+	{
 		name: "createTask",
 		presentation: {
 			kind: "action",
@@ -397,6 +415,23 @@ export async function executeTool(
 					projectName,
 					found: projectName !== null,
 				},
+			};
+		}
+
+		case "completeDashboardItem": {
+			const taskId = String(input.id ?? "").trim();
+			if (!taskId)
+				return { result: { error: "id is required." }, appliedActions };
+			if (dryRun) {
+				const msg = `[DRY RUN] Would complete Todoist task "${taskId}"`;
+				appliedActions.push(msg);
+				return { result: { dryRun: true, message: msg }, appliedActions };
+			}
+			await completeTask(config, taskId);
+			appliedActions.push(`Completed Todoist task "${taskId}"`);
+			return {
+				result: { ok: true, message: "Completed in Todoist." },
+				appliedActions,
 			};
 		}
 

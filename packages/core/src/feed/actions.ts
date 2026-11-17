@@ -1,4 +1,5 @@
 import { formatLocalTimestampForPrompt } from "../ai/current-datetime";
+import type { StandardItemActionId } from "../dashboard/types";
 import type {
 	FeedAction,
 	FeedActionId,
@@ -52,8 +53,36 @@ export const FEED_ACTIONS: Readonly<Record<FeedActionId, FeedActionSpec>> = {
 		hint: "the item implies follow-up work the user should track",
 	},
 	open: { label: "Open", kind: "open", hint: "view the original item" },
+	snooze: {
+		label: "Snooze until tomorrow",
+		kind: "local",
+		hint: "hide until tomorrow morning",
+	},
 	dismiss: { label: "Dismiss", kind: "local", hint: "hide from the Feed" },
 };
+
+/**
+ * Feed actions executed by the source plugin through a standard item-action
+ * tool. Toby todos complete through the todos service instead.
+ */
+export const PROVIDER_ITEM_ACTIONS: Readonly<
+	Partial<Record<FeedActionId, StandardItemActionId>>
+> = {
+	"email.archive": "email.archiveItem",
+	"email.markRead": "email.markItemRead",
+	"task.complete": "tasks.completeItem",
+};
+
+/** Whether the candidate's source can run `id` (provider support or core). */
+export function isActionSupported(
+	id: FeedActionId,
+	candidate: Pick<FeedCandidate, "category" | "providerActions">,
+): boolean {
+	if (id === "task.complete" && candidate.category === "todos") return true;
+	const standard = PROVIDER_ITEM_ACTIONS[id];
+	if (!standard) return true;
+	return candidate.providerActions?.includes(standard) === true;
+}
 
 /** Actions the model may pick per category (ordered by typical usefulness). */
 const ALLOWED_BY_CATEGORY: Readonly<
@@ -73,11 +102,16 @@ const DEFAULT_PRIMARY: Readonly<Record<FeedCategory, FeedActionId>> = {
 	todos: "task.help",
 };
 
-/** Model-selectable action ids for a candidate (excludes open/dismiss). */
+/**
+ * Model-selectable action ids for a candidate (excludes open/snooze/dismiss
+ * and provider actions the source plugin doesn't implement).
+ */
 export function allowedActionIds(
-	candidate: Pick<FeedCandidate, "category">,
+	candidate: Pick<FeedCandidate, "category" | "providerActions">,
 ): readonly FeedActionId[] {
-	return ALLOWED_BY_CATEGORY[candidate.category];
+	return ALLOWED_BY_CATEGORY[candidate.category].filter((id) =>
+		isActionSupported(id, candidate),
+	);
 }
 
 function when(candidate: FeedCandidate): string {
@@ -135,8 +169,8 @@ function buildAction(
 /**
  * Turn the model's chosen action ids into concrete actions: drop ids not
  * allowed for the category, de-dupe, fall back to the category default when
- * nothing valid remains, then append `open` (when there is a URL) and
- * `dismiss`.
+ * nothing valid remains, then append `open` (when there is a URL), `snooze`,
+ * and `dismiss`.
  */
 export function resolveActions(
 	candidate: FeedCandidate,
@@ -151,7 +185,7 @@ export function resolveActions(
 		}
 	}
 	if (ids.length === 0) ids.push(DEFAULT_PRIMARY[candidate.category]);
-	ids.push("open", "dismiss");
+	ids.push("open", "snooze", "dismiss");
 	return ids
 		.map((id) => buildAction(id, candidate))
 		.filter((a): a is FeedAction => a !== null);

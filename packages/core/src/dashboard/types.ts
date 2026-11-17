@@ -28,6 +28,45 @@ export const STANDARD_TOOL_FOR_CATEGORY: Record<string, StandardToolId> = {
 };
 
 /**
+ * Reserved item-action standard tools. A plugin tags a tool with one of these
+ * to let non-AI surfaces (The Feed) act on a dashboard item directly.
+ *
+ * Contract: input `{ id }` where `id` is the `DashboardItem.id` the same
+ * plugin returned from its summary tool; output {@link DashboardItemActionResult}
+ * (or `{ error }`). Item-action tools are hidden from chat tool sets — chat
+ * agents use the plugin's richer tools instead.
+ */
+export type StandardItemActionId =
+	| "email.archiveItem"
+	| "email.markItemRead"
+	| "tasks.completeItem";
+
+export const STANDARD_ITEM_ACTION_IDS: readonly StandardItemActionId[] = [
+	"email.archiveItem",
+	"email.markItemRead",
+	"tasks.completeItem",
+];
+
+export function isStandardItemActionId(
+	id: string | undefined,
+): id is StandardItemActionId {
+	return (
+		id !== undefined &&
+		(STANDARD_ITEM_ACTION_IDS as readonly string[]).includes(id)
+	);
+}
+
+export interface DashboardItemActionInput {
+	readonly id: string;
+}
+
+export interface DashboardItemActionResult {
+	readonly ok: boolean;
+	/** Short user-facing confirmation or failure reason. */
+	readonly message?: string;
+}
+
+/**
  * Reserved input shape for every standard tool.
  * The dashboard never needs to know plugin-specific query syntax.
  */

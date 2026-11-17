@@ -97,11 +97,16 @@ describe("Apple Reminders plugin", () => {
 			"createReminder",
 			"updateReminder",
 			"completeReminder",
+			"completeDashboardItem",
 			"deleteReminder",
 		]);
 		expect(
 			body.tools.find((tool) => tool.name === "searchReminders")?.readOnly,
 		).toBe(true);
+		expect(
+			body.tools.find((tool) => tool.name === "completeDashboardItem")
+				?.standardTool,
+		).toBe("tasks.completeItem");
 	});
 
 	it("tags getOpenRemindersSummary with tasks.openSummary standardTool", () => {

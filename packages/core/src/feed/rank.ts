@@ -18,6 +18,8 @@ import {
 
 export const FEED_FLOW_NAME = "dashboard.feed";
 export const MAX_FEED_ITEMS = 12;
+/** Bump when ranking prompt/schema semantics change so cached rankings re-run. */
+export const FEED_RANKING_VERSION = "rank-v2";
 const RANK_TIMEOUT_MS = 60_000;
 const RANK_MAX_OUTPUT_TOKENS = 4000;
 
@@ -31,6 +33,11 @@ export const feedRankingSchema = z.object({
 			z.object({
 				key: z.string().describe("Candidate key, e.g. c3"),
 				tier: z.enum(["now", "today", "fyi"]),
+				priority: z
+					.number()
+					.describe(
+						"Importance from 1 (low) to 100 (critical), comparable across sources",
+					),
 				reason: z
 					.string()
 					.describe("One sentence: why this matters to the user now"),
@@ -43,6 +50,14 @@ export const feedRankingSchema = z.object({
 });
 
 export type FeedRankingOutput = z.infer<typeof feedRankingSchema>;
+
+/** Ranking input to validation; `priority` is optional so older output still parses. */
+export type FeedRankingInput = {
+	readonly items: readonly (Omit<
+		FeedRankingOutput["items"][number],
+		"priority"
+	> & { readonly priority?: number })[];
+};
 
 /** Prompt key for candidate at index `i`. */
 export function candidateKey(i: number): string {
@@ -61,13 +76,14 @@ export function buildFeedSystemPrompt(
 
 Your job:
 1. Choose at most ${MAX_FEED_ITEMS} candidates that genuinely matter. Leave out noise: newsletters, automated notifications, marketing, and anything that needs no attention.
-2. Order them most important first.
-3. Assign a tier:
+2. Order them most important first, judging every item on its own merits regardless of source. Do not group items by source type (email, calendar, tasks); an overdue task or urgent email can outrank a routine meeting.
+3. Give each item a priority from 1 to 100 on one scale shared by all sources (90+: act immediately; 60–89: important today; 30–59: worth doing; below 30: minor).
+4. Assign a tier:
    - now: needs attention within the next hour or so (meeting starting soon, urgent reply, overdue and important)
    - today: should be handled today
    - fyi: worth knowing, no rush
-4. Write one plain sentence of reason per item explaining why it matters now and what the user should do. Be specific (names, times, deadlines). No markdown.
-5. Pick 1–2 actions per item, best first, ONLY from that candidate's "allowed actions" list.
+5. Write one plain sentence of reason per item explaining why it matters now and what the user should do. Be specific (names, times, deadlines). No markdown.
+6. Pick 1–2 actions per item, best first, ONLY from that candidate's "allowed actions" list.
 
 Action meanings:
 ${actionGlossary}
@@ -85,8 +101,8 @@ export function formatCandidatesForPrompt(
 	candidates: readonly FeedCandidate[],
 ): string {
 	if (candidates.length === 0) return "(no candidates)";
-	return candidates
-		.map((c, i) => {
+	return interleaveByCategory(candidates)
+		.map(({ c, i }) => {
 			const lines = [`${candidateKey(i)} [${c.category}] ${c.title}`];
 			if (c.subtitle) lines.push(`   from/list: ${c.subtitle}`);
 			if (c.detail) lines.push(`   detail: ${c.detail.slice(0, 280)}`);
@@ -102,6 +118,37 @@ export function formatCandidatesForPrompt(
 		.join("\n");
 }
 
+/**
+ * Prompt order: round-robin across categories (each in its incoming order) so
+ * the list doesn't arrive grouped by source and anchor the model's ordering.
+ * Keys stay tied to the original index.
+ */
+function interleaveByCategory(
+	candidates: readonly FeedCandidate[],
+): { c: FeedCandidate; i: number }[] {
+	const queues = new Map<string, { c: FeedCandidate; i: number }[]>();
+	candidates.forEach((c, i) => {
+		const q = queues.get(c.category) ?? [];
+		q.push({ c, i });
+		queues.set(c.category, q);
+	});
+	const out: { c: FeedCandidate; i: number }[] = [];
+	const lists = [...queues.values()];
+	for (let round = 0; out.length < candidates.length; round++) {
+		for (const q of lists) {
+			const next = q[round];
+			if (next) out.push(next);
+		}
+	}
+	return out;
+}
+
+/** Model priority clamped to 1–100; missing or invalid → 0 (sorts last, model order kept). */
+function normalizePriority(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+	return Math.min(100, Math.max(1, Math.round(value)));
+}
+
 function isTier(value: string): value is FeedTier {
 	return (FEED_TIERS as readonly string[]).includes(value);
 }
@@ -109,15 +156,17 @@ function isTier(value: string): value is FeedTier {
 /**
  * Validate model output against the candidate set: unknown/duplicate keys are
  * dropped, actions are filtered to the catalog, the list is capped, and items
- * are stably grouped by tier (model order preserved within a tier).
+ * are grouped by tier, then ordered by the model's priority within a tier
+ * (model order breaks ties).
  */
 export function feedItemsFromRanking(
-	output: FeedRankingOutput,
+	output: FeedRankingInput,
 	candidates: readonly FeedCandidate[],
 ): FeedItem[] {
 	const byKey = new Map(candidates.map((c, i) => [candidateKey(i), c]));
 	const used = new Set<string>();
 	const items: FeedItem[] = [];
+	const priorities: number[] = [];
 	for (const entry of output.items) {
 		const key = entry.key.trim().toLowerCase();
 		const candidate = byKey.get(key);
@@ -142,14 +191,17 @@ export function feedItemsFromRanking(
 			...(candidate.timestamp ? { timestamp: candidate.timestamp } : {}),
 			actions: resolveActions(candidate, entry.actions),
 		});
+		priorities.push(normalizePriority(entry.priority));
 		if (items.length >= MAX_FEED_ITEMS) break;
 	}
 	const tierRank = (t: FeedTier) => FEED_TIERS.indexOf(t);
 	return items
-		.map((item, index) => ({ item, index }))
+		.map((item, index) => ({ item, index, priority: priorities[index] ?? 0 }))
 		.sort(
 			(a, b) =>
-				tierRank(a.item.tier) - tierRank(b.item.tier) || a.index - b.index,
+				tierRank(a.item.tier) - tierRank(b.item.tier) ||
+				b.priority - a.priority ||
+				a.index - b.index,
 		)
 		.map(({ item }) => item);
 }

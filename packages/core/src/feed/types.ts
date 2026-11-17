@@ -3,7 +3,10 @@
  * explanations and calls to action. See `docs/feed-plan.md`.
  */
 
-import type { DashboardBlockContentSource } from "../dashboard/types";
+import type {
+	DashboardBlockContentSource,
+	StandardItemActionId,
+} from "../dashboard/types";
 
 /** Source categories the Feed can collect from. */
 export type FeedCategory = "email" | "calendar" | "tasks" | "todos";
@@ -23,14 +26,15 @@ export type FeedActionId =
 	| "task.help"
 	| "todo.add"
 	| "open"
+	| "snooze"
 	| "dismiss";
 
 /**
  * How an action runs:
  * - `chat`  — client opens a chat seeded with `prompt`
- * - `tool`  — daemon executes a plugin tool / core service (phase 3)
+ * - `tool`  — daemon executes a plugin item action / core service
  * - `open`  — client opens `url`
- * - `local` — Feed state change (dismiss/snooze; phase 3)
+ * - `local` — Feed state change (dismiss/snooze)
  */
 export type FeedActionKind = "chat" | "tool" | "open" | "local";
 
@@ -65,6 +69,8 @@ export interface FeedCandidate {
 	readonly signals: readonly string[];
 	/** Heuristic pre-score; higher = more likely relevant. */
 	readonly score: number;
+	/** Standard item actions the source provider implements. */
+	readonly providerActions?: readonly StandardItemActionId[];
 }
 
 export interface FeedItem {
@@ -82,7 +88,7 @@ export interface FeedItem {
 	/** One-sentence "why this matters now". */
 	readonly reason: string;
 	readonly timestamp?: string;
-	/** Primary first; always ends with `dismiss`. */
+	/** Primary first; always ends with `snooze` and `dismiss`. */
 	readonly actions: readonly FeedAction[];
 }
 

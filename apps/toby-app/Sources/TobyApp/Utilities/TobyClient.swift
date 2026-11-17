@@ -1155,6 +1155,17 @@ struct TobyClient {
 		return try JSONDecoder().decode(FeedContent.self, from: data)
 	}
 
+	/// Runs a Feed tool / local action (`POST /api/dashboard/feed/actions`).
+	func performFeedAction(itemID: String, actionID: String) async throws -> FeedActionResponse {
+		var request = URLRequest(url: baseURL.appendingPathComponent("api/dashboard/feed/actions"))
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["itemId": itemID, "actionId": actionID])
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(FeedActionResponse.self, from: data)
+	}
+
 	private func dashboardURL(category: String, content: Bool, fresh: Bool) -> URL {
 		var allowed = CharacterSet.urlPathAllowed
 		allowed.remove(charactersIn: "/")

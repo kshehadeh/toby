@@ -6,7 +6,8 @@ import { daemonLog } from "../logging/daemon-log";
 import { collectFeedCandidates } from "./collect";
 import { type FeedModelResolution, resolveFeedModel } from "./model";
 import { candidateSignature, prefilterCandidates } from "./prefilter";
-import { rankFeedCandidates } from "./rank";
+import { FEED_RANKING_VERSION, rankFeedCandidates } from "./rank";
+import { applyFeedState, hiddenIds, loadFeedState } from "./state";
 import type { FeedCandidate, FeedContent, FeedModelRef } from "./types";
 
 export type { FeedContent, FeedItem, FeedAction, FeedTier } from "./types";
@@ -62,6 +63,11 @@ export function clearFeedCache(): void {
 	inFlight.clear();
 }
 
+/** Last ranked Feed (unfiltered), if any. */
+export function getPersistedFeed(): FeedContent | null {
+	return loadPersisted()?.content ?? null;
+}
+
 function isFresh(entry: PersistedFeed, now: number): boolean {
 	const t = Date.parse(entry.rankedAt);
 	return !Number.isNaN(t) && now - t < FEED_RERANK_MAX_AGE_MS;
@@ -70,6 +76,13 @@ function isFresh(entry: PersistedFeed, now: number): boolean {
 export interface GetFeedOptions {
 	/** Bypass caches and re-collect + re-rank. */
 	readonly force?: boolean;
+	/**
+	 * Re-collect from sources (bypassing their short cache) and, when the
+	 * ranking is stale, re-rank inline instead of in the background. Skips the
+	 * LLM call when the candidate set is unchanged and the ranking is recent.
+	 * Used by the background scheduler.
+	 */
+	readonly awaitRerank?: boolean;
 	/** Caller label recorded on the flow run. */
 	readonly trigger?: string;
 	/** Test seam for model resolution. */
@@ -84,12 +97,24 @@ export interface GetFeedOptions {
  * - Changed candidates, not forced, with a prior feed → returns the prior feed
  *   immediately and re-ranks in the background.
  * - Gateway out of funds → throws {@link GatewayFundsError} (HTTP 402).
+ *
+ * Items dismissed, snoozed, or acted on (Feed state) are excluded from
+ * ranking and filtered out of the returned content.
  */
 export async function getFeedContent(
 	options: GetFeedOptions = {},
 ): Promise<FeedContent> {
-	const force = options.force === true;
 	const now = new Date();
+	const content = await buildFeedContent(options, now);
+	return applyFeedState(content, loadFeedState(now), now);
+}
+
+async function buildFeedContent(
+	options: GetFeedOptions,
+	now: Date,
+): Promise<FeedContent> {
+	const force = options.force === true;
+	const awaitRerank = options.awaitRerank === true;
 	const persona = resolveDashboardPersona();
 	const previous = loadPersisted();
 
@@ -106,8 +131,15 @@ export async function getFeedContent(
 	}
 	const model = resolution.ref;
 
-	const collection = await collectFeedCandidates({ force, now });
-	const candidates = prefilterCandidates(collection.candidates, now);
+	const collection = await collectFeedCandidates({
+		force: force || awaitRerank,
+		now,
+	});
+	const hidden = hiddenIds(loadFeedState(now), now);
+	const candidates = prefilterCandidates(
+		collection.candidates.filter((c) => !hidden.has(c.id)),
+		now,
+	);
 	const base = {
 		generatedAt: now.toISOString(),
 		personaName: persona.name,
@@ -123,6 +155,7 @@ export async function getFeedContent(
 	}
 
 	const signature = candidateSignature(candidates, [
+		FEED_RANKING_VERSION,
 		model.provider,
 		model.model,
 		persona.name,
@@ -132,7 +165,7 @@ export async function getFeedContent(
 		if (previous.signature === signature && isFresh(previous, now.getTime())) {
 			return previous.content;
 		}
-		if (previous.content.status === "ok") {
+		if (previous.content.status === "ok" && !awaitRerank) {
 			void rerank(signature, candidates, persona, model, base, options).catch(
 				() => {},
 			);

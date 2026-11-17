@@ -268,14 +268,34 @@ struct DashboardView: View {
 		FeedCardView(
 			store: store.feed,
 			onPerform: performFeedAction,
+			onOutcome: showFeedOutcome,
 			onOpenSettings: { onOpenSettings("dashboard") },
 			onHide: { appearancePreferences.showFeedBinding.wrappedValue = false }
 		)
 		.allowsHitTesting(!isEditing)
 		.opacity(isEditing ? 0.6 : 1)
 		.task(id: isServerReady) {
-			guard isServerReady, store.feed.content == nil else { return }
-			await store.feed.update(force: false)
+			guard isServerReady else { return }
+			if store.feed.content == nil {
+				await store.feed.update(force: false)
+			}
+			// Pick up background refreshes while Home is open (soft, cached).
+			while !Task.isCancelled {
+				try? await Task.sleep(for: Self.feedPollInterval)
+				guard !Task.isCancelled else { break }
+				await store.feed.update(force: false)
+			}
+		}
+	}
+
+	private static let feedPollInterval: Duration = .seconds(5 * 60)
+
+	private func showFeedOutcome(_ outcome: FeedActionOutcome) {
+		switch outcome {
+		case .success(let message):
+			actionContext.showToast(AppToastState(style: .success, title: message))
+		case .failure(let message):
+			actionContext.showToast(AppToastState(style: .error, title: "Couldn't do that", message: message))
 		}
 	}
 

@@ -3,7 +3,11 @@ import type { Command } from "commander";
 import type { CoreMessage } from "../ai/chat";
 import type { ChatInboundProvider } from "../chat-inbound/types";
 import type { CredentialsFile, Persona } from "../config/index";
-import type { DashboardSummaryResult } from "../dashboard/types";
+import type {
+	DashboardItemActionResult,
+	DashboardSummaryResult,
+	StandardItemActionId,
+} from "../dashboard/types";
 
 export type {
 	ChatInboundProvider,
@@ -204,6 +208,13 @@ export interface IntegrationModule extends Integration {
 		getSummary(params: {
 			readonly limit?: number;
 		}): Promise<DashboardSummaryResult>;
+		/** Whether the provider implements a standard item action. */
+		supportsItemAction?(actionId: StandardItemActionId): boolean;
+		/** Run a standard item action on one of this provider's summary items. */
+		runItemAction?(
+			actionId: StandardItemActionId,
+			itemId: string,
+		): Promise<DashboardItemActionResult>;
 	};
 	/**
 	 * Long-lived inbound listener (daemon): maps external channel+thread to chat sessions.

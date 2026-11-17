@@ -162,6 +162,23 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		},
 	},
 	{
+		name: "completeDashboardItem",
+		displayName: "Complete (Home item)",
+		description:
+			"Complete one open-reminders summary item by its dashboard item id. Used by The Feed; chat uses completeReminder.",
+		standardTool: "tasks.completeItem",
+		inputSchema: {
+			type: "object",
+			properties: {
+				id: prop(
+					"string",
+					"Dashboard item id from getOpenRemindersSummary (reminder id)",
+				),
+			},
+			required: ["id"],
+		},
+	},
+	{
 		name: "deleteReminder",
 		displayName: "Delete reminder",
 		description:
@@ -465,6 +482,33 @@ export function executeTool(
 			return {
 				result: r.data ?? {},
 				appliedActions: [`Updated reminder ${id}.`],
+			};
+		}
+
+		case "completeDashboardItem": {
+			const id = stringValue(input.id);
+			if (!id) {
+				throw new ToolFailure("id is required.");
+			}
+			if (dryRun) {
+				return {
+					result: {
+						dryRun: true,
+						message: `Would complete reminder id ${id}.`,
+					},
+					appliedActions: [],
+				};
+			}
+			const r = nativeRequest("reminders/complete", { id, completed: true });
+			if (!r.ok) {
+				return {
+					result: { error: r.error ?? "Complete failed." },
+					appliedActions: [],
+				};
+			}
+			return {
+				result: { ok: true, message: "Completed in Reminders." },
+				appliedActions: [`Completed reminder ${id}.`],
 			};
 		}
 

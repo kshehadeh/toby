@@ -7,6 +7,8 @@ import Foundation
 /// and tests depend on them.
 extension Notification.Name {
 	static let openFlowRun = Notification.Name("openFlowRun")
+	/// Feed notification clicked: show Home and refresh The Feed.
+	static let openFeed = Notification.Name("openFeed")
 	static let askCompanion = Notification.Name("askCompanion")
 	static let openCommandPalette = Notification.Name("openCommandPalette")
 	static let openIssueReport = Notification.Name("openIssueReport")

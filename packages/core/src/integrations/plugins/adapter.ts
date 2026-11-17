@@ -20,8 +20,15 @@ import {
 	writeCredentials,
 } from "../../config/index";
 import { validateDashboardSummary } from "../../dashboard/schema";
-import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
-import type { DashboardSummaryResult } from "../../dashboard/types";
+import {
+	STANDARD_TOOL_FOR_CATEGORY,
+	isStandardItemActionId,
+} from "../../dashboard/types";
+import type {
+	DashboardItemActionResult,
+	DashboardSummaryResult,
+	StandardItemActionId,
+} from "../../dashboard/types";
 import { daemonLog } from "../../logging/daemon-log";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import { registerPluginToolLabels } from "../../tool-labels";
@@ -517,6 +524,30 @@ function findStandardToolName(
 	return match?.name ?? null;
 }
 
+/** Normalize an item-action tool result (`{ ok, message }` or `{ error }`). */
+function itemActionResult(raw: unknown): DashboardItemActionResult {
+	if (!raw || typeof raw !== "object") return { ok: true };
+	const record = raw as Record<string, unknown>;
+	if (typeof record.error === "string" && record.error.trim()) {
+		return { ok: false, message: record.error.trim() };
+	}
+	const message =
+		typeof record.message === "string" && record.message.trim()
+			? record.message.trim()
+			: undefined;
+	return {
+		ok: record.ok !== false,
+		...(message ? { message } : {}),
+	};
+}
+
+/** Item-action tools are for non-AI surfaces; chat uses the richer tools. */
+export function isChatHiddenPluginTool(definition: {
+	readonly standardTool?: string;
+}): boolean {
+	return isStandardItemActionId(definition.standardTool);
+}
+
 /**
  * Build a `dashboard.getSummary` hook for an installable plugin by finding
  * a tool tagged with the matching `standardTool` ID and invoking it through
@@ -597,6 +628,50 @@ function buildPluginDashboardHook(
 				};
 			}
 			return validated;
+		},
+
+		supportsItemAction(actionId: StandardItemActionId): boolean {
+			return findStandardToolName(metadata, actionId) !== null;
+		},
+
+		async runItemAction(
+			actionId: StandardItemActionId,
+			itemId: string,
+		): Promise<DashboardItemActionResult> {
+			const toolName = findStandardToolName(metadata, actionId);
+			if (!toolName) {
+				return {
+					ok: false,
+					message: `${metadata.displayName} doesn't support this action. Update the plugin.`,
+				};
+			}
+			return withPluginCredentialLock(name, async () => {
+				const envelope = buildPluginEnvelope(name);
+				const dataDir = ensurePluginDataDir(name);
+				const execResult = await pluginToolsExecuteAsync(target, {
+					tool: toolName,
+					input: { id: itemId },
+					config: envelope.config,
+					state: envelope.state,
+					dryRun: false,
+					paths: { dataDir },
+				});
+				forwardPluginStderr(name, execResult.stderr);
+				if (!execResult.ok || !execResult.data.ok) {
+					const error = !execResult.ok
+						? execResult.error
+						: (execResult.data.error ?? "Tool execution failed");
+					daemonLog("warn", "plugin", "dashboard_item_action_failed", {
+						plugin: name,
+						tool: toolName,
+						action: actionId,
+						error,
+					});
+					return { ok: false, message: error };
+				}
+				mergePluginConfigPatch(name, execResult.data.config);
+				return itemActionResult(execResult.data.result);
+			});
 		},
 	};
 }
@@ -916,6 +991,7 @@ export function createPluginIntegrationModule(
 
 		const tools: Record<string, Tool> = {};
 		for (const definition of toolDefs) {
+			if (isChatHiddenPluginTool(definition)) continue;
 			const inputSchema = jsonSchemaToZod(definition.inputSchema);
 			tools[definition.name] = tool({
 				description: definition.description,

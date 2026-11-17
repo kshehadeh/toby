@@ -11,14 +11,13 @@ mock.module("@toby/core/flows/runner", () => ({
 			ok: true,
 			outputs: {
 				ranking: {
-					items: [
-						{
-							key: "c1",
-							tier: "today",
-							reason: "High-priority todo.",
-							actions: ["task.help"],
-						},
-					],
+					items: ["c1", "c2", "c3"].map((key) => ({
+						key,
+						tier: "today",
+						priority: 50,
+						reason: "High-priority todo.",
+						actions: ["task.help"],
+					})),
 				},
 			},
 		};
@@ -29,7 +28,12 @@ const { clearFeedCache, getFeedContent } = await import(
 	"@toby/core/feed/index"
 );
 const { createTodo } = await import("@toby/core/todos/service");
-const { getDashboardFeedPath } = await import("@toby/core/config/index");
+const { getDashboardFeedPath, getDashboardFeedStatePath } = await import(
+	"@toby/core/config/index"
+);
+const { clearFeedStateCache, setItemState, updateFeedState } = await import(
+	"@toby/core/feed/state"
+);
 
 const eligible = async () =>
 	({
@@ -43,6 +47,8 @@ describe("getFeedContent", () => {
 		clearFeedCache();
 		runs = 0;
 		fs.rmSync(getDashboardFeedPath(), { force: true });
+		fs.rmSync(getDashboardFeedStatePath(), { force: true });
+		clearFeedStateCache();
 	});
 
 	it("returns setupRequired without collecting or ranking when no model qualifies", async () => {
@@ -62,6 +68,7 @@ describe("getFeedContent", () => {
 		expect(first.items[0]?.title).toBe("File taxes");
 		expect(first.items[0]?.actions.map((a) => a.id)).toEqual([
 			"task.help",
+			"snooze",
 			"dismiss",
 		]);
 		expect(first.model).toEqual({
@@ -77,5 +84,27 @@ describe("getFeedContent", () => {
 
 		await getFeedContent({ resolveModel: eligible, force: true });
 		expect(runs).toBe(2);
+	});
+
+	it("filters dismissed items from the response and leaves them out of re-ranking", async () => {
+		createTodo({ title: "Call the bank", priority: "high" });
+		const first = await getFeedContent({ resolveModel: eligible, force: true });
+		const target = first.items.find((i) => i.title === "Call the bank");
+		expect(target).toBeDefined();
+		const runsBefore = runs;
+
+		updateFeedState((s) =>
+			setItemState(s, target?.id ?? "", {
+				kind: "dismissed",
+				at: new Date().toISOString(),
+			}),
+		);
+		const after = await getFeedContent({
+			resolveModel: eligible,
+			awaitRerank: true,
+		});
+		expect(after.items.some((i) => i.id === target?.id)).toBe(false);
+		// The candidate set changed (item excluded) → one inline re-rank.
+		expect(runs).toBe(runsBefore + 1);
 	});
 });

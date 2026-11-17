@@ -61,6 +61,11 @@ struct RootView: View {
                 navigateToRoute(.todos)
                 Task { await todosStore.openTodo(id) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openFeed)) { _ in
+                bringMainWindowToFront()
+                navigateToRoute(.dashboard)
+                Task { await dashboardStore.feed.update(force: false) }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .openFlowRun)) { notification in
                 guard let id = notification.object as? String else { return }
                 bringMainWindowToFront()
@@ -495,6 +500,7 @@ struct RootView: View {
                 actionContext: DashboardBlockActionContext(
                     startChat: startNewChat,
                     startChatWithPrompt: startChatWithPromptFromDashboard,
+                    showToast: { store.toast = $0 },
                     summarizeEmail: summarizeUnreadEmailInChat,
                     planInChat: planCalendarInChat,
                     openFlow: openDashboardFlow,

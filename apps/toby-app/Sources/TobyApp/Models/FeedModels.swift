@@ -19,11 +19,11 @@ enum FeedTier: String, Decodable, CaseIterable, Sendable {
 enum FeedActionKind: String, Decodable, Sendable {
 	/// Opens a chat seeded with `prompt`.
 	case chat
-	/// Daemon-executed tool action (not yet wired in the app).
+	/// Daemon-executed action (archive, complete, add todo).
 	case tool
 	/// Opens `url`.
 	case open
-	/// Feed-local state change (dismiss).
+	/// Feed state change run by the daemon (snooze, dismiss).
 	case local
 }
 
@@ -35,8 +35,11 @@ struct FeedAction: Decodable, Equatable, Identifiable, Sendable {
 	var url: String?
 
 	static let dismissID = "dismiss"
+	static let snoozeID = "snooze"
 
 	var isDismiss: Bool { id == Self.dismissID }
+	/// Runs through the daemon (`POST …/feed/actions`) rather than in the app.
+	var runsInDaemon: Bool { kind == .tool || kind == .local }
 }
 
 struct FeedItemSource: Decodable, Equatable, Sendable {
@@ -67,16 +70,21 @@ struct FeedItem: Decodable, Equatable, Identifiable, Sendable {
 		}
 	}
 
-	/// Actions the app can perform today, primary first, excluding dismiss.
+	/// Calls to action shown as buttons / menu items, primary first
+	/// (chat, open, and daemon tool actions; snooze/dismiss are `stateActions`).
 	var performableActions: [FeedAction] {
 		actions.filter { action in
 			switch action.kind {
 			case .chat: action.prompt?.isEmpty == false
 			case .open: action.url.flatMap(URL.init(string:)) != nil
-			case .tool, .local: false
+			case .tool: true
+			case .local: false
 			}
 		}
 	}
+
+	/// Feed-state actions (snooze, dismiss) for the overflow menu.
+	var stateActions: [FeedAction] { actions.filter { $0.kind == .local } }
 
 	var canDismiss: Bool { actions.contains(where: \.isDismiss) }
 }
@@ -111,4 +119,13 @@ struct FeedContent: Decodable, Equatable, Sendable {
 			return inTier.isEmpty ? nil : (tier, inTier)
 		}
 	}
+}
+
+/// `POST /api/dashboard/feed/actions` response.
+struct FeedActionResponse: Decodable, Equatable, Sendable {
+	let ok: Bool
+	var message: String?
+	var todoId: String?
+	/// Current Feed with the acted-on item removed.
+	var content: FeedContent?
 }

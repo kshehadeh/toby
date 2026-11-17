@@ -47,6 +47,7 @@ function validateSubtools(): JsonRecord[] {
 		"createReminder",
 		"updateReminder",
 		"completeReminder",
+		"completeDashboardItem",
 		"deleteReminder",
 	]) {
 		checks.push({

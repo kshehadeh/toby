@@ -202,6 +202,12 @@ final class NativeServer {
 			return httpResponse(json: NativeAutomationEventSource.shared.handle(method: request.method, path: path, body: request.body))
 		}
 
+		if path == "/api/native/feed/notification" {
+			guard !request.browserRequest else { return httpResponse(json: ["ok": false, "error": "Native clients only"], status: 403) }
+			guard request.method == "POST" else { return httpResponse(json: ["ok": false, "error": "Method not allowed"], status: 405) }
+			return wrapHandlerData(await NativeMacOSHandler.feedNotification(body: request.body))
+		}
+
 		guard path.hasPrefix("/api/native/") else {
 			return httpResponse(json: ["ok": false, "error": "Not found"], status: 404)
 		}

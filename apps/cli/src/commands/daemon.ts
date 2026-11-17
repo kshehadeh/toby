@@ -11,6 +11,7 @@ import {
 	getWebConfig,
 } from "@toby/core/config/index";
 import { runConfigSyncLoop } from "@toby/core/config/sync";
+import { runFeedScheduler } from "@toby/core/feed/scheduler";
 import { runFlowTriggerSupervisor } from "@toby/core/flows/triggers/supervisor";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
 import {
@@ -211,6 +212,10 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 			runConfigSyncLoop({ signal: controller.signal }),
 			runTodoSyncLoop({ signal: controller.signal }),
 		];
+		if (webCfg.enabled) {
+			// The Feed serves the app over the web API; refresh it in the background.
+			tasks.push(runFeedScheduler({ signal: controller.signal }));
+		}
 		if (webCfg.enabled) {
 			tasks.push(
 				startWebServer({ port: webCfg.port, signal: controller.signal }),

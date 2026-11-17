@@ -117,6 +117,42 @@ export const TOOL_DEFINITIONS = [
 		},
 	},
 	{
+		name: "archiveDashboardItem",
+		displayName: "Archive (Home item)",
+		description:
+			"Archive one unread-summary item by its dashboard item id. Used by The Feed; chat uses archiveEmail.",
+		readOnly: false,
+		standardTool: "email.archiveItem",
+		inputSchema: {
+			type: "object",
+			properties: {
+				id: {
+					type: "string",
+					description: "Dashboard item id from getUnreadSummary (uid:mailbox)",
+				},
+			},
+			required: ["id"],
+		},
+	},
+	{
+		name: "markDashboardItemRead",
+		displayName: "Mark read (Home item)",
+		description:
+			"Mark one unread-summary item read by its dashboard item id. Used by The Feed; chat uses markAsRead.",
+		readOnly: false,
+		standardTool: "email.markItemRead",
+		inputSchema: {
+			type: "object",
+			properties: {
+				id: {
+					type: "string",
+					description: "Dashboard item id from getUnreadSummary (uid:mailbox)",
+				},
+			},
+			required: ["id"],
+		},
+	},
+	{
 		name: "getEmailMetadata",
 		displayName: "Fetch email metadata",
 		description:
@@ -507,6 +543,19 @@ export async function syncMailboxesAfterWrite(
 	return applied;
 }
 
+/** Parse a `getUnreadSummary` item id (`uid:mailbox`). */
+export function parseDashboardItemId(
+	raw: unknown,
+): { uid: number; mailbox: string } | null {
+	if (typeof raw !== "string") return null;
+	const sep = raw.indexOf(":");
+	const uidText = sep === -1 ? raw : raw.slice(0, sep);
+	const mailbox = sep === -1 ? DEFAULT_MAILBOX : raw.slice(sep + 1);
+	const uid = Number(uidText);
+	if (!Number.isInteger(uid) || uid <= 0 || !mailbox) return null;
+	return { uid, mailbox };
+}
+
 export async function executeTool(
 	tool: string,
 	input: JsonRecord,
@@ -537,6 +586,36 @@ async function executeToolInner(
 	const offset = Number(input.offset ?? 0) || 0;
 
 	switch (tool) {
+		case "archiveDashboardItem":
+		case "markDashboardItemRead": {
+			const ref = parseDashboardItemId(input.id);
+			if (!ref) {
+				return {
+					result: { error: "id must be a dashboard item id (uid:mailbox)." },
+				};
+			}
+			const archive = tool === "archiveDashboardItem";
+			const inner = await executeToolInner(
+				archive ? "archiveEmail" : "markAsRead",
+				{ uids: [ref.uid], mailbox: ref.mailbox },
+				config,
+				dryRun,
+				db,
+			);
+			const innerError = (inner.result as JsonRecord | null)?.error;
+			if (typeof innerError === "string") {
+				return { result: { error: innerError } };
+			}
+			return {
+				result: {
+					ok: true,
+					message: archive ? "Archived." : "Marked as read.",
+				},
+				...(inner.appliedActions
+					? { appliedActions: inner.appliedActions }
+					: {}),
+			};
+		}
 		case "getInboxOverview": {
 			const messages = db.getMessages(mailbox, limit, offset);
 			const total = db.countMessages(mailbox);

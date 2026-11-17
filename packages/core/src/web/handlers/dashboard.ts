@@ -6,8 +6,10 @@ import {
 } from "../../dashboard/flow-blocks";
 import { getDashboardBlockContent } from "../../dashboard/summarizer";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
-import { getFeedContent } from "../../feed/index";
-import { jsonResponse } from "../http-utils";
+import { performFeedAction } from "../../feed/execute";
+import { getFeedContent, getPersistedFeed } from "../../feed/index";
+import { applyFeedState, loadFeedState } from "../../feed/state";
+import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 /** True when the client asked for a cache-bypassing refresh (`?fresh=1`). */
 function isFreshRequest(url?: URL): boolean {
@@ -103,4 +105,42 @@ export async function handleDashboardFeed(url?: URL): Promise<Response> {
 		}
 		throw error;
 	}
+}
+
+/**
+ * POST /api/dashboard/feed/actions `{ itemId, actionId }` — run a Feed `tool`
+ * or `local` action. Responds with the outcome plus the current (state
+ * filtered) Feed so the client can update without re-ranking.
+ */
+export async function handleDashboardFeedAction(
+	req: Request,
+): Promise<Response> {
+	const body = await readJsonBody<{ itemId?: unknown; actionId?: unknown }>(
+		req,
+	);
+	const itemId = typeof body?.itemId === "string" ? body.itemId.trim() : "";
+	const actionId =
+		typeof body?.actionId === "string" ? body.actionId.trim() : "";
+	if (!itemId || !actionId) {
+		return errorResponse("itemId and actionId are required.");
+	}
+	const outcome = await performFeedAction(
+		{ itemId, actionId },
+		{
+			findItem: (id) => getPersistedFeed()?.items.find((i) => i.id === id),
+		},
+	);
+	if (!outcome.ok) {
+		return jsonResponse({ ok: false, error: outcome.error }, outcome.status);
+	}
+	const now = new Date();
+	const persisted = getPersistedFeed();
+	return jsonResponse({
+		ok: true,
+		message: outcome.message,
+		...(outcome.todoId ? { todoId: outcome.todoId } : {}),
+		...(persisted
+			? { content: applyFeedState(persisted, loadFeedState(now), now) }
+			: {}),
+	});
 }

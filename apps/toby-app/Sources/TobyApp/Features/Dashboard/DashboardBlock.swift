@@ -57,6 +57,8 @@ struct DashboardBlockActionContext {
 	var startChat: @MainActor () -> Void = {}
 	/// Opens a new chat seeded with a prompt (The Feed chat actions).
 	var startChatWithPrompt: @MainActor (String) -> Void = { _ in }
+	/// Shows an app toast (The Feed action confirmations / errors).
+	var showToast: @MainActor (AppToastState) -> Void = { _ in }
 	var summarizeEmail: @MainActor () -> Void = {}
 	var planInChat: @MainActor () -> Void = {}
 	var openFlow: @MainActor (String) -> Void = { _ in }

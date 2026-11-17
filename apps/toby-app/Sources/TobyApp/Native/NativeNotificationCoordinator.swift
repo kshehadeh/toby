@@ -50,6 +50,8 @@ private final class NativeNotificationDelegate: NSObject, UNUserNotificationCent
 					action: action, occurrenceId: occurrenceId, reminderId: reminderId, home: home
 				)
 			}
+		} else if info["type"] as? String == "feed" {
+			DispatchQueue.main.async { NotificationCenter.default.post(name: .openFeed, object: nil) }
 		} else if info["type"] as? String == "todoCatchUp" {
 			DispatchQueue.main.async { NotificationCenter.default.post(name: .navigateToRoute, object: DetailRoute.todos.rawValue) }
 		}
