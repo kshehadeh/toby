@@ -135,6 +135,10 @@ enum AppearanceDefaultsKey {
 	static let showDashboardCalendar = "toby.appearance.showDashboardCalendar"
 	/// JSON `DashboardLayout` (order + hidden ids). Source of truth for home-card layout.
 	static let dashboardLayout = "toby.appearance.dashboardLayout"
+	/// Ids of cards hidden because The Feed replaces them (one-time migration).
+	static let feedReplacedCards = "toby.appearance.feedReplacedCards"
+	/// Set once the Feed card migration has run.
+	static let feedReplacedCardsMigrated = "toby.appearance.feedReplacedCardsMigrated"
 	/// Open Toby automatically when this Mac logs in (Settings → General).
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
@@ -165,6 +169,8 @@ final class AppearancePreferences {
 	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
 	static let showDashboardCalendarDefaultsKey = AppearanceDefaultsKey.showDashboardCalendar
 	static let dashboardLayoutDefaultsKey = AppearanceDefaultsKey.dashboardLayout
+	static let feedReplacedCardsDefaultsKey = AppearanceDefaultsKey.feedReplacedCards
+	static let feedReplacedCardsMigratedDefaultsKey = AppearanceDefaultsKey.feedReplacedCardsMigrated
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let globalShortcutsDefaultsKey = AppearanceDefaultsKey.globalShortcuts
@@ -232,6 +238,18 @@ final class AppearancePreferences {
 		didSet {
 			guard dashboardLayout != oldValue else { return }
 			persistDashboardLayout()
+			// A card the user showed is no longer "hidden by The Feed".
+			let stillHidden = feedReplacedCardIDs.filter { dashboardLayout.hidden.contains($0) }
+			if stillHidden != feedReplacedCardIDs { feedReplacedCardIDs = stillHidden }
+		}
+	}
+
+	/// Cards hidden because The Feed replaces them. They reappear while the
+	/// Feed is off or needs setup (see `effectiveDashboardLayout`).
+	var feedReplacedCardIDs: [String] {
+		didSet {
+			guard feedReplacedCardIDs != oldValue else { return }
+			defaults.set(feedReplacedCardIDs, forKey: Self.feedReplacedCardsDefaultsKey)
 		}
 	}
 
@@ -468,6 +486,21 @@ final class AppearancePreferences {
 			)
 		}
 
+		// One-time: The Feed replaces the mail / tasks / Toby Todos cards. Hide
+		// them (new installs and upgrades) unless the user turned the Feed off.
+		var resolvedFeedReplaced = defaults.stringArray(forKey: Self.feedReplacedCardsDefaultsKey) ?? []
+		var migratedFeedCards = false
+		if !defaults.bool(forKey: Self.feedReplacedCardsMigratedDefaultsKey),
+			showDashboardEmail == nil, showDashboardTasks == nil
+		{
+			if resolvedShowFeed {
+				let result = resolvedLayout.hidingFeedReplacedCards()
+				resolvedLayout = result.layout
+				resolvedFeedReplaced = result.hidden
+			}
+			migratedFeedCards = true
+		}
+
 		// Default off when unset.
 		let resolvedLaunchAtLogin: Bool
 		if let launchAtLogin {
@@ -529,6 +562,7 @@ final class AppearancePreferences {
 		self.hideOnboarding = resolvedHideOnboarding
 		self.showFeed = resolvedShowFeed
 		self.dashboardLayout = resolvedLayout
+		self.feedReplacedCardIDs = resolvedFeedReplaced
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.globalShortcuts = resolvedGlobalShortcuts
@@ -550,6 +584,11 @@ final class AppearancePreferences {
 		}
 		if showDashboardEmail != nil || showDashboardTasks != nil || showDashboardCalendar != nil {
 			persistDashboardLayout()
+		}
+		if migratedFeedCards {
+			persistDashboardLayout()
+			defaults.set(resolvedFeedReplaced, forKey: Self.feedReplacedCardsDefaultsKey)
+			defaults.set(true, forKey: Self.feedReplacedCardsMigratedDefaultsKey)
 		}
 		if launchAtLogin != nil {
 			defaults.set(resolvedLaunchAtLogin, forKey: Self.launchAtLoginDefaultsKey)

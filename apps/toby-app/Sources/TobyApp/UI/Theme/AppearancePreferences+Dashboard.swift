@@ -86,6 +86,7 @@ extension AppearancePreferences {
 	}
 
 	func setDashboardBlockVisible(id: DashboardBlockID, visible: Bool) {
+		forgetFeedReplacedCard(id)
 		let next = dashboardLayout.settingVisibility(id: id, visible: visible)
 		guard next != dashboardLayout else { return }
 		dashboardLayout = next
@@ -106,10 +107,31 @@ extension AppearancePreferences {
 	}
 
 	/// Restore default order and visibility and clear color overrides. Does not change onboarding.
+	/// With The Feed on, the cards it replaces stay hidden by default.
 	func resetDashboardLayout() {
 		withAnimation(DashboardSectionMotion.animation) {
-			dashboardLayout = .empty
+			guard showFeed else {
+				dashboardLayout = .empty
+				return
+			}
+			let result = DashboardLayout.empty.hidingFeedReplacedCards()
+			dashboardLayout = result.layout
+			feedReplacedCardIDs = result.hidden
 		}
+	}
+
+	/// Layout Home renders: while The Feed is unavailable (off, or no
+	/// structured-output model yet) the cards it replaced are shown again.
+	func effectiveDashboardLayout(feedAvailable: Bool) -> DashboardLayout {
+		guard !feedAvailable, !feedReplacedCardIDs.isEmpty else { return dashboardLayout }
+		var layout = dashboardLayout
+		layout.hidden.removeAll { feedReplacedCardIDs.contains($0) }
+		return layout
+	}
+
+	/// The user hid or showed `id` explicitly; it's no longer Feed-managed.
+	func forgetFeedReplacedCard(_ id: DashboardBlockID) {
+		feedReplacedCardIDs.removeAll { $0 == id.rawValue }
 	}
 
 	/// Toolbar toggle for the Actions rail (independent of per-runner hide).

@@ -14,8 +14,9 @@ struct AppearancePreferencesTests {
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
 		#expect(prefs.hideOnboarding == false)
-		#expect(prefs.showDashboardEmail == true)
-		#expect(prefs.showDashboardTasks == true)
+		// The Feed replaces the mail / tasks / Toby Todos cards by default.
+		#expect(prefs.showDashboardEmail == false)
+		#expect(prefs.showDashboardTasks == false)
 		#expect(prefs.showDashboardCalendar == true)
 		#expect(prefs.launchAtLogin == false)
 		#expect(prefs.showMenuBarIcon == true)
@@ -260,7 +261,11 @@ struct AppearancePreferencesTests {
 	@Test("reset dashboard layout shows all cards and clears custom order")
 	func resetDashboardLayoutRestoresDefaults() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.reset.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let prefs = AppearancePreferences(
+			showFeed: false,
+			defaults: suite,
+			applyLaunchAtLoginOnChange: false
+		)
 		prefs.dashboardLayout = DashboardLayout(
 			order: ["calendar", "email", "tasks"],
 			hidden: ["email", "flow.x"]
@@ -275,6 +280,40 @@ struct AppearancePreferencesTests {
 		#expect(prefs.showDashboardTasks)
 		#expect(prefs.showDashboardCalendar)
 		#expect(prefs.isDashboardBlockVisible(id: DashboardBlockID("flow.x")))
+	}
+
+	@Test("The Feed hides the cards it replaces once, and they return while the Feed is unavailable")
+	func feedReplacesLegacyCards() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.feedcards.\(UUID().uuidString)")!
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let todos = DashboardBlockID.todosSummary
+		#expect(!prefs.isDashboardBlockVisible(id: .email))
+		#expect(!prefs.isDashboardBlockVisible(id: .tasks))
+		#expect(!prefs.isDashboardBlockVisible(id: todos))
+		#expect(prefs.isDashboardBlockVisible(id: .calendar))
+		#expect(prefs.feedReplacedCardIDs == ["email", "tasks", todos.rawValue])
+
+		// Unavailable Feed (off / needs setup): the replaced cards render again.
+		let fallback = prefs.effectiveDashboardLayout(feedAvailable: false)
+		#expect(fallback.isVisible(id: .email) && fallback.isVisible(id: todos))
+		#expect(prefs.effectiveDashboardLayout(feedAvailable: true) == prefs.dashboardLayout)
+
+		// Showing a card makes it the user's choice; the migration never reruns.
+		prefs.setDashboardBlockVisible(id: .email, visible: true)
+		#expect(prefs.feedReplacedCardIDs == ["tasks", todos.rawValue])
+		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(reloaded.isDashboardBlockVisible(id: .email))
+		#expect(!reloaded.isDashboardBlockVisible(id: .tasks))
+		#expect(reloaded.feedReplacedCardIDs == ["tasks", todos.rawValue])
+	}
+
+	@Test("cards stay visible when the Feed is off at migration time")
+	func feedOffKeepsLegacyCards() {
+		let suite = UserDefaults(suiteName: "toby.tests.appearance.feedoff.\(UUID().uuidString)")!
+		suite.set(false, forKey: AppearancePreferences.showFeedDefaultsKey)
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		#expect(prefs.isDashboardBlockVisible(id: .email))
+		#expect(prefs.feedReplacedCardIDs.isEmpty)
 	}
 
 	@Test("actions pane visibility and width persist on the layout document")
@@ -329,7 +368,11 @@ struct AppearancePreferencesTests {
 	@Test("dashboard block visibility helpers update preferences")
 	func dashboardBlockVisibilityHelpers() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
+		let prefs = AppearancePreferences(
+			showFeed: false,
+			defaults: suite,
+			applyLaunchAtLoginOnChange: false
+		)
 		#expect(prefs.isDashboardBlockVisible(.email))
 		#expect(prefs.isDashboardBlockVisible(.tasks))
 		#expect(prefs.isDashboardBlockVisible(.calendar))

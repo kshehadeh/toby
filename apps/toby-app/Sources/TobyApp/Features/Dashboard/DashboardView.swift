@@ -74,8 +74,19 @@ struct DashboardView: View {
 			&& !appearancePreferences.hideOnboarding
 	}
 
+	/// Rendered layout: the cards The Feed replaced come back while it's unavailable.
 	private var layoutSource: DashboardLayout {
-		appearancePreferences.dashboardLayout
+		appearancePreferences.effectiveDashboardLayout(
+			feedAvailable: store.isFeedAvailable(showFeed: appearancePreferences.showFeed)
+		)
+	}
+
+	/// Visible data cards; loads any that became visible without content.
+	private var visibleBlockKey: String {
+		store.blocks
+			.filter { !layoutSource.isHidden(id: $0.id) }
+			.map(\.id.rawValue)
+			.joined(separator: "|")
 	}
 
 	private var visibleHomeItems: [DashboardHomeItem] {
@@ -153,6 +164,10 @@ struct DashboardView: View {
 			.onExitCommand {
 				guard isEditing else { return }
 				onExitEditing()
+			}
+			.task(id: "\(isServerReady)|\(visibleBlockKey)") {
+				guard isServerReady, store.hasLoadedOnce else { return }
+				await store.loadVisibleBlocksMissingContent(layout: layoutSource)
 			}
 			.onChange(of: appearancePreferences.dashboardLayout) { _, layout in
 				if layout == .empty {
@@ -584,6 +599,7 @@ struct DashboardView: View {
 	}
 
 	private func handleHide(_ id: DashboardBlockID) {
+		appearancePreferences.forgetFeedReplacedCard(id)
 		withAnimation(sectionAnimation) {
 			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
 				.hidingHomeItem(id, from: store.registry.descriptors)
@@ -591,6 +607,7 @@ struct DashboardView: View {
 	}
 
 	private func handleShow(_ id: DashboardBlockID) {
+		appearancePreferences.forgetFeedReplacedCard(id)
 		withAnimation(sectionAnimation) {
 			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
 				.showingHomeItem(id, from: store.registry.descriptors)

@@ -98,6 +98,19 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		!isHidden(id: id)
 	}
 
+	/// Hides `ids` that are not already hidden; returns the layout and the ids it hid.
+	func hidingFeedReplacedCards(
+		_ ids: [DashboardBlockID] = DashboardBlockID.feedReplaced
+	) -> (layout: DashboardLayout, hidden: [String]) {
+		var layout = self
+		var newlyHidden: [String] = []
+		for id in ids where layout.isVisible(id: id) {
+			layout = layout.settingVisibility(id: id, visible: false)
+			newlyHidden.append(id.rawValue)
+		}
+		return (layout, newlyHidden)
+	}
+
 	/// Toggle membership in `hidden` without requiring the live registry.
 	/// Used by Settings built-in toggles and init overrides.
 	func settingVisibility(id: DashboardBlockID, visible: Bool) -> DashboardLayout {

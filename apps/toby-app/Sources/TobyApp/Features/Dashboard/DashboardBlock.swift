@@ -22,6 +22,12 @@ struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	static let calendar = DashboardBlockID("calendar")
 	/// Client-local Home card that is not backed by a daemon dashboard block.
 	static let recentWork = DashboardBlockID("local.recent-work")
+	/// Built-in "Toby Todos" flow card (code-defined in core).
+	static let todosSummary = DashboardBlockID("dashboard.todos.summary")
+
+	/// Cards The Feed replaces: hidden by default, shown again while the Feed
+	/// is off or needs setup.
+	static let feedReplaced: [DashboardBlockID] = [.email, .tasks, .todosSummary]
 }
 
 extension DashboardBlockID: Transferable {

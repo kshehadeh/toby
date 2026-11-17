@@ -103,14 +103,40 @@ final class DashboardStore {
 			}
 		}
 
-		var tasks = blocks.map { block in
+		// Hidden cards aren't refreshed (no summary model calls); they load
+		// when shown (`loadVisibleBlocksMissingContent`).
+		let prefs = AppearancePreferences.shared
+		let layout = prefs.effectiveDashboardLayout(
+			feedAvailable: isFeedAvailable(showFeed: prefs.showFeed)
+		)
+		var tasks = blocks.filter { !layout.isHidden(id: $0.id) }.map { block in
 			Task { @MainActor in
 				await block.update(force: force)
 			}
 		}
-		if AppearancePreferences.shared.showFeed {
+		if prefs.showFeed {
 			let feed = feed
 			tasks.append(Task { @MainActor in await feed.update(force: force) })
+		}
+		for task in tasks {
+			await task.value
+		}
+	}
+
+	/// False while The Feed is off or needs a structured-output model; the
+	/// cards it replaced are shown instead.
+	func isFeedAvailable(showFeed: Bool) -> Bool {
+		showFeed && feed.content?.status != .setupRequired
+	}
+
+	/// Soft-loads visible cards that have no content yet (just shown, or
+	/// skipped while hidden).
+	func loadVisibleBlocksMissingContent(layout: DashboardLayout) async {
+		let pending = blocks.filter {
+			!layout.isHidden(id: $0.id) && $0.content == nil && !$0.isLoading
+		}
+		let tasks = pending.map { block in
+			Task { @MainActor in await block.update(force: false) }
 		}
 		for task in tasks {
 			await task.value
