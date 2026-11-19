@@ -175,7 +175,7 @@ struct FeedItemRow: View {
 	let onPerform: (FeedAction) -> Void
 
 	private var actions: [FeedAction] { item.performableActions }
-	private var stateActions: [FeedAction] { item.stateActions }
+	private var stateActions: [FeedAction] { item.menuStateActions }
 
 	var body: some View {
 		HStack(alignment: .top, spacing: 12) {
@@ -225,6 +225,15 @@ struct FeedItemRow: View {
 		HStack(spacing: 8) {
 			ForEach(Array(actions.prefix(2).enumerated()), id: \.element.id) { index, action in
 				actionButton(action, prominent: index == 0)
+			}
+			if let snooze = item.snoozeAction {
+				Button("Snooze") { onPerform(snooze) }
+					.buttonStyle(.bordered)
+					.controlSize(.small)
+					.disabled(isBusy)
+					.help(snooze.label)
+					.accessibilityLabel(snooze.label)
+					.accessibilityIdentifier("feed-action-\(snooze.id)")
 			}
 			Spacer(minLength: 0)
 			if isBusy {

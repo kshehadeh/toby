@@ -70,12 +70,14 @@ struct FeedTests {
 		#expect(feed.groupedItems(excluding: ["calendar:applecalendar:e1"]).map(\.tier) == [.today])
 	}
 
-	@Test("chat, open, and tool actions are calls to action; snooze and dismiss go to the menu")
+	@Test("chat, open, and tool actions are calls to action; snooze is split from the menu state actions")
 	func performableActions() throws {
 		let feed = try decodeFeed()
 		let email = try #require(feed.items.first { $0.source.category == "email" })
 		#expect(email.performableActions.map(\.id) == ["email.draftReply", "todo.add"])
 		#expect(email.stateActions.map(\.id) == ["snooze", "dismiss"])
+		#expect(email.snoozeAction?.id == "snooze")
+		#expect(email.menuStateActions.map(\.id) == ["dismiss"])
 		#expect(email.performableActions.map(\.runsInDaemon) == [false, true])
 		#expect(email.canDismiss)
 		#expect(email.systemImage == "envelope")
@@ -173,14 +175,14 @@ struct FeedTests {
 		#expect(performed == ["email.draftReply"])
 	}
 
-	@Test("row shows the primary actions as buttons and snooze / dismiss in the menu")
+	@Test("row shows the primary actions and snooze as buttons, dismiss in the menu")
 	func rowActions() throws {
 		let feed = try decodeFeed()
 		let email = try #require(feed.items.first { $0.source.category == "email" })
 		var performed: [String] = []
 		let row = FeedItemRow(item: email, onPerform: { performed.append($0.id) })
 		try row.inspect().find(button: "Add to my todo list").tap()
-		try row.inspect().find(button: "Snooze until tomorrow").tap()
+		try row.inspect().find(button: "Snooze").tap()
 		try row.inspect().find(button: "Dismiss").tap()
 		#expect(performed == ["todo.add", "snooze", "dismiss"])
 	}

@@ -85,8 +85,14 @@ struct FeedItem: Decodable, Equatable, Identifiable, Sendable {
 		}
 	}
 
-	/// Feed-state actions (snooze, dismiss) for the overflow menu.
+	/// Feed-state actions (snooze, not relevant, dismiss).
 	var stateActions: [FeedAction] { actions.filter { $0.kind == .local } }
+
+	/// Snooze, shown as its own button in the row's action bar.
+	var snoozeAction: FeedAction? { stateActions.first { $0.id == FeedAction.snoozeID } }
+
+	/// Feed-state actions for the overflow menu (everything but snooze).
+	var menuStateActions: [FeedAction] { stateActions.filter { $0.id != FeedAction.snoozeID } }
 
 	var canDismiss: Bool { actions.contains(where: \.isDismiss) }
 }
