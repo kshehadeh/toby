@@ -236,6 +236,7 @@ describe("feed actions", () => {
 			"email.draftReply",
 			"open",
 			"snooze",
+			"notRelevant",
 			"dismiss",
 		]);
 		expect(actions.find((a) => a.id === "open")?.url).toBe("message://1");
@@ -249,6 +250,7 @@ describe("feed actions", () => {
 		expect(actions.map((a) => a.id)).toEqual([
 			"calendar.prep",
 			"snooze",
+			"notRelevant",
 			"dismiss",
 		]);
 	});

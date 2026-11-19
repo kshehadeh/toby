@@ -122,7 +122,7 @@ describe("News plugin", () => {
 		]);
 		expect(
 			body.tools.find((tool) => tool.name === "getLatestSummary")?.standardTool,
-		).toBeUndefined();
+		).toBe("news.headlinesSummary");
 		expect(body.tools.every((tool) => tool.readOnly)).toBe(true);
 	});
 

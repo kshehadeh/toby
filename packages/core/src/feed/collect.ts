@@ -13,8 +13,18 @@ import { type RawFeedCandidate, localDateKey } from "./prefilter";
 import type { FeedCategory } from "./types";
 
 /** Aggregator categories the Feed reads (standard dashboard tools). */
-const AGGREGATOR_CATEGORIES = ["email", "calendar", "tasks"] as const;
+const AGGREGATOR_CATEGORIES = [
+	"email",
+	"calendar",
+	"tasks",
+	"chat",
+	"news",
+] as const;
 const PER_CATEGORY_LIMIT = 30;
+/** Headlines are low-signal; a handful is enough for the ranker. */
+const LIMIT_BY_CATEGORY: Partial<
+	Record<(typeof AGGREGATOR_CATEGORIES)[number], number>
+> = { news: 12 };
 const TODO_LIMIT = 200;
 
 export const TOBY_TODOS_PROVIDER = "toby";
@@ -126,7 +136,7 @@ export async function collectFeedCandidates(params?: {
 				return {
 					category,
 					data: await getDashboardCategory(category, {
-						limit: PER_CATEGORY_LIMIT,
+						limit: LIMIT_BY_CATEGORY[category] ?? PER_CATEGORY_LIMIT,
 						force,
 					}),
 				};

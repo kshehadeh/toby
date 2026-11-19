@@ -6,6 +6,12 @@ export type RawFeedCandidate = Omit<FeedCandidate, "signals" | "score">;
 
 export const MAX_FEED_CANDIDATES = 40;
 export const MAX_CANDIDATES_PER_CATEGORY = 15;
+/** Per-category overrides: headlines are context, not work. */
+const MAX_CANDIDATES_FOR: Partial<Record<FeedCandidate["category"], number>> = {
+	news: 6,
+};
+/** Chat older than this is dropped (the user has likely seen it). */
+const CHAT_HORIZON_MS = 3 * 24 * 60 * 60_000;
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -141,6 +147,91 @@ function scoreTask(c: RawFeedCandidate, now: number): Scored {
 	return { score, signals };
 }
 
+function scoreChat(c: RawFeedCandidate, now: number): Scored {
+	const signals: string[] = [];
+	let score = 40;
+	const direct = /direct message/i.test(c.subtitle ?? "");
+	if (direct) {
+		signals.push("direct message");
+		score += 15;
+	} else {
+		signals.push("mentions the user");
+		score += 10;
+	}
+	if (c.title.includes("?")) {
+		signals.push("asks a question");
+		score += 10;
+	}
+	const at = parseTime(c.timestamp);
+	if (at !== null) {
+		const age = now - at;
+		if (age > CHAT_HORIZON_MS) return null;
+		if (age <= 2 * HOUR) {
+			signals.push("in the last 2 hours");
+			score += 15;
+		} else if (age <= DAY) {
+			signals.push("today");
+			score += 5;
+		} else {
+			signals.push(`${plural(Math.floor(age / DAY), "day")} ago`);
+			score -= 10;
+		}
+	}
+	return { score, signals };
+}
+
+function scoreNews(c: RawFeedCandidate, now: number): Scored {
+	const signals = ["news headline"];
+	let score = 5;
+	const at = parseTime(c.timestamp);
+	if (at !== null && now - at > DAY) {
+		return null;
+	}
+	if (at !== null && now - at <= 3 * HOUR) {
+		signals.push("published in the last 3 hours");
+		score += 5;
+	}
+	return { score, signals };
+}
+
+/**
+ * Key used to learn from "Not relevant" feedback: the item's source within its
+ * provider (sender, channel, news section). Null when there is nothing stable.
+ */
+export function feedbackKeyFor(
+	c: Pick<FeedCandidate, "category" | "providerName" | "subtitle">,
+): string | null {
+	const subtitle = c.subtitle?.trim().toLowerCase();
+	if (!subtitle) return null;
+	let source = subtitle;
+	if (c.category === "email") {
+		source = subtitle.match(/<([^>]+)>/)?.[1] ?? subtitle;
+	} else if (c.category === "chat") {
+		// "@alex · #general" → learn per channel, not per person in a DM.
+		const where = subtitle.split("·").map((p) => p.trim());
+		source = where[1]?.startsWith("#") ? where[1] : (where[0] ?? subtitle);
+	}
+	return `${c.category}:${c.providerName}:${source}`;
+}
+
+/** Count of "Not relevant" marks per {@link feedbackKeyFor} key. */
+export type FeedbackCounts = ReadonlyMap<string, number>;
+
+function feedbackPenalty(
+	c: RawFeedCandidate,
+	counts: FeedbackCounts | undefined,
+): Scored {
+	const key = counts && feedbackKeyFor(c);
+	const n = key ? (counts.get(key) ?? 0) : 0;
+	if (n === 0) return { score: 0, signals: [] };
+	return {
+		score: n >= 2 ? -30 : -15,
+		signals: [
+			`the user marked ${plural(n, "similar item")} from this source not relevant`,
+		],
+	};
+}
+
 function scoreCandidate(c: RawFeedCandidate, now: number): Scored {
 	switch (c.category) {
 		case "calendar":
@@ -150,6 +241,10 @@ function scoreCandidate(c: RawFeedCandidate, now: number): Scored {
 		case "tasks":
 		case "todos":
 			return scoreTask(c, now);
+		case "chat":
+			return scoreChat(c, now);
+		case "news":
+			return scoreNews(c, now);
 	}
 }
 
@@ -161,6 +256,7 @@ function scoreCandidate(c: RawFeedCandidate, now: number): Scored {
 export function prefilterCandidates(
 	raw: readonly RawFeedCandidate[],
 	now: Date = new Date(),
+	feedback?: FeedbackCounts,
 ): FeedCandidate[] {
 	const nowMs = now.getTime();
 	const seen = new Set<string>();
@@ -170,7 +266,12 @@ export function prefilterCandidates(
 		seen.add(c.id);
 		const result = scoreCandidate(c, nowMs);
 		if (!result) continue;
-		scored.push({ ...c, signals: result.signals, score: result.score });
+		const penalty = feedbackPenalty(c, feedback);
+		scored.push({
+			...c,
+			signals: [...result.signals, ...(penalty?.signals ?? [])],
+			score: result.score + (penalty?.score ?? 0),
+		});
 	}
 	scored.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
@@ -178,7 +279,8 @@ export function prefilterCandidates(
 	const out: FeedCandidate[] = [];
 	for (const c of scored) {
 		const n = perCategory.get(c.category) ?? 0;
-		if (n >= MAX_CANDIDATES_PER_CATEGORY) continue;
+		if (n >= (MAX_CANDIDATES_FOR[c.category] ?? MAX_CANDIDATES_PER_CATEGORY))
+			continue;
 		perCategory.set(c.category, n + 1);
 		out.push(c);
 		if (out.length >= MAX_FEED_CANDIDATES) break;

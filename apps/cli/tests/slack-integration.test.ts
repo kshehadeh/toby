@@ -30,6 +30,7 @@ function toBase64Url(value: Buffer): string {
 describe("slack plugin helpers", () => {
 	it("exposes expected chat tools", () => {
 		expect(TOOL_DEFINITIONS.map((t) => t.name).sort()).toEqual([
+			"getMentionsSummary",
 			"postToChannel",
 			"replyToPost",
 			"searchChannels",

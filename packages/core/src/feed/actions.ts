@@ -52,11 +52,26 @@ export const FEED_ACTIONS: Readonly<Record<FeedActionId, FeedActionSpec>> = {
 		kind: "tool",
 		hint: "the item implies follow-up work the user should track",
 	},
+	"chat.draftReply": {
+		label: "Draft a reply",
+		kind: "chat",
+		hint: "someone asked the user a question or is waiting on them in chat",
+	},
+	"news.discuss": {
+		label: "Tell me more",
+		kind: "chat",
+		hint: "a story worth a short briefing",
+	},
 	open: { label: "Open", kind: "open", hint: "view the original item" },
 	snooze: {
 		label: "Snooze until tomorrow",
 		kind: "local",
 		hint: "hide until tomorrow morning",
+	},
+	notRelevant: {
+		label: "Not relevant to me",
+		kind: "local",
+		hint: "hide and show fewer items like this",
 	},
 	dismiss: { label: "Dismiss", kind: "local", hint: "hide from the Feed" },
 };
@@ -92,6 +107,8 @@ const ALLOWED_BY_CATEGORY: Readonly<
 	calendar: ["calendar.prep", "todo.add"],
 	tasks: ["task.help", "task.complete"],
 	todos: ["task.help", "task.complete"],
+	chat: ["chat.draftReply", "todo.add"],
+	news: ["news.discuss"],
 };
 
 /** Default primary action when the model picks none that are valid. */
@@ -100,6 +117,8 @@ const DEFAULT_PRIMARY: Readonly<Record<FeedCategory, FeedActionId>> = {
 	calendar: "calendar.prep",
 	tasks: "task.help",
 	todos: "task.help",
+	chat: "chat.draftReply",
+	news: "news.discuss",
 };
 
 /**
@@ -144,6 +163,22 @@ export function chatPromptFor(
 				`Help me with the task "${candidate.title}"${candidate.subtitle ? ` (${candidate.subtitle})` : ""} ${ref}.`,
 				"Break it into concrete next steps and do any research or drafting you can for me.",
 			].join(" ");
+		case "chat.draftReply":
+			return [
+				`Draft a reply to this ${candidate.providerDisplayName ?? "chat"} message${candidate.subtitle ? ` (${candidate.subtitle})` : ""} ${ref}: "${candidate.detail ?? candidate.title}".`,
+				candidate.url ? `Link: ${candidate.url}.` : "",
+				"Read the thread for context if you can, then write a reply in my voice. Do not post it — show me the draft so I can review it.",
+			]
+				.filter(Boolean)
+				.join(" ");
+		case "news.discuss":
+			return [
+				`Give me a short briefing on this story: "${candidate.title}"${candidate.subtitle ? ` (${candidate.subtitle})` : ""}.`,
+				candidate.url ? `Source: ${candidate.url}.` : "",
+				"Explain what happened, why it matters, and anything relevant to me.",
+			]
+				.filter(Boolean)
+				.join(" ");
 		default:
 			return undefined;
 	}
@@ -170,7 +205,7 @@ function buildAction(
  * Turn the model's chosen action ids into concrete actions: drop ids not
  * allowed for the category, de-dupe, fall back to the category default when
  * nothing valid remains, then append `open` (when there is a URL), `snooze`,
- * and `dismiss`.
+ * `notRelevant`, and `dismiss`.
  */
 export function resolveActions(
 	candidate: FeedCandidate,
@@ -185,7 +220,7 @@ export function resolveActions(
 		}
 	}
 	if (ids.length === 0) ids.push(DEFAULT_PRIMARY[candidate.category]);
-	ids.push("open", "snooze", "dismiss");
+	ids.push("open", "snooze", "notRelevant", "dismiss");
 	return ids
 		.map((id) => buildAction(id, candidate))
 		.filter((a): a is FeedAction => a !== null);

@@ -9,7 +9,13 @@ import type {
 } from "../dashboard/types";
 
 /** Source categories the Feed can collect from. */
-export type FeedCategory = "email" | "calendar" | "tasks" | "todos";
+export type FeedCategory =
+	| "email"
+	| "calendar"
+	| "tasks"
+	| "todos"
+	| "chat"
+	| "news";
 
 /** Priority bucket, highest first. */
 export type FeedTier = "now" | "today" | "fyi";
@@ -25,7 +31,10 @@ export type FeedActionId =
 	| "task.complete"
 	| "task.help"
 	| "todo.add"
+	| "chat.draftReply"
+	| "news.discuss"
 	| "open"
+	| "notRelevant"
 	| "snooze"
 	| "dismiss";
 

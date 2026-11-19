@@ -66,6 +66,8 @@ struct FeedItem: Decodable, Equatable, Identifiable, Sendable {
 		case "email": "envelope"
 		case "calendar": "calendar"
 		case "tasks", "todos": "checklist"
+		case "chat": "bubble.left.and.bubble.right"
+		case "news": "newspaper"
 		default: "sparkle"
 		}
 	}

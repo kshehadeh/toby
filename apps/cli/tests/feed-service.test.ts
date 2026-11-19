@@ -69,6 +69,7 @@ describe("getFeedContent", () => {
 		expect(first.items[0]?.actions.map((a) => a.id)).toEqual([
 			"task.help",
 			"snooze",
+			"notRelevant",
 			"dismiss",
 		]);
 		expect(first.model).toEqual({

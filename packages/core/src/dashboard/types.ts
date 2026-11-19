@@ -14,7 +14,9 @@
 export type StandardToolId =
 	| "email.unreadSummary"
 	| "tasks.openSummary"
-	| "calendar.upcomingSummary";
+	| "calendar.upcomingSummary"
+	| "chat.mentionsSummary"
+	| "news.headlinesSummary";
 // future: "work_tracker.openSummary"
 
 /**
@@ -25,6 +27,8 @@ export const STANDARD_TOOL_FOR_CATEGORY: Record<string, StandardToolId> = {
 	email: "email.unreadSummary",
 	tasks: "tasks.openSummary",
 	calendar: "calendar.upcomingSummary",
+	chat: "chat.mentionsSummary",
+	news: "news.headlinesSummary",
 };
 
 /**

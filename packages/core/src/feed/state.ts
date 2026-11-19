@@ -22,19 +22,35 @@ export interface FeedItemState {
 	readonly action?: FeedActionId;
 }
 
+/** One "Not relevant" mark — what the Feed learns from. */
+export interface FeedFeedback {
+	/** Source key (`feedbackKeyFor`): category, provider, sender / channel / section. */
+	readonly key: string;
+	readonly category: string;
+	readonly title: string;
+	readonly subtitle?: string;
+	readonly at: string;
+}
+
 export interface FeedState {
 	readonly items: Readonly<Record<string, FeedItemState>>;
 	/** Item id → ISO time a "Now" notification was sent (at most once per item). */
 	readonly notified: Readonly<Record<string, string>>;
+	/** "Not relevant" marks, oldest first. */
+	readonly feedback: readonly FeedFeedback[];
 }
 
 /** Keep dismissed / done / notified records this long. */
 export const FEED_STATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** Keep "Not relevant" feedback this long, and at most this many marks. */
+export const FEED_FEEDBACK_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+export const FEED_FEEDBACK_MAX = 200;
+
 /** Hour (local) a "Snooze until tomorrow" ends. */
 export const FEED_SNOOZE_HOUR = 8;
 
-const EMPTY: FeedState = { items: {}, notified: {} };
+const EMPTY: FeedState = { items: {}, notified: {}, feedback: [] };
 
 let memory: FeedState | null = null;
 
@@ -67,7 +83,28 @@ function parseState(raw: unknown): FeedState {
 			if (typeof at === "string") notified[id] = at;
 		}
 	}
-	return { items, notified };
+	const feedback: FeedFeedback[] = [];
+	if (Array.isArray(raw.feedback)) {
+		for (const entry of raw.feedback) {
+			if (
+				!isRecord(entry) ||
+				typeof entry.key !== "string" ||
+				typeof entry.at !== "string" ||
+				typeof entry.title !== "string"
+			)
+				continue;
+			feedback.push({
+				key: entry.key,
+				category: typeof entry.category === "string" ? entry.category : "",
+				title: entry.title,
+				...(typeof entry.subtitle === "string"
+					? { subtitle: entry.subtitle }
+					: {}),
+				at: entry.at,
+			});
+		}
+	}
+	return { items, notified, feedback };
 }
 
 /** Drop expired snoozes and records older than the retention window. */
@@ -87,7 +124,11 @@ export function pruneFeedState(state: FeedState, now: Date): FeedState {
 	for (const [id, at] of Object.entries(state.notified)) {
 		if (Date.parse(at) >= cutoff) notified[id] = at;
 	}
-	return { items, notified };
+	const feedbackCutoff = now.getTime() - FEED_FEEDBACK_RETENTION_MS;
+	const feedback = state.feedback
+		.filter((f) => Date.parse(f.at) >= feedbackCutoff)
+		.slice(-FEED_FEEDBACK_MAX);
+	return { items, notified, feedback };
 }
 
 export function loadFeedState(now: Date = new Date()): FeedState {
@@ -150,6 +191,21 @@ export function markNotified(
 	const notified = { ...state.notified };
 	for (const id of ids) notified[id] = at;
 	return { ...state, notified };
+}
+
+export function addFeedback(state: FeedState, entry: FeedFeedback): FeedState {
+	return {
+		...state,
+		feedback: [...state.feedback, entry].slice(-FEED_FEEDBACK_MAX),
+	};
+}
+
+/** "Not relevant" marks per source key. */
+export function feedbackCounts(state: FeedState): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const f of state.feedback)
+		counts.set(f.key, (counts.get(f.key) ?? 0) + 1);
+	return counts;
 }
 
 /** True when the item is dismissed, done, or snoozed past `now`. */

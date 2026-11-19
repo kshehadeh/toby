@@ -95,6 +95,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 		description:
 			"Latest headlines in a summary shape with count, items, and generatedAt.",
 		readOnly: true,
+		standardTool: "news.headlinesSummary",
 		inputSchema: {
 			type: "object",
 			properties: {

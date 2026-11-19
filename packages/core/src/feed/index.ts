@@ -5,9 +5,20 @@ import { resolveDashboardPersona } from "../dashboard/prompts";
 import { daemonLog } from "../logging/daemon-log";
 import { collectFeedCandidates } from "./collect";
 import { type FeedModelResolution, resolveFeedModel } from "./model";
+import {
+	type FeedPersonalization,
+	buildFeedPersonalization,
+	personalizationSignature,
+} from "./personalization";
 import { candidateSignature, prefilterCandidates } from "./prefilter";
 import { FEED_RANKING_VERSION, rankFeedCandidates } from "./rank";
-import { applyFeedState, hiddenIds, loadFeedState } from "./state";
+import {
+	type FeedState,
+	applyFeedState,
+	feedbackCounts,
+	hiddenIds,
+	loadFeedState,
+} from "./state";
 import type { FeedCandidate, FeedContent, FeedModelRef } from "./types";
 
 export type { FeedContent, FeedItem, FeedAction, FeedTier } from "./types";
@@ -87,6 +98,8 @@ export interface GetFeedOptions {
 	readonly trigger?: string;
 	/** Test seam for model resolution. */
 	readonly resolveModel?: () => Promise<FeedModelResolution>;
+	/** Test seam for memories + feedback given to the ranker. */
+	readonly personalize?: (state: FeedState) => FeedPersonalization;
 }
 
 /**
@@ -135,10 +148,15 @@ async function buildFeedContent(
 		force: force || awaitRerank,
 		now,
 	});
-	const hidden = hiddenIds(loadFeedState(now), now);
+	const feedState = loadFeedState(now);
+	const hidden = hiddenIds(feedState, now);
 	const candidates = prefilterCandidates(
 		collection.candidates.filter((c) => !hidden.has(c.id)),
 		now,
+		feedbackCounts(feedState),
+	);
+	const personalization = (options.personalize ?? buildFeedPersonalization)(
+		feedState,
 	);
 	const base = {
 		generatedAt: now.toISOString(),
@@ -159,6 +177,7 @@ async function buildFeedContent(
 		model.provider,
 		model.model,
 		persona.name,
+		personalizationSignature(personalization),
 	]);
 
 	if (!force && previous) {
@@ -166,14 +185,28 @@ async function buildFeedContent(
 			return previous.content;
 		}
 		if (previous.content.status === "ok" && !awaitRerank) {
-			void rerank(signature, candidates, persona, model, base, options).catch(
-				() => {},
-			);
+			void rerank(
+				signature,
+				candidates,
+				persona,
+				model,
+				base,
+				options,
+				personalization,
+			).catch(() => {});
 			return previous.content;
 		}
 	}
 
-	return rerank(signature, candidates, persona, model, base, options);
+	return rerank(
+		signature,
+		candidates,
+		persona,
+		model,
+		base,
+		options,
+		personalization,
+	);
 }
 
 function rerank(
@@ -183,6 +216,7 @@ function rerank(
 	model: FeedModelRef,
 	base: Omit<FeedContent, "status" | "items">,
 	options: GetFeedOptions,
+	personalization: FeedPersonalization,
 ): Promise<FeedContent> {
 	const existing = inFlight.get(signature);
 	if (existing) return existing;
@@ -191,6 +225,7 @@ function rerank(
 			candidates,
 			persona,
 			model,
+			personalization,
 			...(options.trigger ? { trigger: options.trigger } : {}),
 		});
 		if (!result.ok) {

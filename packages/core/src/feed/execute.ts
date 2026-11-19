@@ -7,9 +7,10 @@ import { getIntegrationModule } from "../integrations/index";
 import { daemonLog } from "../logging/daemon-log";
 import { createTodo, transitionTodo } from "../todos/service";
 import { FEED_ACTIONS, PROVIDER_ITEM_ACTIONS } from "./actions";
-import { localDateKey } from "./prefilter";
+import { feedbackKeyFor, localDateKey } from "./prefilter";
 import {
 	type FeedItemState,
+	addFeedback,
 	setItemState,
 	snoozeUntilTomorrow,
 	updateFeedState,
@@ -161,6 +162,31 @@ export async function performFeedAction(
 		const state: FeedItemState = { kind: "dismissed", at };
 		record(state);
 		return { ok: true, message: "Dismissed.", state };
+	}
+	if (id === "notRelevant") {
+		const state: FeedItemState = { kind: "dismissed", at };
+		const key = feedbackKeyFor({
+			category: item.source.category,
+			providerName: item.source.providerName,
+			...(item.subtitle ? { subtitle: item.subtitle } : {}),
+		});
+		updateFeedState((s) => {
+			const hidden = setItemState(s, item.id, state);
+			return addFeedback(hidden, {
+				key:
+					key ??
+					`${item.source.category}:${item.source.providerName}:${item.title.toLowerCase()}`,
+				category: item.source.category,
+				title: item.title,
+				...(item.subtitle ? { subtitle: item.subtitle } : {}),
+				at,
+			});
+		}, now);
+		return {
+			ok: true,
+			message: "Got it — you'll see fewer items like this.",
+			state,
+		};
 	}
 	if (id === "snooze") {
 		const state: FeedItemState = {

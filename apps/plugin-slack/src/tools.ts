@@ -4,6 +4,7 @@ import {
 	searchSlackMessages,
 	searchSlackUsers,
 } from "./client";
+import { fetchMentionsSummary } from "./mentions";
 import { consumeTokenRefreshPatch } from "./tokens";
 
 type JsonRecord = Record<string, unknown>;
@@ -120,6 +121,23 @@ export const TOOL_DEFINITIONS = [
 			required: ["query"],
 		},
 	},
+	{
+		name: "getMentionsSummary",
+		displayName: "Mentions and direct messages",
+		description:
+			"Recent messages that mention the user and direct messages to them (last two days), newest first, in the dashboard summary shape. Requires a user token.",
+		readOnly: true,
+		standardTool: "chat.mentionsSummary",
+		inputSchema: {
+			type: "object",
+			properties: {
+				limit: {
+					type: "number",
+					description: "Maximum messages to return (default 20, max 50)",
+				},
+			},
+		},
+	},
 ];
 
 export async function executeTool(
@@ -225,6 +243,19 @@ export async function executeTool(
 				result: { messages, count: messages.length },
 				config: consumeTokenRefreshPatch(),
 			};
+		}
+		case "getMentionsSummary": {
+			const limit = typeof input.limit === "number" ? input.limit : undefined;
+			if (dryRun) {
+				return {
+					result: {
+						dryRun: true,
+						message: "Would list recent Slack mentions and direct messages.",
+					},
+				};
+			}
+			const summary = await fetchMentionsSummary(config, { limit });
+			return { result: summary, config: consumeTokenRefreshPatch() };
 		}
 		default:
 			throw new Error(`Unknown tool: ${tool}`);

@@ -52,7 +52,11 @@ export interface SlackMessageSearchHit {
 	readonly ts: string;
 	readonly text: string;
 	readonly user?: string;
+	/** Sender display handle from search (`username`). */
+	readonly username?: string;
 	readonly permalink?: string;
+	/** Direct message (1:1 or group DM). */
+	readonly isDirect?: boolean;
 }
 
 interface SlackApiResponse {
@@ -755,16 +759,27 @@ export async function searchSlackMessages(
 	limit = 20,
 ): Promise<SlackMessageSearchHit[]> {
 	const creds = getSlackCredentials(config);
-	const token = creds.oauthUserToken ?? creds.botToken;
+	// OAuth: let `slackApi` refresh an expired user token (it resolves to the
+	// user token). Manual bot tokens pass through as before.
+	const token =
+		creds.authMethod === "oauth"
+			? undefined
+			: (creds.oauthUserToken ?? creds.botToken);
 	const json = await slackApi<{
 		ok: boolean;
 		error?: string;
 		messages?: {
 			matches?: Array<{
-				channel?: { id?: string; name?: string };
+				channel?: {
+					id?: string;
+					name?: string;
+					is_im?: boolean;
+					is_mpim?: boolean;
+				};
 				ts?: string;
 				text?: string;
 				user?: string;
+				username?: string;
 				permalink?: string;
 			}>;
 		};
@@ -788,6 +803,18 @@ export async function searchSlackMessages(
 			ts: m.ts as string,
 			text: m.text?.trim() ?? "",
 			user: m.user,
+			...(m.username ? { username: m.username } : {}),
 			permalink: m.permalink,
+			...(m.channel?.is_im || m.channel?.is_mpim ? { isDirect: true } : {}),
 		}));
+}
+
+/** Slack user id for the connected user token (search runs as this user). */
+export async function resolveSlackSearchUserId(
+	config: JsonRecord,
+): Promise<string | null> {
+	const creds = getSlackCredentials(config);
+	if (creds.authMethod !== "oauth" || !creds.oauthUserToken) return null;
+	const auth = await testSlackConnection(config);
+	return auth.userId ?? null;
 }

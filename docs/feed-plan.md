@@ -330,3 +330,27 @@ Notes / open:
 - No undo for dismiss/snooze/done yet (state lives in the JSON file).
 - `notified` is per item id, so a recurring event instance with a new id
   notifies again.
+
+## Phase 4 status (Slack, news, personalization; Jira deferred)
+
+Done:
+- **Standard tools** `chat.mentionsSummary` (Slack `getMentionsSummary`:
+  mentions + DMs from the last 2 days via `search.messages`, user OAuth token
+  required) and `news.headlinesSummary` (News `getLatestSummary`, now tagged).
+- **Collection / pre-filter**: `chat` and `news` categories. Chat scores DMs,
+  questions, and recency; drops > 3 days. News is low-score, ≤ 1 day old,
+  capped at 6 candidates; the prompt allows at most 2 headlines, fyi only.
+- **Actions**: `chat.draftReply` (chat, never posts), `news.discuss`
+  (briefing), and `notRelevant` ("Not relevant to me", overflow menu).
+- **Personalization** (`feed/personalization.ts`): usable, non-sensitive
+  Toby memories (≤ 2.5k chars) and the last 15 "not relevant" marks go into
+  the ranking prompt; marks also lower matching sources in the pre-filter
+  (−15 once, −30 for 2+), keyed by sender / channel / section
+  (`feedbackKeyFor`). Feedback lives in feed state (90 days, max 200) and
+  its hash is part of the ranking signature.
+- Ranking version `rank-v3`. Tests: `apps/cli/tests/feed-sources.test.ts`.
+
+Notes / open:
+- Slack OAuth tokens that can no longer refresh yield no chat items
+  (logged as `dashboard_tool_exec_failed`); reconnect Slack.
+- No UI yet to review or undo "not relevant" marks.

@@ -129,7 +129,12 @@ describe("feed action support", () => {
 
 	it("drops unsupported provider actions the model picked", () => {
 		const ids = resolveActions(candidate(), ["email.archive"]).map((a) => a.id);
-		expect(ids).toEqual(["email.draftReply", "snooze", "dismiss"]);
+		expect(ids).toEqual([
+			"email.draftReply",
+			"snooze",
+			"notRelevant",
+			"dismiss",
+		]);
 	});
 
 	it("hides item-action tools from chat tool sets", () => {
@@ -170,6 +175,7 @@ describe("feed state", () => {
 				},
 			},
 			notified: {},
+			feedback: [],
 		};
 		expect(isHidden(state, "a", NOW)).toBe(true);
 		expect(isHidden(state, "b", NOW)).toBe(true);
@@ -209,6 +215,7 @@ describe("feed state", () => {
 					},
 				},
 				notified: { old: old.toISOString(), recent: NOW.toISOString() },
+				feedback: [],
 			},
 			NOW,
 		);

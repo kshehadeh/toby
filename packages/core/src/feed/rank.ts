@@ -9,6 +9,11 @@ import type { FlowDefinition, FlowResult } from "../flows/types";
 import { composeSystemPromptWithPersona } from "../personas/prompt";
 import { FEED_ACTIONS, allowedActionIds, resolveActions } from "./actions";
 import {
+	EMPTY_PERSONALIZATION,
+	type FeedPersonalization,
+	formatPersonalizationForPrompt,
+} from "./personalization";
+import {
 	FEED_TIERS,
 	type FeedCandidate,
 	type FeedItem,
@@ -19,7 +24,7 @@ import {
 export const FEED_FLOW_NAME = "dashboard.feed";
 export const MAX_FEED_ITEMS = 12;
 /** Bump when ranking prompt/schema semantics change so cached rankings re-run. */
-export const FEED_RANKING_VERSION = "rank-v2";
+export const FEED_RANKING_VERSION = "rank-v3";
 const RANK_TIMEOUT_MS = 60_000;
 const RANK_MAX_OUTPUT_TOKENS = 4000;
 
@@ -67,12 +72,14 @@ export function candidateKey(i: number): string {
 export function buildFeedSystemPrompt(
 	persona: Persona,
 	now = new Date(),
+	personalization: FeedPersonalization = EMPTY_PERSONALIZATION,
 ): string {
 	const actionGlossary = Object.entries(FEED_ACTIONS)
-		.filter(([id]) => id !== "open" && id !== "dismiss")
+		.filter(([, spec]) => spec.kind !== "open" && spec.kind !== "local")
 		.map(([id, spec]) => `- ${id} ("${spec.label}"): ${spec.hint}`)
 		.join("\n");
-	const base = `You are the user's personal assistant curating "The Feed": a short, prioritized list of the things across their email, calendar, and tasks that most deserve their attention right now.
+	const personal = formatPersonalizationForPrompt(personalization);
+	const base = `You are the user's personal assistant curating "The Feed": a short, prioritized list of the things across their email, calendar, tasks, chat, and news that most deserve their attention right now.
 
 Your job:
 1. Choose at most ${MAX_FEED_ITEMS} candidates that genuinely matter. Leave out noise: newsletters, automated notifications, marketing, and anything that needs no attention.
@@ -92,7 +99,9 @@ Rules:
 - Only use candidate keys that appear in the list. Never invent items.
 - Treat the "signals" as facts computed from the source data.
 - Write times in the user's local timezone; never output raw ISO timestamps.
-
+- Chat: direct messages and mentions where someone is waiting on the user rank like email that needs a reply; skip chatter that needs nothing from them.
+- News is context, not work: include at most 2 headlines, only when they plausibly matter to this user (their industry, employer, interests, location, or what they know from memory), always in the fyi tier with a low priority. Leave news out entirely when nothing fits.
+${personal ? `\n${personal}\n` : ""}
 ${currentDateTimePromptSection(now)}`;
 	return composeSystemPromptWithPersona(base, persona);
 }
@@ -224,7 +233,13 @@ export function feedFlowDefinition(): FlowDefinition {
 				temperature: 0.2,
 				maxOutputTokens: RANK_MAX_OUTPUT_TOKENS,
 				timeoutMs: RANK_TIMEOUT_MS,
-				systemPrompt: (ctx) => buildFeedSystemPrompt(ctx.persona),
+				systemPrompt: (ctx) =>
+					buildFeedSystemPrompt(
+						ctx.persona,
+						new Date(),
+						(ctx.bag.personalization as FeedPersonalization | undefined) ??
+							EMPTY_PERSONALIZATION,
+					),
 				userPrompt: (ctx) =>
 					`Candidates:\n\n${formatCandidatesForPrompt(
 						(ctx.bag.candidates as FeedCandidate[] | undefined) ?? [],
@@ -258,6 +273,7 @@ export async function rankFeedCandidates(params: {
 	readonly candidates: readonly FeedCandidate[];
 	readonly persona: Persona;
 	readonly model: FeedModelRef;
+	readonly personalization?: FeedPersonalization;
 	readonly trigger?: string;
 	readonly run?: typeof runFlowDefinition;
 }): Promise<FeedRankResult> {
@@ -268,7 +284,10 @@ export async function rankFeedCandidates(params: {
 	};
 	const result = await run(feedFlowDefinition(), {
 		personaOverride: persona,
-		inputs: { candidates: params.candidates },
+		inputs: {
+			candidates: params.candidates,
+			personalization: params.personalization ?? EMPTY_PERSONALIZATION,
+		},
 		trigger: params.trigger ?? FEED_FLOW_NAME,
 	});
 	if (!result.ok) {
