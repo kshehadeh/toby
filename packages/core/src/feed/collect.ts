@@ -65,6 +65,7 @@ export function candidatesFromCategory(
 			...(item.timestamp ? { timestamp: item.timestamp } : {}),
 			...(item.urgency ? { urgency: item.urgency } : {}),
 			...(item.url ? { url: item.url } : {}),
+			...(item.event ? { event: item.event } : {}),
 		};
 	});
 }

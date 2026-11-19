@@ -9,6 +9,8 @@ export const MAX_CANDIDATES_PER_CATEGORY = 15;
 /** Per-category overrides: headlines are context, not work. */
 const MAX_CANDIDATES_FOR: Partial<Record<FeedCandidate["category"], number>> = {
 	news: 6,
+	// Only a few meetings make the Feed; send the ranker the strongest few.
+	calendar: 8,
 };
 /** Chat older than this is dropped (the user has likely seen it). */
 const CHAT_HORIZON_MS = 3 * 24 * 60 * 60_000;
@@ -51,12 +53,51 @@ function plural(n: number, unit: string): string {
 	return `${n} ${unit}${n === 1 ? "" : "s"}`;
 }
 
+/**
+ * Titles that read as a time block rather than a meeting: holds, focus time,
+ * out-of-office, lunch, commute. Matched against the whole title (or a
+ * "Hold:"-style prefix), so "Lunch with Sam" is not a hold.
+ */
+const HOLD_TITLE =
+	/^\s*(?:\[?(?:hold|tentative|placeholder)\]?(?:\s*[:\-–—].*|\s+.*)?|blocked|block(?:\s*[:\-–—].*)?|busy|focus(?:\s+(?:time|block))?|deep\s+work|heads[\s-]?down(?:\s+time)?|do\s+not\s+(?:book|schedule)|dnb|no\s+meetings|ooo|out\s+of\s+(?:the\s+)?office|lunch|commute|travel(?:\s+time)?|personal|private|(?:take\s+a\s+)?break|gym|workout|\(untitled\)|untitled)\s*$/i;
+
+/**
+ * True for calendar entries that carry nothing to act on: hold/focus-style
+ * titles without other attendees (auto-generated notes don't count), and (when the provider reports
+ * event facts) solo events with no notes, location, or invitees.
+ */
+export function isCalendarHold(c: RawFeedCandidate): boolean {
+	const facts = c.event;
+	const notes = facts?.notes?.trim() ?? "";
+	const attendees = facts?.attendeeCount ?? 0;
+	const withOthers = attendees >= 2;
+	// A hold-style title stays a hold with one guest (often a delegate or a
+	// shared personal calendar); it takes a real group to make it a meeting.
+	if (HOLD_TITLE.test(c.title) && attendees < 3) return true;
+	if (!facts) return false;
+	return !notes && !facts.location?.trim() && !withOthers;
+}
+
+/** Above this many invitees a meeting is treated as a broadcast. */
+const LARGE_MEETING = 25;
+
 function scoreCalendar(c: RawFeedCandidate, now: number): Scored {
+	if (isCalendarHold(c)) return null;
+	const facts = c.event;
 	const start = parseTime(c.timestamp);
 	if (start === null) return { score: 10, signals: [] };
 	const delta = start - now;
 	if (delta < -CALENDAR_PAST_GRACE_MS) return null;
 	if (delta > CALENDAR_HORIZON_MS) return null;
+	const days = dayDiff(
+		localDateKey(new Date(now)),
+		localDateKey(new Date(start)),
+	);
+	if (facts?.allDay) {
+		// All-day entries (holidays, OOO, birthdays) are context at most.
+		if (days !== 0) return null;
+		return { score: 10, signals: ["all-day event today"] };
+	}
 	const signals: string[] = [];
 	let score: number;
 	if (delta <= 0) {
@@ -70,23 +111,40 @@ function scoreCalendar(c: RawFeedCandidate, now: number): Scored {
 	} else if (delta <= 4 * HOUR) {
 		signals.push(`starts in ${plural(Math.round(delta / HOUR), "hour")}`);
 		score = 70;
+	} else if (days === 0) {
+		signals.push("later today");
+		score = 50;
+	} else if (days === 1) {
+		signals.push("tomorrow");
+		score = 30;
 	} else {
-		const days = dayDiff(
-			localDateKey(new Date(now)),
-			localDateKey(new Date(start)),
-		);
-		if (days === 0) {
-			signals.push("later today");
-			score = 50;
-		} else if (days === 1) {
-			signals.push("tomorrow");
-			score = 30;
-		} else {
-			signals.push(`in ${plural(days, "day")}`);
-			score = 15;
-		}
+		signals.push(`in ${plural(days, "day")}`);
+		score = 15;
 	}
 	if (c.urgency === "high") score += 10;
+	if (facts) {
+		const attendees = facts.attendeeCount ?? 0;
+		if (attendees > LARGE_MEETING) {
+			signals.push(`large meeting (${attendees} invitees)`);
+			// Broadcasts (all-hands, webinars) rarely need anything from the user.
+			if (delta > HOUR) score -= 10;
+		} else if (attendees >= 2) {
+			signals.push(
+				`with ${plural(attendees - 1, "other person").replace("persons", "people")}`,
+			);
+		}
+		if (facts.notes?.trim()) {
+			signals.push("has notes or an agenda");
+			score += 5;
+		} else {
+			signals.push("no notes or agenda");
+		}
+		if (facts.recurring) {
+			signals.push("recurring meeting");
+			// Routine meetings only matter when they are about to start.
+			if (delta > HOUR) score -= 15;
+		}
+	}
 	return { score, signals };
 }
 
@@ -300,7 +358,7 @@ export function candidateSignature(
 	for (const part of extra) hash.update(`${part}\n`);
 	for (const c of [...candidates].sort((a, b) => a.id.localeCompare(b.id))) {
 		hash.update(
-			`${c.id}|${c.title}|${c.timestamp ?? ""}|${c.dueDate ?? ""}|${c.urgency ?? ""}\n`,
+			`${c.id}|${c.title}|${c.timestamp ?? ""}|${c.dueDate ?? ""}|${c.urgency ?? ""}|${c.event ? JSON.stringify(c.event) : ""}\n`,
 		);
 	}
 	return hash.digest("hex").slice(0, 32);

@@ -24,7 +24,7 @@ import {
 export const FEED_FLOW_NAME = "dashboard.feed";
 export const MAX_FEED_ITEMS = 12;
 /** Bump when ranking prompt/schema semantics change so cached rankings re-run. */
-export const FEED_RANKING_VERSION = "rank-v3";
+export const FEED_RANKING_VERSION = "rank-v6";
 const RANK_TIMEOUT_MS = 60_000;
 const RANK_MAX_OUTPUT_TOKENS = 4000;
 
@@ -99,6 +99,7 @@ Rules:
 - Only use candidate keys that appear in the list. Never invent items.
 - Treat the "signals" as facts computed from the source data.
 - Write times in the user's local timezone; never output raw ISO timestamps.
+- Calendar: being on the calendar is not enough. Include an event only when it needs something from the user — preparation, materials, a decision, a reply to the invite, a follow-up, or it starts within the hour and they need the heads-up. Leave out holds, focus or blocked time, placeholders, and routine recurring meetings with no agenda unless they are about to start. An event the user only needs to show up to is not Feed material — that includes talks, trainings, webinars, community or social events, and large meetings where they are mostly listening. Prefer events where the agenda or notes ask something of the user specifically. Tomorrow's events belong only when something must be prepared today. At most 3 calendar items unless more start within the hour.
 - Chat: direct messages and mentions where someone is waiting on the user rank like email that needs a reply; skip chatter that needs nothing from them.
 - News is context, not work: include at most 2 headlines, only when they plausibly matter to this user (their industry, employer, interests, location, or what they know from memory), always in the fyi tier with a low priority. Leave news out entirely when nothing fits.
 ${personal ? `\n${personal}\n` : ""}
@@ -115,6 +116,10 @@ export function formatCandidatesForPrompt(
 			const lines = [`${candidateKey(i)} [${c.category}] ${c.title}`];
 			if (c.subtitle) lines.push(`   from/list: ${c.subtitle}`);
 			if (c.detail) lines.push(`   detail: ${c.detail.slice(0, 280)}`);
+			if (c.event?.notes)
+				lines.push(
+					`   notes: ${c.event.notes.replace(/\s+/g, " ").slice(0, 280)}`,
+				);
 			if (c.timestamp)
 				lines.push(`   when: ${formatLocalTimestampForPrompt(c.timestamp)}`);
 			if (c.dueDate) lines.push(`   due: ${c.dueDate}`);
@@ -204,7 +209,7 @@ export function feedItemsFromRanking(
 		if (items.length >= MAX_FEED_ITEMS) break;
 	}
 	const tierRank = (t: FeedTier) => FEED_TIERS.indexOf(t);
-	return items
+	const sorted = items
 		.map((item, index) => ({ item, index, priority: priorities[index] ?? 0 }))
 		.sort(
 			(a, b) =>
@@ -213,6 +218,28 @@ export function feedItemsFromRanking(
 				a.index - b.index,
 		)
 		.map(({ item }) => item);
+	return capByCategory(sorted);
+}
+
+/**
+ * Hard per-source limits on the ranked list (the prompt asks for these, but
+ * models drift): calendar items beyond the cap are dropped unless they need
+ * attention now, and news is capped outright. Keeps the best-ranked ones.
+ */
+const MAX_RANKED_FOR: Partial<Record<FeedItem["source"]["category"], number>> =
+	{ calendar: 3, news: 2 };
+
+function capByCategory(items: readonly FeedItem[]): FeedItem[] {
+	const counts = new Map<string, number>();
+	return items.filter((item) => {
+		const category = item.source.category;
+		const max = MAX_RANKED_FOR[category];
+		if (max === undefined) return true;
+		if (category === "calendar" && item.tier === "now") return true;
+		const n = counts.get(category) ?? 0;
+		counts.set(category, n + 1);
+		return n < max;
+	});
 }
 
 /** Code-defined flow so runs are recorded in flow history. */

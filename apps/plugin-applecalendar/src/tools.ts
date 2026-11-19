@@ -180,6 +180,32 @@ function intValue(value: unknown): number | undefined {
 	return undefined;
 }
 
+/**
+ * Event notes minus video-call boilerplate (Teams/Zoom/Meet/Webex join
+ * blocks), so "has notes" means a real agenda. Returns undefined when
+ * nothing meaningful is left.
+ */
+export function meetingNotes(raw: string | undefined): string | undefined {
+	if (!raw) return undefined;
+	const kept = raw
+		.replace(/_{5,}[\s\S]*?_{5,}/g, " ") // Teams join block between rules
+		.replace(/<[^>]+>/g, " ")
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(
+			(line) =>
+				line.length > 0 &&
+				!/^[-_=*~:\s.]+$/.test(line) &&
+				!/^\+?\d[\d\s(),#*-]{7,}/.test(line) &&
+				!/(microsoft teams|join (the |this )?(meeting|call|zoom|webex|on your)|meeting id|passcode|password:|dial[- ]in|dial by your location|find (a|your) local number|viva insights|do not edit this section|video conferencing device|video id:|join with a video|learn more about teams|\[company logo\]|^more info$|privacy and security|one tap mobile|zoom\.us|teams\.microsoft|meet\.google|webex\.com|for organizers|meeting options|need help\?|https?:\/\/\S+$|^\+?[\d\s(),#*-]{8,}$|tel:|conference id|phone conference)/i.test(
+					line,
+				),
+		)
+		.join("\n")
+		.trim();
+	return kept.length > 0 ? kept.slice(0, 500) : undefined;
+}
+
 function boolValue(value: unknown): boolean | undefined {
 	if (typeof value === "boolean") return value;
 	return undefined;
@@ -305,6 +331,12 @@ export function executeTool(
 				const startDate = stringValue(event.startDate);
 				const endDate = stringValue(event.endDate);
 				const isAllDay = boolValue(event.isAllDay) ?? false;
+				const notes = meetingNotes(stringValue(event.description));
+				const attendeeCount =
+					typeof event.attendeeCount === "number"
+						? event.attendeeCount
+						: undefined;
+				const recurring = boolValue(event.isRecurring);
 
 				let urgency: "low" | "normal" | "high" = "low";
 				if (startDate) {
@@ -349,6 +381,13 @@ export function executeTool(
 					timestamp: startDate,
 					urgency,
 					groupId: calendarName,
+					event: {
+						...(location ? { location } : {}),
+						...(notes ? { notes } : {}),
+						...(attendeeCount !== undefined ? { attendeeCount } : {}),
+						allDay: isAllDay,
+						...(recurring !== undefined ? { recurring } : {}),
+					},
 				};
 			});
 

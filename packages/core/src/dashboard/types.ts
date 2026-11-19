@@ -78,6 +78,17 @@ export interface DashboardSummaryInput {
 	readonly limit?: number;
 }
 
+/** Calendar event facts a provider can attach to a summary item. */
+export interface DashboardEventFacts {
+	readonly location?: string;
+	/** Event notes / agenda (trimmed). */
+	readonly notes?: string;
+	/** Invitees, including the user; 0 or 1 means a solo event. */
+	readonly attendeeCount?: number;
+	readonly allDay?: boolean;
+	readonly recurring?: boolean;
+}
+
 /**
  * A single item in a dashboard summary (email message, task, reminder, etc.).
  */
@@ -98,6 +109,8 @@ export interface DashboardItem {
 	readonly url?: string;
 	/** Ties back to `groups[].id`. */
 	readonly groupId?: string;
+	/** Calendar only: facts that tell real meetings apart from bare holds. */
+	readonly event?: DashboardEventFacts;
 	/**
 	 * Integration module name of the source provider (e.g. "todoist").
 	 * Set by the aggregator on merged category items so the UI can show a

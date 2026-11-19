@@ -13,9 +13,13 @@ import {
 import {
 	type RawFeedCandidate,
 	feedbackKeyFor,
+	isCalendarHold,
 	prefilterCandidates,
 } from "@toby/core/feed/prefilter";
-import { buildFeedSystemPrompt } from "@toby/core/feed/rank";
+import {
+	buildFeedSystemPrompt,
+	feedItemsFromRanking,
+} from "@toby/core/feed/rank";
 import {
 	clearFeedStateCache,
 	feedbackCounts,
@@ -349,5 +353,150 @@ describe("personalization", () => {
 		expect(
 			formatPersonalizationForPrompt({ memories: [], notRelevant: [] }),
 		).toBe("");
+	});
+});
+
+describe("calendar selectivity", () => {
+	const at = (h: number) => new Date(NOW.getTime() + h * HOUR).toISOString();
+	const cal = (partial: Partial<RawFeedCandidate>) =>
+		raw({ category: "calendar", providerName: "applecalendar", ...partial });
+
+	it("recognizes holds and bare solo blocks", () => {
+		expect(isCalendarHold(cal({ title: "Hold" }))).toBe(true);
+		expect(isCalendarHold(cal({ title: "HOLD: Q3 planning" }))).toBe(true);
+		expect(isCalendarHold(cal({ title: "Focus time" }))).toBe(true);
+		expect(
+			isCalendarHold(
+				cal({ title: "Focus time", event: { notes: "Scheduled by Viva" } }),
+			),
+		).toBe(true);
+		expect(isCalendarHold(cal({ title: "Take a break" }))).toBe(true);
+		expect(
+			isCalendarHold(
+				cal({ title: "Block", event: { attendeeCount: 2, recurring: true } }),
+			),
+		).toBe(true);
+		expect(isCalendarHold(cal({ title: "Lunch" }))).toBe(true);
+		expect(isCalendarHold(cal({ title: "Lunch with Sam" }))).toBe(false);
+		expect(isCalendarHold(cal({ title: "Holdings review" }))).toBe(false);
+		expect(
+			isCalendarHold(
+				cal({ title: "Hold: offsite", event: { attendeeCount: 5 } }),
+			),
+		).toBe(false);
+		expect(
+			isCalendarHold(cal({ title: "Prep deck", event: { attendeeCount: 1 } })),
+		).toBe(true);
+		expect(
+			isCalendarHold(
+				cal({ title: "Dentist", event: { location: "12 Main St" } }),
+			),
+		).toBe(false);
+		expect(
+			isCalendarHold(
+				cal({ title: "Design review", event: { notes: "Agenda" } }),
+			),
+		).toBe(false);
+	});
+
+	it("drops holds and future all-day events, and demotes routine meetings", () => {
+		const out = prefilterCandidates(
+			[
+				cal({ itemId: "hold", title: "Hold", timestamp: at(2) }),
+				cal({
+					itemId: "solo",
+					title: "Block for writing",
+					timestamp: at(2),
+					event: { attendeeCount: 0 },
+				}),
+				cal({
+					itemId: "allday",
+					title: "Conference",
+					timestamp: at(30),
+					event: { allDay: true, notes: "Booth duty" },
+				}),
+				cal({
+					itemId: "review",
+					title: "Design review",
+					timestamp: at(3),
+					event: { attendeeCount: 4, notes: "Bring mockups" },
+				}),
+				cal({
+					itemId: "standup",
+					title: "Standup",
+					timestamp: at(3),
+					event: { attendeeCount: 6, recurring: true },
+				}),
+			],
+			NOW,
+		);
+		expect(out.map((c) => c.itemId)).toEqual(["review", "standup"]);
+		const [review, standup] = out;
+		expect(review?.signals).toContain("with 3 other people");
+		const [allHands] = prefilterCandidates(
+			[
+				cal({
+					title: "All hands",
+					timestamp: at(3),
+					event: { attendeeCount: 120, notes: "Quarterly update" },
+				}),
+			],
+			NOW,
+		);
+		expect(allHands?.signals).toContain("large meeting (120 invitees)");
+		expect((review?.score ?? 0) - (allHands?.score ?? 0)).toBe(10);
+		expect(review?.signals).toContain("has notes or an agenda");
+		expect(standup?.signals).toContain("recurring meeting");
+		expect(standup?.signals).toContain("no notes or agenda");
+		expect((review?.score ?? 0) - (standup?.score ?? 0)).toBe(20);
+	});
+
+	it("tells the ranker to be selective about calendar events", () => {
+		const prompt = buildFeedSystemPrompt(
+			{ name: "Home", instructions: "", promptMode: "add" } as never,
+			NOW,
+		);
+		expect(prompt).toContain("being on the calendar is not enough");
+	});
+});
+
+describe("ranked list caps", () => {
+	it("keeps at most 3 calendar items unless they start now, and 2 headlines", () => {
+		const candidates: FeedCandidate[] = [
+			...Array.from({ length: 6 }, (_, i) => ({
+				...raw({
+					category: "calendar",
+					itemId: `c${i}`,
+					title: `Meeting ${i}`,
+				}),
+				signals: [],
+				score: 0,
+			})),
+			...Array.from({ length: 3 }, (_, i) => ({
+				...raw({ category: "news", providerName: "news", itemId: `n${i}` }),
+				signals: [],
+				score: 0,
+			})),
+		];
+		const items = feedItemsFromRanking(
+			{
+				items: candidates.map((_, i) => ({
+					key: `c${i + 1}`,
+					tier: i === 5 ? "now" : i < 6 ? "today" : "fyi",
+					priority: 50,
+					reason: "r",
+					actions: [],
+				})),
+			},
+			candidates,
+		);
+		const calendar = items.filter((i) => i.source.category === "calendar");
+		expect(calendar.map((i) => i.source.itemId)).toEqual([
+			"c5",
+			"c0",
+			"c1",
+			"c2",
+		]);
+		expect(items.filter((i) => i.source.category === "news")).toHaveLength(2);
 	});
 });

@@ -354,3 +354,15 @@ Notes / open:
 - Slack OAuth tokens that can no longer refresh yield no chat items
   (logged as `dashboard_tool_exec_failed`); reconnect Slack.
 - No UI yet to review or undo "not relevant" marks.
+
+### Calendar selectivity
+
+Being on the calendar is not enough to make the Feed:
+
+- **Event facts:** the Apple Calendar summary now attaches `event` facts to each item: location, notes, attendee count, all-day and recurring. Notes have Teams, Zoom, Meet, Webex and Viva boilerplate stripped. The native bridge sends `attendeeCount` and `isRecurring`, and the dashboard schema passes `event` through.
+- **Pre-filter drops:**
+  - hold-style titles (Hold, Block, Focus time, Lunch, Take a break, OOO, and similar) with fewer than 3 invitees;
+  - solo events with no notes and no location;
+  - all-day events that aren't today.
+- **Pre-filter demotions:** recurring meetings with no agenda, and broadcasts with more than 25 invitees, rank lower unless they start within the hour. At most 8 calendar candidates go to the ranker.
+- **Ranking:** the prompt asks only for events that need something from the user. After ranking, the list is capped at 3 calendar items (items in the `now` tier are exempt) and 2 headlines.

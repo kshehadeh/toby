@@ -260,6 +260,8 @@ enum NativeCalendarHandler {
 			"location": event.location ?? "",
 			"description": event.notes ?? "",
 			"calendar": event.calendar.title,
+			"attendeeCount": event.attendees?.count ?? 0,
+			"isRecurring": event.hasRecurrenceRules,
 		]
 	}
 

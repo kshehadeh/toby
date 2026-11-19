@@ -17,6 +17,15 @@ const dashboardItemSchema = z.object({
 	urgency: z.enum(["low", "normal", "high"]).optional(),
 	url: z.string().optional(),
 	groupId: z.string().optional(),
+	event: z
+		.object({
+			location: z.string().optional(),
+			notes: z.string().optional(),
+			attendeeCount: z.number().optional(),
+			allDay: z.boolean().optional(),
+			recurring: z.boolean().optional(),
+		})
+		.optional(),
 });
 
 const dashboardSummaryResultSchema = z.object({
