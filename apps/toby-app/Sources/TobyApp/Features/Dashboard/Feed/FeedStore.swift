@@ -99,6 +99,9 @@ final class FeedStore {
 			return .success(response.message ?? "\(action.label) done.")
 		} catch {
 			hiddenIDs.remove(item.id)
+			// The list may be stale (a background re-rank replaced it); reload so
+			// the user sees the current Feed.
+			await update(force: false)
 			return .failure(error.localizedDescription)
 		}
 	}

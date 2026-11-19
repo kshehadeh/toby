@@ -19,7 +19,12 @@ import {
 	hiddenIds,
 	loadFeedState,
 } from "./state";
-import type { FeedCandidate, FeedContent, FeedModelRef } from "./types";
+import type {
+	FeedCandidate,
+	FeedContent,
+	FeedItem,
+	FeedModelRef,
+} from "./types";
 
 export type { FeedContent, FeedItem, FeedAction, FeedTier } from "./types";
 export { eligibleFeedProviders, resolveFeedModel } from "./model";
@@ -30,10 +35,26 @@ export { eligibleFeedProviders, resolveFeedModel } from "./model";
  */
 export const FEED_RERANK_MAX_AGE_MS = 15 * 60 * 1000;
 
+/** How long items dropped by a re-rank stay actionable. */
+export const FEED_RECENT_ITEM_TTL_MS = 24 * 60 * 60 * 1000;
+const FEED_RECENT_ITEMS_MAX = 100;
+
+interface RecentFeedItem {
+	readonly item: FeedItem;
+	/** When the item was last in a ranked Feed. */
+	readonly seenAt: string;
+}
+
 interface PersistedFeed {
 	readonly signature: string;
 	readonly rankedAt: string;
 	readonly content: FeedContent;
+	/**
+	 * Items from earlier rankings that the current one dropped. The app may
+	 * still be showing them (a background re-rank lands between its loads),
+	 * so actions on them keep working.
+	 */
+	readonly recentItems?: readonly RecentFeedItem[];
 }
 
 let memory: PersistedFeed | null = null;
@@ -77,6 +98,51 @@ export function clearFeedCache(): void {
 /** Last ranked Feed (unfiltered), if any. */
 export function getPersistedFeed(): FeedContent | null {
 	return loadPersisted()?.content ?? null;
+}
+
+/**
+ * An item from the current Feed or one a recent re-rank dropped (the app can
+ * still be showing it). Used to resolve Feed actions.
+ */
+export function findFeedItem(id: string): FeedItem | undefined {
+	const entry = loadPersisted();
+	if (!entry) return undefined;
+	return (
+		entry.content.items.find((i) => i.id === id) ??
+		entry.recentItems?.find((r) => r.item.id === id)?.item
+	);
+}
+
+/**
+ * Carry the previous ranking's items (and still-young recent items) forward,
+ * minus anything in the new ranking, newest first and bounded.
+ */
+export function nextRecentItems(
+	previous: PersistedFeed | null,
+	next: FeedContent,
+	now: Date,
+): RecentFeedItem[] {
+	if (!previous) return [];
+	const current = new Set(next.items.map((i) => i.id));
+	const seen = new Set<string>();
+	const out: RecentFeedItem[] = [];
+	const candidates: RecentFeedItem[] = [
+		...previous.content.items.map((item) => ({
+			item,
+			seenAt: previous.rankedAt,
+		})),
+		...(previous.recentItems ?? []),
+	];
+	for (const r of candidates) {
+		if (current.has(r.item.id) || seen.has(r.item.id)) continue;
+		const t = Date.parse(r.seenAt);
+		if (Number.isNaN(t) || now.getTime() - t > FEED_RECENT_ITEM_TTL_MS)
+			continue;
+		seen.add(r.item.id);
+		out.push(r);
+		if (out.length >= FEED_RECENT_ITEMS_MAX) break;
+	}
+	return out;
 }
 
 function isFresh(entry: PersistedFeed, now: number): boolean {
@@ -254,7 +320,13 @@ function rerank(
 			items: result.items,
 			personaName: result.personaName,
 		};
-		persist({ signature, rankedAt: new Date().toISOString(), content });
+		const rankedAt = new Date();
+		persist({
+			signature,
+			rankedAt: rankedAt.toISOString(),
+			content,
+			recentItems: nextRecentItems(loadPersisted(), content, rankedAt),
+		});
 		return content;
 	})().finally(() => inFlight.delete(signature));
 	inFlight.set(signature, promise);

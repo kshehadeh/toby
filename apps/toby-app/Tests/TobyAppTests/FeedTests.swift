@@ -128,6 +128,22 @@ struct FeedTests {
 		#expect(store.groupedItems.map(\.tier) == [.now, .today])
 	}
 
+	@Test("store reloads the Feed after a failed action so a stale list is replaced")
+	func storeReloadsAfterFailure() async throws {
+		struct Gone: LocalizedError { var errorDescription: String? { "gone" } }
+		let payload = try decodeFeed()
+		var fetches = 0
+		let store = FeedStore(fetch: { _ in
+			fetches += 1
+			return payload
+		}, perform: { _, _ in throw Gone() })
+		await store.update(force: false)
+		let event = try #require(store.content?.items.first { $0.tier == .now })
+		let dismiss = try #require(event.actions.first { $0.isDismiss })
+		_ = await store.perform(dismiss, on: event)
+		#expect(fetches == 2)
+	}
+
 	@Test("store refuses client-side actions")
 	func storeRejectsChatActions() async throws {
 		let payload = try decodeFeed()

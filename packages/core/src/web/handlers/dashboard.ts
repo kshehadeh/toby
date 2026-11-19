@@ -7,7 +7,11 @@ import {
 import { getDashboardBlockContent } from "../../dashboard/summarizer";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
 import { performFeedAction } from "../../feed/execute";
-import { getFeedContent, getPersistedFeed } from "../../feed/index";
+import {
+	findFeedItem,
+	getFeedContent,
+	getPersistedFeed,
+} from "../../feed/index";
 import { applyFeedState, loadFeedState } from "../../feed/state";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
@@ -127,7 +131,7 @@ export async function handleDashboardFeedAction(
 	const outcome = await performFeedAction(
 		{ itemId, actionId },
 		{
-			findItem: (id) => getPersistedFeed()?.items.find((i) => i.id === id),
+			findItem: findFeedItem,
 		},
 	);
 	if (!outcome.ok) {
