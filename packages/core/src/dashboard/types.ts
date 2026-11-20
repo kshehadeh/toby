@@ -89,6 +89,20 @@ export interface DashboardEventFacts {
 	readonly recurring?: boolean;
 }
 
+/** Email message facts a provider can attach to a summary item. */
+export interface DashboardEmailFacts {
+	/** False for read messages included because they await a reply. */
+	readonly unread?: boolean;
+	/** Mailing list / bulk / automated mail (List-Unsubscribe, List-Id, Precedence, Auto-Submitted). */
+	readonly bulk?: boolean;
+	/** The user is a direct (To:) recipient rather than cc'd or bcc'd. */
+	readonly direct?: boolean;
+	/** The user has previously sent mail to this sender. */
+	readonly knownSender?: boolean;
+	/** Read, not answered, from a person — the user likely owes a reply. */
+	readonly awaitingReply?: boolean;
+}
+
 /**
  * A single item in a dashboard summary (email message, task, reminder, etc.).
  */
@@ -111,6 +125,8 @@ export interface DashboardItem {
 	readonly groupId?: string;
 	/** Calendar only: facts that tell real meetings apart from bare holds. */
 	readonly event?: DashboardEventFacts;
+	/** Email only: facts that tell personal mail apart from bulk mail. */
+	readonly email?: DashboardEmailFacts;
 	/**
 	 * Integration module name of the source provider (e.g. "todoist").
 	 * Set by the aggregator on merged category items so the UI can show a
@@ -148,6 +164,11 @@ export interface DashboardSummaryResult {
 	readonly launchUrl?: string;
 	/** ISO 8601 timestamp — lets the UI show "as of 2 minutes ago". */
 	readonly generatedAt: string;
+	/**
+	 * Set by the aggregator/adapter (never by plugins) when the provider could
+	 * not be reached; `items` is then empty rather than truly "nothing new".
+	 */
+	readonly error?: string;
 }
 
 /**

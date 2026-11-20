@@ -148,30 +148,62 @@ function scoreCalendar(c: RawFeedCandidate, now: number): Scored {
 	return { score, signals };
 }
 
+/** Most bulk / automated emails sent to the ranker (they rarely need action). */
+const MAX_BULK_EMAIL_CANDIDATES = 4;
+/** Read-but-unanswered mail older than this has likely been handled elsewhere. */
+const AWAITING_REPLY_STALE_MS = 3 * DAY;
+
+/** True for list, bulk, or automated mail (provider headers, else sender name). */
+export function isBulkEmail(c: RawFeedCandidate): boolean {
+	if (c.email?.bulk !== undefined) return c.email.bulk;
+	return Boolean(c.subtitle && BULK_SENDER.test(c.subtitle));
+}
+
 function scoreEmail(c: RawFeedCandidate, now: number): Scored {
 	const signals: string[] = [];
-	let score = 30;
-	if (c.urgency === "high") {
+	const facts = c.email;
+	const bulk = isBulkEmail(c);
+	const flagged = c.urgency === "high";
+	let score: number;
+	if (bulk) {
+		signals.push("mailing list or automated sender");
+		score = 5;
+	} else {
+		signals.push("personal email from a person");
+		score = 45;
+	}
+	if (flagged) {
 		signals.push("flagged");
-		score += 40;
+		score += bulk ? 50 : 30;
+	}
+	if (facts?.awaitingReply) {
+		signals.push("read but not replied to");
+		score += 15;
+	}
+	if (facts?.knownSender) {
+		signals.push("from someone the user has emailed before");
+		score += 15;
+	}
+	if (facts?.direct && !bulk) {
+		signals.push("sent directly to the user");
+		score += 5;
 	}
 	const received = parseTime(c.timestamp);
 	if (received !== null) {
 		const age = now - received;
 		if (age <= 4 * HOUR) {
 			signals.push("received in the last few hours");
-			score += 20;
+			score += bulk ? 5 : 20;
 		} else if (age <= DAY) {
 			signals.push("received today");
-			score += 10;
+			score += bulk ? 0 : 10;
 		} else if (age > 7 * DAY) {
 			signals.push(`unread for ${plural(Math.floor(age / DAY), "day")}`);
 			score -= 10;
+		} else {
+			signals.push(`received ${plural(Math.floor(age / DAY), "day")} ago`);
 		}
-	}
-	if (c.subtitle && BULK_SENDER.test(c.subtitle)) {
-		signals.push("likely automated or bulk sender");
-		score -= 35;
+		if (facts?.awaitingReply && age > AWAITING_REPLY_STALE_MS) score -= 15;
 	}
 	return { score, signals };
 }
@@ -253,12 +285,38 @@ function scoreNews(c: RawFeedCandidate, now: number): Scored {
 }
 
 /**
- * Key used to learn from "Not relevant" feedback: the item's source within its
- * provider (sender, channel, news section). Null when there is nothing stable.
+ * Title with volatile parts (numbers, dates, times, punctuation) removed, so
+ * "Standup 11/20" and "Standup 11/21" learn together.
+ */
+export function normalizeFeedbackTitle(title: string): string {
+	return title
+		.toLowerCase()
+		.replace(/\d+/g, " ")
+		.replace(/[^\p{L}\s]+/gu, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+/**
+ * Key used to learn from "Not relevant" feedback. Email learns per sender,
+ * chat per channel (or DM partner), news per section; calendar and tasks per
+ * normalized title, since the calendar / project name is far too broad (one
+ * mark would otherwise demote every meeting on the work calendar). Null when
+ * there is nothing stable.
  */
 export function feedbackKeyFor(
-	c: Pick<FeedCandidate, "category" | "providerName" | "subtitle">,
+	c: Pick<FeedCandidate, "category" | "providerName" | "subtitle"> & {
+		readonly title?: string;
+	},
 ): string | null {
+	if (
+		c.category === "calendar" ||
+		c.category === "tasks" ||
+		c.category === "todos"
+	) {
+		const title = c.title ? normalizeFeedbackTitle(c.title) : "";
+		return title ? `${c.category}:${c.providerName}:title:${title}` : null;
+	}
 	const subtitle = c.subtitle?.trim().toLowerCase();
 	if (!subtitle) return null;
 	let source = subtitle;
@@ -334,11 +392,16 @@ export function prefilterCandidates(
 	scored.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
 	const perCategory = new Map<string, number>();
+	let bulkEmails = 0;
 	const out: FeedCandidate[] = [];
 	for (const c of scored) {
 		const n = perCategory.get(c.category) ?? 0;
 		if (n >= (MAX_CANDIDATES_FOR[c.category] ?? MAX_CANDIDATES_PER_CATEGORY))
 			continue;
+		if (c.category === "email" && isBulkEmail(c)) {
+			if (bulkEmails >= MAX_BULK_EMAIL_CANDIDATES) continue;
+			bulkEmails++;
+		}
 		perCategory.set(c.category, n + 1);
 		out.push(c);
 		if (out.length >= MAX_FEED_CANDIDATES) break;
@@ -358,7 +421,7 @@ export function candidateSignature(
 	for (const part of extra) hash.update(`${part}\n`);
 	for (const c of [...candidates].sort((a, b) => a.id.localeCompare(b.id))) {
 		hash.update(
-			`${c.id}|${c.title}|${c.timestamp ?? ""}|${c.dueDate ?? ""}|${c.urgency ?? ""}|${c.event ? JSON.stringify(c.event) : ""}\n`,
+			`${c.id}|${c.title}|${c.timestamp ?? ""}|${c.dueDate ?? ""}|${c.urgency ?? ""}|${c.event ? JSON.stringify(c.event) : ""}|${c.email ? JSON.stringify(c.email) : ""}\n`,
 		);
 	}
 	return hash.digest("hex").slice(0, 32);

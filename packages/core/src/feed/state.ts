@@ -24,7 +24,7 @@ export interface FeedItemState {
 
 /** One "Not relevant" mark — what the Feed learns from. */
 export interface FeedFeedback {
-	/** Source key (`feedbackKeyFor`): category, provider, sender / channel / section. */
+	/** Source key (`feedbackKeyFor`): category, provider, sender / channel / section / normalized title. */
 	readonly key: string;
 	readonly category: string;
 	readonly title: string;

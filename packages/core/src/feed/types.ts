@@ -5,6 +5,7 @@
 
 import type {
 	DashboardBlockContentSource,
+	DashboardEmailFacts,
 	DashboardEventFacts,
 	StandardItemActionId,
 } from "../dashboard/types";
@@ -77,6 +78,8 @@ export interface FeedCandidate {
 	readonly url?: string;
 	/** Calendar event facts (notes, attendees, …) when the provider sends them. */
 	readonly event?: DashboardEventFacts;
+	/** Email facts (bulk, direct, known sender, awaiting reply) when sent. */
+	readonly email?: DashboardEmailFacts;
 	/** Deterministic hints for the ranker (e.g. "starts in 25 min", "overdue"). */
 	readonly signals: readonly string[];
 	/** Heuristic pre-score; higher = more likely relevant. */

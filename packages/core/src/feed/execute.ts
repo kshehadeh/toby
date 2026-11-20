@@ -168,6 +168,7 @@ export async function performFeedAction(
 		const key = feedbackKeyFor({
 			category: item.source.category,
 			providerName: item.source.providerName,
+			title: item.title,
 			...(item.subtitle ? { subtitle: item.subtitle } : {}),
 		});
 		updateFeedState((s) => {

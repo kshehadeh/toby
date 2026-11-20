@@ -169,6 +169,20 @@ function buildCacheKey(
 }
 
 /** Create a deterministic signature from category data for cache invalidation. */
+/**
+ * The email card summarizes unread mail; read messages a provider adds for
+ * The Feed (awaiting a reply) stay off the card.
+ */
+function cardItemsOnly(
+	data: DashboardCategorySummary,
+): DashboardCategorySummary {
+	if (!data.items.some((i) => i.email?.unread === false)) return data;
+	return {
+		...data,
+		items: data.items.filter((i) => i.email?.unread !== false),
+	};
+}
+
 function buildDataSignature(data: DashboardCategorySummary): string {
 	const parts = [
 		data.count,
@@ -366,11 +380,12 @@ export async function getDashboardBlockContent(
 	if (!categoryPrompt) return null;
 
 	// Aggregator data is internal to content generation (not a second client path).
-	const data = await getDashboardCategory(category, {
+	const raw = await getDashboardCategory(category, {
 		limit: 50,
 		force,
 	});
-	if (!data) return null;
+	if (!raw) return null;
+	const data = cardItemsOnly(raw);
 
 	const persona = resolveDashboardPersona();
 

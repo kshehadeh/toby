@@ -85,29 +85,40 @@ export function clearDashboardCache(): void {
 }
 
 /**
- * Call a provider's `dashboard.getSummary` with a timeout. Returns `null` on
- * timeout, failure, or missing hook — one broken provider should never blank
- * the whole card.
+ * Call a provider's `dashboard.getSummary` with a timeout. Returns `null` when
+ * there is no hook; on timeout or failure returns an empty summary with
+ * `error` set, so one broken provider never blanks the whole card and callers
+ * (The Feed) can tell "unreachable" from "nothing new".
  */
 async function callProviderWithTimeout(
 	module: IntegrationModule,
 	limit: number,
 ): Promise<DashboardSummaryResult | null> {
 	if (!module.dashboard) return null;
+	const failed = (error: string): DashboardSummaryResult => ({
+		count: 0,
+		items: [],
+		generatedAt: new Date().toISOString(),
+		error,
+	});
+	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
 		const result = await Promise.race([
 			module.dashboard.getSummary({ limit }),
-			new Promise<null>((resolve) =>
-				setTimeout(() => resolve(null), PER_PROVIDER_TIMEOUT_MS),
-			),
+			new Promise<null>((resolve) => {
+				timer = setTimeout(() => resolve(null), PER_PROVIDER_TIMEOUT_MS);
+			}),
 		]);
-		return result;
+		return result ?? failed("Timed out");
 	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
 		daemonLog("warn", "plugin", "dashboard_provider_error", {
 			plugin: module.name,
-			error: error instanceof Error ? error.message : String(error),
+			error: message,
 		});
-		return null;
+		return failed(message);
+	} finally {
+		if (timer) clearTimeout(timer);
 	}
 }
 
