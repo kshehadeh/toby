@@ -42,7 +42,6 @@ export {
 export type { FlowIconSymbol } from "./flow-icons";
 
 export type {
-	FlowDashboardRefresh,
 	FlowDashboardVariant,
 	FlowDestination,
 	FlowDestinationDashboard,
@@ -153,12 +152,9 @@ export { schemaFromSpec } from "./schema-presets";
 
 export {
 	BUILTIN_FLOWS,
-	calendarDashboardSummaryDocument,
-	emailDashboardSummaryDocument,
 	getBuiltinFlowDocument,
 	isBuiltinFlowId,
 	listBuiltinFlowIds,
-	tasksDashboardSummaryDocument,
 } from "./builtins";
 
 export { itemsFromDashboardToolResult } from "./dashboard-items";

@@ -1,18 +1,15 @@
 import Foundation
 
-/// App-local home-dashboard layout: card order, hidden cards, and the Actions
-/// rail (visibility + width).
+/// App-local Home layout for the Actions rail: hidden tiles, per-tile color
+/// overrides, and the rail's visibility + width.
 ///
 /// Persisted in `UserDefaults` with other UI prefs (not daemon / `~/.toby` config).
-/// An empty `order` means “use the default grouping” (built-ins, then
-/// informational flows, then runners). Unknown ids are ignored; newly
-/// registered cards that are not listed append as visible.
+/// Older documents also stored a card `order`; it is ignored when decoding.
 struct DashboardLayout: Equatable, Codable, Sendable {
-	var order: [String]
 	var hidden: [String]
 	var colorOverrides: [String: String]
 	/// When false, the Actions rail is collapsed (toolbar toggle). Independent
-	/// of per-runner hide. Default on.
+	/// of per-tile hide. Default on.
 	var actionsVisible: Bool
 	/// Width of the Actions rail, clamped to `DashboardBlockLayout` min/max.
 	var actionsWidth: CGFloat
@@ -20,13 +17,11 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 	static let empty = DashboardLayout()
 
 	init(
-		order: [String] = [],
 		hidden: [String] = [],
 		colorOverrides: [String: String] = [:],
 		actionsVisible: Bool = true,
 		actionsWidth: CGFloat = DashboardBlockLayout.actionsRailDefaultWidth
 	) {
-		self.order = Self.uniquing(order)
 		self.hidden = Self.uniquing(hidden)
 		self.colorOverrides = colorOverrides.filter { DashboardBlockColor.validated($0.value) != nil }
 		self.actionsVisible = actionsVisible
@@ -34,12 +29,11 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 	}
 
 	private enum CodingKeys: String, CodingKey {
-		case order, hidden, colorOverrides, actionsVisible, actionsWidth
+		case hidden, colorOverrides, actionsVisible, actionsWidth
 	}
 
 	init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
-		order = Self.uniquing(try container.decodeIfPresent([String].self, forKey: .order) ?? [])
 		hidden = Self.uniquing(try container.decodeIfPresent([String].self, forKey: .hidden) ?? [])
 		colorOverrides = (try container.decodeIfPresent([String: String].self, forKey: .colorOverrides) ?? [:])
 			.filter { DashboardBlockColor.validated($0.value) != nil }
@@ -52,7 +46,6 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 
 	func encode(to encoder: Encoder) throws {
 		var container = encoder.container(keyedBy: CodingKeys.self)
-		try container.encode(order, forKey: .order)
 		try container.encode(hidden, forKey: .hidden)
 		try container.encode(colorOverrides, forKey: .colorOverrides)
 		try container.encode(actionsVisible, forKey: .actionsVisible)
@@ -67,17 +60,6 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		)
 	}
 
-	/// Copy with a new order/hidden list, keeping the Actions pane fields.
-	func withCards(order: [String], hidden: [String]) -> DashboardLayout {
-		DashboardLayout(
-			order: order,
-			hidden: hidden,
-			colorOverrides: colorOverrides,
-			actionsVisible: actionsVisible,
-			actionsWidth: actionsWidth
-		)
-	}
-
 	func settingColor(_ color: String?, for id: DashboardBlockID) -> DashboardLayout {
 		var next = self
 		next.colorOverrides[id.rawValue] = DashboardBlockColor.validated(color)
@@ -88,324 +70,31 @@ struct DashboardLayout: Equatable, Codable, Sendable {
 		DashboardBlockColor.validated(colorOverrides[id.rawValue]) ?? DashboardBlockColor.validated(defaultColor)
 	}
 
-	var hiddenSet: Set<String> { Set(hidden) }
-
 	func isHidden(id: DashboardBlockID) -> Bool {
-		hiddenSet.contains(id.rawValue)
+		hidden.contains(id.rawValue)
 	}
 
 	func isVisible(id: DashboardBlockID) -> Bool {
 		!isHidden(id: id)
 	}
 
-	/// Hides `ids` that are not already hidden; returns the layout and the ids it hid.
-	func hidingFeedReplacedCards(
-		_ ids: [DashboardBlockID] = DashboardBlockID.feedReplaced
-	) -> (layout: DashboardLayout, hidden: [String]) {
-		var layout = self
-		var newlyHidden: [String] = []
-		for id in ids where layout.isVisible(id: id) {
-			layout = layout.settingVisibility(id: id, visible: false)
-			newlyHidden.append(id.rawValue)
-		}
-		return (layout, newlyHidden)
-	}
-
-	/// Toggle membership in `hidden` without requiring the live registry.
-	/// Used by Settings built-in toggles and init overrides.
+	/// Toggle membership in `hidden`.
 	func settingVisibility(id: DashboardBlockID, visible: Bool) -> DashboardLayout {
-		var nextHidden = hidden.filter { $0 != id.rawValue }
-		var nextOrder = order
+		var next = self
+		next.hidden.removeAll { $0 == id.rawValue }
 		if !visible {
-			nextHidden.append(id.rawValue)
+			next.hidden.append(id.rawValue)
 		}
-		if !nextOrder.contains(id.rawValue) {
-			nextOrder.append(id.rawValue)
-		}
-		return withCards(order: nextOrder, hidden: nextHidden)
+		return next
 	}
 
-	func hiding(_ id: DashboardBlockID, from descriptors: [DashboardBlockDescriptor]) -> DashboardLayout {
-		let visible = resolvedVisible(from: descriptors).filter { $0 != id }
-		var hiddenIDs = resolvedHidden(from: descriptors)
-		if !hiddenIDs.contains(id) {
-			hiddenIDs.append(id)
-		}
-		return withCards(
-			order: visible.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hiddenIDs.map(\.rawValue)
-		)
-	}
-
-	/// Restores `id` into the visible list. `nil` index appends at the end.
-	func showing(
-		_ id: DashboardBlockID,
-		at index: Int?,
-		from descriptors: [DashboardBlockDescriptor]
-	) -> DashboardLayout {
-		var visible = resolvedVisible(from: descriptors)
-		visible.removeAll { $0 == id }
-		if let index {
-			visible.insert(id, at: min(max(0, index), visible.count))
-		} else {
-			visible.append(id)
-		}
-		let hiddenIDs = resolvedHidden(from: descriptors).filter { $0 != id }
-		return withCards(
-			order: visible.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hiddenIDs.map(\.rawValue)
-		)
-	}
-
-	func moving(
-		_ id: DashboardBlockID,
-		to index: Int,
-		from descriptors: [DashboardBlockDescriptor]
-	) -> DashboardLayout {
-		var visible = resolvedVisible(from: descriptors)
-		guard visible.contains(id) else { return self }
-		visible.removeAll { $0 == id }
-		visible.insert(id, at: min(max(0, index), visible.count))
-		let hiddenIDs = resolvedHidden(from: descriptors)
-		return withCards(
-			order: visible.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hidden
-		)
-	}
-
-	/// Where to insert cards in the informational grid (not the Actions rail).
-	enum CardPlacement: Equatable, Sendable {
-		/// Immediately before this visible card.
-		case before(DashboardBlockID)
-		/// Immediately after this visible card.
-		case after(DashboardBlockID)
-		/// After the last visible card.
-		case end
-	}
-
-	/// Shows (if hidden) and reorders informational cards. Runner ids are ignored
-	/// so the Actions rail cannot mix with the home grid.
-	func placingVisibleCards(
-		_ ids: [DashboardBlockID],
-		at placement: CardPlacement,
-		from descriptors: [DashboardBlockDescriptor]
-	) -> DashboardLayout {
-		let allowed = ids.filter { id in
-			descriptors.contains { $0.id == id && !$0.isFlowRunner }
-		}
-		guard !allowed.isEmpty else { return self }
-
-		var cards = resolvedVisibleCards(from: descriptors)
-		cards.removeAll { allowed.contains($0) }
-		switch placement {
-		case let .before(destination):
-			if let index = cards.firstIndex(of: destination) {
-				cards.insert(contentsOf: allowed, at: index)
-			} else {
-				cards.append(contentsOf: allowed)
-			}
-		case let .after(destination):
-			if let index = cards.firstIndex(of: destination) {
-				cards.insert(contentsOf: allowed, at: cards.index(after: index))
-			} else {
-				cards.append(contentsOf: allowed)
-			}
-		case .end:
-			cards.append(contentsOf: allowed)
-		}
-
-		let runners = resolvedVisibleRunners(from: descriptors)
-		let hiddenIDs = resolvedHidden(from: descriptors).filter { !allowed.contains($0) }
-		return withCards(
-			order: cards.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hiddenIDs.map(\.rawValue)
-		)
-	}
-
-	/// Visible Home-grid sequence, including client-local cards that do not
-	/// exist in the dashboard registry. Older stored documents omit these ids;
-	/// the fallback appends them in their default location without migration.
-	func resolvedVisibleHomeItems(
-		from descriptors: [DashboardBlockDescriptor]
-	) -> [DashboardBlockID] {
-		resolvedHomeSequence(from: descriptors).filter { id in
-			id == .recentWork || !hiddenSet.contains(id.rawValue)
-		}
-	}
-
-	/// Reorders registered informational cards and client-local Home cards.
-	/// Runner flows remain in the Actions inspector and cannot enter the grid.
-	func placingVisibleHomeItems(
-		_ ids: [DashboardBlockID],
-		at placement: CardPlacement,
-		from descriptors: [DashboardBlockDescriptor]
-	) -> DashboardLayout {
-		let allowed = ids.filter { id in
-			id == .recentWork
-				|| descriptors.contains { $0.id == id && !$0.isFlowRunner }
-		}
-		guard !allowed.isEmpty else { return self }
-
-		var items = resolvedVisibleHomeItems(from: descriptors)
-		items.removeAll { allowed.contains($0) }
-		switch placement {
-		case let .before(destination):
-			if let index = items.firstIndex(of: destination) {
-				items.insert(contentsOf: allowed, at: index)
-			} else {
-				items.append(contentsOf: allowed)
-			}
-		case let .after(destination):
-			if let index = items.firstIndex(of: destination) {
-				items.insert(contentsOf: allowed, at: items.index(after: index))
-			} else {
-				items.append(contentsOf: allowed)
-			}
-		case .end:
-			items.append(contentsOf: allowed)
-		}
-
-		let runners = resolvedVisibleRunners(from: descriptors)
-		let hiddenIDs = resolvedHidden(from: descriptors).filter { !allowed.contains($0) }
-		return withCards(
-			order: items.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hiddenIDs.map(\.rawValue)
-		)
-	}
-
-	/// Hides a registered Home card or runner without disturbing client-local
-	/// card positions stored in the shared order document.
-	func hidingHomeItem(
-		_ id: DashboardBlockID,
-		from descriptors: [DashboardBlockDescriptor]
-	) -> DashboardLayout {
-		guard descriptors.contains(where: { $0.id == id }) else { return self }
-		let homeItems = resolvedVisibleHomeItems(from: descriptors).filter { $0 != id }
-		let runners = resolvedVisibleRunners(from: descriptors).filter { $0 != id }
-		var hiddenIDs = resolvedHidden(from: descriptors)
-		if !hiddenIDs.contains(id) {
-			hiddenIDs.append(id)
-		}
-		return withCards(
-			order: homeItems.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hiddenIDs.map(\.rawValue)
-		)
-	}
-
-	/// Restores a registered item at the end of its Home grid or Actions group
-	/// while preserving client-local Home card positions.
-	func showingHomeItem(
-		_ id: DashboardBlockID,
-		from descriptors: [DashboardBlockDescriptor]
-	) -> DashboardLayout {
-		guard let descriptor = descriptors.first(where: { $0.id == id }) else { return self }
-		var homeItems = resolvedVisibleHomeItems(from: descriptors).filter { $0 != id }
-		var runners = resolvedVisibleRunners(from: descriptors).filter { $0 != id }
-		if descriptor.isFlowRunner {
-			runners.append(id)
-		} else {
-			homeItems.append(id)
-		}
-		let hiddenIDs = resolvedHidden(from: descriptors).filter { $0 != id }
-		return withCards(
-			order: homeItems.map(\.rawValue) + runners.map(\.rawValue) + hiddenIDs.map(\.rawValue),
-			hidden: hiddenIDs.map(\.rawValue)
-		)
-	}
-
-	func resolvedVisible(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
-		resolvedSequence(from: descriptors).filter { !hiddenSet.contains($0.rawValue) }
-	}
-
-	func resolvedHidden(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
-		resolvedSequence(from: descriptors).filter { hiddenSet.contains($0.rawValue) }
-	}
-
-	/// Informational / built-in cards only (runners live in the Actions rail).
-	func resolvedVisibleCards(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
-		resolvedVisible(from: descriptors).filter { id in
-			!(descriptors.first { $0.id == id }?.isFlowRunner ?? false)
-		}
-	}
-
-	/// Runner-variant flows shown in the Actions rail.
-	func resolvedVisibleRunners(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
-		resolvedVisible(from: descriptors).filter { id in
-			descriptors.first { $0.id == id }?.isFlowRunner ?? false
-		}
-	}
-
-	/// Built-ins by `sortIndex`, then informational flows, then runners.
-	static func defaultOrder(_ descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
-		let builtIns = descriptors.filter { !$0.isFlowBlock }.sorted { $0.sortIndex < $1.sortIndex }
-		let informational = descriptors.filter { $0.isFlowBlock && !$0.isFlowRunner }
-			.sorted { $0.sortIndex < $1.sortIndex }
-		let runners = descriptors.filter(\.isFlowRunner).sorted { $0.sortIndex < $1.sortIndex }
-		return (builtIns + informational + runners).map(\.id)
-	}
-
-	/// Load the JSON document, or migrate legacy per-block bool keys.
+	/// Load the JSON document (empty when missing or unreadable).
 	static func load(from defaults: UserDefaults) -> DashboardLayout {
-		if let raw = defaults.string(forKey: AppearanceDefaultsKey.dashboardLayout),
+		guard let raw = defaults.string(forKey: AppearanceDefaultsKey.dashboardLayout),
 			let data = raw.data(using: .utf8),
 			let decoded = try? JSONDecoder().decode(DashboardLayout.self, from: data)
-		{
-			return decoded
-		}
-		var hidden: [String] = []
-		if defaults.object(forKey: AppearanceDefaultsKey.showDashboardEmail) != nil,
-			defaults.bool(forKey: AppearanceDefaultsKey.showDashboardEmail) == false
-		{
-			hidden.append(DashboardBlockID.email.rawValue)
-		}
-		if defaults.object(forKey: AppearanceDefaultsKey.showDashboardTasks) != nil,
-			defaults.bool(forKey: AppearanceDefaultsKey.showDashboardTasks) == false
-		{
-			hidden.append(DashboardBlockID.tasks.rawValue)
-		}
-		if defaults.object(forKey: AppearanceDefaultsKey.showDashboardCalendar) != nil,
-			defaults.bool(forKey: AppearanceDefaultsKey.showDashboardCalendar) == false
-		{
-			hidden.append(DashboardBlockID.calendar.rawValue)
-		}
-		return DashboardLayout(order: [], hidden: hidden)
-	}
-
-	private func resolvedSequence(from descriptors: [DashboardBlockDescriptor]) -> [DashboardBlockID] {
-		let registered = Set(descriptors.map(\.id.rawValue))
-		let fallback = Self.defaultOrder(descriptors)
-		var seen = Set<String>()
-		var result: [DashboardBlockID] = []
-		for raw in order where registered.contains(raw) && !seen.contains(raw) {
-			result.append(DashboardBlockID(raw))
-			seen.insert(raw)
-		}
-		for id in fallback where !seen.contains(id.rawValue) {
-			result.append(id)
-			seen.insert(id.rawValue)
-		}
-		return result
-	}
-
-	private func resolvedHomeSequence(
-		from descriptors: [DashboardBlockDescriptor]
-	) -> [DashboardBlockID] {
-		let cardIDs = descriptors.filter { !$0.isFlowRunner }.map(\.id)
-		let registered = Set(cardIDs.map(\.rawValue) + [DashboardBlockID.recentWork.rawValue])
-		let fallback = Self.defaultOrder(descriptors).filter { id in
-			cardIDs.contains(id)
-		} + [.recentWork]
-		var seen = Set<String>()
-		var result: [DashboardBlockID] = []
-		for raw in order where registered.contains(raw) && !seen.contains(raw) {
-			result.append(DashboardBlockID(raw))
-			seen.insert(raw)
-		}
-		for id in fallback where !seen.contains(id.rawValue) {
-			result.append(id)
-			seen.insert(id.rawValue)
-		}
-		return result
+		else { return .empty }
+		return decoded
 	}
 
 	private static func uniquing(_ ids: [String]) -> [String] {

@@ -151,30 +151,6 @@ struct ConfigureSectionDetailView: View {
 
 				if isDashboardSection {
 					Section(section.displayLabel) {
-						ForEach(DashboardBlock.allCases) { block in
-							Toggle(isOn: appearancePreferences.dashboardBlockVisibilityBinding(block)) {
-								VStack(alignment: .leading, spacing: 2) {
-									Text(block.settingsTitle)
-									Text(block.settingsDescription)
-										.font(.caption)
-										.foregroundStyle(.secondary)
-								}
-							}
-							.toggleStyle(.switch)
-							.accessibilityIdentifier(block.accessibilityIdentifier)
-						}
-						Toggle(isOn: appearancePreferences.showFeedBinding) {
-							VStack(alignment: .leading, spacing: 2) {
-								Text("Show The Feed")
-								Text(
-									"A prioritized list of what needs your attention across email, calendar, and tasks. Stored only on this Mac."
-								)
-								.font(.caption)
-								.foregroundStyle(.secondary)
-							}
-						}
-						.toggleStyle(.switch)
-						.accessibilityIdentifier("dashboard-show-feed-toggle")
 						Toggle(isOn: appearancePreferences.hideOnboardingBinding) {
 							VStack(alignment: .leading, spacing: 2) {
 								Text("Hide onboarding checklist")
@@ -193,7 +169,7 @@ struct ConfigureSectionDetailView: View {
 							}
 							.accessibilityIdentifier("dashboard-reset-layout-button")
 						}
-						Text("Restore default card order, show all cards, and clear color overrides. Stored only on this Mac.")
+						Text("Show hidden actions, clear action colors, and restore the Actions sidebar. Stored only on this Mac.")
 							.font(.caption)
 							.foregroundStyle(.secondary)
 					}

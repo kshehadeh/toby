@@ -10,8 +10,8 @@ struct FeedCardView: View {
 	var onOutcome: (FeedActionOutcome) -> Void = { _ in }
 	/// Opens Settings → Home (model setup).
 	var onOpenSettings: () -> Void = {}
-	/// Hides the section (Settings → Home → Show The Feed).
-	var onHide: () -> Void = {}
+	/// Opens the "Guide The Feed" instructions sheet.
+	var onGuide: () -> Void = {}
 
 	static let title = "The Feed"
 	static let systemImage = "sparkles.rectangle.stack"
@@ -31,9 +31,8 @@ struct FeedCardView: View {
 					isRefreshing: store.isLoading,
 					onRefresh: { Task { await store.update(force: true) } }
 				) {
+					Button("\(FeedInstructionsSheet.title)…", action: onGuide)
 					Button("Feed settings…", action: onOpenSettings)
-					Divider()
-					Button("Hide The Feed", action: onHide)
 				}
 			}
 			FeedCardBody(
@@ -199,12 +198,14 @@ struct FeedItemRow: View {
 							.lineLimit(1)
 					}
 				}
-				if let subtitle = item.subtitle, !subtitle.isEmpty {
-					Text(subtitle)
-						.font(.system(size: 11))
-						.foregroundStyle(AppTheme.tertiaryText)
-						.lineLimit(1)
-				}
+				Text(item.sourceLine)
+					.font(.system(size: 11))
+					.foregroundStyle(AppTheme.tertiaryText)
+					.lineLimit(1)
+					.truncationMode(.tail)
+					.help("From \(item.sourceLine)")
+					.accessibilityLabel("From \(item.sourceLine)")
+					.accessibilityIdentifier("feed-item-source-\(item.id)")
 				Text(item.reason)
 					.font(.system(size: 13))
 					.foregroundStyle(AppTheme.secondaryText)

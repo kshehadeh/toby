@@ -18,7 +18,7 @@ extension FlowTriggerSpec {
         switch source.type {
         case "manual": return "When you run it"
         case "home.action": return "From a button in Home’s Actions"
-        case "dashboard.refresh": return "When Home refreshes"
+        case "dashboard.refresh": return "Home refresh (removed)"
         case "schedule":
             let cron = source.cron ?? ""
             return Self.scheduleSummary(cron: cron) ?? "On a schedule: \(cron)"

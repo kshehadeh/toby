@@ -1,4 +1,5 @@
 import {
+	type UnreadInboxMessage,
 	addFlags,
 	archiveMessages,
 	deleteMessages,
@@ -18,6 +19,9 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_MAILBOX = "INBOX";
 const SNIPPET_MAX = 200;
+/** Read-but-unanswered mail from people, surfaced to The Feed. */
+const AWAITING_REPLY_LIMIT = 8;
+const AWAITING_REPLY_DAYS = 7;
 
 /** Map a common IMAP host to its webmail inbox URL, if recognized. */
 function webmailInboxUrl(imapHost: string): string | undefined {
@@ -103,7 +107,7 @@ export const TOOL_DEFINITIONS = [
 		name: "getUnreadSummary",
 		displayName: "Unread inbox summary",
 		description:
-			"Dashboard summary of unread INBOX messages from the local cache. Returns a standardized shape with count, items, and generatedAt. Tagged as email.unreadSummary standard tool.",
+			"Dashboard summary of unread INBOX messages (read live from the server), plus recent read-but-unanswered mail from people. Items carry email facts (unread, bulk, direct, knownSender, awaitingReply). Returns a standardized shape with count, items, and generatedAt. Tagged as email.unreadSummary standard tool.",
 		readOnly: true,
 		standardTool: "email.unreadSummary",
 		inputSchema: {
@@ -631,24 +635,55 @@ async function executeToolInner(
 
 		case "getUnreadSummary": {
 			const summaryLimit = Number(input.limit ?? 20) || 20;
+			const parsed = parseEmailConfig(config);
+			const selfAddresses = [parsed.imapUsername, parsed.fromAddress].filter(
+				(a) => a.includes("@"),
+			);
 			// Read live from the server so the count reflects mail that is
 			// currently unread AND still in the INBOX (messages read or
-			// archived elsewhere are excluded).
-			const unread = await fetchUnreadInbox(config, summaryLimit);
-
-			const items = unread.messages.map((m) => {
-				const isFlagged = m.flags.includes("\\Flagged");
-				return {
-					id: `${m.uid}:${DEFAULT_MAILBOX}`,
-					title: m.subject || "(no subject)",
-					subtitle: m.fromAddress,
-					timestamp: m.date,
-					urgency: isFlagged ? ("high" as const) : ("normal" as const),
-					url: undefined,
-				};
+			// archived elsewhere are excluded). Also pull recent read mail from
+			// people that hasn't been answered — The Feed surfaces those; the
+			// email card shows only unread items.
+			const unread = await fetchUnreadInbox(config, summaryLimit, {
+				awaitingLimit: AWAITING_REPLY_LIMIT,
+				awaitingDays: AWAITING_REPLY_DAYS,
+				selfAddresses,
 			});
+			let correspondents = new Set<string>();
+			try {
+				correspondents = db.correspondentAddresses(selfAddresses);
+			} catch (error) {
+				log.warn("correspondents_lookup_failed", {
+					error: toErrorMessage(error),
+				});
+			}
+			const self = new Set(selfAddresses.map((a) => a.toLowerCase()));
+			const toItem = (m: UnreadInboxMessage, isUnread: boolean) => ({
+				id: `${m.uid}:${DEFAULT_MAILBOX}`,
+				title: m.subject || "(no subject)",
+				subtitle: m.fromAddress,
+				timestamp: m.date,
+				urgency: m.flags.includes("\\Flagged")
+					? ("high" as const)
+					: ("normal" as const),
+				url: undefined,
+				email: {
+					unread: isUnread,
+					bulk: m.bulk,
+					...(m.toEmails.some((a) => self.has(a)) ? { direct: true } : {}),
+					knownSender: m.fromEmail !== "" && correspondents.has(m.fromEmail),
+					...(isUnread ? {} : { awaitingReply: true }),
+				},
+			});
+			const unreadIds = new Set(unread.messages.map((m) => m.uid));
+			const items = [
+				...unread.messages.map((m) => toItem(m, true)),
+				...unread.awaitingReply
+					.filter((m) => !unreadIds.has(m.uid))
+					.map((m) => toItem(m, false)),
+			];
 
-			const launchUrl = webmailInboxUrl(parseEmailConfig(config).imapHost);
+			const launchUrl = webmailInboxUrl(parsed.imapHost);
 			return {
 				result: {
 					count: unread.count,

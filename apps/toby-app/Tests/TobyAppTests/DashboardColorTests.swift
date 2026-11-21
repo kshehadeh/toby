@@ -8,43 +8,44 @@ import ViewInspector
 @MainActor
 @Suite("Home block colors")
 struct DashboardColorTests {
-	@Test("old layouts inherit; overrides survive persistence and card operations")
+	private let tile = DashboardBlockID("flow.run")
+
+	@Test("old layouts inherit; overrides survive persistence and hide/show")
 	func layoutPersistence() throws {
 		let old = try JSONDecoder().decode(DashboardLayout.self, from: Data(#"{"order":[],"hidden":[]}"#.utf8))
 		#expect(old.colorOverrides.isEmpty)
-		let colored = old.settingColor("blue", for: .email)
-		let hidden = colored.hiding(.email, from: DashboardBlockDescriptor.builtIn)
-		#expect(hidden.colorOverrides == ["email": "blue"])
-		#expect(hidden.settingVisibility(id: .email, visible: true).colorOverrides == colored.colorOverrides)
-		#expect(hidden.withCards(order: ["calendar", "email"], hidden: []).colorOverrides == colored.colorOverrides)
+		let colored = old.settingColor("blue", for: tile)
+		let hidden = colored.settingVisibility(id: tile, visible: false)
+		#expect(hidden.colorOverrides == ["flow.run": "blue"])
+		#expect(hidden.settingVisibility(id: tile, visible: true).colorOverrides == colored.colorOverrides)
 		let decoded = try JSONDecoder().decode(DashboardLayout.self, from: JSONEncoder().encode(hidden))
 		#expect(decoded == hidden)
-		#expect(decoded.settingColor(nil, for: .email).colorOverrides.isEmpty)
+		#expect(decoded.settingColor(nil, for: tile).colorOverrides.isEmpty)
 	}
 
 	@Test("override wins, neutral is explicit, clearing follows the latest default")
 	func inheritance() {
 		let layout = DashboardLayout.empty
-		#expect(layout.resolvedColor(for: .email, defaultColor: "green") == "green")
-		#expect(layout.resolvedColor(for: .email, defaultColor: nil) == nil)
-		let blue = layout.settingColor("blue", for: .email)
-		#expect(blue.resolvedColor(for: .email, defaultColor: "red") == "blue")
-		let neutral = blue.settingColor("neutral", for: .email)
-		#expect(neutral.resolvedColor(for: .email, defaultColor: "red") == "neutral")
-		#expect(neutral.settingColor(nil, for: .email).resolvedColor(for: .email, defaultColor: "red") == "red")
+		#expect(layout.resolvedColor(for: tile, defaultColor: "green") == "green")
+		#expect(layout.resolvedColor(for: tile, defaultColor: nil) == nil)
+		let blue = layout.settingColor("blue", for: tile)
+		#expect(blue.resolvedColor(for: tile, defaultColor: "red") == "blue")
+		let neutral = blue.settingColor("neutral", for: tile)
+		#expect(neutral.resolvedColor(for: tile, defaultColor: "red") == "neutral")
+		#expect(neutral.settingColor(nil, for: tile).resolvedColor(for: tile, defaultColor: "red") == "red")
 	}
 
 	@Test("unknown saved colors fall back without losing other layout fields")
 	func invalidColors() throws {
-		let data = Data(#"{"order":["email"],"hidden":[],"colorOverrides":{"email":"hotpink","calendar":"neutral"}}"#.utf8)
+		let data = Data(#"{"order":["email"],"hidden":["flow.a"],"colorOverrides":{"flow.b":"hotpink","flow.c":"neutral"}}"#.utf8)
 		let layout = try JSONDecoder().decode(DashboardLayout.self, from: data)
-		#expect(layout.order == ["email"])
-		#expect(layout.colorOverrides == ["calendar": "neutral"])
+		#expect(layout.hidden == ["flow.a"])
+		#expect(layout.colorOverrides == ["flow.c": "neutral"])
 	}
 
-	@Test("flow dashboard defaults round-trip for cards and runners")
+	@Test("flow dashboard defaults round-trip for runners")
 	func flowRoundTrip() throws {
-		for variant in ["informational", "runner"] {
+		for variant in ["runner"] {
 			for color in ["blue", "neutral"] {
 				let data = Data("""
 				{"id":"flow.test","name":"Test","color":"teal","nodes":[],
@@ -71,15 +72,15 @@ struct DashboardColorTests {
 		#expect(throws: Never.self) { try picker.inspect().find(text: "Use default") }
 		#expect(throws: Never.self) { try picker.inspect().find(text: "Neutral") }
 		#expect(throws: Never.self) { try picker.inspect().find(text: "Blue") }
-		let overlay = DashboardEditOverlay(title: "Mail", blockID: .email, colorSelection: .constant("blue"))
-		#expect(throws: Never.self) { try overlay.inspect().find(viewWithAccessibilityIdentifier: "dashboard-color-email") }
+		let overlay = DashboardEditOverlay(title: "Mail", blockID: tile, colorSelection: .constant("blue"))
+		#expect(throws: Never.self) { try overlay.inspect().find(viewWithAccessibilityIdentifier: "dashboard-color-flow.run") }
 	}
 
 	@Test("Home color menu changes the binding and can return to inheritance")
 	func menuSelection() throws {
 		var selection = ""
 		let binding = Binding(get: { selection }, set: { selection = $0 })
-		let overlay = DashboardEditOverlay(title: "Mail", blockID: .email, colorSelection: binding)
+		let overlay = DashboardEditOverlay(title: "Mail", blockID: tile, colorSelection: binding)
 		try overlay.inspect().find(button: "Blue").tap()
 		#expect(selection == "blue")
 		try overlay.inspect().find(button: "Neutral").tap()

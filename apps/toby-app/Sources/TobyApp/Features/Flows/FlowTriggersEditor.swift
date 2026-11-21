@@ -84,7 +84,6 @@ struct FlowTriggerCard: View {
     static let types = [
         TriggerType(id: "manual", label: "Manually", symbol: "hand.tap"),
         TriggerType(id: "home.action", label: "From a Home button", symbol: "house"),
-        TriggerType(id: "dashboard.refresh", label: "When Home refreshes", symbol: "arrow.clockwise"),
         TriggerType(id: "schedule", label: "On a schedule", symbol: "calendar.badge.clock"),
         TriggerType(id: "macos.didWake", label: "When the Mac wakes", symbol: "sun.max"),
         TriggerType(id: "macos.userReturned", label: "When I come back to the Mac", symbol: "person.wave.2"),
@@ -289,7 +288,7 @@ struct FlowTriggerCard: View {
             case "home.action":
                 caption("Adds a button to Home’s Actions. Its Home location stays selected until you change or remove this trigger.")
             case "dashboard.refresh":
-                caption("Needs a card on Home. Choose automatic updates or refresh-only in its Home location below. Turning this trigger off pauses card updates.")
+                caption("Removed: Home cards no longer exist, so this trigger never runs. Delete it to save the flow.")
             case "schedule":
                 row("Schedule") {
                     TextField("0 9 * * 1-5", text: text($trigger.source.cron, fallback: "0 9 * * 1-5"))

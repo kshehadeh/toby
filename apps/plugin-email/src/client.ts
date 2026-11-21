@@ -193,24 +193,139 @@ export interface ImapFetchBodyResult {
 export interface UnreadInboxMessage {
 	uid: number;
 	fromAddress: string;
+	/** Bare sender address, lowercased. */
+	fromEmail: string;
+	/** To: recipients' bare addresses, lowercased. */
+	toEmails: string[];
 	subject: string;
 	date: string;
 	flags: string;
+	/** Mailing list / bulk / automated (from headers). */
+	bulk: boolean;
 }
 
 export interface UnreadInboxResult {
 	count: number;
 	messages: UnreadInboxMessage[];
+	/** Read, unanswered, non-bulk INBOX messages from people (newest first). */
+	awaitingReply: UnreadInboxMessage[];
 }
+
+export interface InboxSummaryOptions {
+	/** Max awaiting-reply messages to return (0 disables the search). */
+	readonly awaitingLimit?: number;
+	/** Look-back window for awaiting-reply messages. */
+	readonly awaitingDays?: number;
+	/** The user's own addresses (excluded as senders). */
+	readonly selfAddresses?: readonly string[];
+}
+
+/** Headers that mark mail as list / bulk / machine-generated. */
+const BULK_HEADERS = [
+	"list-unsubscribe",
+	"list-id",
+	"precedence",
+	"auto-submitted",
+	"x-auto-response-suppress",
+	"feedback-id",
+];
+
+/** Senders that are never a person, whatever the headers say. */
+const AUTOMATED_SENDER =
+	/^(?:no-?reply|do-?not-?reply|donotreply|mailer-daemon|postmaster|notifications?|alerts?|bounce[s]?)[@+._-]/i;
+
+/** Parse raw header lines (`Name: value`, folded) into lowercased name → value. */
+export function parseHeaderBlock(raw: string): Map<string, string> {
+	const out = new Map<string, string>();
+	const unfolded = raw.replace(/\r?\n[ \t]+/g, " ");
+	for (const line of unfolded.split(/\r?\n/)) {
+		const sep = line.indexOf(":");
+		if (sep <= 0) continue;
+		const name = line.slice(0, sep).trim().toLowerCase();
+		const value = line.slice(sep + 1).trim();
+		if (name && !out.has(name)) out.set(name, value);
+	}
+	return out;
+}
+
+/** True when headers mark a message as list, bulk, or automated mail. */
+export function isBulkMail(
+	headers: Map<string, string>,
+	fromEmail = "",
+): boolean {
+	if (headers.has("list-unsubscribe") || headers.has("list-id")) return true;
+	if (headers.has("feedback-id")) return true;
+	const precedence = headers.get("precedence")?.toLowerCase() ?? "";
+	if (/\b(bulk|list|junk|auto_reply)\b/.test(precedence)) return true;
+	const auto = headers.get("auto-submitted")?.toLowerCase();
+	if (auto && auto !== "no") return true;
+	if (headers.has("x-auto-response-suppress")) return true;
+	return AUTOMATED_SENDER.test(fromEmail);
+}
+
+type EnvelopeAddress = { address?: string; name?: string };
+
+function formatAddresses(list: EnvelopeAddress[] | undefined): string {
+	return (
+		list
+			?.map((a) => (a.name ? `${a.name} <${a.address}>` : (a.address ?? "")))
+			.join(", ") ?? ""
+	);
+}
+
+function bareAddresses(list: EnvelopeAddress[] | undefined): string[] {
+	return (list ?? [])
+		.map((a) => a.address?.trim().toLowerCase() ?? "")
+		.filter(Boolean);
+}
+
+async function fetchSummaryMessages(
+	client: import("imapflow").ImapFlow,
+	uids: number[],
+): Promise<UnreadInboxMessage[]> {
+	const messages: UnreadInboxMessage[] = [];
+	if (uids.length === 0) return messages;
+	for await (const msg of client.fetch(
+		uids,
+		{ envelope: true, flags: true, uid: true, headers: BULK_HEADERS },
+		{ uid: true },
+	)) {
+		const envelope = msg.envelope;
+		const fromEmail = bareAddresses(envelope?.from)[0] ?? "";
+		const headers = parseHeaderBlock(msg.headers?.toString("utf-8") ?? "");
+		messages.push({
+			uid: msg.uid,
+			fromAddress: formatAddresses(envelope?.from),
+			fromEmail,
+			toEmails: bareAddresses(envelope?.to),
+			subject: envelope?.subject ?? "",
+			date: envelope?.date
+				? new Date(envelope.date).toISOString()
+				: new Date().toISOString(),
+			flags: Array.from(msg.flags ?? []).join(","),
+			bulk: isBulkMail(headers, fromEmail),
+		});
+	}
+	messages.sort((a, b) => (a.date < b.date ? 1 : -1));
+	return messages;
+}
+
+/** Candidate pool scanned for awaiting-reply mail (most are filtered out as bulk). */
+const AWAITING_SCAN_MAX = 60;
 
 /**
  * Fetch messages that are currently unread AND still in the INBOX, read live
  * from the IMAP server. This reflects the true server state (messages read or
  * archived elsewhere are excluded), unlike the append-only local cache.
+ *
+ * With `awaitingLimit`, also returns recent read-but-unanswered INBOX mail
+ * from people (not lists or automated senders) — threads the user likely owes
+ * a reply on.
  */
 export async function fetchUnreadInbox(
 	config: JsonRecord,
 	limit: number,
+	options: InboxSummaryOptions = {},
 ): Promise<UnreadInboxResult> {
 	const client = await createConnectedImapClient(config, "fetchUnreadInbox");
 	try {
@@ -219,39 +334,31 @@ export async function fetchUnreadInbox(
 			const status = await client.status("INBOX", { unseen: true });
 			const count = status.unseen ?? 0;
 
-			const uids = await client.search({ seen: false }, { uid: true });
-			if (!uids || uids.length === 0) {
-				return { count, messages: [] };
-			}
-
 			// Search returns ascending UIDs; the highest UIDs are the newest.
-			const recent = uids.slice(-limit);
-			const messages: UnreadInboxMessage[] = [];
-			for await (const msg of client.fetch(
-				recent,
-				{ envelope: true, flags: true, uid: true },
-				{ uid: true },
-			)) {
-				const envelope = msg.envelope;
-				const fromAddr =
-					envelope?.from
-						?.map((a: { address?: string; name?: string }) =>
-							a.name ? `${a.name} <${a.address}>` : a.address,
-						)
-						.join(", ") ?? "";
-				messages.push({
-					uid: msg.uid,
-					fromAddress: fromAddr,
-					subject: envelope?.subject ?? "",
-					date: envelope?.date
-						? new Date(envelope.date).toISOString()
-						: new Date().toISOString(),
-					flags: Array.from(msg.flags ?? []).join(","),
-				});
-			}
+			const unseen =
+				(await client.search({ seen: false }, { uid: true })) || [];
+			const messages = await fetchSummaryMessages(client, unseen.slice(-limit));
 
-			messages.sort((a, b) => (a.date < b.date ? 1 : -1));
-			return { count, messages };
+			const awaitingLimit = options.awaitingLimit ?? 0;
+			let awaitingReply: UnreadInboxMessage[] = [];
+			if (awaitingLimit > 0) {
+				const days = options.awaitingDays ?? 7;
+				const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+				const self = new Set(
+					(options.selfAddresses ?? []).map((a) => a.trim().toLowerCase()),
+				);
+				const readUids =
+					(await client.search(
+						{ seen: true, answered: false, since },
+						{ uid: true },
+					)) || [];
+				awaitingReply = (
+					await fetchSummaryMessages(client, readUids.slice(-AWAITING_SCAN_MAX))
+				)
+					.filter((m) => !m.bulk && m.fromEmail && !self.has(m.fromEmail))
+					.slice(0, awaitingLimit);
+			}
+			return { count, messages, awaitingReply };
 		} finally {
 			lock.release();
 		}

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { getDashboardFeedStatePath } from "../config/index";
 import { daemonLog } from "../logging/daemon-log";
@@ -9,6 +10,9 @@ import type { FeedActionId, FeedContent, FeedItem } from "./types";
  * - `snoozed`   — hidden until `until`
  * - `done`      — the user acted on it from the Feed (archived, completed,
  *                 added as a todo); hidden even if the source still lists it
+ *
+ * The same file holds "Not relevant" feedback and the user's Feed
+ * instructions (never pruned).
  */
 export type FeedItemStateKind = "dismissed" | "snoozed" | "done";
 
@@ -24,12 +28,22 @@ export interface FeedItemState {
 
 /** One "Not relevant" mark — what the Feed learns from. */
 export interface FeedFeedback {
-	/** Source key (`feedbackKeyFor`): category, provider, sender / channel / section. */
+	/** Source key (`feedbackKeyFor`): category, provider, sender / channel / section / normalized title. */
 	readonly key: string;
 	readonly category: string;
 	readonly title: string;
 	readonly subtitle?: string;
 	readonly at: string;
+}
+
+/** A user-written rule for what The Feed includes and how it ranks. */
+export interface FeedInstruction {
+	readonly id: string;
+	readonly text: string;
+	/** ISO time it was added. */
+	readonly createdAt: string;
+	/** Disabled instructions are kept for reference but not sent to the ranker. */
+	readonly enabled: boolean;
 }
 
 export interface FeedState {
@@ -38,6 +52,8 @@ export interface FeedState {
 	readonly notified: Readonly<Record<string, string>>;
 	/** "Not relevant" marks, oldest first. */
 	readonly feedback: readonly FeedFeedback[];
+	/** User instructions, oldest first. */
+	readonly instructions: readonly FeedInstruction[];
 }
 
 /** Keep dismissed / done / notified records this long. */
@@ -47,10 +63,19 @@ export const FEED_STATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const FEED_FEEDBACK_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 export const FEED_FEEDBACK_MAX = 200;
 
+/** Instruction limits. */
+export const FEED_INSTRUCTIONS_MAX = 50;
+export const FEED_INSTRUCTION_MAX_CHARS = 500;
+
 /** Hour (local) a "Snooze until tomorrow" ends. */
 export const FEED_SNOOZE_HOUR = 8;
 
-const EMPTY: FeedState = { items: {}, notified: {}, feedback: [] };
+const EMPTY: FeedState = {
+	items: {},
+	notified: {},
+	feedback: [],
+	instructions: [],
+};
 
 let memory: FeedState | null = null;
 
@@ -104,7 +129,26 @@ function parseState(raw: unknown): FeedState {
 			});
 		}
 	}
-	return { items, notified, feedback };
+	const instructions: FeedInstruction[] = [];
+	if (Array.isArray(raw.instructions)) {
+		for (const entry of raw.instructions) {
+			if (
+				!isRecord(entry) ||
+				typeof entry.id !== "string" ||
+				typeof entry.text !== "string" ||
+				typeof entry.createdAt !== "string" ||
+				!entry.text.trim()
+			)
+				continue;
+			instructions.push({
+				id: entry.id,
+				text: entry.text,
+				createdAt: entry.createdAt,
+				enabled: entry.enabled !== false,
+			});
+		}
+	}
+	return { items, notified, feedback, instructions };
 }
 
 /** Drop expired snoozes and records older than the retention window. */
@@ -128,7 +172,7 @@ export function pruneFeedState(state: FeedState, now: Date): FeedState {
 	const feedback = state.feedback
 		.filter((f) => Date.parse(f.at) >= feedbackCutoff)
 		.slice(-FEED_FEEDBACK_MAX);
-	return { items, notified, feedback };
+	return { items, notified, feedback, instructions: state.instructions };
 }
 
 export function loadFeedState(now: Date = new Date()): FeedState {
@@ -244,4 +288,57 @@ export function snoozeUntilTomorrow(now: Date): Date {
 	until.setDate(until.getDate() + 1);
 	until.setHours(FEED_SNOOZE_HOUR, 0, 0, 0);
 	return until;
+}
+
+/** Trimmed, length-checked instruction text, or an error message. */
+export function normalizeInstructionText(
+	raw: unknown,
+): { ok: true; text: string } | { ok: false; error: string } {
+	const text = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
+	if (!text) return { ok: false, error: "Instruction text is required." };
+	if (text.length > FEED_INSTRUCTION_MAX_CHARS)
+		return {
+			ok: false,
+			error: `Keep instructions under ${FEED_INSTRUCTION_MAX_CHARS} characters.`,
+		};
+	return { ok: true, text };
+}
+
+/** Append an instruction (enabled). Oldest are dropped past the cap. */
+export function addInstruction(
+	state: FeedState,
+	text: string,
+	now: Date,
+	id: string = randomUUID(),
+): FeedState {
+	const entry: FeedInstruction = {
+		id,
+		text,
+		createdAt: now.toISOString(),
+		enabled: true,
+	};
+	return {
+		...state,
+		instructions: [...state.instructions, entry].slice(-FEED_INSTRUCTIONS_MAX),
+	};
+}
+
+export function setInstructionEnabled(
+	state: FeedState,
+	id: string,
+	enabled: boolean,
+): FeedState {
+	return {
+		...state,
+		instructions: state.instructions.map((i) =>
+			i.id === id ? { ...i, enabled } : i,
+		),
+	};
+}
+
+export function removeInstruction(state: FeedState, id: string): FeedState {
+	return {
+		...state,
+		instructions: state.instructions.filter((i) => i.id !== id),
+	};
 }

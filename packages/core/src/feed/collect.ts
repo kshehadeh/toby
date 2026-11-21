@@ -1,6 +1,5 @@
 import { getDashboardCategory } from "../dashboard/index";
 import {
-	type DashboardBlockContentSource,
 	type DashboardCategorySummary,
 	STANDARD_ITEM_ACTION_IDS,
 	type StandardItemActionId,
@@ -10,7 +9,7 @@ import { daemonLog } from "../logging/daemon-log";
 import { listTodos } from "../todos/service";
 import type { Todo } from "../todos/types";
 import { type RawFeedCandidate, localDateKey } from "./prefilter";
-import type { FeedCategory } from "./types";
+import type { FeedCategory, FeedContentSource } from "./types";
 
 /** Aggregator categories the Feed reads (standard dashboard tools). */
 const AGGREGATOR_CATEGORIES = [
@@ -31,7 +30,7 @@ export const TOBY_TODOS_PROVIDER = "toby";
 
 export interface FeedCollection {
 	readonly candidates: readonly RawFeedCandidate[];
-	readonly sources: readonly DashboardBlockContentSource[];
+	readonly sources: readonly FeedContentSource[];
 }
 
 export function feedCandidateId(
@@ -66,8 +65,63 @@ export function candidatesFromCategory(
 			...(item.urgency ? { urgency: item.urgency } : {}),
 			...(item.url ? { url: item.url } : {}),
 			...(item.event ? { event: item.event } : {}),
+			...(item.email ? { email: item.email } : {}),
+			...(item.task ? { task: item.task } : {}),
 		};
 	});
+}
+
+/**
+ * How long a provider's last good items stand in for it after a failed fetch
+ * (offline, IMAP timeout, expired token), so one blip doesn't drop a whole
+ * source from the Feed. The pre-filter re-scores them against the current time.
+ */
+export const FEED_SOURCE_FALLBACK_MS = 2 * 60 * 60 * 1000;
+
+interface LastGoodSource {
+	readonly at: number;
+	readonly candidates: readonly RawFeedCandidate[];
+}
+
+const lastGoodSources = new Map<string, LastGoodSource>();
+
+/** Clear remembered provider results (tests). */
+export function clearFeedSourceFallbacks(): void {
+	lastGoodSources.clear();
+}
+
+/**
+ * Per-provider candidates for a category, substituting a provider's last good
+ * result (within {@link FEED_SOURCE_FALLBACK_MS}) when its fetch failed.
+ */
+export function candidatesWithFallback(
+	category: FeedCategory,
+	data: DashboardCategorySummary,
+	nowMs: number,
+	store: Map<string, LastGoodSource> = lastGoodSources,
+): RawFeedCandidate[] {
+	const fresh = candidatesFromCategory(category, data);
+	const out: RawFeedCandidate[] = [];
+	for (const source of data.sources) {
+		const key = `${category}:${source.providerName}`;
+		if (source.summary.error) {
+			const last = store.get(key);
+			if (last && nowMs - last.at <= FEED_SOURCE_FALLBACK_MS) {
+				daemonLog("info", "general", "feed_source_fallback", {
+					category,
+					provider: source.providerName,
+					ageMinutes: Math.round((nowMs - last.at) / 60_000),
+					error: source.summary.error,
+				});
+				out.push(...last.candidates);
+			}
+			continue;
+		}
+		const mine = fresh.filter((c) => c.providerName === source.providerName);
+		store.set(key, { at: nowMs, candidates: mine });
+		out.push(...mine);
+	}
+	return out;
 }
 
 /** Open Toby todos that are due by tomorrow or high priority. */
@@ -129,7 +183,7 @@ export async function collectFeedCandidates(params?: {
 	const force = params?.force === true;
 	const now = params?.now ?? new Date();
 	const candidates: RawFeedCandidate[] = [];
-	const sources: DashboardBlockContentSource[] = [];
+	const sources: FeedContentSource[] = [];
 
 	const results = await Promise.all(
 		AGGREGATOR_CATEGORIES.map(async (category) => {
@@ -163,7 +217,11 @@ export async function collectFeedCandidates(params?: {
 
 	for (const { category, data } of results) {
 		if (!data) continue;
-		for (const candidate of candidatesFromCategory(category, data)) {
+		for (const candidate of candidatesWithFallback(
+			category,
+			data,
+			now.getTime(),
+		)) {
 			const providerActions = actionsFor(candidate.providerName);
 			candidates.push(
 				providerActions.length > 0

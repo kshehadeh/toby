@@ -125,20 +125,8 @@ enum AppearanceDefaultsKey {
 	static let accent = "toby.appearance.accent"
 	/// Home onboarding visibility (Settings → Home; still app-local).
 	static let hideOnboarding = "toby.appearance.hideOnboarding"
-	/// Whether The Feed section is shown on Home. Default on.
-	static let showFeed = "toby.appearance.showFeed"
-	/// Whether the unread-mail dashboard card is visible. Default on.
-	static let showDashboardEmail = "toby.appearance.showDashboardEmail"
-	/// Whether the tasks dashboard card is visible. Default on.
-	static let showDashboardTasks = "toby.appearance.showDashboardTasks"
-	/// Whether the upcoming-events dashboard card is visible. Default on.
-	static let showDashboardCalendar = "toby.appearance.showDashboardCalendar"
-	/// JSON `DashboardLayout` (order + hidden ids). Source of truth for home-card layout.
+	/// JSON `DashboardLayout` (hidden Actions tiles, colors, rail). Home layout source of truth.
 	static let dashboardLayout = "toby.appearance.dashboardLayout"
-	/// Ids of cards hidden because The Feed replaces them (one-time migration).
-	static let feedReplacedCards = "toby.appearance.feedReplacedCards"
-	/// Set once the Feed card migration has run.
-	static let feedReplacedCardsMigrated = "toby.appearance.feedReplacedCardsMigrated"
 	/// Open Toby automatically when this Mac logs in (Settings → General).
 	static let launchAtLogin = "toby.general.launchAtLogin"
 	/// Show the Toby status item in the menu bar (Settings → General). Default on.
@@ -164,13 +152,7 @@ final class AppearancePreferences {
 	static let modeDefaultsKey = AppearanceDefaultsKey.mode
 	static let accentDefaultsKey = AppearanceDefaultsKey.accent
 	static let hideOnboardingDefaultsKey = AppearanceDefaultsKey.hideOnboarding
-	static let showFeedDefaultsKey = AppearanceDefaultsKey.showFeed
-	static let showDashboardEmailDefaultsKey = AppearanceDefaultsKey.showDashboardEmail
-	static let showDashboardTasksDefaultsKey = AppearanceDefaultsKey.showDashboardTasks
-	static let showDashboardCalendarDefaultsKey = AppearanceDefaultsKey.showDashboardCalendar
 	static let dashboardLayoutDefaultsKey = AppearanceDefaultsKey.dashboardLayout
-	static let feedReplacedCardsDefaultsKey = AppearanceDefaultsKey.feedReplacedCards
-	static let feedReplacedCardsMigratedDefaultsKey = AppearanceDefaultsKey.feedReplacedCardsMigrated
 	static let launchAtLoginDefaultsKey = AppearanceDefaultsKey.launchAtLogin
 	static let showMenuBarIconDefaultsKey = AppearanceDefaultsKey.showMenuBarIcon
 	static let globalShortcutsDefaultsKey = AppearanceDefaultsKey.globalShortcuts
@@ -213,47 +195,15 @@ final class AppearancePreferences {
 		}
 	}
 
-	/// When true, The Feed section appears above the Home cards.
-	var showFeed: Bool {
-		didSet {
-			guard showFeed != oldValue else { return }
-			defaults.set(showFeed, forKey: Self.showFeedDefaultsKey)
-		}
-	}
-
-	/// Binding for the Show The Feed Settings toggle, animated like card visibility.
-	var showFeedBinding: Binding<Bool> {
-		Binding(
-			get: { self.showFeed },
-			set: { newValue in
-				withAnimation(DashboardSectionMotion.animation) {
-					self.showFeed = newValue
-				}
-			}
-		)
-	}
-
-	/// App-local card order, hidden ids, and Actions rail. Source of truth for home layout.
+	/// App-local Actions rail layout (hidden tiles, colors, visibility, width).
 	var dashboardLayout: DashboardLayout {
 		didSet {
 			guard dashboardLayout != oldValue else { return }
 			persistDashboardLayout()
-			// A card the user showed is no longer "hidden by The Feed".
-			let stillHidden = feedReplacedCardIDs.filter { dashboardLayout.hidden.contains($0) }
-			if stillHidden != feedReplacedCardIDs { feedReplacedCardIDs = stillHidden }
 		}
 	}
 
-	/// Cards hidden because The Feed replaces them. They reappear while the
-	/// Feed is off or needs setup (see `effectiveDashboardLayout`).
-	var feedReplacedCardIDs: [String] {
-		didSet {
-			guard feedReplacedCardIDs != oldValue else { return }
-			defaults.set(feedReplacedCardIDs, forKey: Self.feedReplacedCardsDefaultsKey)
-		}
-	}
-
-	/// Binding for the hide-onboarding Settings toggle, animated like card visibility.
+	/// Binding for the hide-onboarding Settings toggle, animated with Home sections.
 	var hideOnboardingBinding: Binding<Bool> {
 		Binding(
 			get: { self.hideOnboarding },
@@ -271,12 +221,6 @@ final class AppearancePreferences {
 		{
 			defaults.set(raw, forKey: Self.dashboardLayoutDefaultsKey)
 		}
-		defaults.set(dashboardLayout.isVisible(id: .email), forKey: Self.showDashboardEmailDefaultsKey)
-		defaults.set(dashboardLayout.isVisible(id: .tasks), forKey: Self.showDashboardTasksDefaultsKey)
-		defaults.set(
-			dashboardLayout.isVisible(id: .calendar),
-			forKey: Self.showDashboardCalendarDefaultsKey
-		)
 	}
 
 	/// When true, Toby registers as a login item via `SMAppService.mainApp`.
@@ -416,10 +360,6 @@ final class AppearancePreferences {
 		mode: AppearanceMode? = nil,
 		accent: AccentPreset? = nil,
 		hideOnboarding: Bool? = nil,
-		showFeed: Bool? = nil,
-		showDashboardEmail: Bool? = nil,
-		showDashboardTasks: Bool? = nil,
-		showDashboardCalendar: Bool? = nil,
 		launchAtLogin: Bool? = nil,
 		showMenuBarIcon: Bool? = nil,
 		globalShortcuts: [GlobalHotkeyAction: GlobalKeyboardShortcut]? = nil,
@@ -454,15 +394,6 @@ final class AppearancePreferences {
 			resolvedAccent = .orange
 		}
 
-		let resolvedShowFeed: Bool
-		if let showFeed {
-			resolvedShowFeed = showFeed
-		} else if defaults.object(forKey: Self.showFeedDefaultsKey) != nil {
-			resolvedShowFeed = defaults.bool(forKey: Self.showFeedDefaultsKey)
-		} else {
-			resolvedShowFeed = true
-		}
-
 		let resolvedHideOnboarding: Bool
 		if let hideOnboarding {
 			resolvedHideOnboarding = hideOnboarding
@@ -472,34 +403,7 @@ final class AppearancePreferences {
 			resolvedHideOnboarding = false
 		}
 
-		var resolvedLayout = DashboardLayout.load(from: defaults)
-		if let showDashboardEmail {
-			resolvedLayout = resolvedLayout.settingVisibility(id: .email, visible: showDashboardEmail)
-		}
-		if let showDashboardTasks {
-			resolvedLayout = resolvedLayout.settingVisibility(id: .tasks, visible: showDashboardTasks)
-		}
-		if let showDashboardCalendar {
-			resolvedLayout = resolvedLayout.settingVisibility(
-				id: .calendar,
-				visible: showDashboardCalendar
-			)
-		}
-
-		// One-time: The Feed replaces the mail / tasks / Toby Todos cards. Hide
-		// them (new installs and upgrades) unless the user turned the Feed off.
-		var resolvedFeedReplaced = defaults.stringArray(forKey: Self.feedReplacedCardsDefaultsKey) ?? []
-		var migratedFeedCards = false
-		if !defaults.bool(forKey: Self.feedReplacedCardsMigratedDefaultsKey),
-			showDashboardEmail == nil, showDashboardTasks == nil
-		{
-			if resolvedShowFeed {
-				let result = resolvedLayout.hidingFeedReplacedCards()
-				resolvedLayout = result.layout
-				resolvedFeedReplaced = result.hidden
-			}
-			migratedFeedCards = true
-		}
+		let resolvedLayout = DashboardLayout.load(from: defaults)
 
 		// Default off when unset.
 		let resolvedLaunchAtLogin: Bool
@@ -560,9 +464,7 @@ final class AppearancePreferences {
 		self.mode = resolvedMode
 		self.accent = resolvedAccent
 		self.hideOnboarding = resolvedHideOnboarding
-		self.showFeed = resolvedShowFeed
 		self.dashboardLayout = resolvedLayout
-		self.feedReplacedCardIDs = resolvedFeedReplaced
 		self.launchAtLogin = resolvedLaunchAtLogin
 		self.showMenuBarIcon = resolvedShowMenuBarIcon
 		self.globalShortcuts = resolvedGlobalShortcuts
@@ -578,17 +480,6 @@ final class AppearancePreferences {
 		}
 		if hideOnboarding != nil {
 			defaults.set(resolvedHideOnboarding, forKey: Self.hideOnboardingDefaultsKey)
-		}
-		if showFeed != nil {
-			defaults.set(resolvedShowFeed, forKey: Self.showFeedDefaultsKey)
-		}
-		if showDashboardEmail != nil || showDashboardTasks != nil || showDashboardCalendar != nil {
-			persistDashboardLayout()
-		}
-		if migratedFeedCards {
-			persistDashboardLayout()
-			defaults.set(resolvedFeedReplaced, forKey: Self.feedReplacedCardsDefaultsKey)
-			defaults.set(true, forKey: Self.feedReplacedCardsMigratedDefaultsKey)
 		}
 		if launchAtLogin != nil {
 			defaults.set(resolvedLaunchAtLogin, forKey: Self.launchAtLoginDefaultsKey)

@@ -176,6 +176,7 @@ describe("feed state", () => {
 			},
 			notified: {},
 			feedback: [],
+			instructions: [],
 		};
 		expect(isHidden(state, "a", NOW)).toBe(true);
 		expect(isHidden(state, "b", NOW)).toBe(true);
@@ -216,6 +217,7 @@ describe("feed state", () => {
 				},
 				notified: { old: old.toISOString(), recent: NOW.toISOString() },
 				feedback: [],
+				instructions: [],
 			},
 			NOW,
 		);

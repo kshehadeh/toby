@@ -3,14 +3,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-	BUILTIN_FLOWS,
 	type FlowDefinition,
 	type FlowDocument,
 	FlowNodeError,
 	applyNodeOutputs,
-	calendarDashboardSummaryDocument,
-	emailDashboardSummaryDocument,
-	getBuiltinFlowDocument,
 	getByPath,
 	getFlow,
 	hydrateFlowDocument,
@@ -23,15 +19,40 @@ import {
 	runFlowDefinition,
 	saveFlowDocument,
 	schemaFromSpec,
-	tasksDashboardSummaryDocument,
 } from "@toby/core/flows";
 import {
 	coerceFreeTextToSchema,
 	isMarkdownOnlyObjectSchema,
 } from "@toby/core/flows/nodes/llm-prompter";
-import { parseFlowTriggers } from "@toby/core/flows/triggers/types";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { z } from "zod";
+
+/** Tool → LLM summary flow (shape of the retired Home card summaries). */
+const summaryFlowFixture: FlowDocument = {
+	id: "test.email.summary",
+	name: "test.email.summary",
+	description: "Fetch unread mail, then summarize it.",
+	persona: { source: "dashboard" },
+	nodes: [
+		{
+			id: "fetch-unread",
+			type: "tool_executor",
+			tool: { standardTool: "email.unreadSummary" },
+			inputs: { limit: { const: 50 } },
+			outputs: { unread: "result" },
+		},
+		{
+			id: "summarize",
+			type: "llm_prompter",
+			schema: { kind: "markdown" },
+			inputs: { data: { from: "unread" } },
+			outputs: { summary: "object" },
+			promptHelpers: { composePersona: true, appendCurrentDateTime: true },
+			systemPrompt: "Summarize unread mail.",
+			userPrompt: "Items:\n\n{{dashboardItems bag.unread}}",
+		},
+	],
+};
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-flows-"));
@@ -185,8 +206,8 @@ describe("prompt templates", () => {
 		expect(out).toBe("You are a summarizer.");
 	});
 
-	it("calendar dashboard summary flow injects timezone via promptHelpers", () => {
-		const flow = hydrateFlowDocument(calendarDashboardSummaryDocument);
+	it("summary flow injects timezone via promptHelpers", () => {
+		const flow = hydrateFlowDocument(summaryFlowFixture);
 		const llm = flow.nodes[1];
 		if (llm?.type !== "llm_prompter") {
 			throw new Error("expected llm_prompter node");
@@ -198,9 +219,9 @@ describe("prompt templates", () => {
 });
 
 describe("hydrate + schema presets", () => {
-	it("hydrates dashboard email document into tool then llm nodes", () => {
-		const flow = hydrateFlowDocument(emailDashboardSummaryDocument);
-		expect(flow.name).toBe("dashboard.email.summary");
+	it("hydrates a summary document into tool then llm nodes", () => {
+		const flow = hydrateFlowDocument(summaryFlowFixture);
+		expect(flow.name).toBe("test.email.summary");
 		expect(flow.nodes).toHaveLength(2);
 		expect(flow.nodes[0]?.type).toBe("tool_executor");
 		expect(flow.nodes[1]?.type).toBe("llm_prompter");
@@ -247,87 +268,17 @@ describe("flow definition store + seed-on-miss", () => {
 		}
 	});
 
-	it("getFlow seeds built-in on first miss and does not duplicate", () => {
-		expect(loadFlowRecord("dashboard.email.summary")).toBeNull();
-
-		const flow = getFlow("dashboard.email.summary");
-		expect(flow).toBeDefined();
-		expect(flow?.name).toBe("dashboard.email.summary");
-		expect(flow?.nodes).toHaveLength(2);
-		expect(flow?.nodes[0]?.type).toBe("tool_executor");
-		expect(flow?.nodes[1]?.type).toBe("llm_prompter");
-
-		const row = loadFlowRecord("dashboard.email.summary");
-		expect(row?.builtin).toBe(true);
-		expect(row?.document.id).toBe("dashboard.email.summary");
-
-		// Second lookup uses existing row (still present, same id).
-		const again = getFlow("dashboard.email.summary");
-		expect(again?.name).toBe("dashboard.email.summary");
-		expect(loadFlowRecord("dashboard.email.summary")?.id).toBe(
-			"dashboard.email.summary",
-		);
-	});
-
-	it("listFlows ensures all built-in dashboard flows exist", () => {
-		const flows = listFlows();
-		const names = flows.map((f) => f.name);
-		expect(names).toContain("dashboard.email.summary");
-		expect(names).toContain("dashboard.tasks.summary");
-		expect(names).toContain("dashboard.calendar.summary");
-		expect(names).not.toContain("dashboard.news.summary");
-		expect(names).toContain("dashboard.todos.summary");
-		expect(Object.keys(BUILTIN_FLOWS)).toHaveLength(4);
-		for (const id of Object.keys(BUILTIN_FLOWS)) {
-			const triggers = parseFlowTriggers(loadFlowRecord(id)?.document.triggers);
-			expect(triggers).toHaveLength(1);
-			expect(triggers[0]).toMatchObject({
-				id: "dashboard-refresh",
-				enabled: true,
-				source: { type: "dashboard.refresh" },
-			});
+	it("prunes retired Home card built-in rows", () => {
+		for (const id of ["dashboard.email.summary", "dashboard.todos.summary"]) {
+			saveFlowDocument(
+				{ ...summaryFlowFixture, id, name: id },
+				{ builtin: true },
+			);
+			expect(loadFlowRecord(id)?.builtin).toBe(true);
 		}
-	});
-
-	it("refreshes existing built-in definitions with their Home trigger", () => {
-		saveFlowDocument(
-			{ ...emailDashboardSummaryDocument, triggers: [] },
-			{ builtin: true },
-		);
 		listFlows();
-		expect(
-			loadFlowRecord(emailDashboardSummaryDocument.id)?.document.triggers?.[0]
-				?.source.type,
-		).toBe("dashboard.refresh");
-	});
-
-	it("removes a builtin row that is no longer shipped", () => {
-		saveFlowDocument(
-			{
-				...emailDashboardSummaryDocument,
-				id: "dashboard.news.summary",
-				name: "dashboard.news.summary",
-			},
-			{ builtin: true },
-		);
-		expect(loadFlowRecord("dashboard.news.summary")?.builtin).toBe(true);
-		listFlows();
-		expect(loadFlowRecord("dashboard.news.summary")).toBeNull();
-	});
-
-	it("does not overwrite an existing built-in row when ensuring", () => {
-		const custom: FlowDocument = {
-			...emailDashboardSummaryDocument,
-			description: "user-edited description",
-		};
-		saveFlowDocument(custom, { builtin: true });
-		expect(
-			loadFlowRecord("dashboard.email.summary")?.document.description,
-		).toBe("user-edited description");
-
-		// getFlow should return existing, not re-seed from code defaults.
-		const flow = getFlow("dashboard.email.summary");
-		expect(flow?.description).toBe("user-edited description");
+		expect(loadFlowRecord("dashboard.email.summary")).toBeNull();
+		expect(loadFlowRecord("dashboard.todos.summary")).toBeNull();
 	});
 
 	it("saveFlowDocument round-trips a tool-only user flow", () => {
@@ -348,22 +299,6 @@ describe("flow definition store + seed-on-miss", () => {
 		expect(getFlow("test.user.flow")?.nodes[0]?.type).toBe("tool_executor");
 		expect(removeFlowDocument("test.user.flow")).toBe(true);
 		expect(getFlow("test.user.flow")).toBeUndefined();
-	});
-
-	it("tasks and calendar built-in documents have expected tools", () => {
-		const tasks = getBuiltinFlowDocument("dashboard.tasks.summary");
-		const cal = getBuiltinFlowDocument("dashboard.calendar.summary");
-		expect(tasks?.nodes[0]).toMatchObject({
-			type: "tool_executor",
-			tool: { standardTool: "tasks.openSummary" },
-		});
-		expect(cal?.nodes[0]).toMatchObject({
-			type: "tool_executor",
-			tool: { standardTool: "calendar.upcomingSummary" },
-		});
-		// Documents match exported constants.
-		expect(tasks).toEqual(tasksDashboardSummaryDocument);
-		expect(cal).toEqual(calendarDashboardSummaryDocument);
 	});
 });
 
@@ -433,7 +368,7 @@ describe("runFlowDefinition", () => {
 	});
 
 	it("hydrated email llm schema accepts markdown object", () => {
-		const flow = hydrateFlowDocument(emailDashboardSummaryDocument);
+		const flow = hydrateFlowDocument(summaryFlowFixture);
 		const llm = flow.nodes[1];
 		expect(llm?.type).toBe("llm_prompter");
 		if (llm?.type === "llm_prompter") {

@@ -26,6 +26,21 @@ const dashboardItemSchema = z.object({
 			recurring: z.boolean().optional(),
 		})
 		.optional(),
+	email: z
+		.object({
+			unread: z.boolean().optional(),
+			bulk: z.boolean().optional(),
+			direct: z.boolean().optional(),
+			knownSender: z.boolean().optional(),
+			awaitingReply: z.boolean().optional(),
+		})
+		.optional(),
+	task: z
+		.object({
+			assignment: z.enum(["you", "someone_else", "unassigned"]).optional(),
+			shared: z.boolean().optional(),
+		})
+		.optional(),
 });
 
 const dashboardSummaryResultSchema = z.object({

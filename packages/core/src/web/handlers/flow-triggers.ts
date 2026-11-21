@@ -25,7 +25,6 @@ export async function handleFlowTriggers(
 			triggers: [
 				{ type: "manual", name: "Manually" },
 				{ type: "home.action", name: "Home Screen Action" },
-				{ type: "dashboard.refresh", name: "Home refresh" },
 				{ type: "schedule", name: "On a schedule" },
 				...nativeTriggerCatalog.triggers,
 			],

@@ -22,37 +22,33 @@ struct FlowEditorDraft: Equatable, Identifiable {
 
 	var hasHomeActionTrigger: Bool { triggers.contains { $0.source.type == "home.action" } }
 
-	var hasHomeRefreshTrigger: Bool { triggers.contains { $0.isHomeRefresh } }
+	/// Home card settings from an older flow (Home refresh trigger or an
+	/// informational Home destination). Home cards were removed, so the daemon
+	/// rejects these on save until they are removed.
+	var hasRetiredHomeCard: Bool {
+		triggers.contains { $0.isHomeRefresh } || destinations.contains { $0.isRetiredHomeCard }
+	}
 
-	mutating func selectHomeRefresh() {
-		triggers.removeAll { $0.source.type == "home.action" }
-		if !hasHomeRefreshTrigger { triggers.append(.homeRefresh()) }
-		synchronizeHomeActionDestination()
+	mutating func removeRetiredHomeCard() {
+		triggers.removeAll { $0.isHomeRefresh }
+		destinations.removeAll { $0.isRetiredHomeCard }
 	}
 
 	mutating func selectHomeAction() {
-		triggers.removeAll { $0.isHomeRefresh }
 		if !hasHomeActionTrigger { triggers.append(.homeAction()) }
 		synchronizeHomeActionDestination()
 	}
 
+	/// Keeps the Home Screen Action trigger and its Actions placement paired.
 	mutating func synchronizeHomeActionDestination(removingHomeAction: Bool = false) {
 		if hasHomeActionTrigger {
 			if let index = destinations.firstIndex(where: { $0.type == "dashboard" }) {
 				destinations[index].dashboardVariant = "runner"
 			} else {
-				var destination = FlowEditorDestination.dashboard()
-				destination.dashboardVariant = "runner"
-				destinations.append(destination)
+				destinations.append(.dashboard())
 			}
-		} else if hasHomeRefreshTrigger {
-		if let index = destinations.firstIndex(where: { $0.type == "dashboard" }) {
-			destinations[index].dashboardVariant = "informational"
-		} else { destinations.append(.dashboard()) }
 		} else if removingHomeAction {
-			for index in destinations.indices where destinations[index].type == "dashboard" {
-				destinations[index].dashboardVariant = "informational"
-			}
+			destinations.removeAll { $0.type == "dashboard" && !$0.isRetiredHomeCard }
 		}
 	}
 
@@ -135,11 +131,11 @@ struct FlowEditorDraft: Equatable, Identifiable {
 			projectId: document.projectId ?? "",
 			revision: document.revision
 		)
-		if draft.destinations.contains(where: { $0.type == "dashboard" && $0.dashboardVariant == "runner" }) {
+		if draft.destinations.contains(where: { $0.type == "dashboard" && !$0.isRetiredHomeCard }) {
 			draft.selectHomeAction()
-		} else if draft.destinations.contains(where: { $0.type == "dashboard" }) {
-			draft.selectHomeRefresh()
-		} else { draft.synchronizeHomeActionDestination() }
+		} else {
+			draft.synchronizeHomeActionDestination()
+		}
 		return draft
 	}
 
@@ -433,8 +429,10 @@ struct FlowEditorDestination: Identifiable, Equatable {
 	var slackChannel: String
 	var dashboardVariant: String
 	var dashboardColor: String = ""
-	var dashboardRefresh: String
 	var emailCc: [String]?
+
+	/// A retired informational Home card (only loaded from older flows).
+	var isRetiredHomeCard: Bool { type == "dashboard" && dashboardVariant != "runner" }
 
 	static func modal() -> FlowEditorDestination {
 		FlowEditorDestination(
@@ -443,8 +441,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational",
-			dashboardRefresh: "asNeeded"
+			dashboardVariant: "runner"
 		)
 	}
 
@@ -455,8 +452,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational",
-			dashboardRefresh: "asNeeded"
+			dashboardVariant: "runner"
 		)
 	}
 
@@ -467,8 +463,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational",
-			dashboardRefresh: "asNeeded"
+			dashboardVariant: "runner"
 		)
 	}
 
@@ -479,8 +474,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 			emailTo: "",
 			emailSubject: "",
 			slackChannel: "",
-			dashboardVariant: "informational",
-			dashboardRefresh: "asNeeded"
+			dashboardVariant: "runner"
 		)
 	}
 
@@ -491,9 +485,8 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		emailSubject = spec.subject ?? ""
 		emailCc = spec.cc
 		slackChannel = spec.channel ?? ""
-		dashboardVariant = spec.variant ?? "informational"
+		dashboardVariant = spec.variant ?? "runner"
 		dashboardColor = DashboardBlockColor.validated(spec.color) ?? ""
-		dashboardRefresh = spec.refresh == "manual" ? "manual" : "asNeeded"
 	}
 
 	init(
@@ -502,8 +495,7 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		emailTo: String,
 		emailSubject: String,
 		slackChannel: String,
-		dashboardVariant: String,
-		dashboardRefresh: String = "asNeeded"
+		dashboardVariant: String = "runner"
 	) {
 		self.id = id
 		self.type = type
@@ -511,7 +503,6 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		self.emailSubject = emailSubject
 		self.slackChannel = slackChannel
 		self.dashboardVariant = dashboardVariant
-		self.dashboardRefresh = dashboardRefresh
 	}
 
 	var label: String {
@@ -541,15 +532,10 @@ struct FlowEditorDestination: Identifiable, Equatable {
 		case "slack":
 			return ["type": "slack", "channel": slackChannel]
 		case "dashboard":
-			var body: [String: Any] = [
-				"type": "dashboard",
-				"variant": dashboardVariant == "runner" ? "runner" : "informational",
-			]
+			// A retired variant is sent as-is so the daemon reports why it can't save.
+			var body: [String: Any] = ["type": "dashboard", "variant": dashboardVariant]
 			if let color = DashboardBlockColor.validated(dashboardColor) {
 				body["color"] = color
-			}
-			if dashboardVariant != "runner" {
-				body["refresh"] = dashboardRefresh == "manual" ? "manual" : "asNeeded"
 			}
 			return body
 		default:

@@ -40,6 +40,8 @@ struct RootView: View {
     @State private var isAIProviderSetupPresented = false
     /// Session-only Home layout editor. Leaving Home always ends editing.
     @State private var isEditingDashboard = false
+    /// Home toolbar → "Guide The Feed" instructions sheet.
+    @State private var isShowingFeedInstructions = false
     /// When true on a narrow Chats workspace, show the session list instead of the transcript.
     @State private var preferChatSessionList = false
     @State private var isConnectionStatusPresented = false
@@ -487,12 +489,6 @@ struct RootView: View {
                 onSelectRoute: navigateToRoute,
                 onCreateSchedule: startNewFlow,
                 onCreateSkill: startNewSkill,
-                recentWork: DashboardRecentWorkItem.merged(
-                    sessions: store.sessions,
-                    projects: projectsStore.projects
-                ),
-                isRecentWorkLoading: store.isSessionsLoading || projectsStore.isLoading,
-                onSelectRecentWork: openRecentWork,
                 onOpenSettings: { openSettings(navKey: $0) },
                 onOpenAIProviderSetup: { isAIProviderSetupPresented = true },
                 onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
@@ -501,13 +497,12 @@ struct RootView: View {
                     startChat: startNewChat,
                     startChatWithPrompt: startChatWithPromptFromDashboard,
                     showToast: { store.toast = $0 },
-                    summarizeEmail: summarizeUnreadEmailInChat,
-                    planInChat: planCalendarInChat,
                     openFlow: openDashboardFlow,
                     runFlow: runDashboardFlow
                 ),
                 isEditing: isEditingDashboard,
-                onExitEditing: { isEditingDashboard = false }
+                onExitEditing: { isEditingDashboard = false },
+                isShowingFeedInstructions: $isShowingFeedInstructions
             )
             .sheet(isPresented: Binding(
                 get: { flowsStore.showResultSheet },
@@ -571,15 +566,15 @@ struct RootView: View {
                                         isRefreshing: dashboardStore.isRefreshing,
                                         isEditing: isEditingDashboard,
                                         onToggleEdit: { isEditingDashboard.toggle() },
-                                        showActionsToggle: dashboardStore.blocks.contains {
-                                            $0.descriptor.isFlowRunner
-                                        },
+                                        showsEditToggle: !dashboardStore.blocks.isEmpty,
+                                        showActionsToggle: !dashboardStore.blocks.isEmpty,
                                         actionsVisible: appearancePreferences.dashboardLayout.actionsVisible,
                                         onToggleActions: {
                                             withAnimation(DashboardSectionMotion.animation) {
                                                 appearancePreferences.toggleDashboardActionsVisible()
                                             }
                                         },
+                                        onGuideFeed: { isShowingFeedInstructions = true },
                                         onRefresh: { Task { await refreshDashboardData() } }
                                     )
 
@@ -1026,23 +1021,9 @@ struct RootView: View {
         openWindow(id: "memories")
     }
 
-    private func summarizeUnreadEmailInChat() {
-        navigateToRoute(.chat)
-        Task { await store.startChatWithPrompt("Show me a summary of all my unread email") }
-    }
-
     private func startChatWithPromptFromDashboard(_ prompt: String) {
         navigateToRoute(.chat)
         Task { await store.startChatWithPrompt(prompt) }
-    }
-
-    private func planCalendarInChat() {
-        navigateToRoute(.chat)
-        Task {
-            await store.startChatWithPrompt(
-                "Help me plan around my upcoming calendar events for the next week. Summarize what's coming up and what I should prepare for."
-            )
-        }
     }
 
     private func bringMainWindowToFront() {
@@ -1052,17 +1033,6 @@ struct RootView: View {
 
     private func selectSession(_ id: String) {
         Task { await store.selectSession(id: id) }
-    }
-
-    private func openRecentWork(_ item: DashboardRecentWorkItem) {
-        switch item.kind {
-        case let .chat(id):
-            navigateToRoute(.chat)
-            selectSession(id)
-        case let .project(id):
-            navigateToRoute(.projects)
-            Task { await projectsStore.selectProject(id: id) }
-        }
     }
 
     private func toggleRecording() {

@@ -7,7 +7,6 @@ import {
 	type FlowDocument,
 	UserFlowValidationError,
 	deleteUserFlowDocument,
-	emailDashboardSummaryDocument,
 	extractFlowResult,
 	inferResultPointer,
 	saveFlowDocument,
@@ -15,6 +14,28 @@ import {
 	validateUserFlowDocument,
 } from "@toby/core/flows";
 import { closeChatDbForTests } from "@toby/core/session-store";
+
+/** Tool → LLM summary flow, saved as a built-in row in protection tests. */
+const summaryFlowFixture: FlowDocument = {
+	id: "flow.test.builtin-summary",
+	name: "flow.test.builtin-summary",
+	nodes: [
+		{
+			id: "fetch-unread",
+			type: "tool_executor",
+			tool: { standardTool: "email.unreadSummary" },
+			outputs: { unread: "result" },
+		},
+		{
+			id: "summarize",
+			type: "llm_prompter",
+			schema: { kind: "markdown" },
+			inputs: { data: { from: "unread" } },
+			outputs: { summary: "object" },
+			systemPrompt: "Summarize unread mail.",
+		},
+	],
+};
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "toby-user-flows-"));
@@ -124,7 +145,7 @@ describe("validateUserFlowDocument", () => {
 	});
 
 	it("preserves dashboard colors independently of the flow tile color", () => {
-		for (const variant of ["informational", "runner"] as const) {
+		for (const variant of ["runner"] as const) {
 			for (const color of ["blue", "neutral"]) {
 				const normalized = validateUserFlowDocument(
 					wifiThenMinimize({
@@ -147,7 +168,7 @@ describe("validateUserFlowDocument", () => {
 				validateUserFlowDocument(
 					wifiThenMinimize({
 						destinations: [
-							{ type: "dashboard", variant: "informational", color } as never,
+							{ type: "dashboard", variant: "runner", color } as never,
 						],
 					}),
 					{ tools: catalog, connectedModules: connected },
@@ -347,15 +368,6 @@ describe("validateUserFlowDocument", () => {
 		expect(normalized.nodes[1]?.type).toBe("llm_prompter");
 	});
 
-	it("rejects reserved built-in ids", () => {
-		expect(() =>
-			validateUserFlowDocument(
-				{ ...emailDashboardSummaryDocument, id: "dashboard.email.summary" },
-				{ tools: catalog, connectedModules: connected },
-			),
-		).toThrow(/reserved for built-in/);
-	});
-
 	it("rejects an email destination when email is not connected", () => {
 		const doc = wifiThenMinimize({
 			destinations: [
@@ -409,7 +421,7 @@ describe("validateUserFlowDocument", () => {
 				wifiThenMinimize({
 					destinations: [
 						{ type: "dashboard", variant: "runner" },
-						{ type: "dashboard", variant: "informational" },
+						{ type: "dashboard", variant: "runner", color: "teal" },
 					],
 				}),
 				{ tools: catalog, connectedModules: connected },
@@ -417,42 +429,19 @@ describe("validateUserFlowDocument", () => {
 		).toThrow(/only one Dashboard destination/);
 	});
 
-	it("accepts informational dashboard refresh and strips it on runner", () => {
-		const asNeeded = validateUserFlowDocument(
-			wifiThenMinimize({
-				destinations: [
-					{
-						type: "dashboard",
-						variant: "informational",
-						refresh: "asNeeded",
-					},
-				],
-			}),
-			{ tools: catalog, connectedModules: connected },
-		);
-		expect(asNeeded.destinations).toEqual([
-			{
-				type: "dashboard",
-				variant: "informational",
-				refresh: "asNeeded",
-			},
-		]);
-
-		const manual = validateUserFlowDocument(
-			wifiThenMinimize({
-				destinations: [
-					{
-						type: "dashboard",
-						variant: "informational",
-						refresh: "manual",
-					},
-				],
-			}),
-			{ tools: catalog, connectedModules: connected },
-		);
-		expect(manual.destinations).toEqual([
-			{ type: "dashboard", variant: "informational", refresh: "manual" },
-		]);
+	it("rejects retired informational Home cards and strips refresh on runner", () => {
+		for (const refresh of [undefined, "asNeeded", "manual"]) {
+			expect(() =>
+				validateUserFlowDocument(
+					wifiThenMinimize({
+						destinations: [
+							{ type: "dashboard", variant: "informational", refresh } as never,
+						],
+					}),
+					{ tools: catalog, connectedModules: connected },
+				),
+			).toThrow(/Home cards were removed/);
+		}
 
 		const runner = validateUserFlowDocument(
 			wifiThenMinimize({
@@ -469,23 +458,6 @@ describe("validateUserFlowDocument", () => {
 		expect(runner.destinations).toEqual([
 			{ type: "dashboard", variant: "runner" },
 		]);
-	});
-
-	it("rejects an unknown dashboard refresh value", () => {
-		expect(() =>
-			validateUserFlowDocument(
-				wifiThenMinimize({
-					destinations: [
-						{
-							type: "dashboard",
-							variant: "informational",
-							refresh: "hourly",
-						} as never,
-					],
-				}),
-				{ tools: catalog, connectedModules: connected },
-			),
-		).toThrow(/asNeeded" or "manual/);
 	});
 
 	it("rejects a dashboard destination without a variant", () => {
@@ -514,12 +486,12 @@ describe("validateUserFlowDocument", () => {
 
 describe("extractFlowResult", () => {
 	it("infers markdown from a last LLM node that writes summary", () => {
-		const pointer = inferResultPointer(emailDashboardSummaryDocument);
+		const pointer = inferResultPointer(summaryFlowFixture);
 		expect(pointer).toEqual({ from: "summary", path: "markdown" });
 
 		const extracted = extractFlowResult(
 			{ summary: { markdown: "## Inbox\n- **Standup**" } },
-			emailDashboardSummaryDocument,
+			summaryFlowFixture,
 		);
 		expect(extracted.format).toBe("markdown");
 		expect(extracted.text).toBe("## Inbox\n- **Standup**");
@@ -580,18 +552,18 @@ describe("saveUserFlowDocument / deleteUserFlowDocument", () => {
 		expect(saved.builtin).toBe(false);
 		expect(saved.document.nodes).toHaveLength(2);
 
-		saveFlowDocument(emailDashboardSummaryDocument, { builtin: true });
+		saveFlowDocument(summaryFlowFixture, { builtin: true });
 		expect(() =>
 			saveUserFlowDocument({
-				...emailDashboardSummaryDocument,
+				...summaryFlowFixture,
 				description: "hacked",
 			}),
 		).toThrow(/Cannot overwrite built-in/);
 	});
 
 	it("refuses to delete a built-in and deletes a custom flow", () => {
-		saveFlowDocument(emailDashboardSummaryDocument, { builtin: true });
-		expect(() => deleteUserFlowDocument("dashboard.email.summary")).toThrow(
+		saveFlowDocument(summaryFlowFixture, { builtin: true });
+		expect(() => deleteUserFlowDocument("flow.test.builtin-summary")).toThrow(
 			/Cannot delete built-in/,
 		);
 

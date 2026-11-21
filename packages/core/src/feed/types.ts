@@ -4,10 +4,18 @@
  */
 
 import type {
-	DashboardBlockContentSource,
+	DashboardEmailFacts,
 	DashboardEventFacts,
+	DashboardTaskFacts,
 	StandardItemActionId,
 } from "../dashboard/types";
+
+/** A connected provider the Feed collected from (for "Open …" targets). */
+export interface FeedContentSource {
+	readonly providerName: string;
+	readonly providerDisplayName: string;
+	readonly launchUrl?: string;
+}
 
 /** Source categories the Feed can collect from. */
 export type FeedCategory =
@@ -77,6 +85,10 @@ export interface FeedCandidate {
 	readonly url?: string;
 	/** Calendar event facts (notes, attendees, …) when the provider sends them. */
 	readonly event?: DashboardEventFacts;
+	/** Email facts (bulk, direct, known sender, awaiting reply) when sent. */
+	readonly email?: DashboardEmailFacts;
+	/** Task facts (assignment, shared list) when sent. */
+	readonly task?: DashboardTaskFacts;
 	/** Deterministic hints for the ranker (e.g. "starts in 25 min", "overdue"). */
 	readonly signals: readonly string[];
 	/** Heuristic pre-score; higher = more likely relevant. */
@@ -123,7 +135,7 @@ export interface FeedContent {
 	readonly generatedAt: string;
 	readonly personaName?: string;
 	readonly model?: FeedModelRef;
-	readonly sources: readonly DashboardBlockContentSource[];
+	readonly sources: readonly FeedContentSource[];
 	readonly setupReason?: string;
 	readonly error?: string;
 }

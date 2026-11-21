@@ -1089,14 +1089,7 @@ struct TobyClient {
 		return try JSONDecoder().decode(PluginsListResponse.self, from: data)
 	}
 
-	// MARK: - Dashboard
-
-	func fetchDashboard() async throws -> DashboardData {
-		let url = baseURL.appendingPathComponent("api/dashboard")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(DashboardData.self, from: data)
-	}
+	// MARK: - Home (Actions + The Feed)
 
 	func fetchFlowDashboardBlocks() async throws -> [FlowDashboardBlockInfo] {
 		let url = baseURL.appendingPathComponent("api/dashboard/flow-blocks")
@@ -1106,38 +1099,6 @@ struct TobyClient {
 		try validate(response: response, data: data)
 		struct Payload: Decodable { let blocks: [FlowDashboardBlockInfo] }
 		return try JSONDecoder().decode(Payload.self, from: data).blocks
-	}
-
-	/// Fetch home-dashboard **block content** (flow output for the card body).
-	/// Returns `nil` when no connected providers implement the category.
-	/// - Parameter fresh: When true, bypasses caches and awaits a fresh flow run.
-	func fetchDashboardBlockContent(
-		_ category: String,
-		fresh: Bool = false
-	) async throws -> DashboardBlockContent? {
-		let url = dashboardURL(category: category, content: true, fresh: fresh)
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(DashboardBlockContent?.self, from: data)
-	}
-
-	/// Aggregator list payload (internal / debug; not used by home cards).
-	func fetchDashboardCategory(
-		_ category: String,
-		fresh: Bool = false
-	) async throws -> DashboardCategorySummary? {
-		let url = dashboardURL(category: category, content: false, fresh: fresh)
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(DashboardCategorySummary?.self, from: data)
-	}
-
-	/// Legacy alias for {@link fetchDashboardBlockContent}.
-	func fetchDashboardCategorySummary(
-		_ category: String,
-		fresh: Bool = false
-	) async throws -> DashboardBlockContent? {
-		try await fetchDashboardBlockContent(category, fresh: fresh)
 	}
 
 	/// The Feed: ranked cross-connection items with reasons and actions.
@@ -1166,22 +1127,45 @@ struct TobyClient {
 		return try JSONDecoder().decode(FeedActionResponse.self, from: data)
 	}
 
-	private func dashboardURL(category: String, content: Bool, fresh: Bool) -> URL {
-		var allowed = CharacterSet.urlPathAllowed
-		allowed.remove(charactersIn: "/")
-		let encoded = category.addingPercentEncoding(withAllowedCharacters: allowed) ?? category
-		var path = "api/dashboard/\(encoded)"
-		if content {
-			path += "/content"
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent(path),
-			resolvingAgainstBaseURL: false
-		)!
-		if fresh {
-			components.queryItems = [URLQueryItem(name: "fresh", value: "1")]
-		}
-		return components.url!
+	// MARK: - Feed instructions
+
+	private var feedInstructionsURL: URL {
+		baseURL.appendingPathComponent("api/dashboard/feed/instructions")
+	}
+
+	/// The user's Feed instructions, oldest first.
+	func listFeedInstructions() async throws -> [FeedInstruction] {
+		var request = URLRequest(url: feedInstructionsURL)
+		request.cachePolicy = .reloadIgnoringLocalCacheData
+		return try await sendFeedInstructions(request)
+	}
+
+	func addFeedInstruction(text: String) async throws -> [FeedInstruction] {
+		var request = URLRequest(url: feedInstructionsURL)
+		request.httpMethod = "POST"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["text": text])
+		return try await sendFeedInstructions(request)
+	}
+
+	func setFeedInstructionEnabled(id: String, enabled: Bool) async throws -> [FeedInstruction] {
+		var request = URLRequest(url: feedInstructionsURL.appendingPathComponent(id))
+		request.httpMethod = "PATCH"
+		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+		request.httpBody = try JSONSerialization.data(withJSONObject: ["enabled": enabled])
+		return try await sendFeedInstructions(request)
+	}
+
+	func deleteFeedInstruction(id: String) async throws -> [FeedInstruction] {
+		var request = URLRequest(url: feedInstructionsURL.appendingPathComponent(id))
+		request.httpMethod = "DELETE"
+		return try await sendFeedInstructions(request)
+	}
+
+	private func sendFeedInstructions(_ request: URLRequest) async throws -> [FeedInstruction] {
+		let (data, response) = try await URLSession.shared.data(for: request)
+		try validate(response: response, data: data)
+		return try JSONDecoder().decode(FeedInstructionsResponse.self, from: data).instructions
 	}
 
 	// MARK: - Memories

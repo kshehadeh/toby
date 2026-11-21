@@ -604,17 +604,19 @@ function buildPluginDashboardHook(
 			forwardPluginStderr(name, execResult.stderr);
 
 			if (!execResult.ok || !execResult.data.ok) {
+				const error = !execResult.ok
+					? execResult.error
+					: (execResult.data.error ?? "Tool execution failed");
 				daemonLog("warn", "plugin", "dashboard_tool_exec_failed", {
 					plugin: name,
 					tool: toolName,
-					error: !execResult.ok
-						? execResult.error
-						: (execResult.data.error ?? "Tool execution failed"),
+					error,
 				});
 				return {
 					count: 0,
 					items: [],
 					generatedAt: new Date().toISOString(),
+					error,
 				};
 			}
 
@@ -625,6 +627,7 @@ function buildPluginDashboardHook(
 					count: 0,
 					items: [],
 					generatedAt: new Date().toISOString(),
+					error: "Invalid dashboard summary",
 				};
 			}
 			return validated;

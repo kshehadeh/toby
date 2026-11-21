@@ -89,6 +89,31 @@ export interface DashboardEventFacts {
 	readonly recurring?: boolean;
 }
 
+/** Task facts a provider can attach to a summary item. */
+export interface DashboardTaskFacts {
+	/**
+	 * Who the task is assigned to. Providers without assignment (or tasks in
+	 * personal, unshared lists) omit it — those are the user's own.
+	 */
+	readonly assignment?: "you" | "someone_else" | "unassigned";
+	/** The task lives in a list / project shared with other people. */
+	readonly shared?: boolean;
+}
+
+/** Email message facts a provider can attach to a summary item. */
+export interface DashboardEmailFacts {
+	/** False for read messages included because they await a reply. */
+	readonly unread?: boolean;
+	/** Mailing list / bulk / automated mail (List-Unsubscribe, List-Id, Precedence, Auto-Submitted). */
+	readonly bulk?: boolean;
+	/** The user is a direct (To:) recipient rather than cc'd or bcc'd. */
+	readonly direct?: boolean;
+	/** The user has previously sent mail to this sender. */
+	readonly knownSender?: boolean;
+	/** Read, not answered, from a person — the user likely owes a reply. */
+	readonly awaitingReply?: boolean;
+}
+
 /**
  * A single item in a dashboard summary (email message, task, reminder, etc.).
  */
@@ -111,6 +136,10 @@ export interface DashboardItem {
 	readonly groupId?: string;
 	/** Calendar only: facts that tell real meetings apart from bare holds. */
 	readonly event?: DashboardEventFacts;
+	/** Email only: facts that tell personal mail apart from bulk mail. */
+	readonly email?: DashboardEmailFacts;
+	/** Tasks only: assignment and sharing. */
+	readonly task?: DashboardTaskFacts;
 	/**
 	 * Integration module name of the source provider (e.g. "todoist").
 	 * Set by the aggregator on merged category items so the UI can show a
@@ -148,6 +177,11 @@ export interface DashboardSummaryResult {
 	readonly launchUrl?: string;
 	/** ISO 8601 timestamp — lets the UI show "as of 2 minutes ago". */
 	readonly generatedAt: string;
+	/**
+	 * Set by the aggregator/adapter (never by plugins) when the provider could
+	 * not be reached; `items` is then empty rather than truly "nothing new".
+	 */
+	readonly error?: string;
 }
 
 /**
@@ -192,73 +226,3 @@ export interface DashboardData {
 	readonly tasks: DashboardCategorySummary | null;
 	readonly calendar: DashboardCategorySummary | null;
 }
-
-/**
- * Provider open target carried on block content (not header chrome).
- * Used for multi-source "Open …" actions without a second client fetch.
- */
-export interface DashboardBlockContentSource {
-	readonly providerName: string;
-	readonly providerDisplayName: string;
-	readonly launchUrl?: string;
-}
-
-/** One actionable row in a structured dashboard section. */
-export interface DashboardBlockContentItem {
-	/** Display text with lightweight inline Markdown removed. */
-	readonly title: string;
-	/** Optional supporting copy following the title. */
-	readonly subtitle?: string;
-	/** First Markdown link target in the row; an absolute web or native app URL. */
-	readonly url?: string;
-}
-
-/**
- * Generic structure derived from a dashboard flow's Markdown.
- *
- * `eyebrow` maps a level-two heading, `title` maps a level-one/three heading,
- * `body` holds the section prose, and `items` holds bullet rows. Clients may
- * use this richer shape while `DashboardBlockContent.text` remains the
- * backwards-compatible source and rendering fallback.
- */
-export interface DashboardBlockContentSection {
-	readonly id: string;
-	readonly eyebrow?: string;
-	readonly title?: string;
-	readonly body?: string;
-	readonly items: readonly DashboardBlockContentItem[];
-}
-
-/**
- * Home-dashboard **block content** — the only payload the card body needs.
- *
- * Architecture: the card *definition* owns the static header (title + actions);
- * this object is always **flow output** (markdown body + light meta for
- * empty-state / open links). One update path refreshes content only.
- */
-export interface DashboardBlockContent {
-	/** Block / category id (e.g. "email", "tasks", "calendar"). */
-	readonly category: string;
-	/**
-	 * Body markdown from the block's flow. Empty string when there is nothing
-	 * to show (zero items or generation produced no usable text).
-	 */
-	readonly text: string;
-	/** ISO 8601 timestamp of content generation (or source data when empty). */
-	readonly generatedAt: string;
-	/** Persona used when the flow ran (or the configured dashboard persona). */
-	readonly personaName: string;
-	/** Item count from the flow/tool payload (for empty UX and action enablement). */
-	readonly count: number;
-	/** Launch URLs for Open actions. */
-	readonly launchUrls: readonly string[];
-	/** Optional per-provider open targets (e.g. Todoist + Reminders). */
-	readonly sources?: readonly DashboardBlockContentSource[];
-	/** Optional presentation structure derived from `text`. */
-	readonly sections?: readonly DashboardBlockContentSection[];
-}
-
-/**
- * @deprecated Prefer {@link DashboardBlockContent}. Same shape; kept for call sites.
- */
-export type DashboardCategoryAiSummary = DashboardBlockContent;

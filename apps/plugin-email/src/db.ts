@@ -189,6 +189,37 @@ export class EmailDb {
 			.all(mailbox, limit, offset);
 	}
 
+	/**
+	 * Lowercased addresses the user has written to (To/Cc of cached messages
+	 * sent from one of `selfAddresses`, in any cached mailbox, e.g. Sent or
+	 * Gmail's All Mail). Used to tell correspondents from strangers.
+	 */
+	correspondentAddresses(
+		selfAddresses: readonly string[],
+		limit = 2000,
+	): Set<string> {
+		const self = selfAddresses
+			.map((a) => a.trim().toLowerCase())
+			.filter(Boolean);
+		const out = new Set<string>();
+		if (self.length === 0) return out;
+		const where = self.map(() => "LOWER(from_address) LIKE ?").join(" OR ");
+		const rows = this.#db
+			.query<{ toAddress: string | null; ccAddress: string | null }>(
+				`SELECT to_address AS toAddress, cc_address AS ccAddress FROM messages
+				WHERE ${where} ORDER BY date DESC LIMIT ?`,
+			)
+			.all(...self.map((a) => `%${a}%`), limit);
+		for (const row of rows) {
+			const text = `${row.toAddress ?? ""} ${row.ccAddress ?? ""}`;
+			for (const match of text.matchAll(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g)) {
+				const address = match[0].toLowerCase();
+				if (!self.includes(address)) out.add(address);
+			}
+		}
+		return out;
+	}
+
 	getMessageByUid(uid: number, mailbox: string): CachedMessage | null {
 		return this.#db
 			.query<CachedMessage>(

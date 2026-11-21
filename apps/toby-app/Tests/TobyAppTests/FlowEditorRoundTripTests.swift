@@ -178,7 +178,7 @@ struct FlowEditorRoundTripTests {
 		#expect(originalNodes.isEqual(savedNodes))
 		#expect((body["result"] as? NSDictionary)?.isEqual(original["result"]) == true)
 		#expect((body["persona"] as? NSDictionary)?.isEqual(original["persona"]) == true)
-		#expect((body["destinations"] as? [[String: Any]])?.first?["variant"] as? String == "informational")
+		#expect((body["destinations"] as? [[String: Any]])?.first?["variant"] as? String == "runner")
 		#expect(JSONSerialization.isValidJSONObject(body))
 		// Editing a prompt still applies while the hidden output wiring survives.
 		draft.nodes[1].userPrompt = "A new prompt"

@@ -8,7 +8,6 @@ import type { FlowDocument } from "@toby/core/flows/document-types";
 import { normalizeHomeActionFlow } from "@toby/core/flows/home-action";
 import { listTriggerDecisions } from "@toby/core/flows/triggers/store";
 import {
-	dashboardRefreshTrigger,
 	homeActionTrigger,
 	manualTrigger,
 } from "@toby/core/flows/triggers/types";
@@ -29,37 +28,6 @@ afterEach(() => {
 	if (previous === undefined) Reflect.deleteProperty(process.env, "TOBY_DIR");
 	else process.env.TOBY_DIR = previous;
 	fs.rmSync(dir, { recursive: true, force: true });
-});
-it("Home refresh requires a content card and preserves its update preference", () => {
-	const normalized = normalizeHomeActionFlow({
-		id: "flow.refresh",
-		name: "Refresh",
-		nodes: [],
-		triggers: [{ ...dashboardRefreshTrigger(), enabled: false }],
-		destinations: [
-			{
-				type: "dashboard",
-				variant: "runner",
-				color: "teal",
-				refresh: "manual",
-			},
-		],
-	});
-	expect(normalized.destinations).toEqual([
-		{
-			type: "dashboard",
-			variant: "informational",
-			color: "teal",
-			refresh: "manual",
-		},
-	]);
-	expect(normalized.triggers?.[0]?.enabled).toBe(false);
-	expect(() =>
-		normalizeHomeActionFlow({
-			...normalized,
-			triggers: [dashboardRefreshTrigger(), homeActionTrigger()],
-		}),
-	).toThrow("Choose either");
 });
 const document = (): FlowDocument => ({
 	id: "flow.home-action",
@@ -107,12 +75,7 @@ describe("Home Screen Action triggers", () => {
 			...document(),
 			destinations: [
 				{ type: "modal" },
-				{
-					type: "dashboard",
-					variant: "informational",
-					refresh: "asNeeded",
-					color: "teal",
-				},
+				{ type: "dashboard", variant: "runner", color: "teal" },
 			],
 		});
 		expect(normalized.destinations).toEqual([

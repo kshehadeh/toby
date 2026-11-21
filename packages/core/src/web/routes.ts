@@ -56,9 +56,9 @@ import {
 import {
 	handleDashboard,
 	handleDashboardCategory,
-	handleDashboardCategorySummary,
 	handleDashboardFeed,
 	handleDashboardFeedAction,
+	handleDashboardFeedInstructions,
 	handleDashboardFlowBlocks,
 } from "./handlers/dashboard";
 import { handleFlowTriggers } from "./handlers/flow-triggers";
@@ -264,14 +264,15 @@ export async function handleWebRequest(
 		if (pathname === "/api/dashboard/feed/actions" && req.method === "POST") {
 			return handleDashboardFeedAction(req);
 		}
+		if (
+			pathname === "/api/dashboard/feed/instructions" ||
+			pathname.startsWith("/api/dashboard/feed/instructions/")
+		) {
+			return handleDashboardFeedInstructions(req, pathname);
+		}
 		if (pathname.startsWith("/api/dashboard/") && req.method === "GET") {
 			const rest = decodeURIComponent(pathname.slice("/api/dashboard/".length));
-			// Home cards: block content (flow output). `/content` preferred; `/summary` alias.
-			const contentMatch = rest.match(/^([^/]+)\/(content|summary)$/);
-			if (contentMatch) {
-				return handleDashboardCategorySummary(contentMatch[1], url);
-			}
-			// Aggregator list payload (internal / debug; not used by home cards).
+			// Aggregator list payload (internal / debug).
 			return handleDashboardCategory(rest, url);
 		}
 		if (pathname.startsWith("/api/flows/triggers/"))

@@ -7,31 +7,42 @@ import ViewInspector
 @MainActor
 @Suite("Flow triggers")
 struct FlowTriggerTests {
-    @Test("built-in Home refresh trigger decodes and has a readable label")
-    func dashboardRefresh() throws {
+    @Test("retired Home refresh trigger still decodes and reads as removed")
+    func retiredHomeRefreshDecodes() throws {
         var body = FlowTriggerSpec.manual().jsonBody
         body["id"] = "dashboard-refresh"
         body["name"] = "Home refresh"
         body["source"] = ["type": "dashboard.refresh"]
         let trigger = try JSONDecoder().decode(FlowTriggerSpec.self, from: JSONSerialization.data(withJSONObject: body))
-        #expect(trigger.enabled)
+        #expect(trigger.isHomeRefresh)
         #expect(!trigger.isUserInvoked)
-        #expect(trigger.label == "When Home refreshes")
+        #expect(trigger.label == "Home refresh (removed)")
+        #expect(!FlowTriggerCard.types.contains { $0.id == "dashboard.refresh" })
     }
-    @Test("Home refresh requires a content card and replaces the Home action")
-    func homeRefreshPlacement() {
-        var draft = FlowEditorDraft.blank()
-        draft.selectHomeAction()
-        draft.selectHomeRefresh()
+    @Test("old flows with a Home card keep it until removed, and saving sends it as-is")
+    func retiredHomeCardIsKeptUntilRemoved() throws {
+        var trigger = FlowTriggerSpec.manual().jsonBody
+        trigger["id"] = "dashboard-refresh"
+        trigger["name"] = "Home refresh"
+        trigger["source"] = ["type": "dashboard.refresh"]
+        let raw: [String: Any] = [
+            "id": "flow.card", "name": "Card", "nodes": [],
+            "triggers": [trigger],
+            "destinations": [["type": "dashboard", "variant": "informational", "refresh": "asNeeded"]],
+        ]
+        let document = try JSONDecoder().decode(
+            FlowDocumentPayload.self, from: JSONSerialization.data(withJSONObject: raw)
+        )
+        var draft = FlowEditorDraft.from(document: document)
+        #expect(draft.hasRetiredHomeCard)
         #expect(!draft.hasHomeActionTrigger)
-        #expect(draft.hasHomeRefreshTrigger)
-        #expect(draft.destinations.last?.dashboardVariant == "informational")
-        draft.triggers[draft.triggers.count - 1].enabled = false
-        draft.synchronizeHomeActionDestination()
-        #expect(draft.destinations.last?.dashboardVariant == "informational")
-        draft.selectHomeAction()
-        #expect(!draft.hasHomeRefreshTrigger)
-        #expect(draft.destinations.last?.dashboardVariant == "runner")
+        let destinations = draft.jsonBody()["destinations"] as? [[String: Any]]
+        #expect(destinations?.first?["variant"] as? String == "informational")
+        #expect(destinations?.first?["refresh"] == nil)
+        draft.removeRetiredHomeCard()
+        #expect(!draft.hasRetiredHomeCard)
+        #expect(draft.destinations.isEmpty)
+        #expect(!draft.triggers.contains { $0.isHomeRefresh })
     }
     @Test("per-file folder mode survives serialization")
     func perFileRoundTrip() throws {
@@ -119,7 +130,7 @@ struct FlowTriggerTests {
         #expect(restored.destinations.last?.dashboardVariant == "runner")
     }
 
-    @Test("removing the last Home trigger unlocks placement and restores a Home card")
+    @Test("removing the last Home trigger removes its Actions placement")
     func homeActionRemoval() {
         var draft = FlowEditorDraft.blank()
         draft.selectHomeAction()
@@ -129,25 +140,26 @@ struct FlowTriggerTests {
         draft.triggers.removeAll { $0.source.type == "home.action" }
         draft.synchronizeHomeActionDestination(removingHomeAction: true)
         #expect(!draft.hasHomeActionTrigger)
-        #expect(draft.destinations.last?.dashboardVariant == "informational")
+        #expect(!draft.destinations.contains { $0.type == "dashboard" })
         draft.triggers[0].changeSource("home.action")
         draft.synchronizeHomeActionDestination()
         #expect(draft.triggers[0].enabled)
         #expect(draft.destinations.last?.dashboardVariant == "runner")
     }
 
-    @Test("Home location choices are disabled with a visible explanation while required")
+    @Test("Home Actions placement explains the trigger lock; retired cards explain removal")
     func homeActionLocationLock() throws {
-        var destination = FlowEditorDestination.dashboard()
-        destination.dashboardVariant = "runner"
+        let destination = FlowEditorDestination.dashboard()
         let view = FlowEditorDestinationCard(destination: .constant(destination), isHomeActionRequired: true, onRemove: {})
-        let card = try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-card-choice")
-        let action = try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-action-choice")
-        #expect(try card.isDisabled())
-        #expect(try action.isDisabled())
         #expect(throws: Never.self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-action-location-lock") }
+        #expect(throws: (any Error).self) { try view.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-card-choice") }
         let unlocked = FlowEditorDestinationCard(destination: .constant(destination), onRemove: {})
-        #expect(try !unlocked.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-card-choice").isDisabled())
+        #expect(throws: (any Error).self) { try unlocked.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-home-action-location-lock") }
+
+        var retired = FlowEditorDestination.dashboard()
+        retired.dashboardVariant = "informational"
+        let retiredView = FlowEditorDestinationCard(destination: .constant(retired), onRemove: {})
+        #expect(throws: Never.self) { try retiredView.inspect().find(viewWithAccessibilityIdentifier: "flow-editor-retired-home-card") }
     }
 
     @Test("triggers describe themselves in plain words")

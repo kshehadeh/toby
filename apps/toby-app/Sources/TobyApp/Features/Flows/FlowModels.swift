@@ -388,8 +388,7 @@ struct FlowDestinationSpec: Decodable, Equatable {
 			return channel?.isEmpty == false ? "Slack \(channel ?? "")" : "Slack"
 		case "dashboard":
 			if variant == "runner" { return "Dashboard · Run now" }
-			if refresh == "manual" { return "Dashboard · Informational · Manual" }
-			return "Dashboard · Informational"
+			return "Home card (removed)"
 		default:
 			return type.capitalized
 		}

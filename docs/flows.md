@@ -369,36 +369,34 @@ list of **destinations**:
 | `modal` | Toby.app | Interactive **Run now** opens a result sheet |
 | `email` | Daemon via `email.sendEmail` | `to` + `subject` are author-time constants; body is the result text |
 | `slack` | Daemon via `slack.postToChannel` | `channel` is an author-time constant |
-| `dashboard` | Toby.app home screen | Registers a home card **or** an Actions rail tile. `variant` is `informational` (last-run body + refresh) or `runner` (colored icon tile in the Actions rail). Informational cards take `refresh`: `asNeeded` (default; soft-refresh like built-ins) or `manual` (card/toolbar refresh only). At most one dashboard destination per flow. |
+| `dashboard` | Toby.app home screen | Registers a Home **Actions** tile. `variant` must be `runner` (the retired `informational` card variant is rejected). Pairs with a `home.action` trigger. At most one dashboard destination per flow. |
 
 If `result` is omitted, the last LLM node’s markdown (or the last tool’s
 `appliedActions` / payload) is used. New user flows default to
 `[{ type: "modal" }]`. A failed email/slack destination fails the run.
 Modal and dashboard destinations are registration-only (they never fail the
-run). Built-in dashboard flows declare informational Home placement; their category
-rendering still reads the summary bag in code.
+run).
 
-### Custom flow home cards
+### Home Actions
 
-A custom flow with `{ type: "dashboard", variant, refresh?, color? }` appears on the home
-dashboard. Discovery: `listFlowDashboardBlocks()` /
-`GET /api/dashboard/flow-blocks` (includes resolved `refresh` and optional
-`dashboardColor`). Dashboard output `color` selects the default Home appearance
-from the existing eight-color palette or `neutral`; omission preserves the
-existing appearance. Edit Home can override it locally without changing the
-flow. See [Home block colors](dashboard.md#home-block-colors). Card body:
-`GET /api/dashboard/:flowId/content`.
+Home shows only The Feed and an Actions sidebar; flows cannot add cards. A
+custom flow with `{ type: "dashboard", variant: "runner", color? }` and an
+enabled `home.action` trigger appears as an Actions tile. Discovery:
+`listFlowDashboardBlocks()` / `GET /api/dashboard/flow-blocks` (includes the
+optional `dashboardColor`). Dashboard output `color` selects the default tile
+appearance from the eight-color palette or `neutral`; omission uses the flow's
+`color`. Edit Home can override it locally. See [dashboard.md](dashboard.md).
 
-| Variant | Home UI | Soft load | Force refresh / click |
-| --- | --- | --- | --- |
-| `informational` + `asNeeded` (default) | Same size as built-ins; body is last successful run output | Last success if younger than 5 min; stale last success returned immediately plus a background rerun; never-run awaits a run | `runUserFlowById` with `deliverDestinations: false` |
-| `informational` + `manual` | Same card chrome | Last success only (no rerun) | Same force path as as-needed |
-| `runner` | Compact **Actions** rail tile (colored card, flow SF Symbol, play glyph, and name; hover 1s shows title and description). Hidden when no runners are visible. | Never runs; no body | Click is `POST /api/flows/:id/run` with `source: "home.action"`. Toolbar / card refresh does **not** run it. The button disables and shows a spinner while the run is in flight. |
+A tile never auto-runs. Clicking it calls `POST /api/flows/:id/run` with
+`source: "home.action"` and shows a spinner while the run is in flight.
+`showsResultSheet` is true when the flow also has a `modal` destination; the
+run then opens the result sheet. Combining the Actions tile with email/Slack is
+allowed; those deliver on each run.
 
-`showsResultSheet` is true when the flow also has a `modal` destination. **Run
-Now** then opens the result sheet. Combining dashboard + email/slack is
-allowed; email/Slack still fire on **Run now** and triggered runs, **not** on
-dashboard card generation.
+Flows saved with the retired informational destination or `dashboard.refresh`
+trigger still load, but `validateUserFlowDocument` rejects them on save and
+nothing emits `dashboard.refresh`. The Toby.app editor offers
+**Remove Home card settings**.
 
 ## Storage model
 
@@ -414,7 +412,7 @@ All of the following live in **`~/.toby/chat.sqlite`**:
 
 | Column | Purpose |
 | --- | --- |
-| `id` | Stable key (e.g. `dashboard.email.summary`) |
+| `id` | Stable key (e.g. `flow.<uuid>`) |
 | `name` | Display name (often same as `id`) |
 | `description` | Optional text |
 | `persona_json` | Persona spec JSON |
@@ -424,26 +422,15 @@ All of the following live in **`~/.toby/chat.sqlite`**:
 
 ### Built-in seed-on-miss
 
-Dashboard (and future) built-ins are defined as seed `FlowDocument`s in
-`packages/core/src/flows/builtins.ts`.
+Built-ins are defined as seed `FlowDocument`s in
+`packages/core/src/flows/builtins.ts`. None ship today (the Home card summary
+flows were retired); the machinery remains for future built-ins.
 
 - `getFlow(id)` / `getFlowRecord(id)`: if no row and `id` is a known built-in,
   **insert the seed once** and return it.
-- `listFlows()`: ensures **all** built-ins exist, then lists every row.
-- Existing dashboard rows still marked built-in are refreshed when the shipped seed changes. Custom rows are preserved.
-
-Built-in dashboard summaries declare one enabled `dashboard.refresh` trigger
-(`dashboard-refresh`, "Home refresh"). Home owns execution and cache invalidation:
-soft requests reuse fresh summaries for five minutes and can return persisted
-content while regenerating in the background; force refresh bypasses caches.
-Disconnected or empty categories do not run the flow. Concurrent refreshes share
-an in-flight run. Custom flows can also choose this source. It requires a dashboard informational
-destination and cannot coexist with `home.action`. Saving an informational Home
-destination adds the matching trigger. Disabled refresh triggers retain their card
-but suppress both soft and force runs. Home controls freshness through the
-destination’s `refresh` setting, rather than schedule/native cooldown policies.
-It is not polled by the schedule/native trigger supervisor.
-Actual summary runs record `dashboard.refresh:<category>` in run history.
+- `listFlows()`: prunes built-in rows whose ids are no longer shipped (for
+  example the retired `dashboard.*.summary` flows), ensures all built-ins exist,
+  then lists every row. Custom rows are preserved.
 
 ### Runtime API
 
@@ -458,11 +445,11 @@ import {
   type FlowResult,
 } from "@toby/core/flows";
 
-const result: FlowResult = await runFlow("dashboard.email.summary", {
+const result: FlowResult = await runFlow("flow.my-flow", {
   personaOverride, // optional Persona
   inputs: { /* optional seed bag */ },
   abortSignal,
-  trigger: "dashboard.refresh:email", // optional label for history
+  trigger: "manual", // optional label for history
   record: true, // default; set false to skip chat.sqlite run writes
 });
 
@@ -503,7 +490,7 @@ Every flow **run** is persisted to **`~/.toby/chat.sqlite`** (tables `flow_runs`
 | `flow_name` | Flow id |
 | `status` | `running` \| `success` \| `error` |
 | `persona_name`, `provider`, `model` | Resolved persona / model |
-| `trigger` | Caller label (e.g. `dashboard.refresh:calendar`) |
+| `trigger` | Caller label (e.g. `schedule:<triggerId>`) |
 | `definition_snapshot_json` | Graph metadata for UI (node list, wiring) |
 | `initial_inputs_json` / `final_outputs_json` | Seed bag and final bag |
 | **`started_at`** / **`completed_at`** | ISO timestamps for the execution window |
@@ -517,7 +504,7 @@ import { pruneFlowRuns } from "@toby/core/flows";
 
 // Delete completed runs started before a cutoff (running rows kept)
 pruneFlowRuns({ olderThanIso: "2026-01-01T00:00:00.000Z" });
-pruneFlowRuns({ olderThanIso: cutoff, flowName: "dashboard.email.summary" });
+pruneFlowRuns({ olderThanIso: cutoff, flowName: "flow.my-flow" });
 ```
 
 ### Node records (`flow_run_nodes`)
@@ -556,7 +543,7 @@ User-authored documents are validated by `validateUserFlowDocument`:
 - Required tool fields must be filled when the plugin is installed
 - At most one LLM Prompter is supported; it uses the markdown preset or a flat object schema and may be followed by tool actions
 - Action conditions reference earlier outputs or automation context; strict boolean evaluation occurs at run time
-- Destinations are `modal`, `email` (`to`, `subject`), `slack` (`channel`), or `dashboard` (`variant`, optional informational `refresh`, optional Home `color`)
+- Destinations are `modal`, `email` (`to`, `subject`), `slack` (`channel`), or `dashboard` (`variant: "runner"`, optional Home `color`); the retired `informational` variant and `dashboard.refresh` trigger are rejected
 - Email/Slack destinations require that integration to be connected
 
 `runUserFlowById` extracts the declared result (or infers it from the last
@@ -566,7 +553,7 @@ Modal is UI-only: the run response includes `result` for the app to display.
 ### Toby.app UI
 
 The flow sidebar filters by trigger source: All, Manual (`manual`), Home Actions
-(`home.action`), Home Refresh (`dashboard.refresh`), Scheduled (`schedule`), and
+(`home.action`), Scheduled (`schedule`), and
 Events (`macos.*`). Filters include both built-in and custom flows and match
 configured triggers regardless of whether they are enabled.
 
@@ -576,8 +563,8 @@ recent runs. **New flow** or **Edit** opens a step-list editor in a sheet.
 Cancel and Save sit in the sheet toolbar. The editor covers name, curated SF
 Symbol icon, tile color, tool picker, const inputs, optional last LLM,
 destinations, including the Home color default. The icon follows the flow onto
-Home. Home color overrides the flow-level tile color for Actions and supplies
-the informational card appearance; Edit Home can override it on this Mac. Documents without
+Home. Home color overrides the flow-level tile color for Actions; Edit Home can
+override it on this Mac. Documents without
 an icon or color retain the existing category-derived / generic icon fallback
 and the default teal tile. When serializing edits, the native editor omits a result pointer whose output
 bag key no longer exists after step removal or replacement. Runtime inference
@@ -613,72 +600,16 @@ modal destination opens a result sheet.
 | `flows/run-user-flow.ts` | Run + extract + deliver |
 | `flows/index.ts` | Public exports |
 
-Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`, `user-flows.test.ts`, `user-flows-api.test.ts`, `flow-destinations.test.ts`, `flow-dashboard-blocks.test.ts`.
+Tests: `apps/cli/tests/flows.test.ts`, `flows-history.test.ts`, `user-flows.test.ts`, `user-flows-api.test.ts`, `flow-destinations.test.ts`, `flow-home-action.test.ts`.
 
-## Built-in consumers: dashboard card content
+## Home
 
-Home cards use a **single content path**. The card **definition** owns the
-static header; the body is **flow output** only. See [dashboard.md](dashboard.md).
-
-| API | Role |
-| --- | --- |
-| `GET /api/dashboard/flow-blocks` | Custom flows opted onto the home screen |
-| `GET /api/dashboard/:category/content` | Block content (preferred; `:category` may be a custom flow id) |
-| `GET /api/dashboard/:category/summary` | Alias of `/content` |
-
-Optional `?fresh=1` bypasses soft caches and **awaits** a new flow run.
-Toby.app force-refreshes on toolbar / per-card refresh; soft-loads on home
-appear when the daemon is ready. Custom informational cards with
-`refresh: "manual"` skip the soft rerun; force refresh still awaits a run.
-
-### Flow map
-
-| Category | Flow name | Tool Executor standard tool | Context bag key for tool result |
-| --- | --- | --- | --- |
-| Email | `dashboard.email.summary` | `email.unreadSummary` | `unread` |
-| Tasks | `dashboard.tasks.summary` | `tasks.openSummary` | `openTasks` |
-| Calendar | `dashboard.calendar.summary` | `calendar.upcomingSummary` | `upcoming` |
-| Toby Todos | `dashboard.todos.summary` | Core `todos.summary` | `summary` |
-
-The Toby Todos flow returns structured counts and item links directly, without
-an LLM step. It does not replace the external Tasks flow.
-
-Shared pipeline shape for each category:
-
-```
-Tool Executor (standard tool, limit 50)
-        ↓ bag.<key>
-LLM Prompter → { markdown: string }
-        ↓ bag.summary
-```
-
-Persona: Settings → Home (`config.dashboard.persona`) via
-`resolveDashboardPersona()` in `packages/core/src/dashboard/prompts.ts`.
-
-### How content generation invokes flows
-
-`getDashboardBlockContent` in
-`packages/core/src/dashboard/summarizer.ts`:
-
-1. Loads category data server-side (`getDashboardCategory`, limit 50) for
-   empty-state, cache keying, and seed.  
-2. If `count === 0`, returns empty content (no flow/LLM).  
-3. Soft path: in-memory (5 min) + disk (`~/.toby/dashboard-summaries.json`).  
-4. On miss / force: `runFlow("dashboard.<category>.summary", { personaOverride })`.  
-5. Maps `outputs.summary.markdown` → `DashboardBlockContent.text` (after
-   `extractDashboardSummaryText` CoT strip).  
-6. Fills `count` / `launchUrls` / `sources` from tool + aggregator data.
-
-The aggregator HTTP routes remain available for debug; home cards do not call
-them.
-
-### Seed source
-
-| Flow | Seed |
-| --- | --- |
-| All three dashboard content flows | `packages/core/src/flows/builtins.ts` |
-| Category prompt text | `CATEGORY_PROMPTS` in `dashboard/prompts.ts` (inlined into seed system prompts) |
-| Item formatting helper | `packages/core/src/flows/dashboard-items.ts` |
+Home has no flow-produced cards: it shows The Feed plus an Actions sidebar of
+runner flows. See [Home Actions](#home-actions) and [dashboard.md](dashboard.md).
+The Home persona (Settings → Home, `config.dashboard.persona`) is still
+available to flows via `persona: { source: "dashboard" }`
+(`resolveDashboardPersona()` in `packages/core/src/dashboard/prompts.ts`), and
+`{{dashboardItems bag.key}}` still formats standard-tool items for prompts.
 
 ## Adding a built-in flow
 
@@ -735,8 +666,10 @@ or CLI commands. Existing legacy records are not migrated or executed.
 Each trigger has a stable ID, name, enabled flag, source, conditions (IANA timezone,
 optional weekdays/time window), policy (cooldown seconds/once per day), initial
 inputs, event input mappings, and optional completion notification.
-Sources are `manual`, `home.action` (Home Screen Action), `dashboard.refresh` (Home refresh), `schedule` (cron and `missedRuns: latest | skip`),
-`macos.didWake`, `macos.userReturned`, and `macos.fileChanges`.
+Sources are `manual`, `home.action` (Home Screen Action), `schedule` (cron and `missedRuns: latest | skip`),
+`macos.didWake`, `macos.userReturned`, and `macos.fileChanges`. The retired
+`dashboard.refresh` source still parses (so older flows load) but is rejected on
+save and never emitted.
 `latest` runs only the latest missed cron occurrence since flow creation;
 `skip` ignores occurrences more than 60 seconds late. Cron uses the trigger's
 explicit timezone. Native events require Toby.app and are not replayed after downtime.
@@ -777,8 +710,8 @@ The `home.action` trigger is the Home Actions entry point. Selecting it forces
 one `{ type: "dashboard", variant: "runner" }` destination, preserving its
 Home color and other destinations. The native editor locks removal and variant
 changes for this location while any Home Screen Action trigger exists, even if
-it is disabled. Removing/changing the last such trigger restores an editable
-informational Home card. Choosing an Actions button as a destination adds a
+it is disabled. Removing the last such trigger removes the Actions location.
+Choosing an Actions button as a destination adds a
 matching enabled Home Screen Action trigger. Validation and persistence enforce
 the pair for definitions authored through chat or the API as well.
 

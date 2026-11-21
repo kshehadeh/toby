@@ -111,29 +111,11 @@ struct FlowsViewTests {
 		}
 	}
 
-	@Test("flows sidebar offers Home Refresh and matches only refresh triggers")
-	func homeRefreshFilter() throws {
+	@Test("flows sidebar no longer offers a Home Refresh filter")
+	func noHomeRefreshFilter() throws {
 		let view = FlowsSidebarView(store: FlowsStore())
-		#expect(throws: Never.self) { try view.inspect().find(text: "Home Refresh") }
-		for builtin in [true, false] {
-			var refresh = sampleFlow(builtin: builtin)
-			var trigger = FlowTriggerSpec.homeRefresh()
-			trigger.enabled = false
-			refresh.triggers = [trigger]
-			#expect(FlowSidebarFilter.homeRefresh.matches(refresh))
-			#expect(!FlowSidebarFilter.homeActions.matches(refresh))
-			#expect(!FlowSidebarFilter.manual.matches(refresh))
-		}
-		var other = sampleFlow()
-		for source in ["manual", "home.action", "schedule", "macos.wake"] {
-			var trigger = FlowTriggerSpec.manual()
-			trigger.changeSource(source)
-			other.triggers = [trigger]
-			#expect(!FlowSidebarFilter.homeRefresh.matches(other))
-		}
-		other.triggers = nil
-		#expect(!FlowSidebarFilter.homeRefresh.matches(other))
-		#expect(FlowSidebarFilter.all.matches(other))
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Home Refresh") }
+		#expect(!FlowSidebarFilter.allCases.map(\.rawValue).contains("Home Refresh"))
 	}
 
 	@Test("flows sidebar renders rows when no flow is selected")
@@ -249,7 +231,7 @@ struct FlowsViewTests {
 			nodes: [tasks, jira, sampleLLMNode()],
 			result: nil,
 			destinations: [
-				FlowDestinationSpec(type: "dashboard", to: nil, subject: nil, cc: nil, channel: nil, variant: "informational", refresh: nil),
+				FlowDestinationSpec(type: "dashboard", to: nil, subject: nil, cc: nil, channel: nil, variant: "runner", refresh: nil),
 			],
 			createdAt: nil,
 			updatedAt: nil
@@ -260,13 +242,13 @@ struct FlowsViewTests {
 			"Open tasks summary",
 			"Search jira issues",
 			"Asks AI to put it together",
-			"Shows the result as a card on Home",
+			"Adds an Actions tile on Home",
 		])
 		#expect(rows.map(\.subtitle) == [
 			"From Todoist",
 			"From Jira",
 			"Using the steps above, with Toby’s default persona",
-			"Refreshes on its own",
+			"Runs when you click it",
 		])
 		#expect(rows.map(\.phase) == [.gathers, .gathers, .thinks, .shares])
 		#expect(rows.map(\.startsPhase) == [true, false, true, true])
@@ -614,8 +596,8 @@ struct FlowsViewTests {
 			variant: "runner",
 			refresh: nil
 		)
-		#expect(informational.summary == "Dashboard · Informational")
-		#expect(manual.summary == "Dashboard · Informational · Manual")
+		#expect(informational.summary == "Home card (removed)")
+		#expect(manual.summary == "Home card (removed)")
 		#expect(runner.summary == "Dashboard · Run now")
 
 		let draft = FlowEditorDestination(spec: runner)
@@ -627,13 +609,10 @@ struct FlowsViewTests {
 		#expect(body["refresh"] == nil)
 
 		let infoDraft = FlowEditorDestination(spec: informational)
-		#expect(infoDraft.dashboardRefresh == "asNeeded")
-		let infoBody = infoDraft.jsonBody()
-		#expect(infoBody["refresh"] as? String == "asNeeded")
-
-		let manualDraft = FlowEditorDestination(spec: manual)
-		#expect(manualDraft.dashboardRefresh == "manual")
-		#expect(manualDraft.jsonBody()["refresh"] as? String == "manual")
+		#expect(infoDraft.isRetiredHomeCard)
+		#expect(infoDraft.jsonBody()["variant"] as? String == "informational")
+		#expect(infoDraft.jsonBody()["refresh"] == nil)
+		#expect(!draft.isRetiredHomeCard)
 	}
 
 	@Test("startCreate opens a blank editor")

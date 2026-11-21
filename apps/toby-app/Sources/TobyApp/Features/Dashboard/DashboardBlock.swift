@@ -1,11 +1,8 @@
-import CoreTransferable
 import Foundation
 
 // MARK: - Identity
 
-/// Identity for a home-dashboard block (not onboarding).
-/// Daemon-backed raw values match their category path; client-only cards use
-/// the reserved `local.` prefix.
+/// Identity for a Home Actions tile. Raw values are the flow id.
 struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	let rawValue: String
 
@@ -16,172 +13,48 @@ struct DashboardBlockID: Hashable, Sendable, RawRepresentable, Codable {
 	init(_ rawValue: String) {
 		self.rawValue = rawValue
 	}
-
-	static let email = DashboardBlockID("email")
-	static let tasks = DashboardBlockID("tasks")
-	static let calendar = DashboardBlockID("calendar")
-	/// Client-local Home card that is not backed by a daemon dashboard block.
-	static let recentWork = DashboardBlockID("local.recent-work")
-	/// Built-in "Toby Todos" flow card (code-defined in core).
-	static let todosSummary = DashboardBlockID("dashboard.todos.summary")
-
-	/// Cards The Feed replaces: hidden by default, shown again while the Feed
-	/// is off or needs setup.
-	static let feedReplaced: [DashboardBlockID] = [.email, .tasks, .todosSummary]
-}
-
-extension DashboardBlockID: Transferable {
-	/// Plain-text proxy so in-app `dropDestination` can load the id. A custom
-	/// exported UTI is easy to fail `hasItemsConforming` when it is not in the
-	/// bundle’s declared types.
-	static var transferRepresentation: some TransferRepresentation {
-		ProxyRepresentation(exporting: \.rawValue) { DashboardBlockID($0) }
-	}
-}
-
-// MARK: - Home layout item
-
-/// One reorderable card in the Home waterfall. Data-backed dashboard blocks
-/// and client-local cards share the same stable layout identity.
-struct DashboardHomeItem: Identifiable, Sendable {
-	let id: DashboardBlockID
-}
-
-// MARK: - Snapshot
-
-/// Immutable view of one block's latest content for rendering and actions.
-struct DashboardBlockSnapshot: Sendable {
-	let id: DashboardBlockID
-	let content: DashboardBlockContent?
-	let error: String?
 }
 
 // MARK: - Actions
 
-/// App shell hooks that block actions may invoke (chat, navigation).
+/// App shell hooks Home sections may invoke (chat, navigation, flow runs).
 struct DashboardBlockActionContext {
 	var startChat: @MainActor () -> Void = {}
 	/// Opens a new chat seeded with a prompt (The Feed chat actions).
 	var startChatWithPrompt: @MainActor (String) -> Void = { _ in }
 	/// Shows an app toast (The Feed action confirmations / errors).
 	var showToast: @MainActor (AppToastState) -> Void = { _ in }
-	var summarizeEmail: @MainActor () -> Void = {}
-	var planInChat: @MainActor () -> Void = {}
 	var openFlow: @MainActor (String) -> Void = { _ in }
 	/// Runs a custom flow by id. Returns the daemon response when the request
 	/// completed (including `ok: false`); `nil` when the HTTP call itself failed.
 	var runFlow: @MainActor (String) async -> FlowRunNowResponse? = { _ in nil }
 }
 
-/// A single menu / header action declared by a block definition.
-struct DashboardBlockAction: Identifiable {
-	let id: String
-	let title: String
-	let isEnabled: Bool
-	let perform: () -> Void
-}
+// MARK: - Descriptor
 
-// MARK: - Descriptor (static registration / card definition)
-
-/// Compile-time **card definition**: sole source of static header chrome
-/// (title, icon, actions metadata). Refresh never rewrites these fields.
-struct DashboardBlockDescriptor: Identifiable, Sendable {
+/// Static definition of one Home Actions tile (a runner-variant custom flow).
+struct DashboardBlockDescriptor: Identifiable, Sendable, Equatable {
 	let id: DashboardBlockID
 	let title: String
 	let systemImage: String
-	let emptyWhenNil: String
-	let emptyWhenZero: String
-	/// Default layout position (lower = first). User order lives in `DashboardLayout`.
+	/// Default order (server order: by title).
 	let sortIndex: Int
-	/// Legacy per-block UserDefaults key (built-ins); layout JSON is the source of truth.
-	let visibilityDefaultsKey: String
-	/// Accessibility id for the card root.
+	/// Accessibility id for the tile root.
 	let accessibilityIdentifier: String
-	/// Optional fallback bundle id when opening primary app with no launchUrl.
-	let openFallbackBundleId: String?
-	/// Label for the primary open action (e.g. "Open Mail").
-	let openPrimaryTitle: String?
-	/// Whether the menu lists per-source "Open …" rows from content meta.
-	let listsSourceOpenActions: Bool
-	/// `runner` / `informational` for custom flow cards; nil for built-ins.
-	var flowVariant: String? = nil
 	var flowDescription: String? = nil
 	var flowColor: String? = nil
 	var dashboardColor: String? = nil
 	var showsResultSheet: Bool = false
 
 	var rawId: String { id.rawValue }
-	var isFlowBlock: Bool { flowVariant != nil }
-	var isFlowRunner: Bool { flowVariant == "runner" }
-
-	// MARK: Built-in descriptors
-
-	static let email = DashboardBlockDescriptor(
-		id: .email,
-		title: "Unread mail",
-		systemImage: "envelope.fill",
-		emptyWhenNil: "No email found. Connect an email account to see unread mail.",
-		emptyWhenZero: "You're all caught up. No unread mail.",
-		sortIndex: 0,
-		visibilityDefaultsKey: AppearanceDefaultsKey.showDashboardEmail,
-		accessibilityIdentifier: "dashboard-mail-card",
-		openFallbackBundleId: nil,
-		openPrimaryTitle: "Open Mail",
-		listsSourceOpenActions: false
-	)
-
-	static let tasks = DashboardBlockDescriptor(
-		id: .tasks,
-		title: "Tasks",
-		systemImage: "checklist",
-		emptyWhenNil: "No tasks found. Connect a task provider to see open tasks.",
-		emptyWhenZero: "No open tasks. Nicely done.",
-		sortIndex: 1,
-		visibilityDefaultsKey: AppearanceDefaultsKey.showDashboardTasks,
-		accessibilityIdentifier: "dashboard-tasks-card",
-		openFallbackBundleId: nil,
-		openPrimaryTitle: nil,
-		listsSourceOpenActions: true
-	)
-
-	static let calendar = DashboardBlockDescriptor(
-		id: .calendar,
-		title: "Upcoming",
-		systemImage: "calendar",
-		emptyWhenNil: "No events found. Connect a calendar provider to see upcoming events.",
-		emptyWhenZero: "Nothing on the calendar for the next 7 days.",
-		sortIndex: 2,
-		visibilityDefaultsKey: AppearanceDefaultsKey.showDashboardCalendar,
-		accessibilityIdentifier: "dashboard-calendar-card",
-		openFallbackBundleId: "com.apple.iCal",
-		openPrimaryTitle: "Open Calendar",
-		listsSourceOpenActions: false
-	)
-
-	/// Default registered data blocks (order = default layout).
-	static let builtIn: [DashboardBlockDescriptor] = [
-		.email,
-		.tasks,
-		.calendar,
-	]
 
 	static func flow(_ info: FlowDashboardBlockInfo, sortIndex: Int) -> DashboardBlockDescriptor {
 		DashboardBlockDescriptor(
 			id: DashboardBlockID(info.id),
 			title: info.title,
-			systemImage: FlowIconOption.resolvedSymbol(
-				info.icon,
-				fallback: info.variant == "runner" ? "play.circle" : FlowIconOption.defaultSymbol
-			),
-			emptyWhenNil: "Run this flow to see output here.",
-			emptyWhenZero: "Run this flow to see output here.",
+			systemImage: FlowIconOption.resolvedSymbol(info.icon, fallback: "play.circle"),
 			sortIndex: sortIndex,
-			visibilityDefaultsKey: "toby.appearance.showDashboardFlow.\(info.id)",
 			accessibilityIdentifier: "dashboard-flow-\(info.id)",
-			openFallbackBundleId: nil,
-			openPrimaryTitle: nil,
-			listsSourceOpenActions: false,
-			flowVariant: info.variant,
 			flowDescription: info.description,
 			flowColor: info.color,
 			dashboardColor: info.dashboardColor,

@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { createModelForPersona } from "../ai/model-factory";
+import { extractUserFacingText } from "../ai/strip-reasoning";
 import { type Persona, readConfig } from "../config/index";
-import { extractDashboardSummaryText } from "../dashboard/summarizer";
 import { daemonLog } from "../logging/daemon-log";
 import { resolveDefaultPersona, resolvePersona } from "../personas/index";
 import { composeSystemPromptWithPersona } from "../personas/prompt";
@@ -100,7 +100,7 @@ export async function summarizeRecordingTranscript(
 			maxOutputTokens: SUMMARY_MAX_TOKENS,
 		});
 
-		const text = extractDashboardSummaryText(result.text);
+		const text = extractUserFacingText(result.text);
 		if (!text) {
 			throw new Error("Model returned an empty summary.");
 		}
@@ -147,7 +147,7 @@ const TITLE_MAX_LENGTH = 120;
  * usable remains.
  */
 export function normalizeGeneratedTitle(raw: string): string {
-	const cleaned = extractDashboardSummaryText(raw);
+	const cleaned = extractUserFacingText(raw);
 	const firstLine =
 		cleaned
 			.split("\n")

@@ -11,6 +11,8 @@ import { FEED_ACTIONS, allowedActionIds, resolveActions } from "./actions";
 import {
 	EMPTY_PERSONALIZATION,
 	type FeedPersonalization,
+	formatInstructionsForPrompt,
+	formatInstructionsReminder,
 	formatPersonalizationForPrompt,
 } from "./personalization";
 import {
@@ -24,7 +26,7 @@ import {
 export const FEED_FLOW_NAME = "dashboard.feed";
 export const MAX_FEED_ITEMS = 12;
 /** Bump when ranking prompt/schema semantics change so cached rankings re-run. */
-export const FEED_RANKING_VERSION = "rank-v6";
+export const FEED_RANKING_VERSION = "rank-v7";
 const RANK_TIMEOUT_MS = 60_000;
 const RANK_MAX_OUTPUT_TOKENS = 4000;
 
@@ -79,8 +81,9 @@ export function buildFeedSystemPrompt(
 		.map(([id, spec]) => `- ${id} ("${spec.label}"): ${spec.hint}`)
 		.join("\n");
 	const personal = formatPersonalizationForPrompt(personalization);
+	const instructions = formatInstructionsForPrompt(personalization);
 	const base = `You are the user's personal assistant curating "The Feed": a short, prioritized list of the things across their email, calendar, tasks, chat, and news that most deserve their attention right now.
-
+${instructions ? `\n${instructions}\n` : ""}
 Your job:
 1. Choose at most ${MAX_FEED_ITEMS} candidates that genuinely matter. Leave out noise: newsletters, automated notifications, marketing, and anything that needs no attention.
 2. Order them most important first, judging every item on its own merits regardless of source. Do not group items by source type (email, calendar, tasks); an overdue task or urgent email can outrank a routine meeting.
@@ -100,6 +103,7 @@ Rules:
 - Treat the "signals" as facts computed from the source data.
 - Write times in the user's local timezone; never output raw ISO timestamps.
 - Calendar: being on the calendar is not enough. Include an event only when it needs something from the user — preparation, materials, a decision, a reply to the invite, a follow-up, or it starts within the hour and they need the heads-up. Leave out holds, focus or blocked time, placeholders, and routine recurring meetings with no agenda unless they are about to start. An event the user only needs to show up to is not Feed material — that includes talks, trainings, webinars, community or social events, and large meetings where they are mostly listening. Prefer events where the agenda or notes ask something of the user specifically. Tomorrow's events belong only when something must be prepared today. At most 3 calendar items unless more start within the hour.
+- Email: a person writing to the user is the email that matters — especially a known correspondent, a message sent directly to them, or one they have read but not replied to (someone is likely waiting). Rank those like a task due today, and above routine meetings. Mailing lists, newsletters, marketing, and automated notifications ("mailing list or automated sender") belong only when they carry a concrete deadline or action for the user (a bill or payment due, travel check-in, a security or account alert); then use the fyi or today tier as the deadline warrants.
 - Chat: direct messages and mentions where someone is waiting on the user rank like email that needs a reply; skip chatter that needs nothing from them.
 - News is context, not work: include at most 2 headlines, only when they plausibly matter to this user (their industry, employer, interests, location, or what they know from memory), always in the fyi tier with a low priority. Leave news out entirely when nothing fits.
 ${personal ? `\n${personal}\n` : ""}
@@ -114,7 +118,10 @@ export function formatCandidatesForPrompt(
 	return interleaveByCategory(candidates)
 		.map(({ c, i }) => {
 			const lines = [`${candidateKey(i)} [${c.category}] ${c.title}`];
+			lines.push(`   source: ${c.providerDisplayName ?? c.providerName}`);
 			if (c.subtitle) lines.push(`   from/list: ${c.subtitle}`);
+			const assigned = assignmentLabel(c);
+			if (assigned) lines.push(`   assigned: ${assigned}`);
 			if (c.detail) lines.push(`   detail: ${c.detail.slice(0, 280)}`);
 			if (c.event?.notes)
 				lines.push(
@@ -130,6 +137,21 @@ export function formatCandidatesForPrompt(
 			return lines.join("\n");
 		})
 		.join("\n");
+}
+
+/** Prompt text for task assignment; undefined when the provider didn't say. */
+function assignmentLabel(c: FeedCandidate): string | undefined {
+	const shared = c.task?.shared ? " (shared list)" : "";
+	switch (c.task?.assignment) {
+		case "you":
+			return `to the user${shared}`;
+		case "someone_else":
+			return `to someone else${shared}`;
+		case "unassigned":
+			return `nobody${shared}`;
+		default:
+			return c.task?.shared ? "unknown (shared list)" : undefined;
+	}
 }
 
 /**
@@ -267,10 +289,16 @@ export function feedFlowDefinition(): FlowDefinition {
 						(ctx.bag.personalization as FeedPersonalization | undefined) ??
 							EMPTY_PERSONALIZATION,
 					),
-				userPrompt: (ctx) =>
-					`Candidates:\n\n${formatCandidatesForPrompt(
+				userPrompt: (ctx) => {
+					const list = `Candidates:\n\n${formatCandidatesForPrompt(
 						(ctx.bag.candidates as FeedCandidate[] | undefined) ?? [],
-					)}`,
+					)}`;
+					const reminder = formatInstructionsReminder(
+						(ctx.bag.personalization as FeedPersonalization | undefined) ??
+							EMPTY_PERSONALIZATION,
+					);
+					return reminder ? `${list}\n\n${reminder}` : list;
+				},
 				outputs: { ranking: "object" },
 			},
 		],

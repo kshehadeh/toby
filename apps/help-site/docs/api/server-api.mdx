@@ -73,9 +73,10 @@ Transcript entries and chat stream events are structured JSON objects emitted du
 | `ANY` | `/api/health` | Daemon health and identity handshake |
 | `GET` | `/api/status` | Version, persona, model, integrations, skill count |
 | `GET` | `/api/dashboard` | Aggregator payload (all categories; internal / debug) |
-| `GET` | `/api/dashboard/:section` | Aggregator list for one category (not used by home cards) |
-| `GET` | `/api/dashboard/:section/content` | Home card block content (flow output; preferred) |
-| `GET` | `/api/dashboard/:section/summary` | Alias of `/content` |
+| `GET` | `/api/dashboard/:section` | Aggregator list for one category (internal / debug) |
+| `GET`, `POST` | `/api/dashboard/feed/instructions` | List or add instructions that guide The Feed |
+| `PATCH`, `DELETE` | `/api/dashboard/feed/instructions/:id` | Turn a Feed instruction on or off, or delete it |
+| `GET` | `/api/dashboard/flow-blocks` | Custom flows shown as Home Actions |
 | `GET` | `/api/flows` | Flow list for the app UI (`id`, `name`, `description`, `builtin`, `persona`, nodes, destinations, timestamps; built-ins seeded on list) |
 | `POST` | `/api/flows` | Create a custom flow |
 | `GET` | `/api/flows/catalog` | Connected plugin tools (including input schemas) for the flow editor |
@@ -256,7 +257,7 @@ Schedules `SIGTERM` after the response is flushed. The API goes offline when the
 
 ### `GET /api/dashboard`
 
-Returns aggregator list/count data for all categories. Home cards do not use this; it remains for debug and tooling.
+Returns aggregator list/count data for all categories. Toby.app does not call it; The Feed reads the aggregator in-process. It remains for debug and tooling.
 
 ### `GET /api/dashboard/:section`
 
@@ -264,15 +265,11 @@ Returns aggregator detail for one category (`email`, `tasks`, `calendar`). Unkno
 
 Optional query: `?fresh=1` bypasses the short category cache.
 
-### `GET /api/dashboard/:section/content`
+### `GET /api/dashboard/flow-blocks`
 
-Returns **block content** for a home card body (flow-generated markdown plus light meta such as `count` and `launchUrls`), or `null` when no providers are connected. Preferred path for Toby.app.
+Returns `{ blocks: [...] }`: custom flows shown as Home Actions (a runner Home destination with an enabled `home.action` trigger). Each block has `id`, `flowId`, `title`, `description`, `icon`, `color`, `dashboardColor`, `variant` (`"runner"`), `lastRanAt`, and `showsResultSheet`.
 
-Optional query: `?fresh=1` regenerates content (bypasses caches; used for manual refresh).
-
-### `GET /api/dashboard/:section/summary`
-
-Alias of `/content` (legacy path name).
+Home has no flow-produced cards; the former `/api/dashboard/:section/content` and `/summary` routes were removed.
 
 ## Issues
 

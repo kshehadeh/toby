@@ -58,7 +58,7 @@ struct FlowDetailsPane: View {
 	                        VStack(alignment: .leading, spacing: 6) {
 	                            HStack { Text(trigger.name); Spacer(); Text(trigger.enabled ? trigger.label : "Disabled").foregroundStyle(.secondary) }
 	                            if trigger.source.type == "dashboard.refresh" {
-	                                Text("Runs when Home refreshes this card, using its update setting. Automatic updates reuse fresh content for up to five minutes.")
+	                                Text("Removed: Home cards no longer exist, so this trigger never runs. Edit the flow to delete it.")
 	                                    .font(.caption)
 	                                    .foregroundStyle(.secondary)
 	                            }

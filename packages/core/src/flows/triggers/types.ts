@@ -34,7 +34,8 @@ export const flowTriggerSchema = z
 				})
 				.strict(),
 			z.object({ type: z.literal("home.action") }).strict(),
-			// Home owns cache invalidation and execution for built-in summaries.
+			// Retired (Home cards were removed). Still parsed so stored flows
+			// load; validateUserFlowDocument rejects it and nothing emits it.
 			z
 				.object({ type: z.literal("dashboard.refresh") })
 				.strict(),
@@ -99,12 +100,6 @@ export const homeActionTrigger = (id = "home-action"): FlowTrigger => ({
 	id,
 	name: "Home Screen Action",
 	source: { type: "home.action" },
-});
-export const dashboardRefreshTrigger = (): FlowTrigger => ({
-	...manualTrigger(),
-	id: "dashboard-refresh",
-	name: "Home refresh",
-	source: { type: "dashboard.refresh" },
 });
 export function isUserInvokedTrigger(type: string): boolean {
 	return type === "manual" || type === "home.action";

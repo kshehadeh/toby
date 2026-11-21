@@ -349,7 +349,9 @@ export function executeTool(
 				const notes = stringValue(reminder.notes);
 				const dueDate = stringValue(reminder.dueDate);
 				const priority = intValue(reminder.priority) ?? 0;
-				const url = stringValue(reminder.url);
+				// Open the reminder in Reminders.app; a link attached to the
+				// reminder is only a fallback (it usually points elsewhere).
+				const url = reminderDeepLink(id) ?? stringValue(reminder.url);
 
 				let urgency: "low" | "normal" | "high" = "normal";
 				if (priority === 1) {
@@ -569,4 +571,15 @@ export function executeTool(
 		default:
 			throw new ToolFailure(`Unknown tool: ${tool}`);
 	}
+}
+
+/**
+ * Reminders.app deep link for an EventKit `calendarItemIdentifier`. Opens
+ * Reminders to the list containing the reminder (undocumented but stable
+ * `REMCDReminder` route). Undefined for a blank id.
+ */
+export function reminderDeepLink(id: string): string | undefined {
+	const trimmed = id.trim();
+	if (!trimmed) return undefined;
+	return `x-apple-reminderkit://REMCDReminder/${encodeURIComponent(trimmed)}`;
 }

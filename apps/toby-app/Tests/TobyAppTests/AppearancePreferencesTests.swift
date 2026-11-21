@@ -14,10 +14,7 @@ struct AppearancePreferencesTests {
 		#expect(prefs.mode == .system)
 		#expect(prefs.accent == .orange)
 		#expect(prefs.hideOnboarding == false)
-		// The Feed replaces the mail / tasks / Toby Todos cards by default.
-		#expect(prefs.showDashboardEmail == false)
-		#expect(prefs.showDashboardTasks == false)
-		#expect(prefs.showDashboardCalendar == true)
+		#expect(prefs.dashboardLayout == .empty)
 		#expect(prefs.launchAtLogin == false)
 		#expect(prefs.showMenuBarIcon == true)
 		// System resolves to a concrete scheme (light or dark), never unspecified.
@@ -52,7 +49,7 @@ struct AppearancePreferencesTests {
 		#expect(AppearancePreferences.resolveColorScheme(for: .dark) == .dark)
 	}
 
-	@Test("persists mode, accent, hide onboarding, dashboard blocks, and general prefs to UserDefaults")
+	@Test("persists mode, accent, hide onboarding, hidden actions, and general prefs to UserDefaults")
 	func persistsModeAccentAndHideOnboarding() {
 		let name = "toby.tests.appearance.\(UUID().uuidString)"
 		let suite = UserDefaults(suiteName: name)!
@@ -61,29 +58,22 @@ struct AppearancePreferencesTests {
 		prefs.mode = .light
 		prefs.accent = .teal
 		prefs.hideOnboarding = true
-		prefs.showDashboardEmail = false
-		prefs.showDashboardTasks = false
-		prefs.showDashboardCalendar = false
+		prefs.setDashboardBlockVisible(id: DashboardBlockID("flow.focus"), visible: false)
 		prefs.launchAtLogin = true
 		prefs.showMenuBarIcon = false
 		#expect(suite.string(forKey: AppearancePreferences.modeDefaultsKey) == "light")
 		#expect(suite.string(forKey: AppearancePreferences.accentDefaultsKey) == "teal")
 		#expect(suite.bool(forKey: AppearancePreferences.hideOnboardingDefaultsKey) == true)
-		#expect(suite.bool(forKey: AppearancePreferences.showDashboardEmailDefaultsKey) == false)
-		#expect(suite.bool(forKey: AppearancePreferences.showDashboardTasksDefaultsKey) == false)
-		#expect(suite.bool(forKey: AppearancePreferences.showDashboardCalendarDefaultsKey) == false)
 		#expect(suite.bool(forKey: AppearancePreferences.launchAtLoginDefaultsKey) == true)
 		#expect(suite.bool(forKey: AppearancePreferences.showMenuBarIconDefaultsKey) == false)
 		#expect(suite.string(forKey: AppearancePreferences.dashboardLayoutDefaultsKey) != nil)
-		#expect(prefs.dashboardLayout.hidden.contains("email"))
+		#expect(prefs.dashboardLayout.hidden.contains("flow.focus"))
 
 		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(reloaded.mode == .light)
 		#expect(reloaded.accent == .teal)
 		#expect(reloaded.hideOnboarding == true)
-		#expect(reloaded.showDashboardEmail == false)
-		#expect(reloaded.showDashboardTasks == false)
-		#expect(reloaded.showDashboardCalendar == false)
+		#expect(!reloaded.isDashboardBlockVisible(id: DashboardBlockID("flow.focus")))
 		#expect(reloaded.launchAtLogin == true)
 		#expect(reloaded.showMenuBarIcon == false)
 		#expect(reloaded.resolvedColorScheme == .light)
@@ -198,7 +188,7 @@ struct AppearancePreferencesTests {
 		}
 	}
 
-	@Test("dashboard settings section shows block visibility and hide onboarding toggles")
+	@Test("Home settings section shows hide onboarding and reset, without card or Feed toggles")
 	func dashboardSettingsShowsHideOnboardingToggle() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
@@ -226,23 +216,13 @@ struct AppearancePreferencesTests {
 			try view.inspect().find(text: "Home")
 		}
 		#expect(SettingsSidebarIcon.systemName(for: section) == "house")
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Show unread mail")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Show tasks")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Show upcoming events")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-email-toggle")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-tasks-toggle")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-show-calendar-toggle")
+		for removed in [
+			"dashboard-show-email-toggle", "dashboard-show-tasks-toggle",
+			"dashboard-show-calendar-toggle", "dashboard-show-feed-toggle",
+		] {
+			#expect(throws: (any Error).self) {
+				try view.inspect().find(viewWithAccessibilityIdentifier: removed)
+			}
 		}
 		#expect(throws: Never.self) {
 			try view.inspect().find(text: "Hide onboarding checklist")
@@ -258,17 +238,15 @@ struct AppearancePreferencesTests {
 		}
 	}
 
-	@Test("reset dashboard layout shows all cards and clears custom order")
+	@Test("reset Home layout shows hidden actions and restores the Actions rail")
 	func resetDashboardLayoutRestoresDefaults() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.reset.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(
-			showFeed: false,
-			defaults: suite,
-			applyLaunchAtLoginOnChange: false
-		)
+		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		prefs.dashboardLayout = DashboardLayout(
-			order: ["calendar", "email", "tasks"],
-			hidden: ["email", "flow.x"]
+			hidden: ["flow.x"],
+			colorOverrides: ["flow.y": "blue"],
+			actionsVisible: false,
+			actionsWidth: 220
 		)
 		prefs.resetDashboardLayout()
 		#expect(prefs.dashboardLayout == .empty)
@@ -276,44 +254,7 @@ struct AppearancePreferencesTests {
 		#expect(
 			prefs.dashboardLayout.actionsWidth == DashboardBlockLayout.actionsRailDefaultWidth
 		)
-		#expect(prefs.showDashboardEmail)
-		#expect(prefs.showDashboardTasks)
-		#expect(prefs.showDashboardCalendar)
 		#expect(prefs.isDashboardBlockVisible(id: DashboardBlockID("flow.x")))
-	}
-
-	@Test("The Feed hides the cards it replaces once, and they return while the Feed is unavailable")
-	func feedReplacesLegacyCards() {
-		let suite = UserDefaults(suiteName: "toby.tests.appearance.feedcards.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		let todos = DashboardBlockID.todosSummary
-		#expect(!prefs.isDashboardBlockVisible(id: .email))
-		#expect(!prefs.isDashboardBlockVisible(id: .tasks))
-		#expect(!prefs.isDashboardBlockVisible(id: todos))
-		#expect(prefs.isDashboardBlockVisible(id: .calendar))
-		#expect(prefs.feedReplacedCardIDs == ["email", "tasks", todos.rawValue])
-
-		// Unavailable Feed (off / needs setup): the replaced cards render again.
-		let fallback = prefs.effectiveDashboardLayout(feedAvailable: false)
-		#expect(fallback.isVisible(id: .email) && fallback.isVisible(id: todos))
-		#expect(prefs.effectiveDashboardLayout(feedAvailable: true) == prefs.dashboardLayout)
-
-		// Showing a card makes it the user's choice; the migration never reruns.
-		prefs.setDashboardBlockVisible(id: .email, visible: true)
-		#expect(prefs.feedReplacedCardIDs == ["tasks", todos.rawValue])
-		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		#expect(reloaded.isDashboardBlockVisible(id: .email))
-		#expect(!reloaded.isDashboardBlockVisible(id: .tasks))
-		#expect(reloaded.feedReplacedCardIDs == ["tasks", todos.rawValue])
-	}
-
-	@Test("cards stay visible when the Feed is off at migration time")
-	func feedOffKeepsLegacyCards() {
-		let suite = UserDefaults(suiteName: "toby.tests.appearance.feedoff.\(UUID().uuidString)")!
-		suite.set(false, forKey: AppearancePreferences.showFeedDefaultsKey)
-		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		#expect(prefs.isDashboardBlockVisible(id: .email))
-		#expect(prefs.feedReplacedCardIDs.isEmpty)
 	}
 
 	@Test("actions pane visibility and width persist on the layout document")
@@ -330,61 +271,16 @@ struct AppearancePreferencesTests {
 		#expect(reloaded.dashboardLayout.actionsWidth == 200)
 	}
 
-	@Test("Home card order including Continue working persists between sessions")
-	func homeCardOrderPersists() {
-		let suite = UserDefaults(suiteName: "toby.tests.appearance.homeorder.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		prefs.dashboardLayout = DashboardLayout(
-			order: [
-				DashboardBlockID.recentWork.rawValue,
-				DashboardBlockID.calendar.rawValue,
-				DashboardBlockID.email.rawValue,
-				DashboardBlockID.tasks.rawValue,
-			],
-			hidden: []
-		)
-
-		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		#expect(reloaded.dashboardLayout.order == [
-			"local.recent-work",
-			"calendar",
-			"email",
-			"tasks",
-		])
-	}
-
-	@Test("flow card visibility is stored on the layout document")
-	func flowCardVisibilityPersists() {
+	@Test("action tile visibility is stored on the layout document")
+	func actionVisibilityPersists() {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.flowvis.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		let flowID = DashboardBlockID("flow.info")
+		let flowID = DashboardBlockID("flow.run")
 		#expect(prefs.isDashboardBlockVisible(id: flowID))
 		prefs.setDashboardBlockVisible(id: flowID, visible: false)
 		#expect(!prefs.isDashboardBlockVisible(id: flowID))
 		let reloaded = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		#expect(!reloaded.isDashboardBlockVisible(id: flowID))
-	}
-
-	@Test("dashboard block visibility helpers update preferences")
-	func dashboardBlockVisibilityHelpers() {
-		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(
-			showFeed: false,
-			defaults: suite,
-			applyLaunchAtLoginOnChange: false
-		)
-		#expect(prefs.isDashboardBlockVisible(.email))
-		#expect(prefs.isDashboardBlockVisible(.tasks))
-		#expect(prefs.isDashboardBlockVisible(.calendar))
-		prefs.setDashboardBlockVisible(.email, visible: false)
-		#expect(!prefs.isDashboardBlockVisible(.email))
-		#expect(prefs.showDashboardEmail == false)
-		prefs.setDashboardBlockVisible(.tasks, visible: false)
-		#expect(!prefs.isDashboardBlockVisible(.tasks))
-		#expect(prefs.showDashboardTasks == false)
-		prefs.setDashboardBlockVisible(.calendar, visible: false)
-		#expect(!prefs.isDashboardBlockVisible(.calendar))
-		#expect(prefs.showDashboardCalendar == false)
 	}
 
 	@Test("monochrome AI icon URLs use template rendering")

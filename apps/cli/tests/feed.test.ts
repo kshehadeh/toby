@@ -101,7 +101,7 @@ describe("feed prefilter", () => {
 			NOW,
 		);
 		expect(out.map((c) => c.itemId)).toEqual(["flagged", "person", "bulk"]);
-		expect(out[2]?.signals).toContain("likely automated or bulk sender");
+		expect(out[2]?.signals).toContain("mailing list or automated sender");
 	});
 
 	it("marks overdue and due-today tasks", () => {

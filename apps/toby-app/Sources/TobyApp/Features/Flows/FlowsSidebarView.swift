@@ -4,7 +4,6 @@ enum FlowSidebarFilter: String, CaseIterable {
 	case all = "All"
 	case manual = "Manual"
 	case homeActions = "Home Actions"
-	case homeRefresh = "Home Refresh"
 	case scheduled = "Scheduled"
 	case events = "Events"
 
@@ -14,7 +13,6 @@ enum FlowSidebarFilter: String, CaseIterable {
 			case .all: true
 			case .manual: trigger.source.type == "manual"
 			case .homeActions: trigger.source.type == "home.action"
-			case .homeRefresh: trigger.source.type == "dashboard.refresh"
 			case .scheduled: trigger.source.type == "schedule"
 			case .events: trigger.source.type.hasPrefix("macos.")
 			}
