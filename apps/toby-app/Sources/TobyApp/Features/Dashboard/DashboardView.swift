@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Shared motion for dashboard section insert/remove (cards + onboarding).
+/// Shared motion for Home section insert/remove (onboarding, Actions).
 /// Computed (not stored) so non-Sendable `AnyTransition` stays concurrency-safe.
 enum DashboardSectionMotion {
 	/// Matches toast / lightweight chrome springs used elsewhere in Toby.app.
@@ -29,15 +29,12 @@ struct DashboardView: View {
 	/// status, schedules, skills, recordings, permissions). Avoids a flash of
 	/// incomplete checklist steps that disappear once data arrives.
 	var isOnboardingReady: Bool = true
-	/// When true, daemon is ready for HTTP; soft-loads dashboard data.
+	/// When true, daemon is ready for HTTP; soft-loads Home data.
 	var isServerReady: Bool = true
 	let onRefresh: () -> Void
 	let onSelectRoute: (DetailRoute) -> Void
 	var onCreateSchedule: () -> Void = {}
 	var onCreateSkill: () -> Void = {}
-	var recentWork: [DashboardRecentWorkItem] = []
-	var isRecentWorkLoading = false
-	var onSelectRecentWork: (DashboardRecentWorkItem) -> Void = { _ in }
 	/// Opens Settings, optionally deep-linking to a top-level section key
 	/// (e.g. `"ai"`, `"transcription"`).
 	var onOpenSettings: (String?) -> Void = { _ in }
@@ -46,23 +43,20 @@ struct DashboardView: View {
 	/// Opens the sidebar persona picker with attention highlighting.
 	var onOpenPersonaPicker: () -> Void = {}
 	let onOpenPermissions: () -> Void
-	/// Shell hooks for block menu actions (chat prompts, etc.).
+	/// Shell hooks for Feed and Actions (chat prompts, flow runs, toasts).
 	var actionContext: DashboardBlockActionContext = .init()
 	/// Client-local prefs (theme / hide onboarding). Defaults to the shared store.
 	@Bindable var appearancePreferences: AppearancePreferences = .shared
-	/// Session-only layout editor. Toolbar toggle lives on `RootView`.
+	/// Session-only Actions editor (hide / recolor tiles). Toolbar toggle lives on `RootView`.
 	var isEditing: Bool = false
 	/// Leaves edit mode from the keyboard. Toolbar state remains owned by `RootView`.
 	var onExitEditing: () -> Void = {}
+	/// "Guide The Feed" sheet; the toolbar button lives on `RootView`.
+	var isShowingFeedInstructions: Binding<Bool> = .constant(false)
 
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
 	@State private var now = Date()
-	@State private var draggingID: DashboardBlockID?
-	@State private var dropPlacement: DashboardLayout.CardPlacement?
-	@State private var slotFrames: [DashboardBlockID: CGRect] = [:]
-	@State private var dragSpaceGlobal: CGRect = .zero
-	@State private var layoutBeforeDrag: DashboardLayout?
 	/// Frozen inspector ideal width for this presentation so persisting the
 	/// user’s drag does not fight the system divider.
 	@State private var actionsInspectorIdealWidth: CGFloat?
@@ -74,58 +68,28 @@ struct DashboardView: View {
 			&& !appearancePreferences.hideOnboarding
 	}
 
-	/// Rendered layout: the cards The Feed replaced come back while it's unavailable.
-	private var layoutSource: DashboardLayout {
-		appearancePreferences.effectiveDashboardLayout(
-			feedAvailable: store.isFeedAvailable(showFeed: appearancePreferences.showFeed)
-		)
-	}
-
-	/// Visible data cards; loads any that became visible without content.
-	private var visibleBlockKey: String {
-		store.blocks
-			.filter { !layoutSource.isHidden(id: $0.id) }
-			.map(\.id.rawValue)
-			.joined(separator: "|")
-	}
-
-	private var visibleHomeItems: [DashboardHomeItem] {
-		layoutSource.resolvedVisibleHomeItems(from: store.registry.descriptors).map {
-			DashboardHomeItem(id: $0)
-		}
-	}
+	private var layout: DashboardLayout { appearancePreferences.dashboardLayout }
 
 	private var visibleRunners: [CategoryDashboardBlock] {
-		store.registry.orderedVisibleRunners(layout: layoutSource)
+		store.registry.orderedVisibleRunners(layout: layout)
 	}
 
-	private var hiddenBlocks: [CategoryDashboardBlock] {
-		store.registry.orderedHidden(layout: layoutSource)
+	private var hiddenRunners: [CategoryDashboardBlock] {
+		store.registry.orderedHidden(layout: layout)
 	}
 
 	private var isActionsInspectorPresented: Bool {
-		layoutSource.actionsVisible && !visibleRunners.isEmpty
+		layout.actionsVisible && !visibleRunners.isEmpty
 	}
 
-	private var usesNativeReordering: Bool {
-		if #available(macOS 27.0, *) {
-			return true
-		}
-		return false
-	}
-
-	/// Fingerprint of which dashboard sections are visible; drives insert/remove animation.
+	/// Fingerprint of which Home sections are visible; drives insert/remove animation.
 	private var sectionVisibilityKey: String {
-		let hiddenKey = isEditing ? hiddenBlocks.map { "h:\($0.id.rawValue)" } : []
-		let railKey = isActionsInspectorPresented ? "actions" : ""
-		return ([shouldShowOnboarding ? "onboarding" : "", showsFeed ? "feed" : ""]
-			+ visibleHomeItems.map(\.id.rawValue)
+		let hiddenKey = isEditing ? hiddenRunners.map { "h:\($0.id.rawValue)" } : []
+		return ([shouldShowOnboarding ? "onboarding" : ""]
 			+ visibleRunners.map { "r:\($0.id.rawValue)" }
-			+ [railKey]
+			+ [isActionsInspectorPresented ? "actions" : ""]
 			+ hiddenKey).joined(separator: "|")
 	}
-
-	private var showsFeed: Bool { appearancePreferences.showFeed }
 
 	private var sectionAnimation: Animation? {
 		reduceMotion ? nil : DashboardSectionMotion.animation
@@ -153,21 +117,12 @@ struct DashboardView: View {
 			.environment(\.dashboardIsEditing, isEditing)
 			.onAppear {
 				if actionsInspectorIdealWidth == nil {
-					actionsInspectorIdealWidth = layoutSource.actionsWidth
-				}
-			}
-			.onChange(of: isEditing) { _, editing in
-				if !editing {
-					cancelCardDrag()
+					actionsInspectorIdealWidth = layout.actionsWidth
 				}
 			}
 			.onExitCommand {
 				guard isEditing else { return }
 				onExitEditing()
-			}
-			.task(id: "\(isServerReady)|\(visibleBlockKey)") {
-				guard isServerReady, store.hasLoadedOnce else { return }
-				await store.loadVisibleBlocksMissingContent(layout: layoutSource)
 			}
 			.onChange(of: appearancePreferences.dashboardLayout) { _, layout in
 				if layout == .empty {
@@ -176,22 +131,28 @@ struct DashboardView: View {
 			}
 			.onChange(of: isActionsInspectorPresented) { _, presented in
 				if presented {
-					actionsInspectorIdealWidth = layoutSource.actionsWidth
+					actionsInspectorIdealWidth = layout.actionsWidth
 				}
 			}
 			.task(id: isServerReady) {
 				now = Date()
 				guard isServerReady else { return }
-				// Soft load: one content path per block (server caches OK).
 				await store.updateAll(force: false)
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .flowDefinitionsDidChange)) { _ in
 				Task { await store.syncFlowBlocks() }
 			}
-			.onReceive(NotificationCenter.default.publisher(for: .dashboardBlockShouldRefresh)) { note in
-				guard let raw = note.object as? String else { return }
-				Task { await store.refreshBlock(DashboardBlockID(raw)) }
+			.sheet(isPresented: isShowingFeedInstructions, onDismiss: feedInstructionsDismissed) {
+				FeedInstructionsSheet(store: store.feedInstructions) {
+					isShowingFeedInstructions.wrappedValue = false
+				}
 			}
+	}
+
+	/// Re-rank once after the instructions sheet closes if anything changed.
+	private func feedInstructionsDismissed() {
+		guard store.feedInstructions.consumeChanges() else { return }
+		Task { await store.feed.update(force: true) }
 	}
 
 	private var greeting: some View {
@@ -226,40 +187,17 @@ struct DashboardView: View {
 							appearancePreferences.hideOnboardingBinding.wrappedValue = true
 						}
 					)
-						.transition(DashboardSectionMotion.transition)
-				}
-				if showsFeed {
-					feedSection
-						.transition(DashboardSectionMotion.transition)
-				}
-				cardGrid
-				if isEditing, !hiddenBlocks.isEmpty {
-					DashboardHiddenBlocksTray(
-						blocks: hiddenBlocks,
-						onShow: handleShow,
-						onDragBegan: { beginCardDragIfNeeded($0) }
-					)
 					.transition(DashboardSectionMotion.transition)
+				}
+				feedSection
+				if isEditing, !hiddenRunners.isEmpty {
+					DashboardHiddenActionsTray(blocks: hiddenRunners, onShow: handleShow)
+						.transition(DashboardSectionMotion.transition)
 				}
 			}
 			.padding(AppTheme.contentPadding)
 			.frame(maxWidth: DashboardBlockLayout.cardsMaxWidth, alignment: .leading)
 			.frame(maxWidth: .infinity, alignment: .top)
-			.dragConfiguration(DragConfiguration(allowMove: true))
-			.dropConfiguration { _ in DropConfiguration(operation: .move) }
-			.dropDestination(
-				for: DashboardBlockID.self,
-				isEnabled: isEditing && !usesNativeReordering
-			) { items, session in
-				beginCardDragIfNeeded(items.first)
-				updateDropPlacement(at: globalPoint(fromLocal: session.location))
-				commitDrop()
-			}
-			.onGeometryChange(for: CGRect.self) { proxy in
-				proxy.frame(in: .global)
-			} action: { dragSpaceGlobal = $0 }
-			.onDragSessionUpdated(handleDragSession)
-			.onDropSessionUpdated(handleDropSession)
 		}
 		.automaticScrollIndicators(axes: .vertical)
 		.frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -274,7 +212,7 @@ struct DashboardView: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 		.inspectorColumnWidth(
 			min: DashboardBlockLayout.actionsRailMinWidth,
-			ideal: actionsInspectorIdealWidth ?? layoutSource.actionsWidth,
+			ideal: actionsInspectorIdealWidth ?? layout.actionsWidth,
 			max: DashboardBlockLayout.actionsRailMaxWidth
 		)
 	}
@@ -285,15 +223,12 @@ struct DashboardView: View {
 			onPerform: performFeedAction,
 			onOutcome: showFeedOutcome,
 			onOpenSettings: { onOpenSettings("dashboard") },
-			onHide: { appearancePreferences.showFeedBinding.wrappedValue = false }
+			onGuide: { isShowingFeedInstructions.wrappedValue = true }
 		)
 		.allowsHitTesting(!isEditing)
 		.opacity(isEditing ? 0.6 : 1)
 		.task(id: isServerReady) {
 			guard isServerReady else { return }
-			if store.feed.content == nil {
-				await store.feed.update(force: false)
-			}
 			// Pick up background refreshes while Home is open (soft, cached).
 			while !Task.isCancelled {
 				try? await Task.sleep(for: Self.feedPollInterval)
@@ -328,111 +263,6 @@ struct DashboardView: View {
 		}
 	}
 
-	private var cardGrid: some View {
-		AdaptiveColumnLayout(minItemWidth: 320, maxItemWidth: 460, spacing: 20) {
-			ForEach(visibleHomeItems) { item in
-				editableHomeItem(item, usesManualDrag: true)
-					.transition(DashboardSectionMotion.transition)
-			}
-		}
-	}
-
-	@ViewBuilder
-	private func editableHomeItem(
-		_ item: DashboardHomeItem,
-		usesManualDrag: Bool
-	) -> some View {
-		if item.id == .recentWork {
-			editableRecentWork(usesManualDrag: usesManualDrag)
-		} else if let block = store.registry.block(id: item.id) {
-			editableCard(block, usesManualDrag: usesManualDrag)
-		}
-	}
-
-	@ViewBuilder
-	private func editableCard(
-		_ block: CategoryDashboardBlock,
-		usesManualDrag: Bool
-	) -> some View {
-		let isDragSource = draggingID == block.id
-		ZStack(alignment: .topLeading) {
-			blockCard(block)
-				.allowsHitTesting(!isEditing)
-				.opacity(isDragSource ? 0 : 1)
-			if isEditing {
-				DashboardEditOverlay(
-					title: block.title,
-					blockID: block.id,
-					isDragging: isDragSource,
-					dropEdge: dropEdge(for: block.id),
-					onHide: { handleHide(block.id) },
-					colorSelection: colorBinding(for: block.id),
-					onMoveEarlier: moveEarlierAction(for: block.id),
-					onMoveLater: moveLaterAction(for: block.id)
-				)
-				.modifier(CardReorderModifier(
-					id: block.id,
-					title: block.title,
-					systemImage: block.systemImage,
-					enabled: usesManualDrag,
-					onBegan: { beginCardDragIfNeeded(block.id) }
-				))
-				.accessibilityIdentifier("dashboard-edit-overlay-\(block.id.rawValue)")
-			}
-		}
-		.contentShape(Rectangle())
-		.onGeometryChange(for: CGRect.self) { proxy in
-			proxy.frame(in: .global)
-		} action: { frame in
-			if slotFrames[block.id] != frame {
-				slotFrames[block.id] = frame
-			}
-		}
-	}
-
-	@ViewBuilder
-	private func editableRecentWork(usesManualDrag: Bool) -> some View {
-		let id = DashboardBlockID.recentWork
-		let isDragSource = draggingID == id
-		ZStack(alignment: .topLeading) {
-			DashboardRecentWorkSection(
-				items: recentWork,
-				isLoading: isRecentWorkLoading,
-				onSelect: onSelectRecentWork
-			)
-			.environment(\.dashboardBlockColor, layoutSource.resolvedColor(for: id, defaultColor: nil))
-			.allowsHitTesting(!isEditing)
-			.opacity(isDragSource ? 0 : 1)
-			if isEditing {
-				DashboardEditOverlay(
-					title: "Continue working",
-					blockID: id,
-					isDragging: isDragSource,
-					dropEdge: dropEdge(for: id),
-					colorSelection: colorBinding(for: id),
-					onMoveEarlier: moveEarlierAction(for: id),
-					onMoveLater: moveLaterAction(for: id)
-				)
-				.modifier(CardReorderModifier(
-					id: id,
-					title: "Continue working",
-					systemImage: "clock.arrow.circlepath",
-					enabled: usesManualDrag,
-					onBegan: { beginCardDragIfNeeded(id) }
-				))
-				.accessibilityIdentifier("dashboard-edit-overlay-\(id.rawValue)")
-			}
-		}
-		.contentShape(Rectangle())
-		.onGeometryChange(for: CGRect.self) { proxy in
-			proxy.frame(in: .global)
-		} action: { frame in
-			if slotFrames[id] != frame {
-				slotFrames[id] = frame
-			}
-		}
-	}
-
 	@ViewBuilder
 	private func editableRunner(_ block: CategoryDashboardBlock) -> some View {
 		ZStack(alignment: .topLeading) {
@@ -446,8 +276,6 @@ struct DashboardView: View {
 				DashboardEditOverlay(
 					title: block.title,
 					blockID: block.id,
-					compact: true,
-					showsHandle: false,
 					onHide: { handleHide(block.id) },
 					colorSelection: colorBinding(for: block.id)
 				)
@@ -455,15 +283,6 @@ struct DashboardView: View {
 			}
 		}
 		.contentShape(Rectangle())
-	}
-
-	@ViewBuilder
-	private func blockCard(_ block: CategoryDashboardBlock) -> some View {
-		DashboardBlockCard(
-			block: block,
-			actionContext: actionContext
-		)
-		.environment(\.dashboardBlockColor, layoutSource.resolvedColor(for: block.id, defaultColor: block.descriptor.dashboardColor))
 	}
 
 	private func colorBinding(for id: DashboardBlockID) -> Binding<String> {
@@ -475,142 +294,15 @@ struct DashboardView: View {
 		)
 	}
 
-	private func handleDragSession(_ session: DragSession) {
-		guard !usesNativeReordering else { return }
-		let ids = session.draggedItemIDs(for: DashboardBlockID.self)
-		if let id = ids.first {
-			beginCardDragIfNeeded(id)
-		}
-		switch session.phase {
-		case .initial, .active:
-			updateDropPlacement(at: globalPoint(fromLocal: session.location))
-		case let .ended(operation):
-			switch operation {
-			case .cancel, .forbidden:
-				cancelCardDrag()
-			default:
-				commitDrop()
-			}
-		default:
-			break
-		}
-	}
-
-	private func handleDropSession(_ session: DropSession) {
-		guard !usesNativeReordering else { return }
-		switch session.phase {
-		case .entering, .active:
-			updateDropPlacement(at: globalPoint(fromLocal: session.location))
-		case let .ended(operation):
-			switch operation {
-			case .cancel, .forbidden:
-				cancelCardDrag()
-			default:
-				break
-			}
-		default:
-			break
-		}
-	}
-
-	private func globalPoint(fromLocal point: CGPoint) -> CGPoint {
-		CGPoint(x: dragSpaceGlobal.minX + point.x, y: dragSpaceGlobal.minY + point.y)
-	}
-
-	private func updateDropPlacement(at point: CGPoint) {
-		let visibleIDs = Set(visibleHomeItems.map(\.id))
-		let next = DashboardDropGeometry.placement(
-			at: point,
-			frames: slotFrames.filter { visibleIDs.contains($0.key) },
-			draggingID: draggingID
-		)
-		if dropPlacement != next {
-			dropPlacement = next
-		}
-	}
-
-	private func beginCardDragIfNeeded(_ id: DashboardBlockID?) {
-		guard let id else { return }
-		if layoutBeforeDrag == nil {
-			layoutBeforeDrag = appearancePreferences.dashboardLayout
-		}
-		draggingID = id
-	}
-
-	private func commitCardDrag() {
-		layoutBeforeDrag = nil
-		draggingID = nil
-		dropPlacement = nil
-	}
-
-	private func cancelCardDrag() {
-		if let origin = layoutBeforeDrag {
-			appearancePreferences.dashboardLayout = origin
-		}
-		layoutBeforeDrag = nil
-		draggingID = nil
-		dropPlacement = nil
-	}
-
-	private func commitDrop() {
-		guard let draggingID else {
-			commitCardDrag()
-			return
-		}
-		if let dropPlacement {
-			handlePlacingHomeItems([draggingID], at: dropPlacement)
-		}
-		commitCardDrag()
-	}
-
-	private func handlePlacingHomeItems(
-		_ ids: [DashboardBlockID],
-		at placement: DashboardLayout.CardPlacement
-	) {
-		withAnimation(sectionAnimation) {
-			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
-				.placingVisibleHomeItems(ids, at: placement, from: store.registry.descriptors)
-		}
-	}
-
-	private func dropEdge(for id: DashboardBlockID) -> DashboardEditOverlay.DropEdge? {
-		switch dropPlacement {
-		case let .before(target) where target == id: .before
-		case let .after(target) where target == id: .after
-		case .end where visibleHomeItems.last?.id == id: .after
-		default: nil
-		}
-	}
-
-	private func moveEarlierAction(for id: DashboardBlockID) -> (() -> Void)? {
-		let ids = visibleHomeItems.map(\.id)
-		guard let index = ids.firstIndex(of: id), index > ids.startIndex else { return nil }
-		let destination = ids[ids.index(before: index)]
-		return { handlePlacingHomeItems([id], at: .before(destination)) }
-	}
-
-	private func moveLaterAction(for id: DashboardBlockID) -> (() -> Void)? {
-		let ids = visibleHomeItems.map(\.id)
-		guard let index = ids.firstIndex(of: id), index < ids.index(before: ids.endIndex) else {
-			return nil
-		}
-		let destination = ids[ids.index(after: index)]
-		return { handlePlacingHomeItems([id], at: .after(destination)) }
-	}
-
 	private func handleHide(_ id: DashboardBlockID) {
-		appearancePreferences.forgetFeedReplacedCard(id)
 		withAnimation(sectionAnimation) {
-			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
-				.hidingHomeItem(id, from: store.registry.descriptors)
+			appearancePreferences.setDashboardBlockVisible(id: id, visible: false)
 		}
 	}
 
 	private func handleShow(_ id: DashboardBlockID) {
-		appearancePreferences.forgetFeedReplacedCard(id)
 		withAnimation(sectionAnimation) {
-			appearancePreferences.dashboardLayout = appearancePreferences.dashboardLayout
-				.showingHomeItem(id, from: store.registry.descriptors)
+			appearancePreferences.setDashboardBlockVisible(id: id, visible: true)
 		}
 	}
 

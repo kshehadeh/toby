@@ -331,6 +331,7 @@ describe("personalization", () => {
 						at: NOW.toISOString(),
 					},
 				],
+				instructions: [],
 			},
 			{ listMemories: () => [memory({})] },
 		);
@@ -345,13 +346,21 @@ describe("personalization", () => {
 		expect(prompt).toContain("Works at Acme");
 		expect(prompt).toContain("News is context, not work");
 		expect(personalizationSignature(p)).not.toBe(
-			personalizationSignature({ memories: [], notRelevant: [] }),
+			personalizationSignature({
+				instructions: [],
+				memories: [],
+				notRelevant: [],
+			}),
 		);
 	});
 
 	it("omits the section when there is nothing to personalize with", () => {
 		expect(
-			formatPersonalizationForPrompt({ memories: [], notRelevant: [] }),
+			formatPersonalizationForPrompt({
+				instructions: [],
+				memories: [],
+				notRelevant: [],
+			}),
 		).toBe("");
 	});
 });

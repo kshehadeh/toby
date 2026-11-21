@@ -72,6 +72,31 @@ struct FeedItem: Decodable, Equatable, Identifiable, Sendable {
 		}
 	}
 
+	/// The connection this item came from, e.g. "Apple Reminders". Falls back
+	/// to a category label when the daemon didn't send a display name.
+	var sourceName: String {
+		if let name = source.providerDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines),
+		   !name.isEmpty {
+			return name
+		}
+		switch source.category {
+		case "email": return "Email"
+		case "calendar": return "Calendar"
+		case "tasks": return "Tasks"
+		case "todos": return "Toby Todos"
+		case "chat": return "Chat"
+		case "news": return "News"
+		default: return source.providerName
+		}
+	}
+
+	/// Source line under the title: connection, then sender / list / project
+	/// when the provider sends one ("Apple Reminders · Errands").
+	var sourceLine: String {
+		let detail = subtitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		return detail.isEmpty ? sourceName : "\(sourceName) · \(detail)"
+	}
+
 	/// Calls to action shown as buttons / menu items, primary first
 	/// (chat, open, and daemon tool actions; snooze/dismiss are `stateActions`).
 	var performableActions: [FeedAction] {
@@ -136,4 +161,21 @@ struct FeedActionResponse: Decodable, Equatable, Sendable {
 	var todoId: String?
 	/// Current Feed with the acted-on item removed.
 	var content: FeedContent?
+}
+
+/// A user-written rule for what The Feed includes and how it ranks.
+/// Mirrors core `FeedInstruction` (`/api/dashboard/feed/instructions`).
+struct FeedInstruction: Decodable, Equatable, Identifiable, Sendable {
+	let id: String
+	let text: String
+	let createdAt: String
+	var enabled: Bool
+
+	/// Character limit enforced by the daemon.
+	static let maxLength = 500
+}
+
+/// `/api/dashboard/feed/instructions` response.
+struct FeedInstructionsResponse: Decodable, Sendable {
+	let instructions: [FeedInstruction]
 }

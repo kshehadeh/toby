@@ -206,7 +206,7 @@ extension FlowDestinationSpec {
 		case "slack":
 			return "Posts the result to Slack"
 		case "dashboard":
-			return variant == "runner" ? "Adds an Actions tile on Home" : "Shows the result as a card on Home"
+			return variant == "runner" ? "Adds an Actions tile on Home" : "Home card (removed)"
 		default:
 			return "Sends the result to \(type.capitalized)"
 		}
@@ -222,7 +222,7 @@ extension FlowDestinationSpec {
 			return "In \(channel)"
 		case "dashboard":
 			if variant == "runner" { return "Runs when you click it" }
-			return refresh == "manual" ? "Refreshes when you ask" : "Refreshes on its own"
+			return "Home cards were removed. Edit the flow to remove this."
 		default:
 			return nil
 		}

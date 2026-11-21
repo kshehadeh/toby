@@ -203,6 +203,32 @@ struct FeedTests {
 		#expect(performed == ["todo.add", "snooze", "dismiss"])
 	}
 
+	@Test("source line names the connection, then the sender or list")
+	func sourceLine() throws {
+		let feed = try decodeFeed()
+		let email = try #require(feed.items.first { $0.source.category == "email" })
+		#expect(email.sourceName == "Email")
+		#expect(email.sourceLine == "Email · alex@example.com")
+
+		let task = FeedItem(
+			id: "tasks:applereminders:r1",
+			source: FeedItemSource(
+				category: "tasks",
+				providerName: "applereminders",
+				providerDisplayName: "Apple Reminders",
+				itemId: "r1"
+			),
+			tier: .today,
+			title: "Call the bank",
+			reason: "High priority.",
+			actions: []
+		)
+		#expect(task.sourceLine == "Apple Reminders")
+		#expect(throws: Never.self) {
+			try FeedItemRow(item: task, onPerform: { _ in }).inspect().find(text: "Apple Reminders")
+		}
+	}
+
 	@Test("setup state explains the model requirement and links to settings")
 	func cardSetupState() async throws {
 		let store = FeedStore { _ in setupFeed() }
@@ -227,15 +253,5 @@ struct FeedTests {
 		#expect(throws: Never.self) {
 			try card.inspect().find(text: "Nothing needs your attention right now.")
 		}
-	}
-
-	@Test("show feed preference defaults on and persists")
-	func showFeedPreference() {
-		let defaults = UserDefaults(suiteName: "FeedTests-\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: defaults, applyLaunchAtLoginOnChange: false)
-		#expect(prefs.showFeed)
-		prefs.showFeed = false
-		let reloaded = AppearancePreferences(defaults: defaults, applyLaunchAtLoginOnChange: false)
-		#expect(!reloaded.showFeed)
 	}
 }

@@ -421,7 +421,7 @@ export function candidateSignature(
 	for (const part of extra) hash.update(`${part}\n`);
 	for (const c of [...candidates].sort((a, b) => a.id.localeCompare(b.id))) {
 		hash.update(
-			`${c.id}|${c.title}|${c.timestamp ?? ""}|${c.dueDate ?? ""}|${c.urgency ?? ""}|${c.event ? JSON.stringify(c.event) : ""}|${c.email ? JSON.stringify(c.email) : ""}\n`,
+			`${c.id}|${c.title}|${c.timestamp ?? ""}|${c.dueDate ?? ""}|${c.urgency ?? ""}|${c.event ? JSON.stringify(c.event) : ""}|${c.email ? JSON.stringify(c.email) : ""}|${c.task ? JSON.stringify(c.task) : ""}\n`,
 		);
 	}
 	return hash.digest("hex").slice(0, 32);

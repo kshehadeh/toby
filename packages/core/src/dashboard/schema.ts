@@ -35,6 +35,12 @@ const dashboardItemSchema = z.object({
 			awaitingReply: z.boolean().optional(),
 		})
 		.optional(),
+	task: z
+		.object({
+			assignment: z.enum(["you", "someone_else", "unassigned"]).optional(),
+			shared: z.boolean().optional(),
+		})
+		.optional(),
 });
 
 const dashboardSummaryResultSchema = z.object({

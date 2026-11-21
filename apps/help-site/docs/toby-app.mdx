@@ -27,47 +27,48 @@ things, and how to customize it. Each section links to a full guide.
 
 ## Home
 
-Home is your daily dashboard. It shows cards for **Upcoming** events,
-**Tasks**, and **Unread mail** (once those apps are connected), each with a
-short AI summary. **Continue working** lists your five most recent chats and
-projects.
+Home is your daily dashboard. It shows **The Feed**: a prioritized list of what
+needs your attention across email, calendar, and tasks, each item with a short
+reason and buttons to act on it. Under each title, a source line shows which
+connection it came from and, when available, the sender, list, or project
+(for example, **Apple Reminders · Errands**).
 
-![Home with Upcoming, Tasks, Unread mail, and Continue working cards](/img/toby-app-home.png)
+### Guide The Feed
 
-Cards and buttons you create with [flows](./flows) also appear here: cards in
-the grid, and one-click buttons in the **Actions** strip on the right.
-Rows that link somewhere, such as a news article or a task, open when you
-click them.
+Click **Guide The Feed** in the Home toolbar (or choose it from The Feed's
+**⋯** menu) to tell The Feed what to include and what matters most, in plain
+language. For example, "Put anything from my manager first" or "Leave out
+GitHub notifications."
 
-### Customize Home
+The sheet lists every instruction you've written, newest first. Use the switch
+to turn one off without losing it, or the trash button to delete it. When you
+close the sheet after a change, The Feed updates with your instructions. The Feed is always on; if it needs a model
+that supports structured output, it says so and links to **Settings → Home**.
 
-Click **Edit Home** (pencil icon) in the toolbar. While editing you can:
+One-click buttons you create with [flows](./flows) appear in the **Actions**
+sidebar on the right. Click the sidebar icon in the toolbar to hide or show it.
+Flows can't add cards to Home.
 
-- **Drag** cards to reorder them.
-- **Hide** a card. Hidden cards move to a **Hidden cards** area. Click
-  **Show** to bring one back.
-- **Color** a card with the palette button. **Use default** follows the
+### Customize the Actions sidebar
+
+Click **Edit Home** (pencil icon) in the toolbar. It appears once you have at
+least one Actions button. While editing you can:
+
+- **Hide** a button. Hidden buttons move to a **Hidden actions** area below
+  The Feed. Click **Show** to bring one back.
+- **Color** a button with the palette button. **Use default** follows the
   flow's own color; **Neutral** removes color.
 
-![A Home card with a blue border and tint in light mode](/img/toby-app-home-color-light.png)
-
-![The same card in dark mode](/img/toby-app-home-color-dark.png)
-
-Click **Done** or press **Escape** when finished. Your layout is saved on this
-Mac.
+Click **Done** or press **Escape** when finished. Your choices are saved on
+this Mac.
 
 More options are under **Settings → Home**:
 
-- **Home persona** chooses the persona that writes the card summaries. A fast,
-  non-reasoning model works best (models labeled **· reasoning** sometimes
-  include their working notes).
-- **Show unread mail / tasks / upcoming events** turns the built-in cards on
-  or off. Events come from your default calendar (see
-  [Default providers](./configuration/default-providers)).
+- **Home persona** chooses the persona The Feed uses.
 - **Hide onboarding checklist** hides the setup checklist. You can also click
   **Hide** next to the checklist's progress count.
-- **Reset Home layout** restores the default card order, colors, and
-  visibility.
+- **Reset Home layout** shows hidden actions, clears action colors, and
+  restores the Actions sidebar.
 
 ## Chats
 
@@ -108,7 +109,7 @@ Meeting and call recordings with transcripts and AI summaries. See
 ## Flows
 
 **Flows** have manual, schedule, and event triggers. Their steps are
-step-by-step recipes that can power Home cards and one-click buttons. See
+step-by-step recipes that can power one-click Home buttons. See
 [Schedules](./schedules) and [Flows](./flows).
 
 ## Todos

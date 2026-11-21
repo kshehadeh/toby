@@ -1,10 +1,6 @@
 import { GatewayFundsError } from "../../ai/gateway-funds";
 import { getDashboardCategory, getDashboardData } from "../../dashboard";
-import {
-	getFlowDashboardContent,
-	listFlowDashboardBlocks,
-} from "../../dashboard/flow-blocks";
-import { getDashboardBlockContent } from "../../dashboard/summarizer";
+import { listFlowDashboardBlocks } from "../../dashboard/flow-blocks";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
 import { performFeedAction } from "../../feed/execute";
 import {
@@ -12,7 +8,17 @@ import {
 	getFeedContent,
 	getPersistedFeed,
 } from "../../feed/index";
-import { applyFeedState, loadFeedState } from "../../feed/state";
+import {
+	FEED_INSTRUCTIONS_MAX,
+	type FeedState,
+	addInstruction,
+	applyFeedState,
+	loadFeedState,
+	normalizeInstructionText,
+	removeInstruction,
+	setInstructionEnabled,
+	updateFeedState,
+} from "../../feed/state";
 import { errorResponse, jsonResponse, readJsonBody } from "../http-utils";
 
 /** True when the client asked for a cache-bypassing refresh (`?fresh=1`). */
@@ -27,14 +33,12 @@ export async function handleDashboard(): Promise<Response> {
 	return jsonResponse(data);
 }
 
-/** GET /api/dashboard/flow-blocks — custom flows opted onto the home screen. */
+/** GET /api/dashboard/flow-blocks — custom flows shown as Home Actions. */
 export function handleDashboardFlowBlocks(): Response {
 	return jsonResponse({ blocks: listFlowDashboardBlocks() });
 }
 
-/**
- * Aggregator list/count payload (internal / debug). Home cards use block content.
- */
+/** Aggregator list/count payload (internal / debug; The Feed reads it in-process). */
 export async function handleDashboardCategory(
 	category: string,
 	url?: URL,
@@ -50,46 +54,6 @@ export async function handleDashboardCategory(
 	const force = isFreshRequest(url);
 	const data = await getDashboardCategory(category, { force });
 	return jsonResponse(data);
-}
-
-/**
- * Home-dashboard block content (flow output). Single path for card bodies.
- * Aliases: `…/summary` (legacy) and `…/content`.
- */
-export async function handleDashboardBlockContent(
-	category: string,
-	url?: URL,
-): Promise<Response> {
-	const force = isFreshRequest(url);
-	if (
-		Object.prototype.hasOwnProperty.call(STANDARD_TOOL_FOR_CATEGORY, category)
-	) {
-		try {
-			const content = await getDashboardBlockContent(category, { force });
-			return jsonResponse(content);
-		} catch (error) {
-			if (error instanceof GatewayFundsError) {
-				return jsonResponse(error.toBody(), 402);
-			}
-			throw error;
-		}
-	}
-	const flowContent = await getFlowDashboardContent(category, { force });
-	if (!flowContent) {
-		return jsonResponse(
-			{ error: `Unknown dashboard category: ${category}` },
-			404,
-		);
-	}
-	return jsonResponse(flowContent);
-}
-
-/** @deprecated Prefer {@link handleDashboardBlockContent}. */
-export async function handleDashboardCategorySummary(
-	category: string,
-	url?: URL,
-): Promise<Response> {
-	return handleDashboardBlockContent(category, url);
 }
 
 /**
@@ -147,4 +111,69 @@ export async function handleDashboardFeedAction(
 			? { content: applyFeedState(persisted, loadFeedState(now), now) }
 			: {}),
 	});
+}
+
+const INSTRUCTIONS_PREFIX = "/api/dashboard/feed/instructions";
+
+function instructionsBody(state: FeedState) {
+	return { instructions: state.instructions };
+}
+
+/**
+ * `/api/dashboard/feed/instructions[/:id]` — the user's guidance for what The
+ * Feed includes and how it ranks. Changes alter the personalization signature,
+ * so the next Feed load re-ranks.
+ *
+ * - `GET`            → `{ instructions }`
+ * - `POST { text }`  → adds one (201)
+ * - `PATCH /:id { enabled }` → turns one on or off
+ * - `DELETE /:id`    → removes one
+ */
+export async function handleDashboardFeedInstructions(
+	req: Request,
+	pathname: string,
+): Promise<Response> {
+	const rest = pathname.slice(INSTRUCTIONS_PREFIX.length);
+	const id = rest.startsWith("/") ? decodeURIComponent(rest.slice(1)) : "";
+	if (rest && !id) return errorResponse("Not found", 404);
+
+	if (!id) {
+		if (req.method === "GET") {
+			return jsonResponse(instructionsBody(loadFeedState()));
+		}
+		if (req.method === "POST") {
+			const body = await readJsonBody<{ text?: unknown }>(req);
+			const parsed = normalizeInstructionText(body?.text);
+			if (!parsed.ok) return errorResponse(parsed.error);
+			if (loadFeedState().instructions.length >= FEED_INSTRUCTIONS_MAX) {
+				return errorResponse(
+					`You can keep up to ${FEED_INSTRUCTIONS_MAX} instructions. Delete one first.`,
+				);
+			}
+			const now = new Date();
+			const next = updateFeedState(
+				(s) => addInstruction(s, parsed.text, now),
+				now,
+			);
+			return jsonResponse(instructionsBody(next), 201);
+		}
+		return errorResponse("Method not allowed", 405);
+	}
+
+	const exists = loadFeedState().instructions.some((i) => i.id === id);
+	if (!exists) return errorResponse("Instruction not found", 404);
+	if (req.method === "PATCH") {
+		const body = await readJsonBody<{ enabled?: unknown }>(req);
+		if (typeof body?.enabled !== "boolean") {
+			return errorResponse("enabled (boolean) is required.");
+		}
+		const enabled = body.enabled;
+		const next = updateFeedState((s) => setInstructionEnabled(s, id, enabled));
+		return jsonResponse(instructionsBody(next));
+	}
+	if (req.method === "DELETE") {
+		const next = updateFeedState((s) => removeInstruction(s, id));
+		return jsonResponse(instructionsBody(next));
+	}
+	return errorResponse("Method not allowed", 405);
 }

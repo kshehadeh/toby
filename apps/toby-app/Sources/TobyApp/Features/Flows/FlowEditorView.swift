@@ -45,14 +45,10 @@ struct FlowEditorView: View {
 			}
 		}
 		.onChange(of: draft.triggers) { old, new in
-			if new.contains(where: { trigger in trigger.isHomeRefresh && !old.contains(where: { $0.id == trigger.id && $0.isHomeRefresh }) }) {
-                draft.triggers.removeAll { $0.source.type == "home.action" }
-            } else if new.contains(where: { trigger in trigger.source.type == "home.action" && !old.contains(where: { $0.id == trigger.id && $0.source.type == "home.action" }) }) {
-                draft.triggers.removeAll { $0.isHomeRefresh }
-            } else if old.contains(where: { $0.isHomeRefresh }) && !new.contains(where: { $0.isHomeRefresh }) && !draft.hasHomeActionTrigger {
-                draft.destinations.removeAll { $0.type == "dashboard" }
-            }
-            draft.synchronizeHomeActionDestination(removingHomeAction: old.contains { $0.source.type == "home.action" } && !new.contains { $0.source.type == "home.action" })
+			draft.synchronizeHomeActionDestination(
+				removingHomeAction: old.contains { $0.source.type == "home.action" }
+					&& !new.contains { $0.source.type == "home.action" }
+			)
 		}
 		.background(SettingsDesign.canvasBackground)
 		.accessibilityIdentifier("flow-editor")
@@ -126,6 +122,9 @@ struct FlowEditorView: View {
 
 			FlowEditorPhaseHeader(number: 2, title: "Shares", detail: "Where the answer goes")
 				.padding(.top, 10)
+			if draft.hasRetiredHomeCard {
+				FlowEditorRetiredHomeCardNotice { draft.removeRetiredHomeCard() }
+			}
 			if draft.destinations.isEmpty {
 				Text("Nowhere picked yet. When you run the flow yourself, Toby shows the result in a window.")
 					.font(.system(size: 12))
@@ -135,10 +134,9 @@ struct FlowEditorView: View {
 			ForEach(draft.destinations) { destination in
 				FlowEditorDestinationCard(
 					destination: $draft.destination(destination),
-					isHomeActionRequired: destination.type == "dashboard" && (draft.hasHomeActionTrigger || draft.hasHomeRefreshTrigger),
-                    homeTriggerName: draft.hasHomeActionTrigger ? "Home Screen Action" : "Home refresh",
-                    onSelectHomeRefresh: { draft.selectHomeRefresh() },
-					onSelectHomeAction: { draft.selectHomeAction() }
+					isHomeActionRequired: destination.type == "dashboard"
+						&& !destination.isRetiredHomeCard
+						&& draft.hasHomeActionTrigger
 				) {
 					draft.destinations.removeAll { $0.id == destination.id }
 				}
@@ -154,8 +152,8 @@ struct FlowEditorView: View {
 			Button("Show it in a window") {
 				draft.destinations.append(.modal())
 			}
-			Button("Show it on Home") {
-				draft.selectHomeRefresh()
+			Button("Add a button to Home Actions") {
+				draft.selectHomeAction()
 			}
 			.disabled(draft.destinations.contains(where: { $0.type == "dashboard" }))
 			Button("Email the result") {
@@ -924,15 +922,40 @@ private struct FlowEditorDataChip: View {
 
 // MARK: - Destinations
 
+/// Shown for older flows that still target a Home card or use the Home
+/// refresh trigger; saving fails until they are removed.
+struct FlowEditorRetiredHomeCardNotice: View {
+	let onRemove: () -> Void
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			Image(systemName: "exclamationmark.triangle.fill")
+				.foregroundStyle(.orange)
+				.accessibilityHidden(true)
+			VStack(alignment: .leading, spacing: 6) {
+				Text("Home cards were removed")
+					.font(.system(size: 13, weight: .medium))
+					.foregroundStyle(SettingsDesign.rowTitle)
+				Text("This flow still shows on Home as a card or runs when Home refreshes. The Feed is now the only Home content, so this flow can’t be saved until those settings are removed.")
+					.font(.system(size: 12))
+					.foregroundStyle(SettingsDesign.rowDescription)
+					.fixedSize(horizontal: false, vertical: true)
+				Button("Remove Home card settings", action: onRemove)
+					.accessibilityIdentifier("flow-editor-remove-retired-home-card")
+			}
+			Spacer(minLength: 0)
+		}
+		.padding(14)
+		.flowEditorCard()
+		.accessibilityElement(children: .contain)
+		.accessibilityIdentifier("flow-editor-retired-home-card-notice")
+	}
+}
+
 struct FlowEditorDestinationCard: View {
 	@Binding var destination: FlowEditorDestination
 	var isHomeActionRequired = false
-    var homeTriggerName = "Home Screen Action"
-    var onSelectHomeRefresh: () -> Void = {}
-	var onSelectHomeAction: () -> Void = {}
 	let onRemove: () -> Void
-
-	private var isRunner: Bool { destination.dashboardVariant == "runner" }
 
 	private var title: String {
 		switch destination.type {
@@ -946,7 +969,10 @@ struct FlowEditorDestinationCard: View {
 
 	private var subtitle: String {
 		switch destination.type {
-		case "dashboard": return isRunner ? "As a button in Home’s Actions" : "As a card on your Home screen"
+		case "dashboard":
+			return destination.isRetiredHomeCard
+				? "Home cards were removed"
+				: "As a button in Home’s Actions"
 		case "email": return "Sends a message after each run"
 		case "slack": return "Posts a message after each run"
 		case "modal": return "Opens the result when you run it yourself"
@@ -1000,70 +1026,35 @@ struct FlowEditorDestinationCard: View {
 	private var content: some View {
 		switch destination.type {
 		case "dashboard":
-			VStack(alignment: .leading, spacing: 14) {
-				HStack(spacing: 10) {
-					FlowEditorChoiceTile(
-						systemImage: "rectangle.grid.1x2",
-						title: "A card with the answer",
-						detail: "Stays on Home and keeps itself current",
-						isSelected: !isRunner
-					) {
-						destination.dashboardVariant = "informational"
-                        onSelectHomeRefresh()
-					}
-					.disabled(isHomeActionRequired)
-					.accessibilityIdentifier("flow-editor-home-card-choice")
-					FlowEditorChoiceTile(
-						systemImage: "play.square",
-						title: "A button in Actions",
-						detail: "Runs only when you click it",
-						isSelected: isRunner
-					) {
-						destination.dashboardVariant = "runner"
-						onSelectHomeAction()
-					}
-					.disabled(isHomeActionRequired)
-					.accessibilityIdentifier("flow-editor-home-action-choice")
-				}
-				if isHomeActionRequired {
-					Text("Required by the \(homeTriggerName) trigger. Change or remove that trigger to change this location.")
-						.font(.caption).foregroundStyle(SettingsDesign.rowDescription)
-						.accessibilityIdentifier("flow-editor-home-action-location-lock")
-				}
-				HStack(spacing: 10) {
-					FlowEditorFieldLabel("Home color")
-						.frame(width: 96, alignment: .leading)
-					DashboardColorPicker(selection: $destination.dashboardColor, defaultLabel: "Automatic")
-						.pickerStyle(.menu)
-						.labelsHidden()
-						.accessibilityIdentifier("flow-editor-dashboard-color")
-				}
-				Text("Default appearance on Home. Edit Home can override it on this Mac.")
+			if destination.isRetiredHomeCard {
+				Text("Flows can no longer add cards to Home — The Feed is the only Home content. Remove this, or add a button to Home Actions instead.")
 					.font(.system(size: 12))
 					.foregroundStyle(SettingsDesign.rowDescription)
-					.padding(.leading, 106)
 					.fixedSize(horizontal: false, vertical: true)
-				if !isRunner {
-					VStack(alignment: .leading, spacing: 6) {
-						HStack(spacing: 10) {
-							FlowEditorFieldLabel("Updates")
-								.frame(width: 96, alignment: .leading)
-							Picker("Updates", selection: $destination.dashboardRefresh) {
-								Text("Automatically").tag("asNeeded")
-								Text("Only when I refresh").tag("manual")
-							}
-							.labelsHidden()
-							.pickerStyle(.segmented)
-							.fixedSize()
-						}
-						Text(destination.dashboardRefresh == "manual"
-							? "Only refreshes when you click refresh on the card or the Home toolbar."
-							: "Refreshes when you open Home and it’s a few minutes old, like mail and calendar.")
-							.font(.system(size: 12))
-							.foregroundStyle(SettingsDesign.rowDescription)
-							.padding(.leading, 106)
-							.fixedSize(horizontal: false, vertical: true)
+					.accessibilityIdentifier("flow-editor-retired-home-card")
+			} else {
+				VStack(alignment: .leading, spacing: 14) {
+					Text("Runs only when you click it.")
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowDescription)
+					if isHomeActionRequired {
+						Text("Required by the Home Screen Action trigger. Remove that trigger to remove this location.")
+							.font(.caption).foregroundStyle(SettingsDesign.rowDescription)
+							.accessibilityIdentifier("flow-editor-home-action-location-lock")
 					}
+					HStack(spacing: 10) {
+						FlowEditorFieldLabel("Home color")
+							.frame(width: 96, alignment: .leading)
+						DashboardColorPicker(selection: $destination.dashboardColor, defaultLabel: "Automatic")
+							.pickerStyle(.menu)
+							.labelsHidden()
+							.accessibilityIdentifier("flow-editor-dashboard-color")
+					}
+					Text("Default appearance on Home. Edit Home can override it on this Mac.")
+						.font(.system(size: 12))
+						.foregroundStyle(SettingsDesign.rowDescription)
+						.padding(.leading, 106)
+						.fixedSize(horizontal: false, vertical: true)
 				}
 			}
 		case "email":
@@ -1076,45 +1067,6 @@ struct FlowEditorDestinationCard: View {
 		default:
 			EmptyView()
 		}
-	}
-}
-
-private struct FlowEditorChoiceTile: View {
-	let systemImage: String
-	let title: String
-	let detail: String
-	let isSelected: Bool
-	let action: () -> Void
-
-	var body: some View {
-		Button(action: action) {
-			VStack(alignment: .leading, spacing: 4) {
-				Image(systemName: systemImage)
-					.font(.system(size: 15, weight: .medium))
-					.foregroundStyle(AppTheme.secondaryText)
-					.padding(.bottom, 2)
-				Text(title)
-					.font(.system(size: 13, weight: .medium))
-					.foregroundStyle(SettingsDesign.rowTitle)
-				Text(detail)
-					.font(.system(size: 12))
-					.foregroundStyle(SettingsDesign.rowDescription)
-					.fixedSize(horizontal: false, vertical: true)
-			}
-			.padding(12)
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.background(
-				RoundedRectangle(cornerRadius: 9, style: .continuous)
-					.fill(isSelected ? AppTheme.accent.opacity(0.07) : SettingsDesign.cardBackground)
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: 9, style: .continuous)
-					.strokeBorder(isSelected ? AppTheme.accent : SettingsDesign.controlBorder, lineWidth: isSelected ? 1.5 : 1)
-			)
-			.contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-		}
-		.buttonStyle(.plain)
-		.accessibilityAddTraits(isSelected ? .isSelected : [])
 	}
 }
 

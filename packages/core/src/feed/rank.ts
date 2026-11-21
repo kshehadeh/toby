@@ -11,6 +11,8 @@ import { FEED_ACTIONS, allowedActionIds, resolveActions } from "./actions";
 import {
 	EMPTY_PERSONALIZATION,
 	type FeedPersonalization,
+	formatInstructionsForPrompt,
+	formatInstructionsReminder,
 	formatPersonalizationForPrompt,
 } from "./personalization";
 import {
@@ -79,8 +81,9 @@ export function buildFeedSystemPrompt(
 		.map(([id, spec]) => `- ${id} ("${spec.label}"): ${spec.hint}`)
 		.join("\n");
 	const personal = formatPersonalizationForPrompt(personalization);
+	const instructions = formatInstructionsForPrompt(personalization);
 	const base = `You are the user's personal assistant curating "The Feed": a short, prioritized list of the things across their email, calendar, tasks, chat, and news that most deserve their attention right now.
-
+${instructions ? `\n${instructions}\n` : ""}
 Your job:
 1. Choose at most ${MAX_FEED_ITEMS} candidates that genuinely matter. Leave out noise: newsletters, automated notifications, marketing, and anything that needs no attention.
 2. Order them most important first, judging every item on its own merits regardless of source. Do not group items by source type (email, calendar, tasks); an overdue task or urgent email can outrank a routine meeting.
@@ -115,7 +118,10 @@ export function formatCandidatesForPrompt(
 	return interleaveByCategory(candidates)
 		.map(({ c, i }) => {
 			const lines = [`${candidateKey(i)} [${c.category}] ${c.title}`];
+			lines.push(`   source: ${c.providerDisplayName ?? c.providerName}`);
 			if (c.subtitle) lines.push(`   from/list: ${c.subtitle}`);
+			const assigned = assignmentLabel(c);
+			if (assigned) lines.push(`   assigned: ${assigned}`);
 			if (c.detail) lines.push(`   detail: ${c.detail.slice(0, 280)}`);
 			if (c.event?.notes)
 				lines.push(
@@ -131,6 +137,21 @@ export function formatCandidatesForPrompt(
 			return lines.join("\n");
 		})
 		.join("\n");
+}
+
+/** Prompt text for task assignment; undefined when the provider didn't say. */
+function assignmentLabel(c: FeedCandidate): string | undefined {
+	const shared = c.task?.shared ? " (shared list)" : "";
+	switch (c.task?.assignment) {
+		case "you":
+			return `to the user${shared}`;
+		case "someone_else":
+			return `to someone else${shared}`;
+		case "unassigned":
+			return `nobody${shared}`;
+		default:
+			return c.task?.shared ? "unknown (shared list)" : undefined;
+	}
 }
 
 /**
@@ -268,10 +289,16 @@ export function feedFlowDefinition(): FlowDefinition {
 						(ctx.bag.personalization as FeedPersonalization | undefined) ??
 							EMPTY_PERSONALIZATION,
 					),
-				userPrompt: (ctx) =>
-					`Candidates:\n\n${formatCandidatesForPrompt(
+				userPrompt: (ctx) => {
+					const list = `Candidates:\n\n${formatCandidatesForPrompt(
 						(ctx.bag.candidates as FeedCandidate[] | undefined) ?? [],
-					)}`,
+					)}`;
+					const reminder = formatInstructionsReminder(
+						(ctx.bag.personalization as FeedPersonalization | undefined) ??
+							EMPTY_PERSONALIZATION,
+					);
+					return reminder ? `${list}\n\n${reminder}` : list;
+				},
 				outputs: { ranking: "object" },
 			},
 		],

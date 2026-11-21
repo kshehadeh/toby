@@ -11,15 +11,17 @@ const MEMORY_LIMIT = 60;
 const FEEDBACK_LIMIT = 15;
 
 /**
- * What the ranker knows about the user: Toby memories (durable facts and
- * preferences) and recent "Not relevant" marks.
+ * What the ranker knows about the user: their own Feed instructions, Toby
+ * memories (durable facts and preferences), and recent "Not relevant" marks.
  */
 export interface FeedPersonalization {
+	readonly instructions: readonly string[];
 	readonly memories: readonly string[];
 	readonly notRelevant: readonly string[];
 }
 
 export const EMPTY_PERSONALIZATION: FeedPersonalization = {
+	instructions: [],
 	memories: [],
 	notRelevant: [],
 };
@@ -70,7 +72,13 @@ export function buildFeedPersonalization(
 	} catch {
 		memories = [];
 	}
-	return { memories, notRelevant: feedbackLines(state.feedback) };
+	return {
+		instructions: state.instructions
+			.filter((i) => i.enabled)
+			.map((i) => i.text),
+		memories,
+		notRelevant: feedbackLines(state.feedback),
+	};
 }
 
 /** Prompt section; empty when there is nothing to personalize with. */
@@ -87,6 +95,29 @@ export function formatPersonalizationForPrompt(p: FeedPersonalization): string {
 		);
 	}
 	return parts.join("\n\n");
+}
+
+/**
+ * The user's Feed instructions as hard rules for the top of the system
+ * prompt; empty when there are none. Kept separate from memories / feedback
+ * (soft hints) so the model treats them as filters, not preferences.
+ */
+export function formatInstructionsForPrompt(p: FeedPersonalization): string {
+	if (p.instructions.length === 0) return "";
+	return `USER INSTRUCTIONS — highest priority. The user wrote these rules for The Feed. They override every default rule below.
+${p.instructions.map((m) => `- ${m}`).join("\n")}
+
+How to apply them:
+- Apply them first, before anything else. Any instruction that says to ignore, skip, hide, leave out, or only show something is a hard filter: remove every candidate it excludes, even if that candidate looks urgent or important. Never include an excluded candidate just to fill the list; return fewer items instead.
+- Decide using each candidate's "source" (the connected app it came from), "from/list" (sender, list, or project), "assigned", and the other facts shown.
+- When a candidate lacks the fact an instruction depends on (for example, no "assigned" line), treat it as the user's own item.
+- Instructions about ordering or priority beat the default ranking rules.`;
+}
+
+/** Closing reminder after the candidate list (models weigh the end heavily). */
+export function formatInstructionsReminder(p: FeedPersonalization): string {
+	if (p.instructions.length === 0) return "";
+	return `Before ranking, drop every candidate the user's instructions exclude. Their instructions:\n${p.instructions.map((m) => `- ${m}`).join("\n")}`;
 }
 
 /** Stable hash so a personalization change re-ranks the Feed. */

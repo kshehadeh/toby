@@ -137,11 +137,6 @@ export function getDashboardFeedStatePath(): string {
 	return path.join(resolveTobyDir(), "dashboard-feed-state.json");
 }
 
-/** Persisted dashboard AI summaries: `~/.toby/dashboard-summaries.json`. */
-export function getDashboardSummariesPath(): string {
-	return path.join(resolveTobyDir(), "dashboard-summaries.json");
-}
-
 /** Local projects: `~/.toby/projects/<slug>/project.json`. */
 export function getProjectsDir(): string {
 	return path.join(resolveTobyDir(), "projects");

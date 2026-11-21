@@ -1,6 +1,5 @@
 import { getDashboardCategory } from "../dashboard/index";
 import {
-	type DashboardBlockContentSource,
 	type DashboardCategorySummary,
 	STANDARD_ITEM_ACTION_IDS,
 	type StandardItemActionId,
@@ -10,7 +9,7 @@ import { daemonLog } from "../logging/daemon-log";
 import { listTodos } from "../todos/service";
 import type { Todo } from "../todos/types";
 import { type RawFeedCandidate, localDateKey } from "./prefilter";
-import type { FeedCategory } from "./types";
+import type { FeedCategory, FeedContentSource } from "./types";
 
 /** Aggregator categories the Feed reads (standard dashboard tools). */
 const AGGREGATOR_CATEGORIES = [
@@ -31,7 +30,7 @@ export const TOBY_TODOS_PROVIDER = "toby";
 
 export interface FeedCollection {
 	readonly candidates: readonly RawFeedCandidate[];
-	readonly sources: readonly DashboardBlockContentSource[];
+	readonly sources: readonly FeedContentSource[];
 }
 
 export function feedCandidateId(
@@ -67,6 +66,7 @@ export function candidatesFromCategory(
 			...(item.url ? { url: item.url } : {}),
 			...(item.event ? { event: item.event } : {}),
 			...(item.email ? { email: item.email } : {}),
+			...(item.task ? { task: item.task } : {}),
 		};
 	});
 }
@@ -183,7 +183,7 @@ export async function collectFeedCandidates(params?: {
 	const force = params?.force === true;
 	const now = params?.now ?? new Date();
 	const candidates: RawFeedCandidate[] = [];
-	const sources: DashboardBlockContentSource[] = [];
+	const sources: FeedContentSource[] = [];
 
 	const results = await Promise.all(
 		AGGREGATOR_CATEGORIES.map(async (category) => {

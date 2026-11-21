@@ -1,18 +1,8 @@
 import SwiftUI
 
-/// Shared layout tokens for home-dashboard blocks (mail, tasks, calendar, flows).
+/// Shared layout tokens for Home sections (The Feed, onboarding, Actions rail).
 enum DashboardBlockLayout {
-	/// Maximum collapsed height. Short cards keep their intrinsic height.
-	static let maximumCollapsedHeight: CGFloat = 340
-	/// Soft fade over clipped body text (fully opaque at the bottom of the fade).
-	static let showMoreFadeHeight: CGFloat = 40
-	/// Solid control bar under the fade, overlaid on the card’s lower edge.
-	static let showMoreButtonHeight: CGFloat = 36
-	static var showMoreChromeHeight: CGFloat {
-		showMoreFadeHeight + showMoreButtonHeight
-	}
-
-	/// Home card column cap (informational / built-in cards).
+	/// Home content column cap (The Feed and onboarding).
 	static let cardsMaxWidth: CGFloat = 940
 	/// Preferred / min / max width of the Actions inspector column.
 	static let actionsRailDefaultWidth: CGFloat = 156
@@ -32,18 +22,10 @@ enum DashboardBlockLayout {
 	static let titleTracking: CGFloat = 0
 }
 
-/// When the Siri-style outline should appear without waiting for the soft delay.
-enum DashboardIntelligenceOutlinePolicy {
-	static func showsImmediately(isForceUpdating: Bool, hasBody: Bool) -> Bool {
-		isForceUpdating || !hasBody
-	}
-}
-
 /// Quiet bordered content panel matching the compact Home reference.
 struct DashboardBlockChrome: ViewModifier {
 	@Environment(\.dashboardBlockColor) private var blockColor
 	var systemImage: String? = nil
-	var isExpanded: Bool = false
 
 	func body(content: Content) -> some View {
 		let shape = AppTheme.concentricRect(minimum: AppTheme.cornerRadius)
@@ -65,15 +47,9 @@ struct DashboardBlockChrome: ViewModifier {
 extension View {
 	func dashboardBlockChrome(
 		systemImage: String? = nil,
-		isExpanded: Bool = false,
 		isUpdating: Bool = false
 	) -> some View {
-		modifier(
-			DashboardBlockChrome(
-				systemImage: systemImage,
-				isExpanded: isExpanded
-			)
-		)
+		modifier(DashboardBlockChrome(systemImage: systemImage))
 		.intelligenceOutline(
 			isActive: isUpdating,
 			cornerRadius: AppTheme.cornerRadius,

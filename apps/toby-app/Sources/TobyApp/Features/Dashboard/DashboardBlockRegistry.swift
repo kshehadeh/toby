@@ -1,21 +1,14 @@
 import Foundation
 import Observation
 
-/// Holds registered dashboard data-block controllers.
-/// Layout order comes from `DashboardLayout` (default: `sortIndex` grouping).
+/// Home Actions tiles (runner-variant custom flows), in server order.
 @Observable
 @MainActor
 final class DashboardBlockRegistry {
 	private(set) var blocks: [CategoryDashboardBlock]
 
-	init(blocks: [CategoryDashboardBlock]? = nil, client: TobyClient = TobyClient()) {
-		if let blocks {
-			self.blocks = blocks.sorted { $0.sortIndex < $1.sortIndex }
-		} else {
-			self.blocks = DashboardBlockDescriptor.builtIn.map {
-				CategoryDashboardBlock(descriptor: $0, client: client)
-			}
-		}
+	init(blocks: [CategoryDashboardBlock] = []) {
+		self.blocks = blocks.sorted { $0.sortIndex < $1.sortIndex }
 	}
 
 	func block(id: DashboardBlockID) -> CategoryDashboardBlock? {
@@ -26,60 +19,33 @@ final class DashboardBlockRegistry {
 		block(id: DashboardBlockID(rawId))
 	}
 
-	/// Replace only custom-flow cards. Built-ins keep their in-flight state.
-	func syncFlowBlocks(_ infos: [FlowDashboardBlockInfo], client: TobyClient) {
-		let builtIns = blocks.filter { !$0.descriptor.isFlowBlock }
-		let existing = Dictionary(
-			uniqueKeysWithValues: blocks.filter(\.descriptor.isFlowBlock).map { ($0.id.rawValue, $0) }
-		)
-		var next = builtIns
-		for (offset, info) in infos.enumerated() {
-			let sortIndex = 100 + offset
-			let descriptor = DashboardBlockDescriptor.flow(info, sortIndex: sortIndex)
+	/// Replace tiles from the daemon list, keeping existing instances by id.
+	func syncFlowBlocks(_ infos: [FlowDashboardBlockInfo]) {
+		let existing = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id.rawValue, $0) })
+		var next: [CategoryDashboardBlock] = []
+		for (offset, info) in infos.enumerated() where info.isRunner {
+			let descriptor = DashboardBlockDescriptor.flow(info, sortIndex: offset)
 			if let block = existing[info.id] {
 				block.applyFlowDescriptor(descriptor)
 				next.append(block)
 			} else {
-				next.append(CategoryDashboardBlock(descriptor: descriptor, client: client))
+				next.append(CategoryDashboardBlock(descriptor: descriptor))
 			}
 		}
-		blocks = next.sorted { $0.sortIndex < $1.sortIndex }
+		blocks = next
 	}
 
 	var descriptors: [DashboardBlockDescriptor] {
 		blocks.map(\.descriptor)
 	}
 
-	/// Blocks in user (or default) order, excluding hidden cards.
-	func orderedVisible(layout: DashboardLayout) -> [CategoryDashboardBlock] {
-		layout.resolvedVisible(from: descriptors).compactMap { id in
-			blocks.first { $0.id == id }
-		}
-	}
-
-	/// Built-in and informational flow cards for the home grid.
-	func orderedVisibleCards(layout: DashboardLayout) -> [CategoryDashboardBlock] {
-		layout.resolvedVisibleCards(from: descriptors).compactMap { id in
-			blocks.first { $0.id == id }
-		}
-	}
-
-	/// Runner-variant flows for the Actions rail.
+	/// Tiles shown in the Actions rail (not hidden).
 	func orderedVisibleRunners(layout: DashboardLayout) -> [CategoryDashboardBlock] {
-		layout.resolvedVisibleRunners(from: descriptors).compactMap { id in
-			blocks.first { $0.id == id }
-		}
+		blocks.filter { !layout.isHidden(id: $0.id) }
 	}
 
-	/// Hidden registered cards, in last-known sequence.
+	/// Hidden tiles, in server order.
 	func orderedHidden(layout: DashboardLayout) -> [CategoryDashboardBlock] {
-		layout.resolvedHidden(from: descriptors).compactMap { id in
-			blocks.first { $0.id == id }
-		}
-	}
-
-	/// Blocks sorted for layout, filtered by appearance visibility.
-	func orderedVisible(preferences: AppearancePreferences) -> [CategoryDashboardBlock] {
-		orderedVisible(layout: preferences.dashboardLayout)
+		blocks.filter { layout.isHidden(id: $0.id) }
 	}
 }

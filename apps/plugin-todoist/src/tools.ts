@@ -4,10 +4,12 @@ import {
 	completeTask,
 	createTask,
 	fetchCompletedTasks,
+	fetchCurrentUserId,
 	fetchOpenTasks,
 	fetchProjectNameById,
 	fetchProjects,
 	updateTask as submitTodoistTaskUpdate,
+	todoistTaskFacts,
 } from "./client";
 import { emitProgress } from "./progress";
 
@@ -313,6 +315,10 @@ export async function executeTool(
 			const tasks = await fetchOpenTasks(config, summaryLimit);
 			const projects = await fetchProjects(config);
 			const projectIdToName = new Map(projects.map((p) => [p.id, p.name]));
+			const projectById = new Map(projects.map((p) => [p.id, p]));
+			const currentUserId = projects.some((p) => p.isShared)
+				? await fetchCurrentUserId(config)
+				: null;
 
 			const groups = new Map<string, { label: string; count: number }>();
 			for (const task of tasks) {
@@ -349,6 +355,11 @@ export async function executeTool(
 					urgency,
 					url: task.url || undefined,
 					groupId: task.projectId,
+					task: todoistTaskFacts(
+						task,
+						projectById.get(task.projectId),
+						currentUserId,
+					),
 				};
 			});
 

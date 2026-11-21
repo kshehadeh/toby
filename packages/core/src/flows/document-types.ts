@@ -98,16 +98,16 @@ export type FlowDestinationSlack = {
 	readonly channel: string;
 };
 
-export type FlowDashboardVariant = "runner" | "informational";
-
-/** How an informational dashboard card re-runs. Ignored for runner. */
-export type FlowDashboardRefresh = "asNeeded" | "manual";
+/**
+ * Home placement for a flow. Only `"runner"` (a tile in the Home Actions
+ * sidebar) is supported; informational Home cards were retired and are
+ * rejected by validation.
+ */
+export type FlowDashboardVariant = "runner";
 
 export type FlowDestinationDashboard = {
 	readonly type: "dashboard";
 	readonly variant: FlowDashboardVariant;
-	/** Informational only. Omitted → `"asNeeded"`. Ignored for runner. */
-	readonly refresh?: FlowDashboardRefresh;
 	/** Home appearance default; omitted preserves the existing appearance. */
 	readonly color?: string;
 };

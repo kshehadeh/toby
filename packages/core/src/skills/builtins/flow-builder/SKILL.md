@@ -22,7 +22,7 @@ Translate the description into ordered steps and a clear result. Ask only for
 missing information needed to build it, such as a required tool argument or an
 external recipient. Use reasonable defaults for presentation: default persona,
 modal result, and a dashboard runner destination when the user wants a Home
-action. An informational dashboard destination is a card, not an action tile.
+action. Flows cannot place cards on Home.
 
 Current custom-flow constraints:
 
@@ -87,11 +87,8 @@ Native sources include `macos.didWake`, `macos.userReturned` with
 button; it automatically requires a dashboard runner destination. Selecting a
 runner destination also adds this trigger. Home-only flows do not need manual.
 Home action and manual inputs are independent; both run only when clicked.
-Use `dashboard.refresh` for a Home card that updates with Home. It requires an
-informational dashboard destination, whose `refresh` is `asNeeded` or `manual`.
-Saving either the card or trigger configures both. Home action and refresh cannot
-coexist on one flow. Home controls cache freshness; schedule/native conditions and
-cooldowns do not apply to Home refresh. Disabling it pauses card updates.
+Flows cannot add cards to Home: The Feed is the only Home content, so the
+dashboard destination supports only `variant: "runner"` (an Actions tile).
 
 Enable automatic triggers only when the user requested automatic execution
 and the actions/delivery targets are clear. Saving an enabled trigger authorizes

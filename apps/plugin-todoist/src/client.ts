@@ -11,6 +11,8 @@ export interface TodoistTask {
 	priority: number;
 	projectId: string;
 	sectionId: string | null;
+	/** Assignee's user id (shared projects); null when unassigned. */
+	responsibleUid: string | null;
 	due: {
 		date?: string;
 		datetime?: string;
@@ -30,6 +32,8 @@ export interface TodoistProject {
 	id: string;
 	name: string;
 	isInboxProject: boolean;
+	/** Shared with collaborators (tasks can be assigned to others). */
+	isShared: boolean;
 }
 
 const COMPLETED_FETCH_PAGE_MAX = 200;
@@ -197,6 +201,7 @@ export async function fetchProjects(
 				name: project.name,
 				isInboxProject:
 					"inboxProject" in project && project.inboxProject === true,
+				isShared: "isShared" in project && project.isShared === true,
 			});
 		}
 		cursor = response.nextCursor ?? null;
@@ -297,6 +302,50 @@ export async function updateTask(
 	await withRetry(() => api.updateTask(taskId, requestBody as UpdateTaskArgs));
 }
 
+/** Signed-in user id per API key (stable; avoids a call per summary). */
+const currentUserIds = new Map<string, string>();
+
+/** The signed-in Todoist user's id, or null when it can't be read. */
+export async function fetchCurrentUserId(
+	config: JsonRecord,
+): Promise<string | null> {
+	const apiKey = String(config.apiKey ?? "").trim();
+	const cached = currentUserIds.get(apiKey);
+	if (cached) return cached;
+	try {
+		const user = await getTodoistApiClient(config).getUser();
+		const id = String(user.id ?? "");
+		if (!id) return null;
+		currentUserIds.set(apiKey, id);
+		return id;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Feed task facts: assignment only matters in shared projects; tasks in
+ * personal projects are the user's own, so they get no facts.
+ */
+export function todoistTaskFacts(
+	task: Pick<TodoistTask, "responsibleUid">,
+	project: Pick<TodoistProject, "isShared"> | undefined,
+	currentUserId: string | null,
+):
+	| {
+			assignment?: "you" | "someone_else" | "unassigned";
+			shared: true;
+	  }
+	| undefined {
+	if (!project?.isShared) return undefined;
+	if (!task.responsibleUid) return { assignment: "unassigned", shared: true };
+	if (!currentUserId) return { shared: true };
+	return {
+		assignment: task.responsibleUid === currentUserId ? "you" : "someone_else",
+		shared: true,
+	};
+}
+
 function getTodoistApiClient(config: JsonRecord): TodoistApi {
 	const apiKey = String(config.apiKey ?? "").trim();
 	if (!apiKey) {
@@ -315,6 +364,7 @@ function mapSdkTaskToTodoistTask(task: Task): TodoistTask {
 		priority: task.priority,
 		projectId: task.projectId,
 		sectionId: task.sectionId ?? null,
+		responsibleUid: task.responsibleUid ?? null,
 		due: task.due
 			? {
 					date: task.due.date,

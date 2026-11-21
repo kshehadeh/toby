@@ -70,10 +70,10 @@ Router: [`packages/core/src/web/routes.ts`](../packages/core/src/web/routes.ts).
 | `GET`, `POST` | `/api/todos/sync` | Todo sync status or immediate exchange. |
 | `POST` | `/api/todos/reconcile` | Confirm merging a restored todo snapshot and resume sync. |
 | `GET` | `/api/dashboard` | Aggregator payload for all categories (internal / debug). |
-| `GET` | `/api/dashboard/flow-blocks` | Custom flows with a Dashboard destination (`id`, `title`, `variant`, `refresh`, `showsResultSheet`, …). |
-| `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (not used by home cards). Optional `?fresh=1` bypasses the 60s category cache. |
-| `GET` | `/api/dashboard/:category/content` | Home card **block content** (flow output). `:category` is a built-in id (`email`, `tasks`, `calendar`) or a custom flow id. Preferred. Optional `?fresh=1`. See [dashboard.md](dashboard.md). |
-| `GET` | `/api/dashboard/:category/summary` | Alias of `/content`. |
+| `GET`, `POST` | `/api/dashboard/feed/instructions` | The user's Feed instructions (`{ instructions: [{ id, text, createdAt, enabled }] }`); `POST { text }` adds one (201; 400 when empty, over 500 characters, or at the 50 cap). See [dashboard.md](dashboard.md). |
+| `PATCH`, `DELETE` | `/api/dashboard/feed/instructions/:id` | `PATCH { enabled }` turns one on or off; `DELETE` removes it. Both return the full list; 404 for an unknown id. |
+| `GET` | `/api/dashboard/flow-blocks` | Custom flows shown as Home Actions (`id`, `title`, `variant: "runner"`, `dashboardColor`, `showsResultSheet`, …). See [dashboard.md](dashboard.md). |
+| `GET` | `/api/dashboard/:category` | Aggregator list for one category, or `null` (internal / debug). Optional `?fresh=1` bypasses the 60s category cache. |
 | `GET` | `/api/flows` | Stored flow list items for the app UI: `id`, `name`, `description`, `icon`, `color`, `builtin`, `persona`, `nodes`, `result`, `destinations`, timestamps. Tool steps carry a best-effort `display` (`title`, `description`, `integrationName`, `integrationDisplayName`, `integrationIconUrl`, `category`) for plain-language UI. Seeds built-ins on list. |
 | `POST` | `/api/flows` | Create a custom flow (server mints `flow.<uuid>`). Body is a user `FlowDocument` minus `id`. Tool inputs must be `{ const }`. |
 | `GET` | `/api/flows/catalog` | Connected integrations and their tools, including `inputSchema`. |

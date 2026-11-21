@@ -123,8 +123,7 @@ export const flowDraftSchema = z.object({
 				z.object({
 					type: z.literal("dashboard"),
 					color: z.enum(["neutral", ...FLOW_TILE_COLORS]).optional(),
-					variant: z.enum(["runner", "informational"]),
-					refresh: z.enum(["asNeeded", "manual"]).optional(),
+					variant: z.literal("runner"),
 				}),
 				z.object({
 					type: z.literal("email"),
@@ -240,7 +239,6 @@ export function createFlowAuthoringTools(ctx: {
 				triggers: [
 					{ type: "manual", name: "Manually" },
 					{ type: "home.action", name: "Home Screen Action" },
-					{ type: "dashboard.refresh", name: "Home refresh" },
 					{ type: "schedule", name: "On a schedule" },
 					...nativeTriggerCatalog.triggers,
 				],
@@ -255,7 +253,7 @@ export function createFlowAuthoringTools(ctx: {
 		}),
 		createFlow: tool({
 			description:
-				"Validate and save a new custom Toby flow when the user asks to build/create one. Inspect listFlowAuthoringCatalog first. Tool inputs use constants, trigger context references, or previous step outputs. An optional LLM step returns markdown or named text/boolean/number fields and may be followed by actions. Action when references run only for boolean true; false skips. Home Actions use a home.action trigger paired with a dashboard runner destination; saving either configures both. Saving does not run tools, scripts, or deliveries. Use updateFlow to edit existing flows. Home refresh uses dashboard.refresh paired with a dashboard informational destination; saving either configures both. Home action and refresh cannot coexist. Triggers include manual, home.action (Home Screen Action), dashboard.refresh (Home refresh), schedule (cron plus timezone), and native events. Use agent_task for tool-using prompts. Only enable automatic triggers when the user requested automatic execution; saving can schedule future work.",
+				"Validate and save a new custom Toby flow when the user asks to build/create one. Inspect listFlowAuthoringCatalog first. Tool inputs use constants, trigger context references, or previous step outputs. An optional LLM step returns markdown or named text/boolean/number fields and may be followed by actions. Action when references run only for boolean true; false skips. Home Actions use a home.action trigger paired with a dashboard runner destination; saving either configures both. Saving does not run tools, scripts, or deliveries. Use updateFlow to edit existing flows. Home has no flow cards (The Feed is the only Home content), so the dashboard destination is runner-only. Triggers include manual, home.action (Home Screen Action), schedule (cron plus timezone), and native events. Use agent_task for tool-using prompts. Only enable automatic triggers when the user requested automatic execution; saving can schedule future work.",
 			inputSchema: flowDraftSchema,
 			execute: async (draft) => {
 				try {

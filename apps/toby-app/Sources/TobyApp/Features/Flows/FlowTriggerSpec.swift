@@ -64,19 +64,14 @@ struct FlowTriggerSpec: Decodable, Equatable, Identifiable {
         trigger.changeSource("home.action")
         return trigger
     }
-    static func homeRefresh() -> Self {
-        var trigger = Self()
-        trigger.name = "Home refresh"
-        trigger.source = Source(type: "dashboard.refresh")
-        return trigger
-    }
+    /// Retired trigger (Home cards were removed). Still decoded so older flows load.
     var isHomeRefresh: Bool { source.type == "dashboard.refresh" }
     var isUserInvoked: Bool { source.type == "manual" || source.type == "home.action" }
     var label: String {
         switch source.type {
         case "manual": return "Manually"
         case "home.action": return "Home Screen Action"
-        case "dashboard.refresh": return "When Home refreshes"
+        case "dashboard.refresh": return "Home refresh (removed)"
         case "schedule": return "\(source.cron ?? "Schedule") · \(conditions.timezone)"
         case "macos.didWake": return "When the Mac wakes"
         case "macos.userReturned": return "Return after \((source.minimumIdleSeconds ?? 1800) / 60) minutes idle"
@@ -87,7 +82,6 @@ struct FlowTriggerSpec: Decodable, Equatable, Identifiable {
     mutating func changeSource(_ type: String) {
         if name == "Manually" || name == "New trigger" || name == "Home Screen Action" || name == "Home refresh" {
             if type == "home.action" { name = "Home Screen Action" }
-            if type == "dashboard.refresh" { name = "Home refresh" }
         }
         switch type {
         case "schedule": source = Source(type: type, cron: "0 9 * * 1-5", missedRuns: "latest")
@@ -96,7 +90,7 @@ struct FlowTriggerSpec: Decodable, Equatable, Identifiable {
         default: source = Source(type: type)
         }
         eventInputMappings = [:]
-        enabled = isUserInvoked || isHomeRefresh
+        enabled = isUserInvoked
     }
     var jsonBody: [String: Any] {
         func object<T: Encodable>(_ value: T) -> Any {

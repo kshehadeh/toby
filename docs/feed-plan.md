@@ -304,6 +304,9 @@ Done:
   dismissed / snoozed (until 8:00 next day) / done, plus `notified`; pruned
   after 30 days. Hidden items are filtered from responses and excluded from
   ranking (the changed signature triggers a background re-rank to refill).
+- **Instructions** (`instructions` in Feed state, `/api/dashboard/feed/instructions`):
+  user-written guidance, toggleable, sent to the ranker (enabled only) ahead
+  of memories and "Not relevant" marks. See [dashboard.md](dashboard.md).
 - **`POST /api/dashboard/feed/actions`** `{ itemId, actionId }`
   (`feed/execute.ts`): dismiss, snooze, `todo.add` (`createTodo`, source
   `feed`, calendar items due on the event day), provider actions, todo
@@ -360,6 +363,7 @@ Notes / open:
 Being on the calendar is not enough to make the Feed:
 
 - **Event facts:** the Apple Calendar summary now attaches `event` facts to each item: location, notes, attendee count, all-day and recurring. Notes have Teams, Zoom, Meet, Webex and Viva boilerplate stripped. The native bridge sends `attendeeCount` and `isRecurring`, and the dashboard schema passes `event` through.
+- **Task facts:** summary items may carry `task: { assignment?: "you" | "someone_else" | "unassigned", shared?: boolean }` (dashboard schema passes it through). Todoist sets it for tasks in shared projects only, comparing `responsibleUid` with the signed-in user (`getUser`, cached per API key); personal projects carry no facts. The ranker sees it as `assigned:`.
 - **Pre-filter drops:**
   - hold-style titles (Hold, Block, Focus time, Lunch, Take a break, OOO, and similar) with fewer than 3 invitees;
   - solo events with no notes and no location;

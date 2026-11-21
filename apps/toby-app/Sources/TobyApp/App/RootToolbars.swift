@@ -295,9 +295,12 @@ enum RootToolbars {
 		isRefreshing: Bool,
 		isEditing: Bool = false,
 		onToggleEdit: @escaping () -> Void = {},
+		/// Edit mode only hides / recolors Actions tiles, so it needs at least one.
+		showsEditToggle: Bool = true,
 		showActionsToggle: Bool = false,
 		actionsVisible: Bool = true,
 		onToggleActions: @escaping () -> Void = {},
+		onGuideFeed: @escaping () -> Void = {},
 		onRefresh: @escaping () -> Void,
 	) -> some ToolbarContent {
 		common(
@@ -310,12 +313,20 @@ enum RootToolbars {
 					.help("Done editing Home")
 					.accessibilityIdentifier(dashboardEditIdentifier(isEditing: true))
 			} else {
-				Button(action: onToggleEdit) {
-					Image(systemName: "square.and.pencil")
+				if showsEditToggle {
+					Button(action: onToggleEdit) {
+						Image(systemName: "square.and.pencil")
+					}
+					.help("Edit Home")
+					.accessibilityLabel("Edit Home")
+					.accessibilityIdentifier(dashboardEditIdentifier(isEditing: false))
 				}
-				.help("Edit Home")
-				.accessibilityLabel("Edit Home")
-				.accessibilityIdentifier(dashboardEditIdentifier(isEditing: false))
+				Button(action: onGuideFeed) {
+					Image(systemName: dashboardGuideFeedSymbol)
+				}
+				.help(FeedInstructionsSheet.title)
+				.accessibilityLabel(FeedInstructionsSheet.title)
+				.accessibilityIdentifier("dashboard-guide-feed-button")
 				if showActionsToggle {
 					Button(action: onToggleActions) {
 						Image(systemName: "sidebar.trailing")
@@ -334,6 +345,8 @@ enum RootToolbars {
 			}
 		}
 	}
+
+	static let dashboardGuideFeedSymbol = "text.badge.star"
 
 	static func dashboardEditLabel(isEditing: Bool) -> String {
 		isEditing ? "Done" : "Edit Home"

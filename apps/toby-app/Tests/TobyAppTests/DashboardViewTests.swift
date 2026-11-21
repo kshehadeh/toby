@@ -6,56 +6,6 @@ import ViewInspector
 @MainActor
 @Suite("DashboardModels")
 struct DashboardModelsTests {
-	@Test("dashboard data decodes from JSON")
-	func dashboardDataDecodes() throws {
-		let json = """
-		{
-			"email": {
-				"count": 95,
-				"sources": [{
-					"providerName": "email",
-					"providerDisplayName": "Email (IMAP/SMTP)",
-					"iconUrl": null,
-					"summary": {
-						"count": 95,
-						"groups": [{ "id": "email:urgent", "label": "Urgent", "count": 4 }],
-						"items": [{ "id": "m1", "title": "Invitation", "subtitle": "Mollye Miller", "timestamp": "2026-07-01T00:00:00Z", "urgency": "high" }],
-						"generatedAt": "2026-07-05T09:00:00Z"
-					}
-				}],
-				"items": [{ "id": "m1", "title": "Invitation", "subtitle": "Mollye Miller", "timestamp": "2026-07-01T00:00:00Z", "urgency": "high" }],
-				"groups": [{ "id": "email:urgent", "label": "Urgent", "count": 4 }],
-				"generatedAt": "2026-07-05T09:00:00Z"
-			},
-			"tasks": null,
-			"calendar": {
-				"count": 2,
-				"sources": [{
-					"providerName": "applecalendar",
-					"providerDisplayName": "Apple Calendar",
-					"iconUrl": null,
-					"summary": {
-						"count": 2,
-						"groups": [{ "id": "Work", "label": "Work", "count": 2 }],
-						"items": [{ "id": "e1", "title": "Standup", "subtitle": "Work", "timestamp": "2026-07-17T14:00:00Z", "urgency": "normal" }],
-						"generatedAt": "2026-07-17T10:00:00Z"
-					}
-				}],
-				"items": [{ "id": "e1", "title": "Standup", "subtitle": "Work", "timestamp": "2026-07-17T14:00:00Z", "urgency": "normal" }],
-				"groups": [{ "id": "applecalendar:Work", "label": "Work", "count": 2 }],
-				"generatedAt": "2026-07-17T10:00:00Z"
-			}
-		}
-		""".data(using: .utf8)!
-		let data = try JSONDecoder().decode(DashboardData.self, from: json)
-		#expect(data.email?.count == 95)
-		#expect(data.email?.groups.first?.label == "Urgent")
-		#expect(data.email?.items.first?.subtitle == "Mollye Miller")
-		#expect(data.tasks == nil)
-		#expect(data.calendar?.count == 2)
-		#expect(data.calendar?.items.first?.title == "Standup")
-	}
-
 	@Test("onboarding checklist counts completed steps")
 	func onboardingChecklistCounts() {
 		let checklist = OnboardingChecklist.make(
@@ -141,10 +91,8 @@ struct DashboardModelsTests {
 	@Test("dashboard store initializes empty")
 	func dashboardStoreInitializesEmpty() {
 		let store = DashboardStore()
-		#expect(store.email == nil)
-		#expect(store.tasks == nil)
-		#expect(store.calendar == nil)
-		#expect(store.isLoading == false)
+		#expect(store.blocks.isEmpty)
+		#expect(store.isRefreshing == false)
 		#expect(store.hasLoadedOnce == false)
 	}
 }
@@ -206,20 +154,9 @@ struct DashboardNavigationTests {
 @MainActor
 @Suite("DashboardView")
 struct DashboardViewTests {
-	private func makeAppearance(
-		hideOnboarding: Bool = false,
-		showDashboardEmail: Bool = true,
-		showDashboardTasks: Bool = true,
-		showDashboardCalendar: Bool = true
-	) -> AppearancePreferences {
+	private func makeAppearance(hideOnboarding: Bool = false) -> AppearancePreferences {
 		let suite = UserDefaults(suiteName: "toby.tests.dashboard.\(UUID().uuidString)")!
-		return AppearancePreferences(
-			hideOnboarding: hideOnboarding,
-			showDashboardEmail: showDashboardEmail,
-			showDashboardTasks: showDashboardTasks,
-			showDashboardCalendar: showDashboardCalendar,
-			defaults: suite
-		)
+		return AppearancePreferences(hideOnboarding: hideOnboarding, defaults: suite)
 	}
 
 	private func incompleteChecklist() -> OnboardingChecklist {
@@ -424,185 +361,86 @@ struct DashboardViewTests {
 		}
 	}
 
-	@Test("dashboard shows mail, tasks, and calendar cards by default")
-	func dashboardShowsMailAndTasksByDefault() throws {
+	private func runnerStore(_ ids: [String]) -> DashboardStore {
+		let store = DashboardStore()
+		store.registry.syncFlowBlocks(ids.map { id in
+			FlowDashboardBlockInfo(
+				id: id,
+				flowId: id,
+				title: id,
+				description: nil,
+				icon: nil,
+				color: nil,
+				variant: "runner",
+				lastRanAt: nil,
+				showsResultSheet: false
+			)
+		})
+		return store
+	}
+
+	@Test("Home shows The Feed and no flow cards")
+	func dashboardShowsFeedOnly() throws {
 		let view = makeView(store: DashboardStore())
 		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-feed")
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
+		for retired in [
+			"dashboard-mail-card", "dashboard-tasks-card", "dashboard-calendar-card",
+			"dashboard-flow-dashboard.todos.summary",
+		] {
+			#expect(throws: (any Error).self) {
+				try view.inspect().find(viewWithAccessibilityIdentifier: retired)
+			}
 		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(text: "Continue working")
 		}
 	}
 
-	@Test("dashboard hides mail card when show preference is off")
-	func dashboardHidesMailCardWhenPreferenceOff() throws {
-		let view = DashboardView(
-			store: DashboardStore(),
-			userName: "Karim",
-			onboarding: incompleteChecklist(),
-			isOnboardingReady: true,
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenPermissions: {},
-			actionContext: .init(startChat: {}),
-			appearancePreferences: makeAppearance(showDashboardEmail: false)
-		)
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
-		}
-	}
-
-	@Test("dashboard hides tasks card when show preference is off")
-	func dashboardHidesTasksCardWhenPreferenceOff() throws {
-		let view = DashboardView(
-			store: DashboardStore(),
-			userName: "Karim",
-			onboarding: incompleteChecklist(),
-			isOnboardingReady: true,
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenPermissions: {},
-			actionContext: .init(startChat: {}),
-			appearancePreferences: makeAppearance(showDashboardTasks: false)
-		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
-		}
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
-		}
-	}
-
-	@Test("dashboard hides both cards when both show preferences are off")
-	func dashboardHidesBothCardsWhenPreferencesOff() throws {
-		let view = DashboardView(
-			store: DashboardStore(),
-			userName: "Karim",
-			onboarding: incompleteChecklist(),
-			isOnboardingReady: true,
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenPermissions: {},
-			actionContext: .init(startChat: {}),
-			appearancePreferences: makeAppearance(
-				showDashboardEmail: false,
-				showDashboardTasks: false,
-				showDashboardCalendar: false
-			)
-		)
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
-		}
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
-		}
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
-		}
-	}
-
-	@Test("dashboard hides calendar card when show preference is off")
-	func dashboardHidesCalendarCardWhenPreferenceOff() throws {
-		let view = DashboardView(
-			store: DashboardStore(),
-			userName: "Karim",
-			onboarding: incompleteChecklist(),
-			isOnboardingReady: true,
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenPermissions: {},
-			actionContext: .init(startChat: {}),
-			appearancePreferences: makeAppearance(showDashboardCalendar: false)
-		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
-		}
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-calendar-card")
-		}
-	}
-
-	@Test("edit mode shows a tray for hidden cards and keeps remaining cards")
-	func editModeShowsHiddenTray() throws {
-		let prefs = makeAppearance(showDashboardEmail: false)
-		let view = makeView(store: DashboardStore(), appearance: prefs, isEditing: true)
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-tasks-card")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-tray")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-chip-email")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-unhide-email")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-edit-overlay-tasks")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-reorder-tasks")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-tasks")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(
-				viewWithAccessibilityIdentifier: "dashboard-edit-overlay-local.recent-work"
-			)
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(
-				viewWithAccessibilityIdentifier: "dashboard-reorder-local.recent-work"
-			)
-		}
-	}
-
-	@Test("view mode omits the hidden-card tray")
-	func viewModeOmitsHiddenTray() throws {
-		let prefs = makeAppearance(showDashboardEmail: false)
-		let view = makeView(store: DashboardStore(), appearance: prefs, isEditing: false)
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-tray")
-		}
-	}
-
-	@Test("custom layout order is applied by the registry")
-	func registryAppliesCustomOrder() {
-		let store = DashboardStore()
-		let layout = DashboardLayout(order: ["calendar", "email", "tasks"], hidden: ["tasks"])
-		#expect(
-			store.registry.orderedVisible(layout: layout).map(\.id.rawValue) == ["calendar", "email"]
-		)
-		#expect(store.registry.orderedHidden(layout: layout).map(\.id.rawValue) == ["tasks"])
-	}
-
-	@Test("dashboard block visibility binding toggles preference under animation path")
-	func dashboardBlockVisibilityBindingTogglesPreference() {
+	@Test("edit mode shows a tray for hidden actions")
+	func editModeShowsHiddenActionsTray() throws {
 		let prefs = makeAppearance()
-		let emailBinding = prefs.dashboardBlockVisibilityBinding(.email)
-		emailBinding.wrappedValue = false
-		#expect(prefs.showDashboardEmail == false)
-		emailBinding.wrappedValue = true
-		#expect(prefs.showDashboardEmail == true)
+		prefs.setDashboardBlockVisible(id: DashboardBlockID("flow.a"), visible: false)
+		let view = makeView(store: runnerStore(["flow.a", "flow.b"]), appearance: prefs, isEditing: true)
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-tray")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-chip-flow.a")
+		}
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-unhide-flow.a")
+		}
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-chip-flow.b")
+		}
+	}
 
-		let tasksBinding = prefs.dashboardBlockVisibilityBinding(.tasks)
-		tasksBinding.wrappedValue = false
-		#expect(prefs.showDashboardTasks == false)
+	@Test("view mode omits the hidden-actions tray")
+	func viewModeOmitsHiddenTray() throws {
+		let prefs = makeAppearance()
+		prefs.setDashboardBlockVisible(id: DashboardBlockID("flow.a"), visible: false)
+		let view = makeView(store: runnerStore(["flow.a"]), appearance: prefs, isEditing: false)
+		#expect(throws: (any Error).self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hidden-tray")
+		}
+	}
 
-		let hideBinding = prefs.hideOnboardingBinding
-		hideBinding.wrappedValue = true
+	@Test("registry splits visible and hidden actions in server order")
+	func registrySplitsHiddenActions() {
+		let store = runnerStore(["flow.c", "flow.a", "flow.b"])
+		let layout = DashboardLayout(hidden: ["flow.a"])
+		#expect(
+			store.registry.orderedVisibleRunners(layout: layout).map(\.id.rawValue) == ["flow.c", "flow.b"]
+		)
+		#expect(store.registry.orderedHidden(layout: layout).map(\.id.rawValue) == ["flow.a"])
+	}
+
+	@Test("hide onboarding binding stores the preference")
+	func hideOnboardingBindingStoresPreference() {
+		let prefs = makeAppearance()
+		prefs.hideOnboardingBinding.wrappedValue = true
 		#expect(prefs.hideOnboarding == true)
 	}
 
@@ -743,199 +581,6 @@ struct DashboardViewTests {
 }
 
 @MainActor
-@Suite("DashboardBlockContent")
-struct DashboardBlockContentTests {
-	@Test("linked rows open web and native destinations using the shared renderer")
-	func linkedRows() throws {
-		for raw in ["https://example.com/article?a=1&b=2", "customapp://items/42"] {
-			let item = DashboardBlockContentItem(title: "Open item", subtitle: "Details", url: raw)
-			let link = try DashboardStructuredItemRow(item: item).inspect().find(ViewType.Link.self)
-			#expect(try link.url().absoluteString == raw)
-			#expect(try link.labelView().find(text: "Open item").string() == "Open item")
-		}
-	}
-
-	@Test("rows without absolute destinations remain plain content")
-	func unlinkedRows() throws {
-		for raw in [nil, "", "   ", "relative/path", "https:"] as [String?] {
-			let item = DashboardBlockContentItem(title: "Plain item", subtitle: nil, url: raw)
-			#expect(item.destinationURL == nil)
-			let view = try DashboardStructuredItemRow(item: item).inspect()
-			#expect(throws: (any Error).self) { try view.find(ViewType.Link.self) }
-			#expect(try view.find(text: "Plain item").string() == "Plain item")
-		}
-	}
-
-	@Test("custom Markdown rows preserve bold linked titles and native destinations")
-	func boldLinkedRow() {
-		let sections = DashboardContentSectionParser.parse(
-			"- **[Review draft](customapp://documents/42)** — Due today"
-		)
-		#expect(sections?.first?.items.first?.title == "Review draft")
-		#expect(sections?.first?.items.first?.subtitle == "Due today")
-		#expect(sections?.first?.items.first?.destinationURL?.absoluteString == "customapp://documents/42")
-	}
-
-	@Test("DashboardBlockContent decodes from JSON")
-	func contentDecodes() throws {
-		let json = """
-		{
-			"category": "email",
-			"text": "You have 3 urgent emails from your manager.",
-			"generatedAt": "2026-07-10T12:00:00Z",
-			"personaName": "Toby",
-			"count": 95,
-			"launchUrls": ["https://mail.example.com"],
-			"sections": [{
-				"id": "section-0",
-				"eyebrow": "Technology",
-				"title": "AI agents",
-				"body": "A quick briefing.",
-				"items": [{
-					"title": "Developer tools",
-					"subtitle": "DEVELOPER",
-					"url": "https://example.com/tools"
-				}]
-			}],
-			"sources": [
-				{
-					"providerName": "email",
-					"providerDisplayName": "Email (IMAP/SMTP)",
-					"launchUrl": "https://mail.example.com"
-				}
-			]
-		}
-		""".data(using: .utf8)!
-		let content = try JSONDecoder().decode(DashboardBlockContent.self, from: json)
-		#expect(content.category == "email")
-		#expect(content.text == "You have 3 urgent emails from your manager.")
-		#expect(content.personaName == "Toby")
-		#expect(content.count == 95)
-		#expect(content.launchUrls?.first == "https://mail.example.com")
-		#expect(content.sources?.first?.providerName == "email")
-		#expect(content.sections?.first?.eyebrow == "Technology")
-		#expect(content.sections?.first?.items.first?.title == "Developer tools")
-		#expect(content.hasBody)
-	}
-
-	@Test("DashboardBlockContent decodes with null launchUrls")
-	func contentDecodesWithNullLaunchUrls() throws {
-		let json = """
-		{
-			"category": "tasks",
-			"text": "You have 2 overdue tasks.",
-			"generatedAt": "2026-07-10T12:00:00Z",
-			"personaName": "Work",
-			"count": 5,
-			"launchUrls": null
-		}
-		""".data(using: .utf8)!
-		let content = try JSONDecoder().decode(DashboardBlockContent.self, from: json)
-		#expect(content.category == "tasks")
-		#expect(content.launchUrls == nil)
-	}
-
-	@Test("local section fallback recognizes typographic bullets and bold leads")
-	func localSectionFallbackParsesBriefing() {
-		let sections = DashboardContentSectionParser.parse("""
-		## Tech
-		• **AI safety debate intensifies:** Critics argue that policy is lagging.
-		• [Developer tools worth a look](https://example.com/tools) — Developer
-		""")
-		#expect(sections?.first?.eyebrow == "Tech")
-		#expect(sections?.first?.items.first?.title == "AI safety debate intensifies")
-		#expect(sections?.first?.items.first?.subtitle == "Critics argue that policy is lagging.")
-		#expect(sections?.first?.items.last?.url == "https://example.com/tools")
-	}
-
-	@Test("dashboard store initializes with empty content state")
-	func dashboardStoreContentInitial() {
-		let store = DashboardStore()
-		#expect(store.emailContent == nil)
-		#expect(store.tasksContent == nil)
-		#expect(store.calendarContent == nil)
-		#expect(store.emailSummaryLoading == false)
-		#expect(store.tasksSummaryLoading == false)
-		#expect(store.calendarSummaryLoading == false)
-		#expect(store.isSummaryLoading == false)
-	}
-}
-
-@MainActor
-@Suite("DashboardRecentWork")
-struct DashboardRecentWorkTests {
-	@Test("merges chats and projects by recency and excludes project chats")
-	func mergesRecentWork() {
-		let sessions = [
-			SessionSummary(
-				id: "chat-1",
-				name: "Home dashboard design",
-				createdAt: "2026-09-10T10:00:00Z",
-				updatedAt: "2026-09-15T10:00:00Z"
-			),
-			SessionSummary(
-				id: "project-chat",
-				name: "Hidden project chat",
-				createdAt: nil,
-				updatedAt: "2026-09-16T10:00:00Z",
-				projectId: "project-1"
-			),
-		]
-		let projects = [
-			ProjectSummary(
-				id: "project-1",
-				slug: "toby",
-				name: "Toby",
-				summary: "",
-				folderPath: "/tmp/toby",
-				personaName: nil,
-				outputsDir: nil,
-				skillsDir: nil,
-				createdAt: "2026-09-01T10:00:00Z",
-				updatedAt: "2026-09-14T10:00:00Z"
-			),
-		]
-
-		let items = DashboardRecentWorkItem.merged(sessions: sessions, projects: projects)
-		#expect(items.map(\.title) == ["Home dashboard design", "Toby"])
-		#expect(items.map(\.kind) == [.chat("chat-1"), .project("project-1")])
-	}
-
-	@Test("limits combined recent work to five items")
-	func limitsRecentWork() {
-		let sessions = (0..<8).map { index in
-			SessionSummary(
-				id: "chat-\(index)",
-				name: "Chat \(index)",
-				createdAt: nil,
-				updatedAt: "2026-09-\(String(format: "%02d", index + 1))T10:00:00Z"
-			)
-		}
-		#expect(DashboardRecentWorkItem.merged(sessions: sessions, projects: []).count == 5)
-	}
-
-	@Test("recent work row invokes selection")
-	func recentWorkRowSelects() throws {
-		let item = DashboardRecentWorkItem(
-			id: "chat:chat-1",
-			kind: .chat("chat-1"),
-			title: "Home dashboard design",
-			subtitle: "Recent chat",
-			updatedAt: nil
-		)
-		var selected: DashboardRecentWorkItem?
-		let view = DashboardRecentWorkSection(items: [item], isLoading: false) {
-			selected = $0
-		}
-		let button = try view.inspect()
-			.find(viewWithAccessibilityIdentifier: "dashboard-recent-chat:chat-1")
-			.button()
-		try button.tap()
-		#expect(selected == item)
-	}
-}
-
-@MainActor
 @Suite("DashboardFlowBlocks")
 struct DashboardFlowBlocksTests {
 	private func flowInfo(
@@ -955,7 +600,6 @@ struct DashboardFlowBlocksTests {
 			icon: icon,
 			color: color,
 			variant: variant,
-			refresh: nil,
 			lastRanAt: nil,
 			showsResultSheet: showsResultSheet
 		)
@@ -972,7 +616,6 @@ struct DashboardFlowBlocksTests {
 			"icon": "flame",
 			"color": "blue",
 			"variant": "runner",
-			"refresh": "manual",
 			"lastRanAt": "2026-08-15T12:00:00Z",
 			"showsResultSheet": false
 		}
@@ -980,27 +623,14 @@ struct DashboardFlowBlocksTests {
 		let info = try JSONDecoder().decode(FlowDashboardBlockInfo.self, from: json)
 		#expect(info.id == "flow.abc")
 		#expect(info.isRunner)
-		#expect(info.refresh == "manual")
 		#expect(info.description == "Turn off Wi-Fi")
 		#expect(info.icon == "flame")
 		#expect(info.color == "blue")
 		#expect(info.showsResultSheet == false)
-
-		let withoutRefresh = """
-		{
-			"id": "flow.abc",
-			"flowId": "flow.abc",
-			"title": "Focus mode",
-			"variant": "informational"
-		}
-		""".data(using: .utf8)!
-		let omitted = try JSONDecoder().decode(FlowDashboardBlockInfo.self, from: withoutRefresh)
-		#expect(omitted.refresh == nil)
-		#expect(!omitted.isRunner)
 	}
 
-	@Test("flow descriptor marks runner vs informational")
-	func flowDescriptorMarksVariants() {
+	@Test("flow descriptor carries tile metadata")
+	func flowDescriptorCarriesTileMetadata() {
 		let runner = DashboardBlockDescriptor.flow(
 			flowInfo(
 				id: "flow.run",
@@ -1010,80 +640,39 @@ struct DashboardFlowBlocksTests {
 				icon: "flame",
 				color: "teal"
 			),
-			sortIndex: 100
+			sortIndex: 0
 		)
-		#expect(runner.isFlowBlock)
-		#expect(runner.isFlowRunner)
 		#expect(runner.title == "Focus mode")
 		#expect(runner.flowDescription == "Turn off Wi-Fi")
 		#expect(runner.accessibilityIdentifier == "dashboard-flow-flow.run")
 		#expect(runner.systemImage == "flame")
 		#expect(runner.flowColor == "teal")
 
-		let info = DashboardBlockDescriptor.flow(
-			flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
-			sortIndex: 101
+		let plain = DashboardBlockDescriptor.flow(
+			flowInfo(id: "flow.plain", title: "Plain", description: nil, variant: "runner"),
+			sortIndex: 1
 		)
-		#expect(info.isFlowBlock)
-		#expect(!info.isFlowRunner)
-		#expect(info.systemImage == FlowIconOption.defaultSymbol)
+		#expect(plain.systemImage == "play.circle")
 	}
 
-	@Test("registry syncs flow cards without dropping built-ins")
-	func registrySyncsFlowCards() {
+	@Test("registry keeps only runner flows and replaces them on sync")
+	func registrySyncsRunners() {
 		let registry = DashboardBlockRegistry()
-		#expect(registry.blocks.contains { $0.id == .email })
-		registry.syncFlowBlocks(
-			[
-				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
-			],
-			client: TobyClient()
-		)
-		#expect(registry.blocks.contains { $0.id == .email })
-		#expect(registry.blocks.contains { $0.id.rawValue == "flow.run" })
-		#expect(registry.block(rawId: "flow.run")?.descriptor.isFlowRunner == true)
+		#expect(registry.blocks.isEmpty)
+		registry.syncFlowBlocks([
+			flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+			flowInfo(id: "flow.info", title: "Old card", description: nil, variant: "informational"),
+		])
+		#expect(registry.blocks.map(\.id.rawValue) == ["flow.run"])
+		let first = registry.block(rawId: "flow.run")
+		registry.syncFlowBlocks([
+			flowInfo(id: "flow.run", title: "Renamed", description: nil, variant: "runner"),
+		])
+		#expect(registry.block(rawId: "flow.run") === first)
+		#expect(registry.block(rawId: "flow.run")?.title == "Renamed")
 
-		registry.syncFlowBlocks([], client: TobyClient())
-		#expect(!registry.blocks.contains { $0.descriptor.isFlowBlock })
-		#expect(registry.blocks.contains { $0.id == .email })
-	}
-
-	@Test("flow informational actions include open flow")
-	func flowInformationalActionsIncludeOpenFlow() {
-		let block = CategoryDashboardBlock(
-			descriptor: .flow(
-				flowInfo(id: "flow.info", title: "Status", description: "Latest", variant: "informational"),
-				sortIndex: 100
-			)
-		)
-		let actions = block.actions(context: .init())
-		#expect(actions.map(\.id).contains("open-flow"))
-		#expect(!actions.map(\.id).contains("summarize-email"))
-	}
-
-	@Test("built-in block card renders definition title")
-	func builtInBlockCardRendersTitle() throws {
-		let block = CategoryDashboardBlock(descriptor: .email)
-		let card = DashboardBlockCard(block: block)
-		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Unread mail")
-		}
-		#expect(throws: Never.self) {
-			try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-mail-card")
-		}
-	}
-
-	@Test("intelligence outline shows immediately on force refresh or empty body")
-	func intelligenceOutlineShowsImmediatelyOnForceOrEmptyBody() {
-		#expect(
-			DashboardIntelligenceOutlinePolicy.showsImmediately(isForceUpdating: true, hasBody: true)
-		)
-		#expect(
-			DashboardIntelligenceOutlinePolicy.showsImmediately(isForceUpdating: false, hasBody: false)
-		)
-		#expect(
-			!DashboardIntelligenceOutlinePolicy.showsImmediately(isForceUpdating: false, hasBody: true)
-		)
+		registry.syncFlowBlocks([])
+		#expect(registry.blocks.isEmpty)
 	}
 
 	@Test("dashboard card shows intelligence outline while updating")
@@ -1099,20 +688,6 @@ struct DashboardFlowBlocksTests {
 		let card = DashboardCard { Text("Body") }
 		#expect(throws: (any Error).self) {
 			_ = try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
-		}
-	}
-
-	@Test("block card shows intelligence outline while loading with no body")
-	func blockCardShowsIntelligenceOutlineWhileLoading() throws {
-		let block = CategoryDashboardBlock(descriptor: .email)
-		block.isLoading = true
-		let card = DashboardBlockCard(block: block)
-		#expect(throws: Never.self) {
-			_ = try card.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
-		}
-		#expect(throws: (any Error).self) {
-			let idle = DashboardBlockCard(block: CategoryDashboardBlock(descriptor: .email))
-			_ = try idle.inspect().find(viewWithAccessibilityIdentifier: "dashboard-card-intelligence-outline")
 		}
 	}
 
@@ -1154,49 +729,14 @@ struct DashboardFlowBlocksTests {
 		}
 	}
 
-	@Test("dashboard view keeps informational flow cards and does not host runners in the grid")
-	func dashboardViewRendersFlowCards() throws {
+	@Test("actions rail hosts runner tiles")
+	func actionsRailHostsRunners() throws {
 		let store = DashboardStore()
-		store.registry.syncFlowBlocks(
-			[
-				flowInfo(id: "flow.info", title: "Inbox note", description: "Latest status", variant: "informational"),
-				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
-			],
-			client: TobyClient()
-		)
+		store.registry.syncFlowBlocks([
+			flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+		])
 		let suite = UserDefaults(suiteName: "toby.tests.dashboard.flow.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(
-			hideOnboarding: true,
-			defaults: suite
-		)
-		let view = DashboardView(
-			store: store,
-			userName: "Karim",
-			onboarding: OnboardingChecklist.make(
-				hasConfiguredAIProvider: true,
-				hasConnectedIntegrations: true,
-				hasModelConfigured: true,
-				hasRequiredPermissions: true,
-				hasSchedule: true,
-				hasSkill: true,
-				hasTranscriptionConfigured: true,
-				hasRecording: true,
-				hasSession: true
-			),
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenPermissions: {},
-			actionContext: .init(startChat: {}),
-			appearancePreferences: prefs
-		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-flow-flow.info")
-		}
-		// Runner rows live in the trailing inspector, which ViewInspector cannot
-		// traverse. The home grid must not host a full runner card.
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Run Now")
-		}
+		let prefs = AppearancePreferences(hideOnboarding: true, defaults: suite)
 		#expect(store.registry.orderedVisibleRunners(layout: prefs.dashboardLayout).map(\.id.rawValue)
 			== ["flow.run"])
 
@@ -1253,18 +793,15 @@ struct DashboardFlowBlocksTests {
 	@Test("toolbar pane flag hides the actions rail while keeping runners registered")
 	func actionsPaneToggleHidesRail() throws {
 		let store = DashboardStore()
-		store.registry.syncFlowBlocks(
-			[
-				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
-			],
-			client: TobyClient()
-		)
+		store.registry.syncFlowBlocks([
+			flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+		])
 		let suite = UserDefaults(suiteName: "toby.tests.dashboard.rail.toggle.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(
 			hideOnboarding: true,
 			defaults: suite
 		)
-		prefs.dashboardLayout = DashboardLayout(order: [], hidden: [], actionsVisible: false)
+		prefs.dashboardLayout = DashboardLayout(hidden: [], actionsVisible: false)
 		let view = DashboardView(
 			store: store,
 			userName: "Karim",
@@ -1288,24 +825,21 @@ struct DashboardFlowBlocksTests {
 		#expect(throws: (any Error).self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-actions-rail")
 		}
-		#expect(store.registry.block(rawId: "flow.run")?.descriptor.isFlowRunner == true)
+		#expect(store.registry.block(rawId: "flow.run") != nil)
 	}
 
 	@Test("hiding the last runner removes the actions rail")
 	func hidingLastRunnerRemovesRail() throws {
 		let store = DashboardStore()
-		store.registry.syncFlowBlocks(
-			[
-				flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
-			],
-			client: TobyClient()
-		)
+		store.registry.syncFlowBlocks([
+			flowInfo(id: "flow.run", title: "Focus mode", description: "Turn off Wi-Fi", variant: "runner"),
+		])
 		let suite = UserDefaults(suiteName: "toby.tests.dashboard.rail.hide.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(
 			hideOnboarding: true,
 			defaults: suite
 		)
-		prefs.dashboardLayout = DashboardLayout(order: [], hidden: ["flow.run"])
+		prefs.dashboardLayout = DashboardLayout(hidden: ["flow.run"])
 		let view = DashboardView(
 			store: store,
 			userName: "Karim",

@@ -1,23 +1,20 @@
 # Home dashboard
 
-How Toby.app’s home-screen cards (unread mail, tasks, upcoming calendar,
-and optional custom-flow cards) get their content.
+What Toby.app's Home screen shows and where its content comes from.
 
-## Architecture
+Home has three parts:
 
-> **A card’s definition owns a static header (title and actions); its body is
-> always flow output, refreshed by a single update path.**
-
-| Piece | Source | Changes on refresh? |
+| Part | Content | Notes |
 | --- | --- | --- |
-| Header title, icon, actions | Card **definition** (`DashboardBlockDescriptor`) | No |
-| Header last-run time | `DashboardBlockContent.generatedAt` (short date + `HH:mm`) | Yes, when content updates |
-| Body | **Flow output** (`DashboardBlockContent`), with optional derived sections | Yes — one path |
-| Count badge | — | Removed (not part of the model) |
+| Greeting | Time-of-day greeting and date | Static |
+| Onboarding checklist | Setup steps | Shown until complete or hidden |
+| **The Feed** | Ranked, cross-connection items with reasons and actions | Always on; the only content section |
+| **Actions** sidebar | Tiles for custom flows with a Home Screen Action | Trailing inspector column |
 
-There is **no** separate client path for “list/count data” vs “AI blurb.”
-Standard tools and the aggregator still run **inside** the flow (and server
-content handler); the home UI never dual-fetches them.
+Flows cannot add cards to Home. The built-in mail / tasks / calendar / Toby
+Todos summary cards, custom "informational" flow cards, and the client-local
+**Continue working** card were removed; The Feed covers what they did. See
+[The Feed](feed-plan.md) for how it collects and ranks items.
 
 Related docs:
 
@@ -26,162 +23,94 @@ Related docs:
 | Flow / pipeline design | [`flows.md`](flows.md) |
 | Standard tool contract & plugin checklist | [`dashboard-standard-tools-plan.md`](dashboard-standard-tools-plan.md) |
 
-## Card definition (static)
+## The Feed
 
-Compile-time registration in Toby.app
-(`DashboardBlockDescriptor` / `DashboardBlockID`):
+The Feed renders in the shared `DashboardCard` shell (content-background fill,
+16pt corners, quiet hairline, `intelligenceOutline` while updating). It cannot
+be hidden. When no structured-output model is configured, it shows its own
+setup prompt (`status: "setupRequired"`) linking to Settings → Home.
 
-- `id`, `title`, `systemImage`
-- empty-state copy (`emptyWhenNil` / `emptyWhenZero`)
-- visibility defaults key (legacy; layout JSON is source of truth), default sort index, accessibility id
-- action metadata (`openPrimaryTitle`, `listsSourceOpenActions`, fallbacks)
+The Feed always shows at its full height; scroll Home to reach the rest of it.
+Each item shows a source line (connection, then sender / list / project).
 
-The header **title** and leading SF Symbol come only from the definition. The
-**last-run** timestamp in the header is formatted from content `generatedAt`
-(locale short date + 24-hour `HH:mm`) when content is present.
-Actions are declared by the block (open app, chat hooks); enablement may use
-light **meta** from the latest content (e.g. `count > 0` for “Summarize all in
-chat”).
+### Guiding The Feed
 
-## Card chrome
+**Guide The Feed** (Home toolbar, `text.badge.star`, also in the Feed card
+menu) opens a sheet listing the user's instructions, newest first, with an
+on/off switch and delete for each, and a field to add one. Instructions are
+stored in Feed state (`instructions`, never pruned; up to 50, 500 characters
+each). Enabled ones open the ranking system prompt as **USER INSTRUCTIONS**
+(above the default rules, which they override): exclusions ("ignore", "skip",
+"only show") are hard filters, and missing facts mean "the user's own item".
+They are repeated after the candidate list. Memories and "Not relevant" marks
+stay soft hints further down.
 
-Home cards share one visual shell (`DashboardBlockChrome`):
+To make instructions checkable, each candidate in the prompt carries
+`source:` (connection display name, e.g. Todoist), `from/list:` (sender, list,
+project), and, for tasks in shared lists, `assigned:` (from the item's `task`
+facts — see [feed-plan.md](feed-plan.md)).
 
-- Content-background fill, 16pt corners, quiet hairline outline and header divider
-- While a content card is updating (`isUpdating`), the shared `intelligenceOutline` modifier fades a Siri-style rainbow ring over the hairline and fades it out when the update finishes. Reduce Motion snaps with no fade. Onboarding and Actions runners do not use this treatment. Apply the same modifier to other processing surfaces (recording Summary card, chat composer, flow run, etc.) with `isActive` and an optional `Shape`.
-- 16px inner padding; cards keep their intrinsic height up to a 340px collapsed cap
-- A waterfall layout places each card in the shortest 320–460px column, so compact cards stack beside taller cards
-- Summary and structured rows use compact system typography; `##` section
-  labels render as small uppercase metadata
-- Expanded cards drop a small downward shadow; collapsed overflow uses the
-  gradient fade + **Show more** bar
-- Flow Markdown is also exposed as optional generic eyebrow/title/body/item
-  sections. Toby.app uses those sections for briefing-style hierarchy and
-  actionable rows, falling back to the original Markdown for plain output.
+Instructions change the personalization signature, so closing the sheet after
+a change force-refreshes The Feed. They only steer the ranker: candidates the
+pre-filter drops (per-category caps, horizons) never reach it.
 
-Onboarding uses the same shell without a glyph. Runner-variant flows are **not**
-cards: they appear in a compact **Actions** rail beside the grid (colored
-Shortcuts-style tiles with the flow icon, play glyph, and name; hover 1s for title
-and description; in-flight spinner). The rail is omitted when no runners are visible.
+Home soft-loads The Feed when the daemon is ready, re-polls every five minutes
+while Home is open, and force-refreshes from the toolbar refresh button
+(`?fresh=1`).
 
-## Block content (refreshable)
+The Feed reads provider data in-process through the aggregator
+(`getDashboardCategory`), which calls each connected plugin's standard summary
+tool. See the [standard tools plan](dashboard-standard-tools-plan.md).
 
-Single DTO from the daemon:
+## Actions sidebar
 
-```ts
-interface DashboardBlockContent {
-  category: string;       // block id: "email" | "tasks" | "calendar" | custom flow id
-  text: string;           // markdown body; empty when nothing to show
-  generatedAt: string;    // ISO 8601 — shown in header as short date + HH:mm
-  personaName: string;
-  count: number;          // for empty UX / action enablement (not a badge)
-  launchUrls: string[];
-  sources?: {             // multi-provider open targets
-    providerName: string;
-    providerDisplayName: string;
-    launchUrl?: string;
-  }[];
-  sections?: {            // derived from headings, prose, bullets, and links
-    id: string;
-    eyebrow?: string;
-    title?: string;
-    body?: string;
-    items: { title: string; subtitle?: string; url?: string }[];
-  }[];
-}
-```
+A custom flow appears as an Actions tile when it has an enabled `home.action`
+trigger, which pairs with a `{ type: "dashboard", variant: "runner" }`
+destination (saving either configures both). Toby.app syncs
+`GET /api/dashboard/flow-blocks` on each Home load and whenever flow
+definitions change.
 
-| API response | Meaning |
-| --- | --- |
-| JSON `null` | Unknown category, or no connected providers. |
-| `count === 0` / empty `text` | Connected but nothing to show → definition empty copy |
-| Non-empty `text` | Flow markdown for the body |
+Tiles are colored Shortcuts-style cards with the flow SF Symbol, play glyph, and
+name. Hovering for 1s shows the title and description in a system popover. A
+tile never auto-runs; clicking it calls `POST /api/flows/:id/run` and shows a
+spinner (with a subtle pulse unless Reduce Motion) while the run is in flight.
+The context menu includes **Open flow**. The sidebar is omitted when no tiles
+are visible.
 
-## Item destinations (built-in and custom blocks)
+The Home toolbar has **Hide Actions** / **Show Actions** (trailing sidebar
+icon) whenever at least one tile is registered. It collapses the column
+without hiding individual tiles.
 
-Item navigation uses one category-independent contract: an optional absolute
-`url`. A provider supplies the destination of the specific item; Toby.app uses
-a native SwiftUI `Link` to open it in the browser or registered external app.
-No block id, provider switch, or client-side URL construction is needed.
-Relative, empty, and malformed web destinations render as plain rows.
+### Edit Home
 
-Standard tools can include `DashboardItem.url`. The `{{dashboardItems bag.key}}`
-prompt helper preserves it, and built-in summaries instruct the model to copy
-the supplied URL into the item's Markdown link without inventing destinations.
-Models may still omit an item or its link; summaries are generated prose.
+**Edit Home** (toolbar, shown when there is at least one tile) is session-only;
+click **Done**, press Escape, or leave Home to exit. While editing, The Feed is
+dimmed and non-interactive, and each tile shows:
 
-Custom informational flows use the same rendering path. Return bullet rows
-with a Markdown link on the title and optional supporting text:
+- a palette control that writes an app-local color override (**Use default**
+  removes it; **Neutral** removes the tint even when the flow chooses a color)
+- a hide control
 
-```md
-## Needs attention
-- [Review draft](https://example.com/documents/42) — Due today
-- [Open task](customapp://items/42) — Assigned to you
-- An item without a destination
-```
+Hidden tiles appear in a **Hidden actions** tray below The Feed, each with
+**Show**.
 
-The parser takes the first link in each bullet as `sections[].items[].url`,
-making the whole row clickable, including its supporting copy. Percent-encode
-spaces and parentheses in destinations. Use one destination per item row;
-grouped prose with multiple links should remain prose rather than a bullet.
-API clients can also render the same `title` / `subtitle` / `url` section shape.
-Native links require an installed app that handles the scheme and can resolve
-the item. The dashboard does not fall back from an item URL to `launchUrls` or
-`sources[].launchUrl`, which open a provider generally.
+### Tile colors
 
-News articles and Todoist tasks already supply item URLs. The IMAP email plugin
-currently supplies only an inbox launch URL, so its messages remain unlinked;
-an inbox link is not a message destination. Existing cached summaries gain
-links when regenerated if the source supplies URLs.
-
-## Single update path
-
-```
-DashboardView / card refresh / toolbar refresh
-        │
-        ▼
-CategoryDashboardBlock.update(force)
-        │
-        ▼
-GET /api/dashboard/:category/content[?fresh=1]
-  (alias: …/summary)
-        │
-        ▼
-getDashboardBlockContent(category, { force? })
-        │
-        ├─ getDashboardCategory (server-internal; 60s cache unless force)
-        ├─ count === 0 → empty content (no LLM)
-        ├─ soft: memory (5 min) / disk (~/.toby/dashboard-summaries.json)
-        └─ else: runFlow("dashboard.<category>.summary")
-              Tool Executor (standard tool) → LLM Prompter → { markdown }
-        │
-        ▼
-DashboardBlockContent → card body
-```
-
-### UI triggers
-
-| Trigger | Path | Cache |
-| --- | --- | --- |
-| Home appears and daemon is ready | `store.updateAll(force: false)` → each `block.update(false)` | Soft |
-| Card refresh | `block.update(force: true)` | `?fresh=1` |
-| Toolbar refresh | `store.refreshAll()` → fan-out `update(true)` (+ shared app stores) | `?fresh=1` |
-
-Global refresh is **not** a second system: it iterates registered blocks and
-calls each block’s force update in parallel.
+The flow editor's Home destination has a **Home color** default stored as
+`destinations[].color`: `neutral`, `teal`, `blue`, `green`, `orange`, `purple`,
+`pink`, `red`, or `gray`. **Automatic** omits the field. The flow-block API
+exposes it as `dashboardColor`. Tiles without a default use the flow-level
+`color` (teal fallback).
 
 ## Layout preferences (app-local)
 
-Toby.app retains card order and visibility preferences without talking to the daemon.
-Layout is stored in `UserDefaults` key `toby.appearance.dashboardLayout`
-alongside other UI prefs (`AppearancePreferences`), including Home color overrides, not in `~/.toby` or
-server settings.
+Stored in `UserDefaults` key `toby.appearance.dashboardLayout`
+(`AppearancePreferences`), not in `~/.toby`:
 
 ```json
 {
-  "order": ["local.recent-work", "calendar", "email", "tasks"],
-  "hidden": ["tasks"],
-  "colorOverrides": {"calendar": "blue"},
+  "hidden": ["flow.focus"],
+  "colorOverrides": {"flow.wrap-up": "blue"},
   "actionsVisible": true,
   "actionsWidth": 156
 }
@@ -189,188 +118,63 @@ server settings.
 
 | Field | Meaning |
 | --- | --- |
-| `order` | Last-known sequence of card ids. Empty means default grouping. |
-| `hidden` | Card ids not shown on the home grid (including custom flow cards). |
-| `colorOverrides` | Optional map of block id to palette color or `neutral`. Missing entries inherit the block default. |
-| `actionsVisible` | Whether the Actions inspector is shown (toolbar toggle). Default `true`. Independent of per-runner hide. |
-| `actionsWidth` | Preferred Actions inspector width in points (default 156, clamped 120–280). The system divider resizes the column. |
+| `hidden` | Tile ids (flow ids) hidden from the Actions sidebar. |
+| `colorOverrides` | Tile id → palette color or `neutral`. Missing entries inherit the flow default. |
+| `actionsVisible` | Whether the Actions column is shown. Default `true`. |
+| `actionsWidth` | Preferred column width in points (default 156, clamped 120–280). Live divider drags are handled by the system split view and must not write back mid-drag. |
 
-Older documents without the Actions keys load as visible at the default width.
+Older documents also carried a card `order`; it is ignored when decoding.
+Unknown ids are ignored. **Reset Home layout** in Settings → Home restores the
+empty document.
 
-**Default order** when `order` is empty (and after **Reset dashboard layout**):
+Onboarding is separate: hide it from the checklist header (**Hide**) or with
+**Hide onboarding checklist** in Settings → Home. Both write
+`toby.appearance.hideOnboarding`.
 
-1. Built-ins by `sortIndex` (email, tasks, calendar)
-2. Informational flow cards
-3. The client-local `local.recent-work` card (**Continue working**)
-4. Runner flows (Actions rail; not grid cells)
+## Retired Home cards in older flows
 
-The home grid renders only built-ins and informational cards. Visible runners
-render in a trailing **inspector** column (SwiftUI `.inspector`) in that same
-stored order among themselves, unless the column is collapsed via the toolbar
-or the system divider. Hidden runners still appear in the **Hidden cards**
-tray. The inspector uses the system split divider; drag it to resize. Visibility is stored on the layout document. The column’s preferred width is
-the layout `actionsWidth` (ideal); live divider drags are handled by the
-system split view and must not write back during the drag (that invalidates
-Auto Layout constraints mid-tracking).
+Flows saved before this change may still have an informational dashboard
+destination or a `dashboard.refresh` ("Home refresh") trigger. They still load
+and appear in the Flows list, but:
 
-Unknown ids are ignored. Newly registered flow cards that are not listed
-append as **visible**. Built-in Settings toggles write the same `hidden`
-set; the three legacy `showDashboard*` bool keys are mirrored for
-compatibility.
+- Nothing emits `dashboard.refresh`, so that trigger never runs.
+- `validateUserFlowDocument` rejects both, so the flow can't be saved until
+  they are removed. The flow editor shows a notice with a one-click
+  **Remove Home card settings**.
+- They never appear on Home.
 
-The dashboard toolbar includes **Hide Actions** / **Show Actions** (trailing
-sidebar icon) when at least one runner flow is registered. That toggle is
-stored as `actionsVisible` and does not hide individual runners.
-
-The Home toolbar includes **Edit Home**. Edit mode is session-only; click
-**Done**, press Escape, or leave Home to exit it. While editing, card actions
-and refresh controls are disabled. Drag a visible card before or after another
-card; **Continue working** participates as a peer. On macOS 27, SwiftUI's
-reorder container supplies the lift and placeholder. The macOS 26 fallback uses
-the same placement model with explicit before/after indicators. A completed
-drop writes the layout document immediately; cancelling a drag restores the
-pre-drag layout.
-
-Each registered card also exposes a hide action in edit mode. Hidden registered
-cards appear in the **Hidden cards** tray and can be shown again; informational
-cards can also be dragged back into the grid. Runner flows remain in the
-Actions inspector and are not reorderable with grid cards.
-
-Existing stored orders need no migration. Documents created before
-`local.recent-work` existed resolve it at the default trailing position until
-the user first changes the layout.
-
-Onboarding is not part of this layout. Hide it from the checklist header
-(**Hide**, next to the progress count) or with **Hide onboarding checklist**
-in Settings → Home. Both write `toby.appearance.hideOnboarding`.
-
-## Continue working
-
-The **Continue working** card participates in the same waterfall layout and
-uses the same width and collapsed-height limits as other dashboard blocks. It
-merges non-project chat sessions and projects by their most recent update time
-and shows up to five rows. Selecting a chat opens that session in Chats;
-selecting a project opens its project page. Project chats remain represented by
-their project and are not duplicated as chat rows.
-
-## Categories and flows
-
-| Category | Standard tool (inside flow) | Flow id |
-| --- | --- | --- |
-| `email` | `email.unreadSummary` | `dashboard.email.summary` |
-| `tasks` | `tasks.openSummary` | `dashboard.tasks.summary` |
-| `calendar` | `calendar.upcomingSummary` | `dashboard.calendar.summary` |
-
-The separate **Toby Todos** block (`dashboard.todos.summary`) uses core
-`todos.summary`, needs no connection or AI call, and displays open, overdue,
-and due-today counts with `toby://todos/<id>` links. It uses the flow-block
-renderer and leaves the external Tasks card intact. See [Todos](todos.md).
-
-Plugins declare `providerCategories` and tag a tool with `standardTool`. Core
-synthesizes a dashboard hook used by the aggregator / tool executor. See the
-[standard tools plan](dashboard-standard-tools-plan.md).
+The retired built-in `dashboard.*.summary` flow rows are pruned on startup.
 
 ## HTTP API
 
 | Method | Path | Role |
 | --- | --- | --- |
-| `GET` | `/api/dashboard/flow-blocks` | Custom flows with a Dashboard destination |
-| `GET` | `/api/dashboard/:category/content` | **Home card body** (preferred; built-in category or custom flow id) |
-| `GET` | `/api/dashboard/:category/summary` | Alias of `/content` |
-| `GET` | `/api/dashboard/:category` | Aggregator list (internal / debug; not home cards) |
-| `GET` | `/api/dashboard` | All categories’ aggregator data |
-
-Query: `?fresh=1` bypasses caches and awaits a fresh flow when generating body text.
-
-## Caching
-
-| Layer | TTL | Notes |
-| --- | --- | --- |
-| Aggregator category cache | 60s | Server-internal; bypassed with `force` / `fresh=1` |
-| Content memory cache | 5 min | Keyed by category + persona + data signature |
-| Disk | `~/.toby/dashboard-summaries.json` | Soft path may return stale then refresh in background |
-
-## Custom flow cards
-
-A user-authored flow can add `{ type: "dashboard", variant, refresh? }` as a
-destination. Toby.app syncs `GET /api/dashboard/flow-blocks` on each home load
-and registers a card whose id is the flow id. Informational `refresh` is
-`asNeeded` (default) or `manual`. Runner ignores `refresh`.
-
-Dashboard content generation runs the flow with **no** email/Slack delivery
-(`deliverDestinations: false`). Those sinks still fire on **Run now** and
-schedules.
-
-| Variant | UI | Load |
-| --- | --- | --- |
-| `informational` + `asNeeded` | Built-in-sized card. Body is last successful run output. Menu includes **Open flow**. | Soft: last success if younger than 5 min; older last success is returned immediately and a background rerun starts; never-run awaits a run. Force (`?fresh=1`): await rerun. |
-| `informational` + `manual` | Same card chrome. | Soft: last success only (no rerun). Force: await rerun. |
-| `runner` | Compact **Actions** inspector tile (colored rounded card, flow SF Symbol, play glyph, and name). Color comes from the flow document (`color`, curated set, default teal). Hover for 1s shows the title and description in a system popover (same as the server-status button, so it can draw outside the window). Never auto-runs. The button disables with a spinner (and a subtle pulse unless Reduce Motion) while the run is in flight. Context menu includes **Open flow**. The inspector is hidden when no runners are visible. | `POST /api/flows/:id/run`. Content fetch is a no-op. |
-
-Built-in email / tasks / calendar cards are unchanged.
-
-## Home block colors
-
-The flow editor's dashboard output has a **Home color** default stored as
-`destinations[].color`: `neutral`, `teal`, `blue`, `green`, `orange`, `purple`,
-`pink`, `red`, or `gray`. **Automatic** omits the field. The flow-block API exposes
-it as `dashboardColor`, separately from the legacy flow-level `color` for Actions
-tiles. Informational cards without a default remain neutral; runners without a
-default retain their flow-level color (teal fallback).
-
-In **Edit Home**, each block's palette control writes an immediate app-local
-`colorOverrides` entry. **Use default** removes the entry; **Neutral** explicitly
-removes the tint even when the flow chooses a color. Built-ins and Continue
-working also support overrides. Overrides survive reordering, hiding/showing,
-and app restarts; **Reset dashboard layout** clears them. Unknown color values
-are ignored. Layouts without the map decode with no overrides.
-
-Informational cards use the preset's unchanged color for the border, and an
-opaque blend over the content surface: 7% in light appearance, 12% in dark.
-Overflow fades and Show more share that background. Text keeps semantic theme
-colors and updating cards keep their intelligence outline. Actions tiles retain
-their stronger fill; Neutral uses a neutral panel and semantic foreground.
-Saving a flow refreshes Home metadata without rerunning its content.
+| `GET` | `/api/dashboard/feed` | The Feed (`?fresh=1` re-collects and re-ranks) |
+| `POST` | `/api/dashboard/feed/actions` | Run a Feed item action |
+| `GET`, `POST` | `/api/dashboard/feed/instructions` | List / add Feed instructions (`{ text }`) |
+| `PATCH`, `DELETE` | `/api/dashboard/feed/instructions/:id` | Turn one on or off (`{ enabled }`) / delete it |
+| `GET` | `/api/dashboard/flow-blocks` | Custom flows shown as Home Actions |
+| `GET` | `/api/dashboard/:category` | Aggregator list for one category (internal / debug) |
+| `GET` | `/api/dashboard` | All categories' aggregator data (internal / debug) |
 
 ## Key files
 
 | Area | Path |
 | --- | --- |
-| Content types | `packages/core/src/dashboard/types.ts` (`DashboardBlockContent`) |
-| Content generation | `packages/core/src/dashboard/summarizer.ts` (`getDashboardBlockContent`) |
-| Custom flow cards | `packages/core/src/dashboard/flow-blocks.ts` |
-| CoT / reasoning strip | `extractDashboardSummaryText` in summarizer (post-process) |
-| Aggregator (internal) | `packages/core/src/dashboard/index.ts` |
+| Aggregator | `packages/core/src/dashboard/index.ts` |
+| Home Actions list | `packages/core/src/dashboard/flow-blocks.ts` |
+| The Feed | `packages/core/src/feed/` |
 | HTTP | `packages/core/src/web/handlers/dashboard.ts` |
-| Flows | `packages/core/src/flows/` — see [`flows.md`](flows.md) |
-| Card definition | `apps/toby-app/.../Dashboard/DashboardBlock.swift` |
-| Block controller | `apps/toby-app/.../Dashboard/CategoryDashboardBlock.swift` |
-| Store (fan-out) | `apps/toby-app/.../Stores/DashboardStore.swift` |
-| Card UI | `apps/toby-app/.../Dashboard/DashboardCards.swift` |
-| Actions rail | `apps/toby-app/.../Dashboard/DashboardActionRunnersRail.swift` |
-| Card chrome | `apps/toby-app/.../Dashboard/DashboardBlockChrome.swift` |
+| Home view | `apps/toby-app/.../Dashboard/DashboardView.swift` |
+| Feed UI | `apps/toby-app/.../Dashboard/Feed/FeedCardView.swift` |
+| Store | `apps/toby-app/.../Stores/DashboardStore.swift` |
+| Tile model / registry | `apps/toby-app/.../Dashboard/DashboardBlock.swift`, `CategoryDashboardBlock.swift`, `DashboardBlockRegistry.swift` |
+| Actions sidebar | `apps/toby-app/.../Dashboard/DashboardActionRunnersRail.swift` |
+| Edit chrome / hidden tray | `apps/toby-app/.../Dashboard/DashboardEditChrome.swift` |
 | Layout document | `apps/toby-app/.../Dashboard/DashboardLayout.swift` |
-| Edit chrome / card drag | `apps/toby-app/.../Dashboard/DashboardEditChrome.swift` |
-
-## Model choice (reasoning leaks)
-
-Dashboard cards use short free-form markdown via flow **LLM Prompter** nodes.
-Reasoning models (for example Grok 4.5) often write chain-of-thought, skill
-metadata, or planning into `text` instead of a separate reasoning channel.
-
-Mitigations in code:
-
-1. Built-in dashboard flows do **not** append the skills catalog (reduces meta echo).
-2. `extractDashboardSummaryText` strips think tags, fidelity matrices, skill
-   crumbs, and planning monologue before the card body is cached.
-3. We deliberately **do not** send `reasoning: "none"` / `reasoning_effort: none`
-   — several models (including Grok 4.5) reject that value as invalid.
-
-**Config recommendation:** set the Home persona to a **non-reasoning**
-model (no **· reasoning** label in the picker). See Settings → Home.
 
 ## Related
 
 - [`server-api.md`](server-api.md) — route list
 - [`integrations.md`](integrations.md) — `dashboard?` hook
-- Help site: `apps/help-site/docs/toby-app.md` (user-facing card layout and visibility)
+- Help site: `apps/help-site/docs/toby-app.md`

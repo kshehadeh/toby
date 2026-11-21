@@ -6,6 +6,7 @@ import {
 	getFlowRecord,
 	saveUserFlowDocument,
 } from "@toby/core/flows/definition-store";
+import { manualTrigger } from "@toby/core/flows/triggers/types";
 import { closeChatDbForTests } from "@toby/core/session-store";
 import { handleWebRequest } from "@toby/core/web/routes";
 
@@ -128,6 +129,11 @@ describe("user flow HTTP API", () => {
 
 	it("GET /api/flows includes destinations on each item", async () => {
 		await withTempTobyDir(async () => {
+			saveUserFlowDocument({
+				id: "flow.destinations",
+				name: "Destinations",
+				nodes: [{ id: "ask", type: "agent_task", userPrompt: "Hi" }],
+			});
 			const res = await handleWebRequest(
 				new Request("http://127.0.0.1/api/flows"),
 				null,
@@ -328,29 +334,6 @@ describe("user flow HTTP API", () => {
 		});
 	});
 
-	it("refuses to edit or delete built-in flows", async () => {
-		await withTempTobyDir(async () => {
-			await handleWebRequest(new Request("http://127.0.0.1/api/flows"), null);
-			const put = await handleWebRequest(
-				new Request("http://127.0.0.1/api/flows/dashboard.email.summary", {
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(llmOnlyBody),
-				}),
-				null,
-			);
-			expect(put.status).toBe(403);
-
-			const del = await handleWebRequest(
-				new Request("http://127.0.0.1/api/flows/dashboard.email.summary", {
-					method: "DELETE",
-				}),
-				null,
-			);
-			expect(del.status).toBe(403);
-		});
-	});
-
 	it("PUT and DELETE work for a custom flow", async () => {
 		await withTempTobyDir(async () => {
 			const created = await handleWebRequest(
@@ -397,9 +380,48 @@ describe("user flow HTTP API", () => {
 		});
 	});
 
-	it("GET /api/dashboard/flow-blocks lists custom dashboard destinations", async () => {
+	it("GET /api/dashboard/flow-blocks lists Home Actions only", async () => {
 		await withTempTobyDir(async () => {
 			const created = await handleWebRequest(
+				new Request("http://127.0.0.1/api/flows", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						...llmOnlyBody,
+						destinations: [{ type: "dashboard", variant: "runner" }],
+					}),
+				}),
+				null,
+			);
+			expect(created.status).toBe(201);
+			const createdBody = (await created.json()) as { flow: { id: string } };
+			const list = await handleWebRequest(
+				new Request("http://127.0.0.1/api/dashboard/flow-blocks"),
+				null,
+			);
+			expect(list.status).toBe(200);
+			const body = (await list.json()) as {
+				blocks: Array<{ id: string; variant: string }>;
+			};
+			expect(body.blocks).toHaveLength(1);
+			expect(body.blocks[0]).toMatchObject({
+				id: createdBody.flow.id,
+				variant: "runner",
+			});
+
+			const content = await handleWebRequest(
+				new Request(
+					`http://127.0.0.1/api/dashboard/${createdBody.flow.id}/content`,
+				),
+				null,
+			);
+			expect(content.status).toBe(404);
+		});
+	});
+
+	it("rejects retired Home cards and the Home refresh trigger", async () => {
+		await withTempTobyDir(async () => {
+			const card = await handleWebRequest(
 				new Request("http://127.0.0.1/api/flows", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -410,33 +432,32 @@ describe("user flow HTTP API", () => {
 				}),
 				null,
 			);
-			const createdBody = (await created.json()) as { flow: { id: string } };
-			const list = await handleWebRequest(
-				new Request("http://127.0.0.1/api/dashboard/flow-blocks"),
-				null,
+			expect(card.status).toBe(400);
+			expect(JSON.stringify(await card.json())).toContain(
+				"Home cards were removed",
 			);
-			expect(list.status).toBe(200);
-			const body = (await list.json()) as {
-				blocks: Array<{ id: string; variant: string; refresh: string }>;
-			};
-			expect(body.blocks.map((block) => block.id).sort()).toEqual(
-				[createdBody.flow.id, "dashboard.todos.summary"].sort(),
-			);
-			const custom = body.blocks.find(
-				(block) => block.id === createdBody.flow.id,
-			);
-			expect(custom?.variant).toBe("informational");
-			expect(custom?.refresh).toBe("asNeeded");
 
-			const content = await handleWebRequest(
-				new Request(
-					`http://127.0.0.1/api/dashboard/${createdBody.flow.id}/content`,
-				),
+			const refresh = await handleWebRequest(
+				new Request("http://127.0.0.1/api/flows", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						...llmOnlyBody,
+						triggers: [
+							{
+								...manualTrigger(),
+								id: "dashboard-refresh",
+								source: { type: "dashboard.refresh" },
+							},
+						],
+					}),
+				}),
 				null,
 			);
-			expect(content.status).toBe(200);
-			const contentBody = (await content.json()) as { text: string };
-			expect(contentBody.text).toBe("");
+			expect(refresh.status).toBe(400);
+			expect(JSON.stringify(await refresh.json())).toContain(
+				"Home refresh trigger was removed",
+			);
 		});
 	});
 });

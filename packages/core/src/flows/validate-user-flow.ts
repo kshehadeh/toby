@@ -15,6 +15,12 @@ import { schemaFromSpec } from "./schema-presets";
 import { parseFlowTriggers } from "./triggers/types";
 import type { FlowInputSource, ToolRef } from "./types";
 
+/** Home cards were retired: The Feed is the only Home content. */
+export const HOME_CARDS_RETIRED_DESTINATION_ISSUE =
+	"Home cards were removed. Use a Home Screen Action (Actions sidebar) or another destination.";
+export const HOME_CARDS_RETIRED_TRIGGER_ISSUE =
+	"The Home refresh trigger was removed along with Home cards. Remove it, or use a Home Screen Action or a schedule.";
+
 export type FlowCatalogTool = {
 	readonly coreTool?: string;
 	readonly moduleName: string;
@@ -271,10 +277,14 @@ function normalizeDestination(
 	}
 	if (raw.type === "dashboard") {
 		const variant = raw.variant;
-		if (variant !== "runner" && variant !== "informational") {
+		if (variant === "informational") {
 			issues.push(
-				`Destination ${index + 1}: Dashboard needs variant "runner" or "informational"`,
+				`Destination ${index + 1}: ${HOME_CARDS_RETIRED_DESTINATION_ISSUE}`,
 			);
+			return null;
+		}
+		if (variant !== "runner") {
+			issues.push(`Destination ${index + 1}: Dashboard needs variant "runner"`);
 			return null;
 		}
 		const color = raw.color;
@@ -289,20 +299,7 @@ function normalizeDestination(
 			return null;
 		}
 		const appearance = color === undefined ? {} : { color: color as string };
-		if (variant === "runner") {
-			return { type: "dashboard", variant, ...appearance };
-		}
-		const refresh = raw.refresh;
-		if (refresh === undefined || refresh === null || refresh === "") {
-			return { type: "dashboard", variant, ...appearance };
-		}
-		if (refresh !== "asNeeded" && refresh !== "manual") {
-			issues.push(
-				`Destination ${index + 1}: Dashboard refresh must be "asNeeded" or "manual"`,
-			);
-			return null;
-		}
-		return { type: "dashboard", variant, refresh, ...appearance };
+		return { type: "dashboard", variant, ...appearance };
 	}
 	issues.push(
 		`Destination ${index + 1}: Unknown destination type "${raw.type}"`,
@@ -321,13 +318,8 @@ export function validateUserFlowDocument(
 	const issues: string[] = [];
 	try {
 		const triggers = parseFlowTriggers(document.triggers);
-		if (
-			triggers.some((t) => t.source.type === "home.action") &&
-			triggers.some((t) => t.source.type === "dashboard.refresh")
-		) {
-			issues.push(
-				"Choose either Home Screen Action or Home refresh for this flow",
-			);
+		if (triggers.some((t) => t.source.type === "dashboard.refresh")) {
+			issues.push(HOME_CARDS_RETIRED_TRIGGER_ISSUE);
 		}
 	} catch (error) {
 		issues.push(String(error));
