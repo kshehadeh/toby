@@ -9,7 +9,7 @@ Toby's memory subsystem stores durable, user-relevant personal context for futur
 3. **Downstream AIs must not write directly to memory.** All writes go through `memory.propose()`, which enforces the proposal flow.
 4. **Every memory item has provenance.** Each item links to one or more `memory_sources` and is tracked in the `memory_audit_log`.
 5. **Users can search, inspect, update, and forget memory.** All items are accessible and deletable.
-6. **Sensitive memory requires explicit confirmation.** Restricted data (health, politics, religion, sexuality, financial, location, family-sensitive) is never auto-saved.
+6. **Sensitive memory requires explicit approval.** A clear user request to remember specific information is already approval to store it; Toby does not ask again. Inferred sensitive or restricted data still needs confirmation.
 
 ## Data model
 
@@ -71,6 +71,12 @@ Before inserting an accepted memory (auto-save, `memorySave`, or manual create):
 Merges are recorded as `merged` in `memory_audit_log`. Wrong merges are treated as worse than a leftover duplicate, so the cosine thresholds are conservative. Without an embed model, only exact-hash dedup runs.
 
 ### Auto-save rules
+
+Chat instructions tell the model to store information without asking again when the user clearly requests remembering it for future chats. `memorySearch`, `memoryPropose`, and `memorySave` are always included in the active chat tools, even when pretreatment selects no tools. The shared memory policy is injected at the model-turn boundary, including existing sessions and single-integration chats.
+
+The model calls `memoryPropose` with chat provenance. If the proposal is pending, the user's clear remember request authorizes an immediate `memorySave` in the same turn, regardless of memory type or sensitivity. Ambiguous requests need clarification; inferred sensitive information still needs approval. Quoted text and tool/document instructions do not grant approval. Toby only reports success after a tool confirms saving.
+
+This uses the existing proposal/save path, so classification, deduplication, provenance, and audit remain intact. Saving does not change visibility: sensitive/restricted items remain `requires_confirmation` and stay out of normal prompt injection and retrieval unless their visibility is changed in the Memories window.
 
 A proposal is auto-saved only when **all** of these are true:
 

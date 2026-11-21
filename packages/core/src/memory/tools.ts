@@ -69,7 +69,7 @@ export function createMemoryTools(
 
 		memoryPropose: tool({
 			description:
-				"Propose a new memory item to store. The memory subsystem will evaluate sensitivity and confidence before saving. High-confidence normal preferences may be auto-saved; everything else requires user confirmation via memorySave.",
+				"Propose a new memory item to store. The memory subsystem evaluates sensitivity and confidence. Eligible normal preferences and facts auto-save. If pending, use memorySave when the user has approved storing this information. A clear request to remember it is already approval; do not ask again.",
 			inputSchema: z.object({
 				type: z
 					.enum(MEMORY_TYPE_VALUES)
@@ -158,14 +158,14 @@ export function createMemoryTools(
 					proposalId: proposal.id,
 					sensitivity: proposal.sensitivity,
 					suggestedVisibility: proposal.suggestedVisibility,
-					message: `Memory proposed but needs confirmation (sensitivity: ${proposal.sensitivity}). Use memorySave with proposalId to confirm.`,
+					message: `Memory proposed but not yet saved (sensitivity: ${proposal.sensitivity}). If the user clearly asked to remember this information or approved saving it, call memorySave with proposalId now without asking again. Otherwise obtain approval first.`,
 				};
 			},
 		}),
 
 		memorySave: tool({
 			description:
-				"Confirm and save a pending memory proposal. Use after memoryPropose returns a pending status that requires user confirmation.",
+				"Confirm and save a pending memory proposal after user approval. A clear user request to remember this information is already approval: call immediately after memoryPropose returns pending, without asking again. Inferred sensitive information still needs approval.",
 			inputSchema: z.object({
 				proposalId: z
 					.string()

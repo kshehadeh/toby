@@ -6,6 +6,15 @@ import {
 } from "@toby/core/chat-pipeline/run-turn";
 
 describe("filterToolNamesByRelevance", () => {
+	it("keeps memory writes available even when routing selects no tools", () => {
+		const memoryTools = ["memorySearch", "memoryPropose", "memorySave"];
+		for (const relevant of [[], ["fetchOpenTasks"]]) {
+			expect(filterToolNamesByRelevance(memoryTools, relevant)).toEqual(
+				memoryTools,
+			);
+		}
+	});
+
 	const all = [
 		"askUser",
 		"createLocalSkill",

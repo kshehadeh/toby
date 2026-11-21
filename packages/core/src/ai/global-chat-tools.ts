@@ -14,6 +14,7 @@ import type { ValidatedChatAttachment } from "../chat-pipeline/attachments";
 import type { ChatEventSink } from "../chat-pipeline/chat-events";
 import { type Persona, ensureTobyDir, getSkillsDir } from "../config/index";
 import { log } from "../logging/chat-log";
+import { MEMORY_POLICY } from "../memory/instructions";
 import {
 	type Project,
 	listProjectTree,
@@ -598,8 +599,8 @@ Location rules:
 Global Toby tools (catalog — only tools in the current set can be called; see enableTools):
 - **loadLocalSkillInstructions**: Load full SKILL.md instruction bodies for one or more local skills by exact name.
 - **memorySearch**: Search the user's stored personal memories (preferences, relationships, projects, facts, etc.).
-- **memoryPropose**: Propose saving a new memory. High-confidence normal preferences are auto-saved; sensitive or low-confidence items stay pending until confirmed with **memorySave**.
-- **memorySave**: Confirm a pending memory proposal.
+- **memoryPropose**: Propose saving a new memory. Eligible preferences and facts auto-save; other items stay pending for **memorySave**. A clear user request to remember information already authorizes saving it.
+- **memorySave**: Save a pending memory proposal after user approval, including an existing clear request to remember that information.
 - **memoryForget**: Delete a stored memory.
 - **memoryExplain**: Show why a memory exists (source and audit trail).
 - **memoryRetrieveForTask**: Retrieve memories relevant to the current task.
@@ -656,12 +657,7 @@ Project file-management rules:
 		: ""
 }${searchRules}${weatherRules}${locationRules}
 
-Memory rules:
-- **Always** use **memoryPropose** when the user shares a durable preference, fact, or personal context worth remembering. Never skip this.
-- Usable memories may already appear under **Known memories** in the system prompt — treat that list as known context and do not re-search for those facts.
-- Use **memorySearch** or **memoryRetrieveForTask** when something is missing from that list or you need to look up a specific stored fact.
-- Use **memoryForget** when the user asks to remove a memory.
-- Use **memoryExplain** when the user asks why you know something.
+${MEMORY_POLICY}
 
 Library rules:
 - The Library is a catalog of saved files (text, Markdown, PDF, images). It is not memory and is not injected into the prompt automatically.

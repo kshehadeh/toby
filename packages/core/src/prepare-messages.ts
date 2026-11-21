@@ -16,6 +16,7 @@ import {
 	type ProviderCategory,
 } from "./integrations/types";
 import type { IntegrationModule } from "./integrations/types";
+import { MEMORY_POLICY } from "./memory/instructions";
 import * as memory from "./memory/memory-service";
 import {
 	DEFAULT_MEMORY_USER_ID,
@@ -128,6 +129,21 @@ export function injectTodoPolicy(
 		!first.content.includes("## Toby todos")
 	) {
 		result[0] = { ...first, content: `${first.content}\n${TODO_POLICY}` };
+	}
+	return result;
+}
+
+export function injectMemoryPolicy(
+	messages: readonly CoreMessage[],
+): CoreMessage[] {
+	const result = [...messages];
+	const first = result[0];
+	if (
+		first?.role === "system" &&
+		typeof first.content === "string" &&
+		!first.content.includes("## Toby memory")
+	) {
+		result[0] = { ...first, content: `${first.content}\n${MEMORY_POLICY}` };
 	}
 	return result;
 }

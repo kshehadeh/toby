@@ -4,11 +4,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { CoreMessage } from "@toby/core/ai/chat";
+import { globalChatToolsPromptSection } from "@toby/core/ai/global-chat-tools";
+import { MEMORY_POLICY } from "@toby/core/memory/instructions";
 import * as memory from "@toby/core/memory/memory-service";
 import { closeMemoryDbForTests } from "@toby/core/memory/memory-store";
 import { MEMORY_INSTRUCTIONS_APPENDIX_START } from "@toby/core/memory/prompt";
 import {
 	injectMemoriesIntoFirstSystemMessage,
+	injectMemoryPolicy,
 	stripMemoryInstructionsAppendix,
 } from "@toby/core/prepare-messages";
 
@@ -36,6 +39,35 @@ afterEach(() => {
 });
 
 describe.skipIf(!isBun)("injectMemoriesIntoFirstSystemMessage", () => {
+	it("injects saving instructions into existing and integration-only sessions without memories", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: "Integration-only instructions." },
+			{ role: "user", content: "Remember my project is Northstar." },
+		];
+		const out = injectMemoryPolicy(messages);
+		expect(out[0]?.content).toContain(MEMORY_POLICY);
+		expect(out[0]?.content).toContain("Do not ask for confirmation again.");
+		expect(out[0]?.content).toContain("immediately call **memorySave**");
+		expect(out[0]?.content).toContain("Inferred sensitive or restricted");
+		expect(out[1]).toEqual(messages[1]);
+		expect(messages[0]?.content).toBe("Integration-only instructions.");
+		expect(injectMemoryPolicy(out)).toEqual(out);
+	});
+
+	it("does not duplicate memory policy in combined chat instructions", () => {
+		const messages: CoreMessage[] = [
+			{ role: "system", content: globalChatToolsPromptSection() },
+		];
+		expect(injectMemoryPolicy(messages)).toEqual(messages);
+		expect(messages[0]?.content).toContain(MEMORY_POLICY);
+	});
+
+	it("leaves empty and non-system messages unchanged", () => {
+		expect(injectMemoryPolicy([])).toEqual([]);
+		const messages: CoreMessage[] = [{ role: "user", content: "Hello" }];
+		expect(injectMemoryPolicy(messages)).toEqual(messages);
+	});
+
 	it("appends usable memories to the first system message", async () => {
 		await memory.createManual("default", {
 			value: "Lives in Baltimore, Maryland",

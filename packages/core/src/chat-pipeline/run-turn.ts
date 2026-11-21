@@ -20,6 +20,7 @@ import { log, logWithSession } from "../logging/chat-log";
 import { createMemoryTools } from "../memory/tools";
 import {
 	injectCurrentDateTimeIntoFirstSystemMessage,
+	injectMemoryPolicy,
 	injectTodoPolicy,
 } from "../prepare-messages";
 import type { Project } from "../projects/index";
@@ -105,6 +106,8 @@ const ALWAYS_INCLUDED_TOOLS: ReadonlySet<string> = new Set([
 	"tobyListSkills",
 	"delegateToSubAgent",
 	"memorySearch",
+	"memoryPropose",
+	"memorySave",
 	"find_in_library",
 	"listTobyTodos",
 	"getTobyTodo",
@@ -579,7 +582,7 @@ export async function runSharedChatTurn(
 		moduleNames,
 	};
 	const messagesWithDateTime = injectCurrentDateTimeIntoFirstSystemMessage(
-		injectTodoPolicy(messages),
+		injectMemoryPolicy(injectTodoPolicy(messages)),
 	);
 	const messagesForModel = applyChatMessageCaching(
 		messagesWithDateTime,
