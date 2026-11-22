@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import TobyAI
 import TobyCore
 import TobyStore
@@ -103,7 +104,7 @@ final class NativeRuntime {
 		let toolbox = ChatToolbox(
 			todos: todos.actions, memory: memories.memory, graph: memories.graph, library: library.library,
 			projects: projects, skills: SkillService(root: paths.skills), tobyDirectory: paths.root, ai: ai,
-			apple: AppleTools(bridge: AppNativeBridge()), mail: try mail(),
+			apple: AppleTools(bridge: AppNativeBridge()), mail: try mail(), slack: slack,
 		)
 		let engine = ChatEngine(
 			sessions: projects.sessions, toolbox: toolbox, personas: personas, ai: ai,
@@ -117,6 +118,7 @@ final class NativeRuntime {
 		let router = NativeChatRouter(engine: engine, sessions: projects.sessions, personas: personas, projects: projects)
 		chatRouter = router
 		chatStoreIdentity = identity
+		startSlackInbound(engine: engine, sessions: projects.sessions, writer: database.writer)
 		return router
 	}
 
@@ -134,6 +136,19 @@ final class NativeRuntime {
 		return service
 	}
 
+	let slack = SlackService(api: SlackAPI(secrets: KeychainSecretStore()))
+	private var slackInbound: Task<Void, Never>?
+
+	/// Slack replies (Socket Mode) when `chatInbound` is enabled for Slack.
+	private func startSlackInbound(engine: ChatEngine, sessions: ChatSessionStore, writer: any DatabaseWriter) {
+		slackInbound?.cancel()
+		let config = (try? Data(contentsOf: paths.legacyConfig)).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) }?["chatInbound"]
+		guard config?["enabled"] == true, (config?["integration"]?.stringValue ?? "slack") == "slack" else { return }
+		let persona = config?["persona"]?.stringValue
+		let inbound = SlackInbound(slack: slack, engine: engine, sessions: sessions, writer: writer, personaName: { persona })
+		slackInbound = Task.detached(priority: .utility) { await inbound.run() }
+	}
+
 	private var feedRouter: NativeFeedRouter?
 	private var feedStoreIdentity: ObjectIdentifier?
 	private var feedScheduler: Task<Void, Never>?
@@ -145,7 +160,7 @@ final class NativeRuntime {
 		if let feedRouter, feedStoreIdentity == identity { return feedRouter }
 		let apple = AppleTools(bridge: AppNativeBridge())
 		let service = FeedService(
-			sources: [MailFeedSource(mail: try mail()), CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple)],
+			sources: [MailFeedSource(mail: try mail()), CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple), SlackFeedSource(slack: slack)],
 			todos: try todos().actions.service, memory: try memories().memory,
 			personas: PersonaService(tobyDirectory: paths.root), ai: ai, tobyDirectory: paths.root,
 		)
@@ -165,6 +180,15 @@ final class NativeRuntime {
 			skills: SkillService(root: paths.skills),
 			projects: ProjectService(writer: database.writer, tobyDirectory: paths.root),
 		)
+	}
+
+	/// Start the loops the daemon used to run: todo sync, mail sync, the Feed
+	/// scheduler, and Slack replies. Idempotent per Toby home.
+	func startBackgroundServices() {
+		_ = try? todos()
+		_ = try? mail()
+		_ = try? feed()
+		_ = try? chat()
 	}
 
 	/// Open the native database, importing the legacy home on first use.

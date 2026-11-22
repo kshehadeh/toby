@@ -106,10 +106,12 @@ public final class ChatToolbox: Sendable {
 	let transport: any HTTPTransport
 	public let apple: AppleTools?
 	public let mail: MailService?
+	public let slack: SlackService?
 
-	public init(todos: TodoActions, memory: MemoryService, graph: GraphService, library: LibraryService, projects: ProjectService, skills: SkillService, tobyDirectory: URL, ai: OpenRouterClient?, transport: any HTTPTransport = URLSessionTransport(), apple: AppleTools? = nil, mail: MailService? = nil) {
+	public init(todos: TodoActions, memory: MemoryService, graph: GraphService, library: LibraryService, projects: ProjectService, skills: SkillService, tobyDirectory: URL, ai: OpenRouterClient?, transport: any HTTPTransport = URLSessionTransport(), apple: AppleTools? = nil, mail: MailService? = nil, slack: SlackService? = nil) {
 		self.apple = apple
 		self.mail = mail
+		self.slack = slack
 		self.todos = todos
 		self.memory = memory
 		self.graph = graph
@@ -134,6 +136,7 @@ public final class ChatToolbox: Sendable {
 		if context.location != nil { tools.append(myLocation(context)) }
 		if let apple { tools += apple.tools(dryRun: context.dryRun) }
 		if let mail, mail.isConfigured { tools += mail.tools(dryRun: context.dryRun) }
+		if let slack, slack.isConfigured { tools += slack.tools(dryRun: context.dryRun) }
 		return tools
 	}
 

@@ -74,7 +74,10 @@ enum DaemonBootstrap {
 		onProgress: DaemonBootstrapProgress? = nil,
 	) async throws {
 		// Native mode runs Toby in-process; there is no daemon to start.
-		if NativeMode.isEnabled { return }
+		if NativeMode.isEnabled {
+			await MainActor.run { NativeRuntime.shared.startBackgroundServices() }
+			return
+		}
 		log("ensure.start baseURL=\(baseURL.absoluteString)")
 		progress(onProgress, "Checking server…")
 

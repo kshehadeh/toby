@@ -64,6 +64,7 @@ let package = Package(
 				"TobyStore",
 				"TobyCore",
 				"TobyMail",
+				.product(name: "GRDB", package: "GRDB.swift"),
 				.product(name: "Sparkle", package: "Sparkle"),
 				.product(name: "CodeEditorView", package: "CodeEditorView"),
 				.product(name: "LanguageSupport", package: "CodeEditorView"),

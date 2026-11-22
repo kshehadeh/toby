@@ -66,12 +66,13 @@ public actor ChatEngine {
 		text: String,
 		attachments: [Attachment] = [],
 		turnID requestedTurnID: String? = nil,
+		instructionsAppendix: String? = nil,
 		onEvent: @escaping @Sendable (JSONValue) -> Void,
 		askUser: @escaping AskUser,
 	) async throws -> JSONValue {
 		let turnID = requestedTurnID ?? UUID().uuidString.lowercased()
 		let task = Task { [self] in
-			try await execute(sessionID: sessionID, text: text, attachments: attachments, turnID: turnID, onEvent: onEvent, askUser: askUser)
+			try await execute(sessionID: sessionID, text: text, attachments: attachments, turnID: turnID, appendix: instructionsAppendix, onEvent: onEvent, askUser: askUser)
 		}
 		active[turnID] = task
 		defer { active[turnID] = nil }
@@ -110,7 +111,7 @@ public actor ChatEngine {
 		var entries: [JSONValue] { lock.withLock { reducer.entries } }
 	}
 
-	func execute(sessionID: String, text: String, attachments: [Attachment], turnID: String, onEvent: @escaping @Sendable (JSONValue) -> Void, askUser: @escaping AskUser) async throws -> JSONValue {
+	func execute(sessionID: String, text: String, attachments: [Attachment], turnID: String, appendix: String? = nil, onEvent: @escaping @Sendable (JSONValue) -> Void, askUser: @escaping AskUser) async throws -> JSONValue {
 		guard let session = try sessions.load(sessionID) else { throw TodoError("not_found", "Session not found", status: 404) }
 		let started = ContinuousClock.now
 		let project = try session.projectID.flatMap { try toolbox.projects.resolve($0) }
@@ -133,7 +134,7 @@ public actor ChatEngine {
 
 		let modelInfo = try? await catalog.model(modelID)
 		let history = Self.compact(session.messages, contextTokens: modelInfo?.contextLength ?? 128_000)
-		let instructions = systemPrompt(persona: persona, project: project)
+		let instructions = systemPrompt(persona: persona, project: project) + (appendix.map { "\n\n\($0.trimmingCharacters(in: .whitespacesAndNewlines))" } ?? "")
 
 		var assistantSegment: String?
 		var reasoningSegment: String?
