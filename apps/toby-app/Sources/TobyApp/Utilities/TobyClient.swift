@@ -1119,6 +1119,9 @@ struct TobyClient {
 	/// Runs a Feed tool / local action (`POST /api/dashboard/feed/actions`).
 	func performFeedAction(itemID: String, actionID: String) async throws -> FeedActionResponse {
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/dashboard/feed/actions"))
+		// Provider actions (IMAP flags, archive) can be slow; the daemon hides
+		// the item up front, so waiting longer only avoids a false failure.
+		request.timeoutInterval = 180
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 		request.httpBody = try JSONSerialization.data(withJSONObject: ["itemId": itemID, "actionId": actionID])

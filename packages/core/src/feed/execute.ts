@@ -11,6 +11,8 @@ import { feedbackKeyFor, localDateKey } from "./prefilter";
 import {
 	type FeedItemState,
 	addFeedback,
+	clearItemState,
+	loadFeedState,
 	setItemState,
 	snoozeUntilTomorrow,
 	updateFeedState,
@@ -200,6 +202,7 @@ export async function performFeedAction(
 	}
 
 	const done: FeedItemState = { kind: "done", at, action: id };
+	let restoreOnFailure: (() => void) | undefined;
 	try {
 		if (id === "todo.add") {
 			const todo = d.addTodo({
@@ -228,25 +231,39 @@ export async function performFeedAction(
 				error: `"${FEED_ACTIONS[id]?.label ?? id}" can't run here.`,
 			};
 		}
+		// Hide the item before the provider call: IMAP and friends can take
+		// longer than the app waits, and a Feed reload in the meantime must
+		// not bring the item back. Restored below if the action fails.
+		const previous = loadFeedState(now).items[item.id];
+		record(done);
+		restoreOnFailure = () =>
+			updateFeedState(
+				(s) =>
+					previous
+						? setItemState(s, item.id, previous)
+						: clearItemState(s, item.id),
+				d.now(),
+			);
 		const result = await d.runItemAction(
 			item.source.providerName,
 			standard,
 			item.source.itemId,
 		);
 		if (!result.ok) {
+			restoreOnFailure();
 			return {
 				ok: false,
 				status: 502,
 				error: result.message ?? `${action.label} failed.`,
 			};
 		}
-		record(done);
 		return {
 			ok: true,
 			message: result.message ?? `${action.label} done.`,
 			state: done,
 		};
 	} catch (error) {
+		restoreOnFailure?.();
 		daemonLog("warn", "general", "feed_action_error", {
 			action: id,
 			provider: item.source.providerName,

@@ -285,6 +285,13 @@ export function setItemState(
 	return { ...state, items: { ...state.items, [id]: entry } };
 }
 
+/** Forget an item's state so it shows again (e.g. a failed action). */
+export function clearItemState(state: FeedState, id: string): FeedState {
+	if (!(id in state.items)) return state;
+	const { [id]: _removed, ...items } = state.items;
+	return { ...state, items };
+}
+
 export function markNotified(
 	state: FeedState,
 	ids: readonly string[],

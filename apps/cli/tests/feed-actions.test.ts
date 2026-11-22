@@ -308,6 +308,41 @@ describe("performFeedAction", () => {
 		expect(loadFeedState(NOW).items[item().id]).toBeUndefined();
 	});
 
+	it("hides the item while a slow provider action is still running", async () => {
+		let finish: (value: { ok: boolean }) => void = () => {};
+		const pending = performFeedAction(
+			{ itemId: item().id, actionId: "email.archive" },
+			deps([item()], {
+				runItemAction: () =>
+					new Promise((resolve) => {
+						finish = resolve;
+					}),
+			}),
+		);
+		// A Feed reload during the call must already see the item as done.
+		expect(loadFeedState(NOW).items[item().id]?.kind).toBe("done");
+		finish({ ok: true });
+		expect(await pending).toMatchObject({ ok: true });
+		expect(loadFeedState(NOW).items[item().id]?.kind).toBe("done");
+	});
+
+	it("restores the earlier state when a provider action throws", async () => {
+		await performFeedAction(
+			{ itemId: item().id, actionId: "snooze" },
+			deps([item()]),
+		);
+		const outcome = await performFeedAction(
+			{ itemId: item().id, actionId: "email.archive" },
+			deps([item()], {
+				runItemAction: async () => {
+					throw new Error("socket closed");
+				},
+			}),
+		);
+		expect(outcome).toMatchObject({ ok: false, status: 502 });
+		expect(loadFeedState(NOW).items[item().id]?.kind).toBe("snoozed");
+	});
+
 	it("completes Toby todos through the todos service", async () => {
 		const todoItem = item({
 			id: "todos:toby:t1",
