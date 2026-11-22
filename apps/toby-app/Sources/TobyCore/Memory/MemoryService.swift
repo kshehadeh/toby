@@ -269,6 +269,27 @@ public final class MemoryService: Sendable {
 		return ["id": .string(proposalID), "status": "pending", "sensitivity": .string(sensitivity), "suggestedVisibility": .string(visibility)]
 	}
 
+	/// Save a pending proposal as a memory.
+	public func save(proposalID: String) async throws -> JSONValue {
+		guard let row = try await writer.read({ db in
+			try Row.fetchOne(db, sql: "SELECT * FROM memory_proposals WHERE id = ? AND user_id = ?", arguments: [proposalID, Self.defaultUser])
+				.map { (status: $0["status"] as String, candidate: $0["candidate_json"] as String, sourceID: $0["source_id"] as String,
+				        sensitivity: $0["sensitivity"] as String, visibility: $0["suggested_visibility"] as String, confidence: $0["confidence"] as Double) }
+		}) else { throw TodoError("not_found", "Proposal \(proposalID) not found", status: 404) }
+		guard row.status == "pending" else { throw TodoError("not_pending", "Proposal \(proposalID) is \(row.status), not pending", status: 409) }
+		let candidate = (try? JSONValue(parsing: row.candidate)) ?? .object([:])
+		let draft = Draft(
+			type: candidate["type"]?.stringValue ?? "fact", subject: candidate["subject"]?.stringValue, value: candidate["value"]?.stringValue ?? "",
+			confidence: row.confidence, sensitivity: row.sensitivity, visibility: row.visibility, expiresAt: candidate["expiresAt"]?.stringValue,
+		)
+		let (item, _) = try await persistNewOrMerge(draft, sourceID: row.sourceID)
+		try await writer.write { db in
+			try db.execute(sql: "UPDATE memory_proposals SET status = 'accepted', resolved_at = ? WHERE id = ?", arguments: [Self.now(), proposalID])
+			try self.audit(db, memoryID: item.id, action: "saved", detail: ["proposalId": .string(proposalID), "autoSaved": false])
+		}
+		return Self.json(item)
+	}
+
 	public struct Patch: Sendable {
 		public var value: String?
 		public var subject: String?

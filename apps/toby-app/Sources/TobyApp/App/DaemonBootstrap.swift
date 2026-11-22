@@ -73,6 +73,8 @@ enum DaemonBootstrap {
 		baseURL: URL,
 		onProgress: DaemonBootstrapProgress? = nil,
 	) async throws {
+		// Native mode runs Toby in-process; there is no daemon to start.
+		if NativeMode.isEnabled { return }
 		log("ensure.start baseURL=\(baseURL.absoluteString)")
 		progress(onProgress, "Checking server…")
 

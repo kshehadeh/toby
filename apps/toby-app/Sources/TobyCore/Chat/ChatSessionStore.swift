@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import TobyAI
+import TobyStore
 
 /// Chat session rows (port of the session parts of `session-store.ts`).
 /// The chat engine (M4) builds on this; projects use it today.
@@ -82,6 +83,77 @@ public struct ChatSessionStore: Sendable {
 	public func delete(_ id: String) throws {
 		try writer.write { db in
 			try db.execute(sql: "DELETE FROM chat_sessions WHERE id = ?", arguments: [id])
+		}
+	}
+}
+
+// MARK: - Full sessions (chat engine)
+
+/// A loaded chat session.
+public struct ChatSession: Sendable {
+	public var id: String
+	public var name: String
+	public var settings: JSONValue
+	public var messages: [Message]
+	public var transcript: [JSONValue]
+	public var contextWindow: JSONValue?
+	public var projectID: String? { settings["projectId"]?.stringValue }
+	public var personaName: String? { settings["persona"]?.stringValue }
+}
+
+extension ChatSessionStore {
+	public func load(_ id: String) throws -> ChatSession? {
+		try writer.read { db in
+			guard let row = try Row.fetchOne(db, sql: "SELECT * FROM chat_sessions WHERE id = ?", arguments: [id]) else { return nil }
+			var settings = (row["settings_json"] as String?).flatMap { try? JSONValue(parsing: $0) } ?? .object([:])
+			if case var .object(object) = settings, object["projectId"] == nil, let project: String = row["project_id"] {
+				object["projectId"] = .string(project)
+				settings = .object(object)
+			}
+			let decoder = JSONDecoder()
+			var messages: [Message] = []
+			for message in try Row.fetchAll(db, sql: "SELECT role, content_json, message_json FROM chat_session_messages WHERE session_id = ? ORDER BY idx", arguments: [id]) {
+				if let json: String = message["message_json"], let decoded = try? decoder.decode([Message].self, from: Data(json.utf8)) {
+					messages += decoded
+				} else {
+					messages += LegacyMessageConverter.convert(role: message["role"], contentJSON: message["content_json"])
+				}
+			}
+			let transcript = try Row.fetchAll(db, sql: "SELECT kind, text FROM chat_session_transcript WHERE session_id = ? ORDER BY idx", arguments: [id])
+				.map { ChatTranscript.entry(kind: $0["kind"], text: $0["text"]) }
+			return ChatSession(
+				id: id, name: row["name"], settings: settings, messages: messages, transcript: transcript,
+				contextWindow: (row["context_window_json"] as String?).flatMap { try? JSONValue(parsing: $0) },
+			)
+		}
+	}
+
+	/// Append a turn's messages and replace transcript rows from `transcriptFrom`.
+	public func saveTurn(_ id: String, messages: [Message], transcript: [JSONValue], transcriptFrom: Int, contextWindow: JSONValue?) throws {
+		let encoder = JSONEncoder()
+		encoder.outputFormatting = [.sortedKeys]
+		try writer.write { db in
+			var next = (try Int.fetchOne(db, sql: "SELECT MAX(idx) FROM chat_session_messages WHERE session_id = ?", arguments: [id]) ?? -1) + 1
+			for message in messages {
+				let json = String(decoding: try encoder.encode([message]), as: UTF8.self)
+				try db.execute(sql: "INSERT INTO chat_session_messages (session_id, idx, role, content_json, message_json) VALUES (?, ?, ?, ?, ?)",
+				               arguments: [id, next, message.role.rawValue, json, json])
+				next += 1
+			}
+			try db.execute(sql: "DELETE FROM chat_session_transcript WHERE session_id = ? AND idx >= ?", arguments: [id, transcriptFrom])
+			for (offset, entry) in transcript.enumerated() where offset >= transcriptFrom {
+				let row = ChatTranscript.row(entry)
+				try db.execute(sql: "INSERT INTO chat_session_transcript (session_id, idx, kind, text) VALUES (?, ?, ?, ?)", arguments: [id, offset, row.kind, row.text])
+			}
+			try db.execute(sql: "UPDATE chat_sessions SET updated_at = ?, context_window_json = COALESCE(?, context_window_json) WHERE id = ?",
+			               arguments: [TodoRecurrence.isoString(Date()), contextWindow?.jsonString(), id])
+		}
+	}
+
+	public func updateSettings(_ id: String, _ settings: JSONValue) throws {
+		try writer.write { db in
+			try db.execute(sql: "UPDATE chat_sessions SET settings_json = ?, project_id = ? WHERE id = ?",
+			               arguments: [settings.jsonString(), settings["projectId"]?.stringValue, id])
 		}
 	}
 }

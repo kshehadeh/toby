@@ -53,6 +53,10 @@ struct TobyClient {
 	}
 
 	func listSessions(limit: Int = 20) async throws -> [SessionSummary] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let sessions: [SessionSummary] }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.chat().list(limit: limit)).sessions
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/sessions"),
 			resolvingAgainstBaseURL: false,
@@ -191,6 +195,9 @@ struct TobyClient {
 	}
 
 	func fetchSession(id: String) async throws -> SessionDetail {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(SessionDetail.self, from: try await NativeRuntime.shared.chat().detail(id))
+		}
 		let url = baseURL.appendingPathComponent("api/sessions/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -198,6 +205,9 @@ struct TobyClient {
 	}
 
 	func createSession(persona: String? = nil) async throws -> CreateSessionResponse {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(CreateSessionResponse.self, from: try await NativeRuntime.shared.chat().create(persona: persona))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -306,6 +316,10 @@ struct TobyClient {
 	}
 
 	func deleteSession(id: String) async throws {
+		if NativeMode.isEnabled {
+			try await NativeRuntime.shared.chat().delete(id)
+			return
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions/\(id)"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -523,6 +537,12 @@ struct TobyClient {
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
 		onPosted: (@MainActor () -> Void)? = nil,
 	) async throws -> TurnDonePayload {
+		if NativeMode.isEnabled {
+			return try await streamNativeTurn(
+				sessionId: sessionId, text: text, attachments: attachments, clientTurnId: clientTurnId,
+				onEvent: onEvent, onAskUser: onAskUser, onPosted: onPosted,
+			)
+		}
 		let turnURL = baseURL.appendingPathComponent("api/sessions/\(sessionId)/turn")
 		ServerEventLog.beginTurn(sessionId: sessionId, text: text, url: turnURL)
 		defer { ServerEventLog.endTurn() }
@@ -641,6 +661,11 @@ struct TobyClient {
 	}
 
 	func cancelTurn(sessionId: String, turnId: String) async {
+		if NativeMode.isEnabled {
+			guard let router = try? await NativeRuntime.shared.chat() else { return }
+			await router.cancel(turnID: turnId)
+			return
+		}
 		let url = baseURL.appendingPathComponent(
 			"api/sessions/\(sessionId)/turn/\(turnId)/cancel"
 		)

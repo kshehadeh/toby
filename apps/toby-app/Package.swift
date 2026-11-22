@@ -133,6 +133,7 @@ let package = Package(
 				.product(name: "GRDB", package: "GRDB.swift"),
 			],
 			path: "Tests/TobyCoreTests",
+			exclude: ["Fixtures"],
 		),
 	],
 )

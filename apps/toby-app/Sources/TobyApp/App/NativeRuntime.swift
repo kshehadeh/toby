@@ -87,6 +87,38 @@ final class NativeRuntime {
 		return router
 	}
 
+	private var chatRouter: NativeChatRouter?
+	private var chatStoreIdentity: ObjectIdentifier?
+
+	/// The native chat engine (one per Toby home; holds active turns).
+	func chat() throws -> NativeChatRouter {
+		let database = try store()
+		let identity = ObjectIdentifier(database)
+		if let chatRouter, chatStoreIdentity == identity { return chatRouter }
+		let memories = try memories()
+		let library = try library()
+		let todos = try todos()
+		let projects = ProjectService(writer: database.writer, tobyDirectory: paths.root)
+		let personas = PersonaService(tobyDirectory: paths.root)
+		let toolbox = ChatToolbox(
+			todos: todos.actions, memory: memories.memory, graph: memories.graph, library: library.library,
+			projects: projects, skills: SkillService(root: paths.skills), tobyDirectory: paths.root, ai: ai,
+		)
+		let engine = ChatEngine(
+			sessions: projects.sessions, toolbox: toolbox, personas: personas, ai: ai,
+			chatModelOverride: { UserDefaults.standard.string(forKey: "toby.ai.chatModel") },
+			location: {
+				let data = await NativeLocationHandler.shared.currentLocation(body: nil)
+				let value = try JSONDecoder().decode(JSONValue.self, from: data)
+				return value["data"] ?? value
+			},
+		)
+		let router = NativeChatRouter(engine: engine, sessions: projects.sessions, personas: personas, projects: projects)
+		chatRouter = router
+		chatStoreIdentity = identity
+		return router
+	}
+
 	/// In-process personas, skills, and projects.
 	func files() throws -> NativeFilesRouter {
 		let database = try store()
