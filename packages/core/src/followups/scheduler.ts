@@ -33,10 +33,12 @@ import {
 	getEvaluatedUnitHash,
 	getFollowupLoop,
 	getFollowupMeta,
+	hasNegativeFollowupFeedback,
 	listFollowupLoops,
 	markUnitEvaluated,
 	recordFollowupFeedback,
 	refundEvaluationBudget,
+	setFollowupEvaluatedHash,
 	setFollowupMeta,
 	setFollowupTodoId,
 	updateFollowupLoop,
@@ -44,7 +46,7 @@ import {
 import { followupEvaluationSchema } from "./types";
 import type { FollowupLoop, FollowupUnit } from "./types";
 import {
-	buildFollowupUnits,
+	buildFollowupUnitsPage,
 	changedFollowupUnits,
 	followupWaitDays,
 } from "./units";
@@ -77,14 +79,48 @@ export function followupTodoId(fingerprint: string): string {
 	return `toby-followup-${sha256(fingerprint).slice(0, 40)}`;
 }
 
+function normalizedTitle(title: string): string {
+	return title.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Stable identity for a follow-up. A thread has at most one owe-reply and one
+ * awaiting-reply loop, so those ignore the model's wording; a commitment is
+ * keyed by its title because one thread can carry several. Evidence is left
+ * out on purpose: new replies or flag changes must not mint a new identity,
+ * or a dismissed follow-up would come back.
+ */
 function followupFingerprint(
 	kind: string,
 	unit: FollowupUnit,
 	title: string,
 ): string {
 	return sha256(
-		`${kind}|${unit.unitId}|${title.trim().toLowerCase()}|${unit.evidenceHash}`,
+		kind === "commitment"
+			? `${kind}|${unit.unitId}|${normalizedTitle(title)}`
+			: `${kind}|${unit.unitId}`,
 	);
+}
+
+function sameFollowup(
+	loop: FollowupLoop,
+	kind: FollowupLoop["kind"],
+	title: string,
+): boolean {
+	return (
+		loop.kind === kind &&
+		(kind !== "commitment" ||
+			normalizedTitle(loop.title) === normalizedTitle(title))
+	);
+}
+
+/** The todo, or null when it was purged or never created. */
+function findTodo(todoId: string): ReturnType<typeof getTodo> | null {
+	try {
+		return getTodo(todoId);
+	} catch {
+		return null;
+	}
 }
 
 function ensureOrganization(kind: "list" | "tag", name: string): string {
@@ -241,6 +277,55 @@ function createTodoForLoop(params: {
 	return todoId;
 }
 
+/** Link new evidence to an open loop and move its activity time forward. */
+function mergeEvidence(
+	loop: FollowupLoop,
+	evidence: readonly string[],
+	kind: string,
+	confidence: number,
+): FollowupLoop {
+	const linkedEvidence = new Set(
+		edgesTouching([loop.loopId], {
+			edgeTypes: ["evidence_for"],
+			fanout: 1000,
+		})
+			.filter((edge) => edge.src === loop.loopId)
+			.map((edge) => edge.dst),
+	);
+	const newEvidence = evidence.filter((id) => !linkedEvidence.has(id));
+	if (newEvidence.length === 0) return loop;
+	addEvidenceEdges(
+		loop.loopId,
+		newEvidence,
+		`New evidence supporting ${kind.replaceAll("_", " ")}.`,
+		confidence,
+	);
+	const lastActivityAt = evidenceActivityAt(newEvidence, loop.lastActivityAt);
+	if (lastActivityAt === loop.lastActivityAt) return loop;
+	return updateFollowupLoop(loop.loopId, { lastActivityAt }) ?? loop;
+}
+
+/**
+ * Every loop sharing one follow-up identity, oldest first. Generation 0 uses
+ * the base fingerprint; when a settled loop sees newer evidence, the next
+ * generation gets a fresh loop and todo under `base#n`.
+ */
+function followupGenerations(base: string): {
+	readonly loops: FollowupLoop[];
+	readonly fingerprints: string[];
+	readonly nextFingerprint: string;
+} {
+	const loops: FollowupLoop[] = [];
+	const fingerprints: string[] = [];
+	for (let n = 0; ; n++) {
+		const fingerprint = n === 0 ? base : sha256(`${base}#${n}`);
+		const loop = findFollowupByFingerprint(fingerprint);
+		if (!loop) return { loops, fingerprints, nextFingerprint: fingerprint };
+		loops.push(loop);
+		fingerprints.push(fingerprint);
+	}
+}
+
 function openFollowup(params: {
 	unit: FollowupUnit;
 	now: Date;
@@ -250,50 +335,48 @@ function openFollowup(params: {
 	due?: string;
 	confidence: number;
 	evidenceIds: readonly string[];
-}): FollowupLoop | null {
+}): { readonly loop: FollowupLoop | null; readonly created: boolean } {
 	const evidence = params.evidenceIds.filter(
 		(id) => params.unit.nodeIds.includes(id) && getNode(id),
 	);
-	if (evidence.length === 0) return null;
+	if (evidence.length === 0) return { loop: null, created: false };
 	const active = params.unit.loopIds
 		.map((id) => getFollowupLoop(id))
 		.find(
-			(loop) =>
+			(loop): loop is FollowupLoop =>
 				loop?.status === "open" &&
-				loop.kind === params.kind &&
-				loop.title.trim().toLowerCase() === params.title.trim().toLowerCase(),
+				sameFollowup(loop, params.kind, params.title),
 		);
-	if (active) {
-		const linkedEvidence = new Set(
-			edgesTouching([active.loopId], {
-				edgeTypes: ["evidence_for"],
-				fanout: 1000,
-			})
-				.filter((edge) => edge.src === active.loopId)
-				.map((edge) => edge.dst),
-		);
-		const newEvidence = evidence.filter((id) => !linkedEvidence.has(id));
-		if (newEvidence.length === 0) return active;
-		addEvidenceEdges(
-			active.loopId,
-			newEvidence,
-			`New evidence supporting ${params.kind.replaceAll("_", " ")}.`,
-			params.confidence,
-		);
-		const lastActivityAt = evidenceActivityAt(
-			newEvidence,
-			active.lastActivityAt,
-		);
-		if (lastActivityAt === active.lastActivityAt) return active;
-		return updateFollowupLoop(active.loopId, { lastActivityAt }) ?? active;
-	}
-	const fingerprint = followupFingerprint(
-		params.kind,
-		params.unit,
-		params.title,
+	if (active)
+		return {
+			loop: mergeEvidence(active, evidence, params.kind, params.confidence),
+			created: false,
+		};
+	const generations = followupGenerations(
+		followupFingerprint(params.kind, params.unit, params.title),
 	);
-	const prior = findFollowupByFingerprint(fingerprint);
-	if (prior) return prior;
+	const prior = generations.loops.at(-1);
+	// The user dismissed this follow-up (any generation): never bring it back.
+	if (
+		generations.loops.some((loop) => loop.status === "dismissed") ||
+		generations.fingerprints.some(hasNegativeFollowupFeedback)
+	)
+		return { loop: prior ?? null, created: false };
+	if (prior?.status === "open")
+		return {
+			loop: mergeEvidence(prior, evidence, params.kind, params.confidence),
+			created: false,
+		};
+	if (prior) {
+		// Resolved or expired: only evidence newer than that settles a new loop.
+		const settledAt = Date.parse(prior.updatedAt);
+		const newest = Date.parse(
+			evidenceActivityAt(evidence, new Date(0).toISOString()),
+		);
+		if (Number.isFinite(settledAt) && newest <= settledAt)
+			return { loop: prior, created: false };
+	}
+	const fingerprint = generations.nextFingerprint;
 	const loopInput = {
 		type: "loop" as const,
 		key: fingerprint,
@@ -307,7 +390,7 @@ function openFollowup(params: {
 		},
 	};
 	const loopId = writeGraph({ nodes: [loopInput] }).nodeIds[0];
-	if (!loopId) return null;
+	if (!loopId) return { loop: null, created: false };
 	const lastActivityAt = evidenceActivityAt(evidence, params.now.toISOString());
 	const row = createFollowupLoop({
 		loopId,
@@ -335,7 +418,10 @@ function openFollowup(params: {
 		due: params.due,
 		evidenceIds: evidence,
 	});
-	return updateFollowupLoop(row.loopId, { todoId }) ?? row;
+	return {
+		loop: updateFollowupLoop(row.loopId, { todoId }) ?? row,
+		created: true,
+	};
 }
 
 function applyEvaluations(
@@ -377,20 +463,8 @@ function applyEvaluations(
 				] === false
 			)
 				continue;
-			const fingerprint = followupFingerprint(item.kind, unit, item.title);
-			const existed =
-				findFollowupByFingerprint(fingerprint) !== null ||
-				unit.loopIds.some((loopId) => {
-					const candidate = getFollowupLoop(loopId);
-					return (
-						candidate?.status === "open" &&
-						candidate.kind === item.kind &&
-						candidate.title.trim().toLowerCase() ===
-							item.title.trim().toLowerCase()
-					);
-				});
-			const loop = openFollowup({ unit, now, ...item });
-			if (loop && !existed) opened++;
+			const { loop, created } = openFollowup({ unit, now, ...item });
+			if (loop && created) opened++;
 		}
 		for (const item of evaluation.close) {
 			if (
@@ -399,10 +473,8 @@ function applyEvaluations(
 				!unit.nodeIds.includes(item.evidenceId)
 			)
 				continue;
-			const loop = listFollowupLoops({ status: "open", limit: 1000 }).find(
-				(candidate) => candidate.loopId === item.loopId,
-			);
-			if (!loop) continue;
+			const loop = getFollowupLoop(item.loopId);
+			if (loop?.status !== "open") continue;
 			if (loop.resolutionRejected) {
 				const evidence = getObservationByNode(item.evidenceId);
 				const rejectedAt = Date.parse(loop.reopenedAt ?? loop.lastActivityAt);
@@ -419,8 +491,9 @@ function applyEvaluations(
 					continue;
 			}
 			if (readConfig().followups?.autoComplete !== false && loop.todoId) {
-				const todo = getTodo(loop.todoId);
-				if (!todo.deleted && todo.state.status === "open") {
+				// A purged todo is not an error: the loop still resolves.
+				const todo = findTodo(loop.todoId);
+				if (todo && !todo.deleted && todo.state.status === "open") {
 					transitionTodo(
 						todo.id,
 						"complete",
@@ -454,10 +527,8 @@ function applyEvaluations(
 			closed++;
 		}
 		for (const loopId of unit.loopIds) {
-			const loop = listFollowupLoops({ status: "open", limit: 1000 }).find(
-				(candidate) => candidate.loopId === loopId,
-			);
-			if (loop) updateFollowupLoop(loopId, { lastEvaluatedHash: unit.hash });
+			if (getFollowupLoop(loopId)?.status === "open")
+				setFollowupEvaluatedHash(loopId, unit.hash);
 		}
 		markUnitEvaluated(unit.unitId, unit.hash, now.toISOString());
 	}
@@ -615,8 +686,8 @@ export function recordFollowupNotUseful(id: string): boolean {
 		: null;
 	if (!loop) return false;
 	if (loop.todoId) {
-		const todo = getTodo(loop.todoId);
-		if (!todo.deleted)
+		const todo = findTodo(loop.todoId);
+		if (todo && !todo.deleted)
 			deleteTodo(todo.id, false, {
 				source: "followups",
 				expectedRevision: todo.revision,
@@ -639,8 +710,8 @@ export function reopenFollowupTodo(id: string): boolean {
 		loop ??
 		listFollowupLoops({ limit: 1000 }).find((item) => item.todoId === id);
 	if (!byTodo?.todoId) return false;
-	const todo = getTodo(byTodo.todoId);
-	if (todo.state.status !== "completed") return false;
+	const todo = findTodo(byTodo.todoId);
+	if (!todo || todo.deleted || todo.state.status !== "completed") return false;
 	transitionTodo(
 		todo.id,
 		"reopen",
@@ -681,13 +752,33 @@ async function notifyCompleted(titles: readonly string[]): Promise<void> {
 	});
 }
 
-export async function runFollowupsOnce(
-	params: {
-		readonly now?: Date;
-		readonly evaluate?: (units: readonly FollowupUnit[]) => Promise<unknown>;
-		readonly extract?: GraphExtract;
-		readonly includeIngest?: boolean;
-	} = {},
+type RunFollowupsParams = {
+	readonly now?: Date;
+	readonly evaluate?: (units: readonly FollowupUnit[]) => Promise<unknown>;
+	readonly extract?: GraphExtract;
+	readonly includeIngest?: boolean;
+};
+
+let inFlightRun: Promise<FollowupsRunStats> | null = null;
+
+/**
+ * Run one follow-up pass. Single-flight: a call made while a run is in
+ * progress (the scheduler tick vs. "Check now") joins that run instead of
+ * starting a second one that would double-spend budget and race on todos.
+ */
+export function runFollowupsOnce(
+	params: RunFollowupsParams = {},
+): Promise<FollowupsRunStats> {
+	if (inFlightRun) return inFlightRun;
+	const run = runFollowupsPass(params).finally(() => {
+		if (inFlightRun === run) inFlightRun = null;
+	});
+	inFlightRun = run;
+	return run;
+}
+
+async function runFollowupsPass(
+	params: RunFollowupsParams,
 ): Promise<FollowupsRunStats> {
 	const now = params.now ?? new Date();
 	const config = readConfig().followups;
@@ -738,7 +829,15 @@ export async function runFollowupsOnce(
 		const previous = getFollowupMeta("last_run_at");
 		const since =
 			previous ?? new Date(now.getTime() - 14 * 86_400_000).toISOString();
-		const allUnits = buildFollowupUnits({ since, now });
+		const afterId = previous
+			? (getFollowupMeta("last_run_after_id") ?? undefined)
+			: undefined;
+		const page = buildFollowupUnitsPage({
+			since,
+			...(afterId ? { afterId } : {}),
+			now,
+		});
+		const allUnits = page.units;
 		const units = changedFollowupUnits(allUnits, getEvaluatedUnitHash);
 		const maxBudget = config?.maxEvaluationsPerDay ?? DEFAULT_EVALUATION_BUDGET;
 		let evaluated = 0;
@@ -770,8 +869,12 @@ export async function runFollowupsOnce(
 			refundEvaluationBudget(batch.length - result.processed, now);
 			i += batch.length;
 		}
-		if (processed === units.length)
-			setFollowupMeta("last_run_at", now.toISOString());
+		if (processed === units.length) {
+			// More changed observations than one page: resume after the last one
+			// read instead of jumping to now and skipping the rest.
+			setFollowupMeta("last_run_at", page.next?.since ?? now.toISOString());
+			setFollowupMeta("last_run_after_id", page.next?.afterId ?? "");
+		}
 		await notifyCompleted(completedTitles);
 		const ingested = sourceStats.reduce(
 			(total, source) => total + source.created + source.updated,

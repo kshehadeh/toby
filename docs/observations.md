@@ -40,8 +40,14 @@ The normal plugin execution envelope puts this payload in `result`:
 ```
 
 See `types.ts` for exact Zod limits. Batches are capped at 1,000 observations.
-Invalid items are logged and skipped individually. Plugins should return
-newest relevant activity first, respect the time/limit, and honor dry-run.
+Invalid items are logged and skipped individually. Plugins should respect the
+exact `since` time and `limit`, and honor dry-run. When more than `limit` items
+match, return the **oldest** `limit`, oldest first: the core treats a full page
+as truncated and asks again from the newest `occurredAt` it received (up to ten
+pages per run; the cursor resumes there next run). Returning the newest items
+would silently skip the rest of the window. Leave read/flag state (`seen`,
+`answered`, `flagged`) as facts; the core keeps them out of the content hash so
+reading mail doesn't re-ingest it.
 
 ## Shipped sources
 

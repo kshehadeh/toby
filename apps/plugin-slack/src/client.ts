@@ -759,6 +759,7 @@ export async function searchSlackMessages(
 	config: JsonRecord,
 	query: string,
 	limit = 20,
+	options: { readonly sortDir?: "asc" | "desc" } = {},
 ): Promise<SlackMessageSearchHit[]> {
 	const creds = getSlackCredentials(config);
 	// OAuth: let `slackApi` refresh an expired user token (it resolves to the
@@ -799,7 +800,7 @@ export async function searchSlackMessages(
 				count: Math.min(100, cap),
 				page,
 				sort: "timestamp",
-				sort_dir: "desc",
+				sort_dir: options.sortDir ?? "desc",
 			},
 			token,
 		);

@@ -479,6 +479,15 @@ export function completeEnrichment(
 	).run({ $id: nodeId, $steps: JSON.stringify(remaining) });
 }
 
+/** Keep an entry queued but skip it until `until` (no attempt is counted). */
+export function deferEnrichment(nodeId: string, until: Date): void {
+	getDb()
+		.query(
+			"UPDATE graph_enrich_queue SET next_attempt_at = $next WHERE node_id = $id",
+		)
+		.run({ $id: nodeId, $next: until.toISOString() });
+}
+
 const MAX_ENRICH_ATTEMPTS = 5;
 
 /** Back off a failed entry (1, 2, 4, 8… minutes); give up after five attempts. */
@@ -528,11 +537,16 @@ export function graphCounts(): { nodes: number; edges: number } {
 	return { nodes: Number(nodes.c), edges: Number(edges.c) };
 }
 
-/** Remove edges derived from observations before deterministic graph rebuild. */
+/**
+ * Remove edges derived from observations before deterministic graph rebuild.
+ * Loop edges (`about` links to people/threads) are kept: rebuild only replays
+ * observations and has no way to recreate them.
+ */
 export function clearRebuildableEdges(): number {
 	const result = getDb()
 		.query(
-			"DELETE FROM graph_edges WHERE origin = 'deterministic' AND type NOT IN ('tracks', 'evidence_for')",
+			`DELETE FROM graph_edges WHERE origin = 'deterministic' AND type NOT IN ('tracks', 'evidence_for')
+       AND src NOT IN (SELECT id FROM graph_nodes WHERE type = 'loop')`,
 		)
 		.run() as { changes?: number } | null;
 	return Number(result?.changes ?? 0);

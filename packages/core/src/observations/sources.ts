@@ -170,7 +170,10 @@ export const tobyChatSource: ObservationSource = {
 			});
 		}
 		return {
-			observations: observations.slice(-(input.limit ?? 200)),
+			// Oldest first so a truncated page can be resumed from its newest item.
+			observations: observations
+				.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+				.slice(0, input.limit ?? 200),
 			self: { handles: [TOBY_SELF_HANDLE] },
 		};
 	},
@@ -252,11 +255,16 @@ export const calendarSource: ObservationSource = {
 	defaultEnabled: true,
 	async collect() {
 		const data = await getDashboardCategory("calendar", { limit: 40 });
-		const observations: ObservationInput[] = (data?.items ?? []).map(
-			(item) => ({
-				externalId: `${item.providerName ?? "calendar"}:${item.id}`,
+		const observations: ObservationInput[] = (data?.items ?? []).map((item) => {
+			const externalId = `${item.providerName ?? "calendar"}:${item.id}`;
+			return {
+				externalId,
 				kind: "calendar.event",
-				occurredAt: item.timestamp ?? new Date().toISOString(),
+				// Untimed events keep their first-seen time so the content hash stays stable.
+				occurredAt:
+					item.timestamp ??
+					findObservation(CALENDAR_SOURCE_ID, externalId)?.occurredAt ??
+					new Date().toISOString(),
 				title: item.title || "(untitled event)",
 				...(item.event?.notes ? { excerpt: item.event.notes } : {}),
 				...(item.url ? { url: item.url } : {}),
@@ -270,8 +278,8 @@ export const calendarSource: ObservationSource = {
 					...(item.event?.allDay ? { allDay: true } : {}),
 					...(item.event?.recurring ? { recurring: true } : {}),
 				},
-			}),
-		);
+			};
+		});
 		return { observations };
 	},
 };

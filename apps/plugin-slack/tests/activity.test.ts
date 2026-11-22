@@ -42,8 +42,8 @@ describe("Slack recent activity", () => {
 			since,
 		);
 		expect(result.self.handles).toEqual(["U123"]);
-		expect(result.observations[0].direction).toBe("outbound");
-		expect(result.observations[1]).toMatchObject({
+		expect(result.observations[1].direction).toBe("outbound");
+		expect(result.observations[0]).toMatchObject({
 			externalId: `D123:${ts}`,
 			threadId: "D123:123.456",
 			direction: "inbound",
@@ -57,7 +57,7 @@ describe("Slack recent activity", () => {
 			],
 		});
 	});
-	it("deduplicates, filters exact since, bounds text and caps newest first", () => {
+	it("deduplicates, filters exact since, bounds text and caps oldest first", () => {
 		const result = toSlackActivity(
 			[
 				hit,
@@ -70,9 +70,14 @@ describe("Slack recent activity", () => {
 			1,
 		);
 		expect(result.observations).toHaveLength(1);
-		expect(result.observations[0].externalId).toBe(`D123:${Number(ts) + 1}`);
-		expect(result.observations[0].excerpt).toHaveLength(2000);
-		expect(result.observations[0].title).toHaveLength(1000);
+		expect(result.observations[0].externalId).toBe(`D123:${ts}`);
+		const long = toSlackActivity(
+			[{ ...hit, ts: String(Number(ts) + 1), text: "x".repeat(3000) }],
+			"U123",
+			since,
+		);
+		expect(long.observations[0].excerpt).toHaveLength(2000);
+		expect(long.observations[0].title).toHaveLength(1000);
 		expect(
 			toSlackActivity([hit, hit], "U123", since).observations,
 		).toHaveLength(1);

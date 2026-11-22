@@ -37,7 +37,9 @@ Existing memories are backfilled once.
   Entities and links require confidence of at least `0.7`; unknown input IDs
   are ignored. Extraction works without an embedding provider.
   `graph.maxExtractionsPerDay` defaults to 300 nodes per UTC day.
-  Over-budget nodes retain deterministic and semantic relationships.
+  Over-budget nodes retain deterministic and semantic relationships and stay
+  queued for extraction until the next UTC day. A graph rebuild keeps loop
+  edges and leaves unchanged observations' ingest times alone.
 
 The worker drains up to 100 queued nodes per run, extracts batches of eight,
 and backs off failures. Private and confirmation-required nodes are not

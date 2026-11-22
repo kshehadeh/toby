@@ -60,6 +60,21 @@ function sortedFacts(
 	return out;
 }
 
+/**
+ * Read/flag state that changes whenever the user opens mail. Kept on the
+ * observation but left out of its hash, so reading an email doesn't re-ingest
+ * it and re-spend follow-up evaluation budget.
+ */
+const VOLATILE_FACT_KEYS = new Set(["seen", "answered", "flagged"]);
+
+function hashedFacts(
+	facts: ObservationInput["facts"],
+): Record<string, string | number | boolean> {
+	const out = sortedFacts(facts);
+	for (const key of VOLATILE_FACT_KEYS) delete out[key];
+	return out;
+}
+
 export function observationContentHash(input: ObservationInput): string {
 	return createHash("sha256")
 		.update(
@@ -70,7 +85,7 @@ export function observationContentHash(input: ObservationInput): string {
 				input.direction ?? "",
 				input.threadId ?? "",
 				input.occurredAt,
-				sortedFacts(input.facts),
+				hashedFacts(input.facts),
 				input.actors.map((a) => [a.role, a.email ?? "", a.handle ?? ""]),
 			]),
 		)
@@ -203,7 +218,12 @@ export function ingestObservation(
 		}
 	}
 
-	const ts = now.toISOString();
+	// A forced replay (graph rebuild) of unchanged content keeps its ingest
+	// time, so it doesn't look new to follow-up evaluation.
+	const ts =
+		existing && existing.contentHash === hash
+			? existing.ingestedAt
+			: now.toISOString();
 	const db = getDb();
 	const write = db.transaction(() => {
 		const { nodeIds } = writeGraph({

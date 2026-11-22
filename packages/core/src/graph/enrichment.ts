@@ -16,6 +16,7 @@ import { emailPersonKey, entityNameKey } from "./keys";
 import { isNodeVisible } from "./query";
 import {
 	completeEnrichment,
+	deferEnrichment,
 	dueEnrichment,
 	failEnrichment,
 	getNode,
@@ -201,6 +202,13 @@ function claimExtractionBudget(count: number, max: number, now: Date): number {
 	})();
 }
 
+/** Start of the next UTC day, when the per-day extraction budget resets. */
+function nextBudgetDay(now: Date): Date {
+	return new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+	);
+}
+
 function entityNode(entity: ExtractedEntity) {
 	const identifier = entity.identifiers?.find((value) => value.includes("@"));
 	const key =
@@ -372,8 +380,9 @@ export async function runGraphEnrichment(
 	for (let i = 0; i < extractionQueue.length; i += MAX_EXTRACTION_BATCH) {
 		const batch = extractionQueue.slice(i, i + MAX_EXTRACTION_BATCH);
 		const allowed = claimExtractionBudget(batch.length, maxBudget, now);
+		// Over today's budget: keep the extract step queued for tomorrow's budget.
 		for (const item of batch.slice(allowed)) {
-			completeEnrichment(item.node.id, ["extract"]);
+			deferEnrichment(item.node.id, nextBudgetDay(now));
 		}
 		if (allowed === 0) continue;
 		const allowedBatch = batch.slice(0, allowed);

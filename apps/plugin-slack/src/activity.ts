@@ -36,7 +36,7 @@ export function toSlackActivity(
 	const { cutoff, cap } = activityOptions(since, limit);
 	const seen = new Set<string>();
 	const observations = [...hits]
-		.sort((a, b) => Number(b.ts) - Number(a.ts))
+		.sort((a, b) => Number(a.ts) - Number(b.ts))
 		.flatMap((hit) => {
 			const time = Number(hit.ts) * 1000;
 			if (
@@ -115,7 +115,13 @@ export async function fetchRecentSlackActivity(
 		`is:dm after:${after}`,
 		`from:<@${selfId}> after:${after}`,
 	]) {
-		hits.push(...(await searchSlackMessages(config, query, cap)));
+		// Oldest first: the core resumes a full page from its newest item. The
+		// `after:` date is a day early, so over-fetch to cover the dropped prefix.
+		hits.push(
+			...(await searchSlackMessages(config, query, Math.min(1000, cap * 2), {
+				sortDir: "asc",
+			})),
+		);
 	}
 	return toSlackActivity(hits, selfId, since, cap);
 }

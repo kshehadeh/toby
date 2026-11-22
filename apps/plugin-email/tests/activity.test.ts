@@ -3,6 +3,7 @@ import type { FetchMessageObject } from "imapflow";
 import {
 	activityTextPart,
 	emailThreadId,
+	oldestSince,
 	toEmailActivity,
 	trimEmailSnippet,
 } from "../src/activity";
@@ -87,7 +88,7 @@ describe("email recent activity", () => {
 			since,
 		);
 		expect(result.self.emails).toEqual(["self@example.com"]);
-		expect(result.observations[0]).toMatchObject({
+		expect(result.observations[1]).toMatchObject({
 			direction: "outbound",
 			facts: { mailbox: "Sent", direct: false },
 			actors: [
@@ -96,7 +97,7 @@ describe("email recent activity", () => {
 				{ role: "cc", email: "cc@example.com" },
 			],
 		});
-		expect(result.observations[1]).toMatchObject({
+		expect(result.observations[0]).toMatchObject({
 			direction: "inbound",
 			threadId: "root@example.com",
 			facts: {
@@ -108,7 +109,7 @@ describe("email recent activity", () => {
 			},
 		});
 	});
-	it("deduplicates across folders, orders newest first, filters since and caps", () => {
+	it("deduplicates across folders, orders oldest first, filters since and caps", () => {
 		const newest = message(3, "2026-01-03T00:00:00Z");
 		const result = toEmailActivity(
 			[
@@ -122,14 +123,28 @@ describe("email recent activity", () => {
 			2,
 		);
 		expect(result.observations.map((o) => o.externalId)).toEqual([
-			"<3@example.com>",
 			"INBOX:1",
+			"<3@example.com>",
 		]);
 		expect(
 			toEmailActivity([{ mailbox: "INBOX", message: newest }], [], since, 1)
 				.observations,
 		).toHaveLength(1);
 		expect(() => toEmailActivity([], [], "bad")).toThrow("since");
+	});
+	it("pages from the oldest messages at or after the exact cutoff", () => {
+		const cutoff = Date.parse(since);
+		const picked = oldestSince(
+			[
+				message(4, "2026-01-04T00:00:00Z"),
+				message(1, "2025-12-31T12:00:00Z"),
+				message(3, "2026-01-03T00:00:00Z"),
+				message(2, since),
+			],
+			cutoff,
+			2,
+		);
+		expect(picked.map((m) => m.uid)).toEqual([2, 3]);
 	});
 	it("selects inline plain text without traversing attachments", () => {
 		expect(

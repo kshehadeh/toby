@@ -144,13 +144,27 @@ export function listThreadObservations(
 	return rows.map(rowToObservation);
 }
 
-/** Observations written or changed at or after `since`, oldest first. */
-export function listIngestedSince(since: string, limit = 2000): Observation[] {
+/**
+ * Observations written or changed at or after `since`, oldest first (ties by
+ * id). With `afterId`, rows at exactly `since` resume after that id, so a
+ * caller can page through more than `limit` rows that share an ingest time.
+ */
+export function listIngestedSince(
+	since: string,
+	limit = 2000,
+	afterId?: string,
+): Observation[] {
 	const rows = getDb()
 		.query(
-			`SELECT ${COLUMNS} FROM observations WHERE ingested_at >= $since ORDER BY ingested_at ASC LIMIT $limit`,
+			`SELECT ${COLUMNS} FROM observations
+       WHERE ${afterId ? "(ingested_at > $since OR (ingested_at = $since AND id > $after))" : "ingested_at >= $since"}
+       ORDER BY ingested_at ASC, id ASC LIMIT $limit`,
 		)
-		.all({ $since: since, $limit: Math.max(1, limit) }) as ObservationRow[];
+		.all({
+			$since: since,
+			$limit: Math.max(1, limit),
+			...(afterId ? { $after: afterId } : {}),
+		}) as ObservationRow[];
 	return rows.map(rowToObservation);
 }
 

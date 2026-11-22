@@ -17,6 +17,10 @@ export const INITIAL_LOOKBACK_DAYS = 14;
 export const CURSOR_OVERLAP_MS = 60 * 60 * 1000;
 export const OBSERVATION_RETENTION_DAYS = 45;
 const SOURCE_TIMEOUT_MS = 60_000;
+/** Items requested per `activity.recent` call. */
+const PAGE_LIMIT = 500;
+/** Pages drained per source per run; the cursor resumes where it stopped. */
+const MAX_PAGES_PER_RUN = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface SourceIngestStats {
@@ -51,6 +55,21 @@ async function withTimeout<T>(ms: number, run: Promise<T>): Promise<T> {
 	}
 }
 
+function latestOccurredAt(
+	observations: ReadonlyArray<{ readonly occurredAt: string }>,
+): string | undefined {
+	let latest: string | undefined;
+	let latestMs = Number.NEGATIVE_INFINITY;
+	for (const { occurredAt } of observations) {
+		const ms = Date.parse(occurredAt);
+		if (Number.isFinite(ms) && ms > latestMs) {
+			latestMs = ms;
+			latest = new Date(ms).toISOString();
+		}
+	}
+	return latest;
+}
+
 /** Pull one source from its cursor and ingest what changed. Never throws. */
 export async function ingestSource(
 	source: ObservationSource,
@@ -62,40 +81,64 @@ export async function ingestSource(
 		new Date(now.getTime() - INITIAL_LOOKBACK_DAYS * DAY_MS).toISOString();
 	const at = now.toISOString();
 	try {
-		const result = await withTimeout(
-			SOURCE_TIMEOUT_MS,
-			source.collect({ since, limit: 500 }),
-		);
-		const self = {
-			emails: (result.self?.emails ?? []).map((e) => e.trim().toLowerCase()),
-			handles: result.self?.handles ?? [],
-		};
+		let pageSince = since;
+		let fetched = 0;
 		let created = 0;
 		let updated = 0;
 		let unchanged = 0;
-		for (const input of result.observations) {
-			try {
-				const r = ingestObservation(source.id, input, self, now);
-				if (r.status === "new") created++;
-				else if (r.status === "updated") updated++;
-				else unchanged++;
-			} catch (error) {
-				daemonLog("warn", "general", "observation_ingest_failed", {
-					source: source.id,
-					externalId: input.externalId,
-					error: error instanceof Error ? error.message : String(error),
-				});
+		let drained = false;
+		const selfEmails = new Set<string>();
+		const selfHandles = new Set<string>();
+		for (let page = 0; page < MAX_PAGES_PER_RUN; page++) {
+			const result = await withTimeout(
+				SOURCE_TIMEOUT_MS,
+				source.collect({ since: pageSince, limit: PAGE_LIMIT }),
+			);
+			for (const e of result.self?.emails ?? [])
+				selfEmails.add(e.trim().toLowerCase());
+			for (const h of result.self?.handles ?? []) selfHandles.add(h);
+			const self = { emails: [...selfEmails], handles: [...selfHandles] };
+			fetched += result.observations.length;
+			for (const input of result.observations) {
+				try {
+					const r = ingestObservation(source.id, input, self, now);
+					if (r.status === "new") created++;
+					else if (r.status === "updated") updated++;
+					else unchanged++;
+				} catch (error) {
+					daemonLog("warn", "general", "observation_ingest_failed", {
+						source: source.id,
+						externalId: input.externalId,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
 			}
+			if (result.observations.length < PAGE_LIMIT) {
+				drained = true;
+				break;
+			}
+			// A full page means the source truncated. Sources return the oldest
+			// items first, so continue from the newest one we received.
+			const newest = latestOccurredAt(result.observations);
+			if (!newest || Date.parse(newest) <= Date.parse(pageSince)) {
+				// Every item shares the page start; advancing is the only way forward.
+				drained = true;
+				break;
+			}
+			pageSince = newest;
 		}
+		const self = { emails: [...selfEmails], handles: [...selfHandles] };
 		recordCursorSuccess(source.id, {
-			since: new Date(now.getTime() - CURSOR_OVERLAP_MS).toISOString(),
+			since: drained
+				? new Date(now.getTime() - CURSOR_OVERLAP_MS).toISOString()
+				: pageSince,
 			at,
 			...(self.emails.length || self.handles.length ? { self } : {}),
 			ingested: created + updated,
 		});
 		return {
 			sourceId: source.id,
-			fetched: result.observations.length,
+			fetched,
 			created,
 			updated,
 			unchanged,

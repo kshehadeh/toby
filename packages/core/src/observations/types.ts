@@ -71,6 +71,12 @@ export type ActivityRecentResult = z.infer<typeof activityRecentResultSchema>;
 export interface ActivityRecentInput {
 	/** ISO 8601; return items that occurred at or after this time. */
 	readonly since: string;
+	/**
+	 * Maximum items to return. When more match, return the OLDEST `limit`
+	 * items: the core treats a full page as truncated and asks again from the
+	 * newest `occurredAt` it received, so returning the newest would skip the
+	 * rest of the window.
+	 */
 	readonly limit?: number;
 }
 

@@ -43,10 +43,16 @@ logged as `followup_model_usage`.
 Loops are graph nodes plus `followup_loops` rows, with statuses
 `open`, `resolved`, `dismissed`, or `expired`. `evidence_for` edges record the
 source and reason; a todo's `tracks` edge points to the loop.
-Fingerprints include the unit and evidence hash. Todo IDs derive from the
-fingerprint, and `followup:<loopId>` is the creation idempotency key.
-Matching active loops collect new evidence without duplicating their todo.
-New evidence after resolution can create a fresh loop.
+Fingerprints are a stable identity: kind and unit (thread) for owe-reply and
+awaiting-reply, plus the normalized title for commitments. Evidence is not part
+of it, so new replies or flag changes don't mint a new follow-up. Todo IDs
+derive from the fingerprint, and `followup:<loopId>` is the creation
+idempotency key. Open units carry every open loop that already cites the
+thread, so a reworded title merges into that loop without duplicating its todo.
+Evidence newer than a resolved or expired loop opens the next generation
+(`<fingerprint>#n`) with a fresh todo. A dismissed generation or recorded
+dismissed/Not useful feedback suppresses the identity for good.
+Runs are single-flight: **Check now** during a scheduled run joins it.
 
 Todo descriptions contain a short explanation and source URL, not message
 bodies. Model-supplied deadlines become UTC todo deadlines.

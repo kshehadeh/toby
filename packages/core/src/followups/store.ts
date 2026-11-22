@@ -167,6 +167,18 @@ export function updateFollowupLoop(
 	return getFollowupLoop(id);
 }
 
+/**
+ * Record the unit hash a loop was last evaluated against. Bookkeeping only:
+ * leaves `updated_at` alone so it doesn't read as a change to the loop.
+ */
+export function setFollowupEvaluatedHash(id: string, hash: string): void {
+	getDb()
+		.query(
+			"UPDATE followup_loops SET last_evaluated_hash = $hash WHERE loop_id = $id",
+		)
+		.run({ $id: id, $hash: hash });
+}
+
 export function setFollowupTodoId(id: string, todoId: string): void {
 	getDb()
 		.query(
@@ -311,4 +323,14 @@ export function recordFollowupFeedback(params: {
 			$reason: params.reason?.slice(0, 500) ?? null,
 			$at: new Date().toISOString(),
 		});
+}
+
+/** Whether the user dismissed or rejected a follow-up with this fingerprint. */
+export function hasNegativeFollowupFeedback(fingerprint: string): boolean {
+	const row = getDb()
+		.query(
+			"SELECT 1 AS hit FROM followup_feedback WHERE fingerprint = $fingerprint AND outcome IN ('dismissed', 'not_useful') LIMIT 1",
+		)
+		.get({ $fingerprint: fingerprint }) as { hit: number } | null;
+	return Boolean(row);
 }

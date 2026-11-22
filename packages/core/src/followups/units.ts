@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readConfig } from "../config/index";
 import { contextFor, isNodeVisible, neighbors } from "../graph/query";
-import { getNode } from "../graph/store";
+import { edgesTouching, getNode } from "../graph/store";
 import {
 	allSelfIdentities,
 	listIngestedSince,
@@ -14,6 +14,8 @@ import type { FollowupLoop, FollowupUnit } from "./types";
 
 const MAX_THREAD_MESSAGES = 20;
 const MAX_UNIT_TEXT_CHARS = 10_000;
+/** Changed observations read per run; the rest are picked up next run. */
+export const MAX_CHANGED_OBSERVATIONS = 2000;
 
 function hash(value: unknown): string {
 	return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -124,12 +126,22 @@ function unitFor(params: {
 	);
 	const contentHash = hash({
 		observations: params.observations.map((o) => [o.nodeId, o.contentHash]),
+		// Only fields the evaluator sees: bookkeeping writes (updated_at,
+		// lastEvaluatedHash, edge upserts) must not force a re-evaluation.
 		loops: params.loops.map((loop) => [
 			loop.loopId,
-			loop.updatedAt,
+			loop.status,
+			loop.kind,
+			loop.title,
+			loop.counterpart ?? null,
 			loop.resolutionRejected,
+			loop.reopenedAt ?? null,
 		]),
-		context: context.nodes.map((item) => [item.node.id, item.node.updatedAt]),
+		context: context.nodes.map((item) => [
+			item.node.id,
+			item.node.label,
+			item.node.props,
+		]),
 		instructions,
 		decisionSettings,
 		waitingReplyEligible,
@@ -150,15 +162,43 @@ function unitFor(params: {
 /** Assemble changed source threads and nearby open loops without mutating state. */
 export function buildFollowupUnits(params: {
 	readonly since: string;
+	readonly afterId?: string;
 	readonly now?: Date;
 }): FollowupUnit[] {
+	return buildFollowupUnitsPage(params).units;
+}
+
+/** Where the next run resumes when more changed observations remain. */
+export interface FollowupUnitsCursor {
+	readonly since: string;
+	readonly afterId: string;
+}
+
+/**
+ * Like {@link buildFollowupUnits}, but reads at most
+ * {@link MAX_CHANGED_OBSERVATIONS} changed observations and returns `next`
+ * when it stopped early.
+ */
+export function buildFollowupUnitsPage(params: {
+	readonly since: string;
+	readonly afterId?: string;
+	readonly now?: Date;
+}): { readonly units: FollowupUnit[]; readonly next?: FollowupUnitsCursor } {
 	const now = params.now ?? new Date();
-	const observations = listIngestedSince(params.since, 2000).filter(
-		(observation) => {
-			const node = getNode(observation.nodeId);
-			return node && isNodeVisible(node, { now });
-		},
+	const changedPage = listIngestedSince(
+		params.since,
+		MAX_CHANGED_OBSERVATIONS,
+		params.afterId,
 	);
+	const last = changedPage.at(-1);
+	const next =
+		last && changedPage.length >= MAX_CHANGED_OBSERVATIONS
+			? { since: last.ingestedAt, afterId: last.id }
+			: undefined;
+	const observations = changedPage.filter((observation) => {
+		const node = getNode(observation.nodeId);
+		return node && isNodeVisible(node, { now });
+	});
 	const changedGroups = new Map<string, Observation[]>();
 	const enabledSources = readConfig().followups?.sources ?? {};
 	const enabledObservations = observations.filter(
@@ -235,13 +275,24 @@ export function buildFollowupUnits(params: {
 
 	for (const [key, allThread] of openGroups) {
 		const changed = changedGroups.get(key) ?? [];
+		// Every open loop already citing this thread, so the evaluator updates
+		// or closes it instead of opening a duplicate.
+		const threadLoops = edgesTouching(
+			allThread.map((item) => item.nodeId),
+			{ edgeTypes: ["evidence_for"], fanout: 100 },
+		)
+			.map((edge) => loopById.get(edge.src))
+			.filter((loop): loop is FollowupLoop => Boolean(loop));
 		const loops = [
 			...new Map(
-				changed
-					.flatMap((item) => closeByObservation.get(item.nodeId) ?? [])
-					.map((loop) => [loop.loopId, loop]),
+				[
+					...threadLoops,
+					...changed.flatMap(
+						(item) => closeByObservation.get(item.nodeId) ?? [],
+					),
+				].map((loop) => [loop.loopId, loop]),
 			).values(),
-		];
+		].sort((a, b) => a.loopId.localeCompare(b.loopId));
 		units.set(
 			`open:${key}`,
 			unitFor({
@@ -264,7 +315,7 @@ export function buildFollowupUnits(params: {
 			unitFor({ unitId: id, observations: [observation], loops: unique, now }),
 		);
 	}
-	return [...units.values()];
+	return { units: [...units.values()], ...(next ? { next } : {}) };
 }
 
 export function changedFollowupUnits(

@@ -78,10 +78,10 @@ export function toEmailActivity(
 		.sort(
 			(a, b) =>
 				new Date(
-					b.message.envelope?.date ?? b.message.internalDate ?? 0,
+					a.message.envelope?.date ?? a.message.internalDate ?? 0,
 				).getTime() -
 				new Date(
-					a.message.envelope?.date ?? a.message.internalDate ?? 0,
+					b.message.envelope?.date ?? b.message.internalDate ?? 0,
 				).getTime(),
 		)
 		.flatMap(({ mailbox, message, text }) => {
@@ -163,6 +163,27 @@ export function activityTextPart(
 	return parts.find((p) => p.type === "text/plain") ?? parts[0];
 }
 
+function messageTime(message: FetchMessageObject): number {
+	return new Date(
+		message.envelope?.date ?? message.internalDate ?? Number.NaN,
+	).getTime();
+}
+
+/** The oldest `cap` messages at or after `cutoff`, oldest first. */
+export function oldestSince(
+	messages: readonly FetchMessageObject[],
+	cutoff: number,
+	cap: number,
+): FetchMessageObject[] {
+	return messages
+		.filter((m) => {
+			const time = messageTime(m);
+			return Number.isFinite(time) && time >= cutoff;
+		})
+		.sort((a, b) => messageTime(a) - messageTime(b))
+		.slice(0, cap);
+}
+
 export async function fetchRecentEmailActivity(
 	config: JsonRecord,
 	since: string,
@@ -193,9 +214,12 @@ export async function fetchRecentEmailActivity(
 					(await client.search({ since: cutoff }, { uid: true })) || [];
 				if (!uids.length) continue;
 				// Finish the metadata iterator before fetching snippets (ImapFlow forbids nested commands).
-				const batch: FetchMessageObject[] = [];
+				// IMAP SINCE is day-granular, so read metadata for every match and
+				// keep the oldest `cap` at or after the exact cutoff: the core resumes
+				// a full page from its newest item.
+				const metadata: FetchMessageObject[] = [];
 				for await (const message of client.fetch(
-					uids.slice(-cap),
+					uids,
 					{
 						envelope: true,
 						flags: true,
@@ -205,7 +229,8 @@ export async function fetchRecentEmailActivity(
 					},
 					{ uid: true },
 				))
-					batch.push(message);
+					metadata.push(message);
+				const batch = oldestSince(metadata, cutoff.getTime(), cap);
 				for (const message of batch) {
 					const part = activityTextPart(message.bodyStructure);
 					let text = "";
