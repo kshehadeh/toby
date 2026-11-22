@@ -47,6 +47,24 @@ final class NativeRuntime {
 		return router
 	}
 
+	private var memoryRouter: NativeMemoryRouter?
+
+	/// In-process memories + graph. Embeddings use OpenRouter when signed in.
+	func memories() throws -> NativeMemoryRouter {
+		let database = try store()
+		if let memoryRouter, memoryRouter.memory.isBacked(by: database) { return memoryRouter }
+		let embedder = ai.embeddingModel()
+		let keychain = KeychainKeyStore()
+		let router = NativeMemoryRouter(
+			memory: MemoryService(writer: database.writer) {
+				((try? keychain.read()) ?? nil)?.isEmpty == false ? embedder : nil
+			},
+			graph: GraphService(writer: database.writer),
+		)
+		memoryRouter = router
+		return router
+	}
+
 	/// Open the native database, importing the legacy home on first use.
 	func store() throws -> TobyDatabase {
 		let current = TobyPaths.current()

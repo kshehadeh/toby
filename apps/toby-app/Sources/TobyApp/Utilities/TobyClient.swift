@@ -1147,6 +1147,10 @@ struct TobyClient {
 	// MARK: - Memories
 
 	func listMemories(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> MemoriesListResponse {
+		if NativeMode.isEnabled {
+			let data = try await NativeRuntime.shared.memories().list(limit: limit, offset: offset, query: query)
+			return try JSONDecoder().decode(MemoriesListResponse.self, from: data)
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/memories"),
 			resolvingAgainstBaseURL: false,
@@ -1165,6 +1169,9 @@ struct TobyClient {
 	}
 
 	func fetchMemory(id: String) async throws -> MemoryItem {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(MemoryDetailResponse.self, from: try await NativeRuntime.shared.memories().get(id)).memory
+		}
 		let url = baseURL.appendingPathComponent("api/memories/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -1172,6 +1179,10 @@ struct TobyClient {
 	}
 
 	func createMemory(_ request: MemoryCreateRequest) async throws -> MemoryItem {
+		if NativeMode.isEnabled {
+			let data = try await NativeRuntime.shared.memories().create(try JSONEncoder().encode(request))
+			return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
+		}
 		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/memories"))
 		urlRequest.httpMethod = "POST"
 		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1182,6 +1193,10 @@ struct TobyClient {
 	}
 
 	func patchMemory(id: String, patch: MemoryPatchRequest) async throws -> MemoryItem {
+		if NativeMode.isEnabled {
+			let data = try await NativeRuntime.shared.memories().patch(id, try JSONEncoder().encode(patch))
+			return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
+		}
 		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/memories/\(id)"))
 		urlRequest.httpMethod = "PATCH"
 		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1192,6 +1207,10 @@ struct TobyClient {
 	}
 
 	func deleteMemory(id: String) async throws {
+		if NativeMode.isEnabled {
+			try await NativeRuntime.shared.memories().delete(id)
+			return
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/memories/\(id)"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
