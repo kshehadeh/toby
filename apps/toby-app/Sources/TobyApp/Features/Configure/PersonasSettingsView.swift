@@ -277,14 +277,11 @@ struct PersonasCatalogRow: View {
 	let persona: PersonaOption
 
 	private var imageURL: URL {
-		let base = ConfigReader.baseURL().absoluteString
-		if let imageUrlString = persona.imageUrl,
-			let url = URL(string: base + imageUrlString)
-		{
+		if let imageUrlString = persona.imageUrl, let url = ConfigReader.assetURL(imageUrlString) {
 			return url
 		}
-		return ConfigReader.baseURL()
-			.appendingPathComponent("api/personas/image/default.png")
+		return ConfigReader.assetURL("/api/personas/image/default.png")
+			?? ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png")
 	}
 
 	private var statusText: String? {

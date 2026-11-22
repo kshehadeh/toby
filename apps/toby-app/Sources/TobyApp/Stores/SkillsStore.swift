@@ -75,14 +75,13 @@ extension SkillDetail {
 	/// re-uploads (which reuse the `icon.png` filename) reload in the UI.
 	var resolvedIconURL: URL? {
 		guard let iconUrl, !iconUrl.isEmpty else { return nil }
-		let base = ConfigReader.baseURL().absoluteString
 		let token = (updatedAt ?? "")
 			.unicodeScalars
 			.filter { CharacterSet.alphanumerics.contains($0) }
 			.map(String.init)
 			.joined()
 		let suffix = token.isEmpty ? "" : "?v=\(token)"
-		return URL(string: base + iconUrl + suffix)
+		return ConfigReader.assetURL(iconUrl + suffix)
 	}
 }
 

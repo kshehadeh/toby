@@ -65,6 +65,10 @@ struct TobyClient {
 	}
 
 	func listPersonas() async throws -> [PersonaOption] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let personas: [PersonaOption] }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().personaList()).personas
+		}
 		let url = baseURL.appendingPathComponent("api/personas")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -73,6 +77,9 @@ struct TobyClient {
 	}
 
 	func fetchPersonaDetail(name: String) async throws -> PersonaDetail {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(PersonaDetailResponse.self, from: try await NativeRuntime.shared.files().personaDetail(name)).persona
+		}
 		let encoded = name.addingPercentEncoding(
 			withAllowedCharacters: .urlPathAllowed,
 		) ?? name
@@ -205,6 +212,9 @@ struct TobyClient {
 	}
 
 	func listProjects() async throws -> [ProjectSummary] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ProjectsListResponse.self, from: try await NativeRuntime.shared.files().projectList()).projects
+		}
 		let url = baseURL.appendingPathComponent("api/projects")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -212,6 +222,9 @@ struct TobyClient {
 	}
 
 	func fetchProject(id: String) async throws -> ProjectDetailResponse {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ProjectDetailResponse.self, from: try await NativeRuntime.shared.files().project(id))
+		}
 		let url = baseURL.appendingPathComponent("api/projects/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -219,6 +232,9 @@ struct TobyClient {
 	}
 
 	func createProject(name: String = "New project") async throws -> ProjectSummary {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ProjectMutationResponse.self, from: try await NativeRuntime.shared.files().createProject(name: name)).project
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -235,6 +251,10 @@ struct TobyClient {
 		personaName: String? = nil,
 		folderPath: String? = nil,
 	) async throws -> ProjectSummary {
+		if NativeMode.isEnabled {
+			let data = try await NativeRuntime.shared.files().updateProject(id, name: name, summary: summary, personaName: personaName, folderPath: folderPath)
+			return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(id)"))
 		request.httpMethod = "PATCH"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -252,6 +272,10 @@ struct TobyClient {
 	}
 
 	func deleteProject(id: String) async throws {
+		if NativeMode.isEnabled {
+			try await NativeRuntime.shared.files().deleteProject(id)
+			return
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(id)"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -259,6 +283,9 @@ struct TobyClient {
 	}
 
 	func fetchProjectTree(id: String) async throws -> [ProjectTreeEntry] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ProjectTreeResponse.self, from: try await NativeRuntime.shared.files().projectTree(id)).tree
+		}
 		let url = baseURL.appendingPathComponent("api/projects/\(id)/tree")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -266,6 +293,9 @@ struct TobyClient {
 	}
 
 	func createProjectSession(projectId: String) async throws -> SessionSummary {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ProjectSessionResponse.self, from: try await NativeRuntime.shared.files().createProjectSession(projectId)).session
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(projectId)/sessions"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -829,6 +859,10 @@ struct TobyClient {
 	}
 
 	func listSkills() async throws -> [SkillListItem] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let skills: [SkillListItem] }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillList()).skills
+		}
 		let url = baseURL.appendingPathComponent("api/skills")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -997,6 +1031,10 @@ struct TobyClient {
 	}
 
 	func fetchSkill(dirName: String) async throws -> SkillDetail {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let skill: SkillDetail }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillDetail(dirName)).skill
+		}
 		let url = baseURL.appendingPathComponent("api/skills/\(dirName)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)

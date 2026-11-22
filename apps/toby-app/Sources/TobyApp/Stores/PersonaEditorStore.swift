@@ -75,7 +75,7 @@ final class PersonaEditorStore {
 
 	var displayImageURL: URL {
 		if let imageUrl,
-			let url = URL(string: ConfigReader.baseURL().absoluteString + imageUrl)
+			let url = ConfigReader.assetURL(imageUrl)
 		{
 			return url
 		}

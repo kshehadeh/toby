@@ -65,6 +65,16 @@ final class NativeRuntime {
 		return router
 	}
 
+	/// In-process personas, skills, and projects.
+	func files() throws -> NativeFilesRouter {
+		let database = try store()
+		return NativeFilesRouter(
+			personas: PersonaService(tobyDirectory: paths.root),
+			skills: SkillService(root: paths.skills),
+			projects: ProjectService(writer: database.writer, tobyDirectory: paths.root),
+		)
+	}
+
 	/// Open the native database, importing the legacy home on first use.
 	func store() throws -> TobyDatabase {
 		let current = TobyPaths.current()

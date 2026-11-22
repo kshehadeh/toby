@@ -16,7 +16,7 @@ struct PersonaPickerRow: View {
 			} label: {
 				HStack(spacing: 8) {
 					if let imageUrlString = persona.imageUrl,
-						let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
+						let imageUrl = ConfigReader.assetURL(imageUrlString)
 					{
 						PersonaImageView(url: imageUrl, size: 22)
 					} else {

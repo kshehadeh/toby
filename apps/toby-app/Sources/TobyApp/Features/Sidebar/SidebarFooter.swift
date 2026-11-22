@@ -43,7 +43,7 @@ struct SidebarFooter: View {
 		} label: {
 			HStack(alignment: .center, spacing: 8) {
 				if let imageUrlString = status?.personaImageUrl,
-					let imageUrl = URL(string: ConfigReader.baseURL().absoluteString + imageUrlString)
+					let imageUrl = ConfigReader.assetURL(imageUrlString)
 				{
 					PersonaImageView(url: imageUrl, size: 24)
 				} else {

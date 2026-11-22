@@ -44,6 +44,9 @@ let package = Package(
 				.product(name: "GRDB", package: "GRDB.swift"),
 			],
 			path: "Sources/TobyCore",
+			resources: [
+				.copy("Resources"),
+			],
 		),
 		.executableTarget(
 			name: "TobyApp",

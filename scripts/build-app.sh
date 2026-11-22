@@ -332,6 +332,12 @@ if [[ -d "${RESOURCE_BUNDLE}" ]]; then
 else
 	echo "Warning: SPM resource bundle not found at ${RESOURCE_BUNDLE}" >&2
 fi
+# Module resource bundles (e.g. TobyApp_TobyCore.bundle: persona portraits,
+# built-in instructions and skills) sit next to the app's own bundle.
+for module_bundle in "${BUILD_DIR}"/TobyApp_*.bundle; do
+	[[ -d "${module_bundle}" && "${module_bundle}" != "${RESOURCE_BUNDLE}" ]] || continue
+	cp -R "${module_bundle}" "${APP}/Contents/Resources/"
+done
 
 copy_sparkle_framework() {
 	local framework

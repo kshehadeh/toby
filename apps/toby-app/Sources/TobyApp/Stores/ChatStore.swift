@@ -61,7 +61,7 @@ final class ChatStore {
 
 	var resolvedIntegrationIconUrl: URL? {
 		guard let integrationIconUrl else { return nil }
-		return URL(string: ConfigReader.baseURL().absoluteString + integrationIconUrl)
+		return ConfigReader.assetURL(integrationIconUrl)
 	}
 
 	/// Image for the active draft or session persona, then the configured default.
@@ -73,7 +73,7 @@ final class ChatStore {
 	}
 
 	var resolvedPersonaImageUrl: URL? {
-		URL(string: ConfigReader.baseURL().absoluteString + resolvedPersonaImagePath)
+		ConfigReader.assetURL(resolvedPersonaImagePath)
 	}
 
 	var contextFillPercentage: Int? {
