@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { getDashboardFeedStatePath } from "@toby/core/config/index";
 import { rebuildDashboardConfig } from "@toby/core/configure/persistence";
 import { buildFeedScheduleItems } from "@toby/core/configure/tree";
@@ -95,7 +97,15 @@ function deps(
 	};
 }
 
+// These tests delete the Feed files; never let that reach the real ~/.toby.
+const testTobyDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-feed-test-"));
+process.env.TOBY_DIR = testTobyDir;
+afterAll(() => {
+	fs.rmSync(testTobyDir, { recursive: true, force: true });
+});
+
 beforeEach(() => {
+	process.env.TOBY_DIR = testTobyDir;
 	clearFeedStateCache();
 	fs.rmSync(getDashboardFeedStatePath(), { force: true });
 });

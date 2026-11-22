@@ -1,5 +1,14 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+// These tests delete the Feed files; never let that reach the real ~/.toby.
+const testTobyDir = fs.mkdtempSync(path.join(os.tmpdir(), "toby-feed-test-"));
+process.env.TOBY_DIR = testTobyDir;
+afterAll(() => {
+	fs.rmSync(testTobyDir, { recursive: true, force: true });
+});
 
 /** Count ranking runs without calling a model. */
 let runs = 0;
@@ -44,6 +53,7 @@ const eligible = async () =>
 
 describe("getFeedContent", () => {
 	beforeEach(() => {
+		process.env.TOBY_DIR = testTobyDir;
 		clearFeedCache();
 		runs = 0;
 		fs.rmSync(getDashboardFeedPath(), { force: true });
