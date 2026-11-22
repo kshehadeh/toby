@@ -183,6 +183,16 @@ final class NativeServer {
 		reader.start()
 	}
 
+	// MARK: - In-process dispatch (native mode)
+
+	/// Call a `/api/native/<endpoint>` handler directly and return its JSON body
+	/// (`{ok, data, error, needsPermission}`), without the HTTP transport.
+	func dispatch(endpoint: String, body: Data?) async -> Data {
+		let response = await route(request: NativeHTTPRequest(method: "POST", path: "/api/native/\(endpoint)", body: body, browserRequest: false))
+		guard let separator = response.range(of: Data("\r\n\r\n".utf8)) else { return response }
+		return response.subdata(in: separator.upperBound ..< response.endIndex)
+	}
+
 	// MARK: - Routing (on MainActor)
 
 	private func route(request: NativeHTTPRequest) async -> Data {

@@ -103,6 +103,7 @@ final class NativeRuntime {
 		let toolbox = ChatToolbox(
 			todos: todos.actions, memory: memories.memory, graph: memories.graph, library: library.library,
 			projects: projects, skills: SkillService(root: paths.skills), tobyDirectory: paths.root, ai: ai,
+			apple: AppleTools(bridge: AppNativeBridge()),
 		)
 		let engine = ChatEngine(
 			sessions: projects.sessions, toolbox: toolbox, personas: personas, ai: ai,

@@ -1,0 +1,948 @@
+[
+ {
+  "group": "calendar",
+  "name": "listCalendars",
+  "title": "List calendars",
+  "description": "List Calendar.app calendar names and colors. Use exact calendar names when passing the `calendar` parameter to searchCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, or getCalendarEvent.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "calendar",
+  "name": "searchCalendarEvents",
+  "title": "Search calendar events",
+  "description": "Search Apple Calendar locally via Calendar.app. Returns event uid, summary, start/end dates, allDay, location, description, and calendar name. Use uid values for getCalendarEvent, updateCalendarEvent, and deleteCalendarEvent.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query": {
+     "type": "string",
+     "description": "Match text in event summary"
+    },
+    "calendar": {
+     "type": "string",
+     "description": "Calendar name to search. Omit to search all calendars."
+    },
+    "dateFrom": {
+     "type": "string",
+     "description": "Start date filter, e.g. 2026-01-15 or January 15, 2026. ISO 8601 or natural language accepted."
+    },
+    "dateTo": {
+     "type": "string",
+     "description": "End date filter, e.g. 2026-01-20 or January 20, 2026. ISO 8601 or natural language accepted."
+    },
+    "limit": {
+     "type": "number",
+     "description": "Max results (default 30, max 200)"
+    }
+   }
+  }
+ },
+ {
+  "group": "calendar",
+  "name": "getCalendarEvent",
+  "title": "Get calendar event",
+  "description": "Get full details of a single Calendar.app event by uid, including attendee names. Use uid from searchCalendarEvents or createCalendarEvent.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "uid": {
+     "type": "string",
+     "description": "Event uid"
+    },
+    "calendar": {
+     "type": "string",
+     "description": "Calendar name to limit the search. Omit to search all calendars."
+    }
+   },
+   "required": [
+    "uid"
+   ]
+  }
+ },
+ {
+  "group": "calendar",
+  "name": "createCalendarEvent",
+  "title": "Create calendar event",
+  "description": "Create a new event in Calendar.app. Returns uid for later updateCalendarEvent or deleteCalendarEvent. Dates should be ISO 8601 (e.g. 2026-01-15T09:00:00).",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "summary": {
+     "type": "string",
+     "description": "Event title/summary"
+    },
+    "startDate": {
+     "type": "string",
+     "description": "Start date/time in ISO 8601 format"
+    },
+    "endDate": {
+     "type": "string",
+     "description": "End date/time in ISO 8601 format"
+    },
+    "calendar": {
+     "type": "string",
+     "description": "Calendar name. Omit to use the default calendar."
+    },
+    "location": {
+     "type": "string",
+     "description": "Event location"
+    },
+    "description": {
+     "type": "string",
+     "description": "Event description/notes"
+    },
+    "allDay": {
+     "type": "boolean",
+     "description": "True for an all-day event (start/end dates are date-only)"
+    }
+   },
+   "required": [
+    "summary",
+    "startDate",
+    "endDate"
+   ]
+  }
+ },
+ {
+  "group": "calendar",
+  "name": "updateCalendarEvent",
+  "title": "Update calendar event",
+  "description": "Update an existing Calendar.app event by uid (from searchCalendarEvents or createCalendarEvent). Only provided fields are changed.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "uid": {
+     "type": "string",
+     "description": "Event uid"
+    },
+    "calendar": {
+     "type": "string",
+     "description": "Calendar name where the event lives. Omit to search all calendars."
+    },
+    "summary": {
+     "type": "string",
+     "description": "New event title"
+    },
+    "startDate": {
+     "type": "string",
+     "description": "New start date/time in ISO 8601 format"
+    },
+    "endDate": {
+     "type": "string",
+     "description": "New end date/time in ISO 8601 format"
+    },
+    "location": {
+     "type": "string",
+     "description": "New location"
+    },
+    "description": {
+     "type": "string",
+     "description": "New description/notes"
+    },
+    "allDay": {
+     "type": "boolean",
+     "description": "Change all-day status"
+    }
+   },
+   "required": [
+    "uid"
+   ]
+  }
+ },
+ {
+  "group": "calendar",
+  "name": "deleteCalendarEvent",
+  "title": "Delete calendar event",
+  "description": "Delete a Calendar.app event by uid (from searchCalendarEvents or createCalendarEvent). This cannot be undone.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "uid": {
+     "type": "string",
+     "description": "Event uid"
+    },
+    "calendar": {
+     "type": "string",
+     "description": "Calendar name where the event lives. Omit to search all calendars."
+    }
+   },
+   "required": [
+    "uid"
+   ]
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "listReminderLists",
+  "title": "List reminder lists",
+  "description": "List Reminders.app list names and colors. Use exact list names when passing the `list` parameter to searchReminders, createReminder, updateReminder, getReminder, completeReminder, or deleteReminder.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "searchReminders",
+  "title": "Search reminders",
+  "description": "Search Apple Reminders locally via Reminders.app. Returns reminder id, title, notes, list, dueDate, isCompleted, completionDate, priority, and url. Use id values for getReminder, updateReminder, completeReminder, and deleteReminder.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query": {
+     "type": "string",
+     "description": "Match text in reminder title or notes"
+    },
+    "list": {
+     "type": "string",
+     "description": "Reminder list name to search. Omit to search all lists."
+    },
+    "completed": {
+     "type": "boolean",
+     "description": "True for completed reminders, false for incomplete reminders. Omit to default to incomplete unless completed date filters are supplied."
+    },
+    "dueFrom": {
+     "type": "string",
+     "description": "Due date lower bound, e.g. 2026-01-15 or January 15, 2026. ISO 8601 or natural language accepted."
+    },
+    "dueTo": {
+     "type": "string",
+     "description": "Due date upper bound, e.g. 2026-01-20 or January 20, 2026. ISO 8601 or natural language accepted."
+    },
+    "completedFrom": {
+     "type": "string",
+     "description": "Completion date lower bound. Supplying this searches completed reminders."
+    },
+    "completedTo": {
+     "type": "string",
+     "description": "Completion date upper bound. Supplying this searches completed reminders."
+    },
+    "limit": {
+     "type": "number",
+     "description": "Max results (default 30, max 200)"
+    }
+   }
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "getReminder",
+  "title": "Get reminder",
+  "description": "Get full details of a single Reminders.app reminder by id. Use id from searchReminders or createReminder.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Reminder id"
+    },
+    "list": {
+     "type": "string",
+     "description": "Reminder list name to limit lookup. Omit to search all lists."
+    }
+   },
+   "required": [
+    "id"
+   ]
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "createReminder",
+  "title": "Create reminder",
+  "description": "Create a new reminder in Reminders.app. Returns id for later updateReminder, completeReminder, or deleteReminder. Dates should be ISO 8601 (e.g. 2026-01-15T09:00:00). Priority uses EventKit values: 0 none, 1 high, 5 medium, 9 low.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "description": "Reminder title"
+    },
+    "notes": {
+     "type": "string",
+     "description": "Optional reminder notes"
+    },
+    "list": {
+     "type": "string",
+     "description": "Reminder list name. Omit to use the default list."
+    },
+    "dueDate": {
+     "type": "string",
+     "description": "Due date/time in ISO 8601 format"
+    },
+    "priority": {
+     "type": "number",
+     "description": "Priority: 0 none, 1 high, 5 medium, 9 low"
+    },
+    "url": {
+     "type": "string",
+     "description": "Optional URL attached to the reminder"
+    }
+   },
+   "required": [
+    "title"
+   ]
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "updateReminder",
+  "title": "Update reminder",
+  "description": "Update an existing Reminders.app reminder by id (from searchReminders or createReminder). Only provided fields are changed.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Reminder id"
+    },
+    "title": {
+     "type": "string",
+     "description": "New reminder title"
+    },
+    "notes": {
+     "type": "string",
+     "description": "New reminder notes"
+    },
+    "list": {
+     "type": "string",
+     "description": "Move reminder to this list name"
+    },
+    "dueDate": {
+     "type": "string",
+     "description": "New due date/time in ISO 8601 format"
+    },
+    "priority": {
+     "type": "number",
+     "description": "Priority: 0 none, 1 high, 5 medium, 9 low"
+    },
+    "url": {
+     "type": "string",
+     "description": "New URL; empty string clears the URL"
+    }
+   },
+   "required": [
+    "id"
+   ]
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "completeReminder",
+  "title": "Complete reminder",
+  "description": "Mark a Reminders.app reminder complete or incomplete by id (from searchReminders or createReminder).",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Reminder id"
+    },
+    "completed": {
+     "type": "boolean",
+     "description": "True to complete, false to mark incomplete. Defaults to true."
+    }
+   },
+   "required": [
+    "id"
+   ]
+  }
+ },
+ {
+  "group": "reminders",
+  "name": "deleteReminder",
+  "title": "Delete reminder",
+  "description": "Delete a Reminders.app reminder by id (from searchReminders or createReminder). This cannot be undone.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Reminder id"
+    }
+   },
+   "required": [
+    "id"
+   ]
+  }
+ },
+ {
+  "group": "contacts",
+  "name": "searchContacts",
+  "title": "Search contacts",
+  "description": "Search local Apple Contacts by name, organization, email, phone, URL, or address text. Returns contact identifiers and summary fields. Use identifier values for getContact.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query": {
+     "type": "string",
+     "description": "Optional search text. Omit or leave empty to list contacts up to limit."
+    },
+    "limit": {
+     "type": "number",
+     "description": "Max results (default 25, max 100)"
+    }
+   }
+  }
+ },
+ {
+  "group": "contacts",
+  "name": "getContact",
+  "title": "Get contact",
+  "description": "Get full details for a single Contacts.app contact by identifier. Use identifiers from searchContacts.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "identifier": {
+     "type": "string",
+     "description": "Contact identifier from searchContacts"
+    }
+   },
+   "required": [
+    "identifier"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macFilesList",
+  "title": "List local files",
+  "description": "List a folder on this Mac, including Downloads. Returns filenames, absolute paths, sizes and modification dates, with optional image or filename filtering. Direct children only; hidden files excluded. Does not read file contents. Uses Toby.app's macOS folder permissions.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "folder": {
+     "type": "string",
+     "description": "downloads (default), desktop, documents, home, or an absolute path including ~/"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "all",
+      "images",
+      "files",
+      "folders"
+     ],
+     "description": "Filter entries; default all."
+    },
+    "nameContains": {
+     "type": "string",
+     "description": "Case-insensitive filename substring."
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 200,
+     "description": "Page size; default 100."
+    },
+    "offset": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 1000000,
+     "description": "Pagination offset; default 0. Use nextOffset for another page."
+    }
+   }
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macBatteryStatus",
+  "title": "Battery status",
+  "description": "macOS only. Read battery / power snapshot: condition, charge percent, cycle count, charging state, and power source. Uses native IOKit APIs.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWifiStatus",
+  "title": "Wi-Fi status",
+  "description": "macOS only. Show Wi‑Fi power state, current SSID, BSSID, and RSSI using native CoreWLAN APIs.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWifiScanNearby",
+  "title": "Scan nearby Wi-Fi",
+  "description": "macOS only. Scan nearby Wi‑Fi networks using native CoreWLAN. Returns SSIDs, BSSIDs, and RSSI values. Wi‑Fi should be ON. May require Location Services permission.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWifiSetPower",
+  "title": "Set Wi-Fi power",
+  "description": "macOS only. Turn Wi‑Fi radio on/off using native CoreWLAN.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "enabled": {
+     "type": "boolean",
+     "description": "true = On, false = Off"
+    }
+   },
+   "required": [
+    "enabled"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAudioListOutputs",
+  "title": "List audio outputs",
+  "description": "macOS only. List audio output and input device names using native CoreAudio APIs. Shows device names, UIDs, and default status.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAudioSwitchOutput",
+  "title": "Switch audio output",
+  "description": "macOS only. Set default output audio device using native CoreAudio. Use this whenever the user asks to switch/change/set audio output. If the device name is not known, call macAudioListOutputs first.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "deviceSubstring": {
+     "type": "string",
+     "description": "Substring of output device name, e.g. MacBook Speakers"
+    }
+   },
+   "required": [
+    "deviceSubstring"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAudioVolume",
+  "title": "Get audio volume",
+  "description": "macOS only. Get the current system output volume (0-100) and mute state using native CoreAudio.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAudioSetVolume",
+  "title": "Set audio volume",
+  "description": "macOS only. Set system output volume (0-100) using native CoreAudio. Automatically unmutes if level > 0.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "level": {
+     "type": "number",
+     "description": "Volume level 0-100"
+    }
+   },
+   "required": [
+    "level"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAudioSetMute",
+  "title": "Set audio mute",
+  "description": "macOS only. Mute or unmute the system audio output using native CoreAudio.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "muted": {
+     "type": "boolean",
+     "description": "true = mute, false = unmute"
+    }
+   },
+   "required": [
+    "muted"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macBluetoothStatus",
+  "title": "Bluetooth status",
+  "description": "macOS only. Read Bluetooth power state and paired/connected devices using native IOBluetooth APIs.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macBluetoothSetPower",
+  "title": "Set Bluetooth power",
+  "description": "macOS only. Enable/disable Bluetooth using native IOBluetooth APIs. No third-party tools required.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "enabled": {
+     "type": "boolean",
+     "description": ""
+    }
+   },
+   "required": [
+    "enabled"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macLowPowerModeStatus",
+  "title": "Low power mode status",
+  "description": "macOS only. Read low power mode state (may not be available on desktops).",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macLowPowerModeSet",
+  "title": "Set low power mode",
+  "description": "macOS only. Set low power mode on/off. May fail without admin privileges.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "enabled": {
+     "type": "boolean",
+     "description": ""
+    }
+   },
+   "required": [
+    "enabled"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macFocusSet",
+  "title": "Set Focus / Do Not Disturb",
+  "description": "macOS only. Turn Do Not Disturb / Focus mode on or off on this Mac. Uses bundled Shortcuts \"TobyFocusOn\" and \"TobyFocusOff\" (install via `toby plugins setup macos` if missing). Prefer this over macShortcutRun for Focus/DND requests.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "enabled": {
+     "type": "boolean",
+     "description": "true = enable Focus/Do Not Disturb, false = disable"
+    }
+   },
+   "required": [
+    "enabled"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macShortcutRun",
+  "title": "Run shortcut",
+  "description": "macOS only. Run any Shortcuts.app shortcut by exact name. For Do Not Disturb / Focus, prefer macFocusSet; bundled shortcuts are \"TobyFocusOn\" and \"TobyFocusOff\".",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Exact name of the Shortcut to run."
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macDisplayBrightness",
+  "title": "Display brightness",
+  "description": "macOS only. Get the current display brightness level (0-100). May not be supported on all hardware configurations (e.g. some Apple Silicon Macs).",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macDisplaySetBrightness",
+  "title": "Set display brightness",
+  "description": "macOS only. Set display brightness level (0-100). May not be supported on all hardware configurations.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "level": {
+     "type": "number",
+     "description": "Brightness level 0-100"
+    }
+   },
+   "required": [
+    "level"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macClipboardRead",
+  "title": "Read clipboard",
+  "description": "macOS only. Read the current text content of the system clipboard.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macClipboardWrite",
+  "title": "Write clipboard",
+  "description": "macOS only. Write text to the system clipboard, replacing any current content.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "text": {
+     "type": "string",
+     "description": "Text to write to clipboard"
+    }
+   },
+   "required": [
+    "text"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macSystemInfo",
+  "title": "System info",
+  "description": "macOS only. Get system information: OS version, hardware model, hostname, uptime, processor count, physical memory, and Apple Silicon status.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macNotificationsPeek",
+  "title": "Peek notifications",
+  "description": "macOS only. Read Notification Center items — not supported (no stable API). Does not toggle Do Not Disturb / Focus; use macFocusSet for that.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macNotificationShow",
+  "title": "Show notification",
+  "description": "macOS only. Display a system notification on this Mac with a title, description, and optional CTA button labels. CTA buttons foreground Toby when clicked.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "description": "Notification title."
+    },
+    "description": {
+     "type": "string",
+     "description": "Notification body text."
+    },
+    "ctas": {
+     "type": "array",
+     "description": "Optional CTA button labels. macOS may only display the first few actions.",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "title",
+    "description"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowsHideAll",
+  "title": "Hide all other windows",
+  "description": "macOS only. Hide all other application windows (like the macOS \"Hide Others\" command). Uses native AppKit; no extra permission required.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowsShowAll",
+  "title": "Show all windows",
+  "description": "macOS only. Show/unhide all currently hidden application windows. Uses native AppKit; no extra permission required.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowsMinimizeAll",
+  "title": "Minimize all windows",
+  "description": "macOS only. Minimize all windows of all open applications via the native Accessibility API. Requires Accessibility permission for the app running Toby (System Settings → Privacy & Security → Accessibility).",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowsUnminimizeAll",
+  "title": "Unminimize all windows",
+  "description": "macOS only. Unminimize all minimized windows of all open applications via the native Accessibility API. Requires Accessibility permission.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAppQuit",
+  "title": "Quit application",
+  "description": "macOS only. Request a normal quit of one running application by exact name or bundle ID (case-insensitive). May show save prompts; success means the request was sent, not that the app exited. Never force quits. No extra permission required.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "appName": {
+     "type": "string",
+     "description": "Exact app name or bundle ID to quit (e.g. Safari or com.apple.Safari)."
+    }
+   },
+   "required": [
+    "appName"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macAppsRunning",
+  "title": "Running applications",
+  "description": "macOS only. List running applications with names, bundle IDs, process IDs, bundle/executable paths, launch times, active/hidden status, and secondsSinceLastFocus (0 while active; seconds since losing focus otherwise; null if not observed since Toby started). Focus history resets when Toby restarts. Lists regular GUI apps by default; optionally include background apps or filter by name/bundle ID substring. No extra permission required. This is an application list, not a list of all OS processes.",
+  "readOnly": true,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "appName": {
+     "type": "string",
+     "description": "Optional case-insensitive name or bundle ID substring filter."
+    },
+    "includeBackground": {
+     "type": "boolean",
+     "description": "Include background and accessory applications (default false)."
+    }
+   }
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowHideApp",
+  "title": "Hide app windows",
+  "description": "macOS only. Hide a specific running application's windows by name. Matches localized app name or bundle id substring (case-insensitive). Uses native AppKit.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "appName": {
+     "type": "string",
+     "description": "App name to hide (e.g. Safari, Slack). Substring match is allowed."
+    }
+   },
+   "required": [
+    "appName"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowMinimizeApp",
+  "title": "Minimize app windows",
+  "description": "macOS only. Minimize all windows of a specific running application via the native Accessibility API. Requires Accessibility permission.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "appName": {
+     "type": "string",
+     "description": "App name to minimize (e.g. Safari, Slack). Substring match is allowed."
+    }
+   },
+   "required": [
+    "appName"
+   ]
+  }
+ },
+ {
+  "group": "macos",
+  "name": "macWindowUnminimizeApp",
+  "title": "Unminimize app windows",
+  "description": "macOS only. Unminimize all minimized windows of a specific running application via the native Accessibility API. Requires Accessibility permission.",
+  "readOnly": false,
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "appName": {
+     "type": "string",
+     "description": "App name to unminimize (e.g. Safari, Slack). Substring match is allowed."
+    }
+   },
+   "required": [
+    "appName"
+   ]
+  }
+ }
+]

@@ -104,8 +104,10 @@ public final class ChatToolbox: Sendable {
 	let tobyDirectory: URL
 	let ai: OpenRouterClient?
 	let transport: any HTTPTransport
+	public let apple: AppleTools?
 
-	public init(todos: TodoActions, memory: MemoryService, graph: GraphService, library: LibraryService, projects: ProjectService, skills: SkillService, tobyDirectory: URL, ai: OpenRouterClient?, transport: any HTTPTransport = URLSessionTransport()) {
+	public init(todos: TodoActions, memory: MemoryService, graph: GraphService, library: LibraryService, projects: ProjectService, skills: SkillService, tobyDirectory: URL, ai: OpenRouterClient?, transport: any HTTPTransport = URLSessionTransport(), apple: AppleTools? = nil) {
+		self.apple = apple
 		self.todos = todos
 		self.memory = memory
 		self.graph = graph
@@ -128,6 +130,7 @@ public final class ChatToolbox: Sendable {
 		tools += webTools(context)
 		tools.append(graphNeighbors())
 		if context.location != nil { tools.append(myLocation(context)) }
+		if let apple { tools += apple.tools(dryRun: context.dryRun) }
 		return tools
 	}
 
