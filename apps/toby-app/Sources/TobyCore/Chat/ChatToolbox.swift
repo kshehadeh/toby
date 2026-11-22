@@ -180,11 +180,14 @@ public final class ChatToolbox: Sendable {
 
 	// MARK: Todos
 
-	func todoTools(_ context: ChatToolContext) -> [ChatTool] {
+	public static let todoSuffix = " in Toby's internal todo system. Use by default for todo requests."
+
+	/// (action, chat name, title, read-only, schema, detail) for each todo tool;
+	/// flows reference them as `coreTool: "todos.<action>"`.
+	public static var todoDefinitions: [(action: String, name: String, title: String, readOnly: Bool, schema: JSONSchema, detail: String)] {
 		let target = ("id", ToolSchema.string("Todo id"))
 		let sequence = ("sequence", ToolSchema.integer("Occurrence sequence returned by get/list"))
-		let suffix = " in Toby's internal todo system. Use by default for todo requests."
-		let definitions: [(String, String, String, Bool, JSONSchema, String)] = [
+		return [
 			("list", "listTobyTodos", "Find todos", true, ToolSchema.object([
 				("query", ToolSchema.string("Text search")), ("status", ToolSchema.string("Status", enum: ["open", "completed", "all", "deleted"])),
 				("listId", ToolSchema.string("List id")), ("projectId", ToolSchema.string("Project id")), ("tagId", ToolSchema.string("Tag id")),
@@ -226,6 +229,11 @@ public final class ChatToolbox: Sendable {
 			("restoreField", "restoreTobyTodoField", "Restore todo field from history", false, ToolSchema.object([target, ("operationId", ToolSchema.string("History operation id")), ("field", ToolSchema.string("Field name"))], required: ["id", "operationId", "field"]), ""),
 			("summary", "getTobyTodosSummary", "Summarize open todos", true, ToolSchema.object([]), ""),
 		]
+	}
+
+	func todoTools(_ context: ChatToolContext) -> [ChatTool] {
+		let suffix = Self.todoSuffix
+		let definitions = Self.todoDefinitions
 		let actions = todos
 		return definitions.map { action, name, title, readOnly, schema, detail in
 			ChatTool(tool: Tool(name: name, description: "\(title)\(suffix)\(detail)", parameters: schema, readOnly: readOnly) { raw, _ in

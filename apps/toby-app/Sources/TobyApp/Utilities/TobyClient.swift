@@ -1,4 +1,5 @@
 import Foundation
+import TobyAI
 import TobyMail
 
 enum TobyClientError: LocalizedError {
@@ -355,6 +356,7 @@ struct TobyClient {
 	}
 
 	func listRecordings() async throws -> [ListenRecordingSummary] {
+		if NativeMode.isEnabled { return try JSONDecoder().decode(ListenRecordingsListResponse.self, from: try await NativeRuntime.shared.listen().list()).recordings }
 		let url = baseURL.appendingPathComponent("api/listen/recordings")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -362,6 +364,7 @@ struct TobyClient {
 	}
 
 	func fetchRecording(id: String) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().detail(id)) }
 		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -369,6 +372,7 @@ struct TobyClient {
 	}
 
 	func updateRecording(id: String, name: String?) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().update(id, name: name ?? "", chatSessionID: nil)) }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
 		request.httpMethod = "PATCH"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -381,6 +385,9 @@ struct TobyClient {
 	}
 
 	func updateRecordingChatSession(id: String, chatSessionId: String?) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled {
+			return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().update(id, name: nil, chatSessionID: chatSessionId.map(JSONValue.string) ?? .null))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
 		request.httpMethod = "PATCH"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -397,6 +404,7 @@ struct TobyClient {
 	}
 
 	func deleteRecording(id: String) async throws {
+		if NativeMode.isEnabled { try await NativeRuntime.shared.listen().delete(id); return }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -405,6 +413,7 @@ struct TobyClient {
 
 	/// Delete a recording's audio files (keeps the transcript, summary, and metadata).
 	func deleteRecordingAudio(id: String) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().deleteAudio(id)) }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/audio"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -413,6 +422,7 @@ struct TobyClient {
 	}
 
 	func parseCronExpression(input: String) async throws -> String {
+		if NativeMode.isEnabled { return try await NativeRuntime.shared.flows().parseCron(input) }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/triggers/parse-cron"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -424,6 +434,7 @@ struct TobyClient {
 	}
 
 	func transcribeRecording(id: String) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().transcribe(id, reuseLiveTranscript: false) { _ in }) }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -434,6 +445,7 @@ struct TobyClient {
 	}
 
 	func summarizeRecording(id: String) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().summarize(id)) }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/summarize"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -448,6 +460,11 @@ struct TobyClient {
 		reuseLiveTranscript: Bool = false,
 		onStatus: @escaping (String) -> Void,
 	) async throws -> ListenRecordingDetail {
+		if NativeMode.isEnabled {
+			let relay = StatusRelay(onStatus)
+			let data = try await NativeRuntime.shared.listen().transcribe(id, reuseLiveTranscript: reuseLiveTranscript) { message in relay.send(message) }
+			return try await Self.decodeRecordingDetail(data)
+		}
 		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe")
 		var request = URLRequest(url: url)
 		request.httpMethod = "POST"
@@ -457,6 +474,7 @@ struct TobyClient {
 
 		let (bytes, response) = try await URLSession.shared.bytes(for: request)
 		guard let http = response as? HTTPURLResponse else {
+
 			throw TobyClientError.invalidResponse
 		}
 		if http.statusCode >= 400 {
@@ -966,6 +984,10 @@ struct TobyClient {
 	}
 
 	func listFlows() async throws -> [FlowListItem] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let flows: [FlowListItem] }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().list()).flows
+		}
 		let url = baseURL.appendingPathComponent("api/flows")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -974,6 +996,10 @@ struct TobyClient {
 	}
 
 	func listFlowRuns(flowName: String? = nil, limit: Int = 50, offset: Int = 0) async throws -> [FlowRunSummary] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let runs: [FlowRunSummary] }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().runs(flowName: flowName, limit: limit, offset: offset)).runs
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/flows/runs"),
 			resolvingAgainstBaseURL: false
@@ -993,6 +1019,10 @@ struct TobyClient {
 	}
 
 	func fetchFlowRun(id: String) async throws -> FlowRunDetail {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let run: FlowRunDetail }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().runDetail(id)).run
+		}
 		let url = baseURL.appendingPathComponent("api/flows/runs/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -1005,6 +1035,7 @@ struct TobyClient {
 	}
 
 	func fetchFlowCatalog() async throws -> FlowToolCatalog {
+		if NativeMode.isEnabled { return try FlowToolCatalog.parse(try await NativeRuntime.shared.flows().catalog()) }
 		let url = baseURL.appendingPathComponent("api/flows/catalog")
 		var request = URLRequest(url: url)
 		request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -1014,6 +1045,10 @@ struct TobyClient {
 	}
 
 	func fetchFlowDocument(id: String) async throws -> FlowDocumentPayload {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let document: FlowDocumentPayload }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().detail(id)).document
+		}
 		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
 		let url = baseURL.appendingPathComponent("api/flows/\(encoded)")
 		let (data, response) = try await URLSession.shared.data(from: url)
@@ -1025,6 +1060,10 @@ struct TobyClient {
 	}
 
 	func createFlow(body: [String: Any]) async throws -> FlowMutationResponse {
+		if NativeMode.isEnabled {
+			let data = try JSONSerialization.data(withJSONObject: body)
+			return try JSONDecoder().decode(FlowMutationResponse.self, from: try await NativeRuntime.shared.flows().save(data, id: nil))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1035,6 +1074,10 @@ struct TobyClient {
 	}
 
 	func updateFlow(id: String, body: [String: Any]) async throws -> FlowMutationResponse {
+		if NativeMode.isEnabled {
+			let data = try JSONSerialization.data(withJSONObject: body)
+			return try JSONDecoder().decode(FlowMutationResponse.self, from: try await NativeRuntime.shared.flows().save(data, id: id))
+		}
 		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)"))
 		request.httpMethod = "PUT"
@@ -1046,6 +1089,7 @@ struct TobyClient {
 	}
 
 	func deleteFlow(id: String) async throws {
+		if NativeMode.isEnabled { try await NativeRuntime.shared.flows().delete(id); return }
 		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)"))
 		request.httpMethod = "DELETE"
@@ -1054,6 +1098,11 @@ struct TobyClient {
 	}
 
 	func runFlow(id: String, source: String = "manual", triggerId: String? = nil) async throws -> FlowRunNowResponse {
+		if NativeMode.isEnabled {
+			let data = try await NativeRuntime.shared.flows().runNow(id, source: source, triggerID: triggerId)
+			if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] { GatewayFundsNotice.post(from: json) }
+			return try JSONDecoder().decode(FlowRunNowResponse.self, from: data)
+		}
 		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)/run"))
 		request.httpMethod = "POST"
@@ -1621,3 +1670,9 @@ struct ConfigSyncHistoryItem: Decodable, Equatable, Identifiable {
 	var path: String? = nil
 }
 
+/// Hops listen status messages from the native service onto the main actor.
+final class StatusRelay: @unchecked Sendable {
+	let handler: (String) -> Void
+	init(_ handler: @escaping (String) -> Void) { self.handler = handler }
+	func send(_ message: String) { let handler = handler; Task { @MainActor in handler(message) } }
+}

@@ -89,6 +89,7 @@ final class NativeRuntime {
 	}
 
 	private var chatRouter: NativeChatRouter?
+	private var chatToolbox: ChatToolbox?
 	private var chatStoreIdentity: ObjectIdentifier?
 
 	/// The native chat engine (one per Toby home; holds active turns).
@@ -106,6 +107,7 @@ final class NativeRuntime {
 			projects: projects, skills: SkillService(root: paths.skills), tobyDirectory: paths.root, ai: ai,
 			apple: AppleTools(bridge: AppNativeBridge()), mail: try mail(), slack: slack,
 		)
+		chatToolbox = toolbox
 		let engine = ChatEngine(
 			sessions: projects.sessions, toolbox: toolbox, personas: personas, ai: ai,
 			chatModelOverride: { UserDefaults.standard.string(forKey: "toby.ai.chatModel") },
@@ -186,6 +188,34 @@ final class NativeRuntime {
 		return router
 	}
 
+	private var flowsRouter: NativeFlowsRouter?
+	private var flowsStoreIdentity: ObjectIdentifier?
+	private var flowsSupervisor: Task<Void, Never>?
+
+	/// Flows: definitions, runs, and the trigger supervisor (schedules, macOS events).
+	func flows() throws -> NativeFlowsRouter {
+		let database = try store()
+		let identity = ObjectIdentifier(database)
+		if let flowsRouter, flowsStoreIdentity == identity { return flowsRouter }
+		_ = try chat()
+		guard let toolbox = chatToolbox else { throw TobyClientError.serverError("Flows need the chat toolbox.") }
+		let runner = FlowRunner(writer: database.writer, tools: FlowTools(toolbox: toolbox), personas: PersonaService(tobyDirectory: paths.root),
+		                        skills: SkillService(root: paths.skills), ai: ai, mail: try mail(), slack: slack)
+		let service = FlowService(writer: database.writer, runner: runner, events: AppFlowEventSource(), ai: ai)
+		let router = NativeFlowsRouter(flows: service)
+		flowsRouter = router
+		flowsStoreIdentity = identity
+		flowsSupervisor?.cancel()
+		flowsSupervisor = Task.detached(priority: .utility) { await service.runSupervisor() }
+		return router
+	}
+
+	/// Recordings: transcripts (Apple on-device), summaries, titles.
+	func listen() throws -> NativeListenRouter {
+		NativeListenRouter(listen: ListenService(recordings: paths.listenRecordings, configURL: paths.legacyConfig,
+		                                         personas: PersonaService(tobyDirectory: paths.root), ai: ai, bridge: AppNativeBridge()))
+	}
+
 	private var feedRouter: NativeFeedRouter?
 	private var feedStoreIdentity: ObjectIdentifier?
 	private var feedScheduler: Task<Void, Never>?
@@ -227,6 +257,7 @@ final class NativeRuntime {
 		_ = try? feed()
 		_ = try? chat()
 		_ = try? followups()
+		_ = try? flows()
 	}
 
 	/// Open the native database, importing the legacy home on first use.
