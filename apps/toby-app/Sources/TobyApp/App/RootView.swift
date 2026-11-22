@@ -20,6 +20,7 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var appearancePreferences: AppearancePreferences = .shared
     @State private var permissionsStore = PermissionsStore()
+    @State private var connectionsStore = ConnectionsStore()
     @State private var history = NavigationHistory()
     @State private var isIssueReportPresented = false
     @State private var isAboutPresented = false
@@ -539,6 +540,8 @@ struct RootView: View {
             SkillsView(store: skillsStore)
         case .flows:
             FlowsView(store: flowsStore)
+        case .connections:
+            ConnectionsView(store: connectionsStore)
         }
     }
 
@@ -692,6 +695,15 @@ struct RootView: View {
                                             }
                                         )
 
+            default:
+                secondaryWorkspaceToolbar
+        }
+    }
+
+    /// Split from `workspaceToolbar` so the type checker stays fast.
+    @ToolbarContentBuilder
+    private var secondaryWorkspaceToolbar: some ToolbarContent {
+        switch history.current {
             case .skills:
 
                                         RootToolbars.skills(
@@ -717,7 +729,21 @@ struct RootView: View {
                                             }
                                         )
 
-            case .flows:
+            case .connections:
+
+                                        RootToolbars.connections(
+                                            common: commonToolbarModel,
+                                            title: RootToolbars.routeTitle(
+                                                .connections,
+                                                selectedItemName: connectionsStore.selectedNode?.label
+                                            ),
+                                            isLoading: connectionsStore.isLoading,
+                                            onRefresh: {
+                                                Task { await connectionsStore.load() }
+                                            }
+                                        )
+
+            default:
 
                                         RootToolbars.flows(
                                             common: commonToolbarModel,
@@ -777,6 +803,8 @@ struct RootView: View {
             )
         case .skills:
             RootToolbars.routeTitle(.skills, selectedItemName: skillNavigationName)
+        case .connections:
+            RootToolbars.routeTitle(.connections, selectedItemName: connectionsStore.selectedNode?.label)
         case .flows:
             RootToolbars.flowsNavigationTitle(
                 selectedName: flowsStore.selectedFlow?.displayName
@@ -809,6 +837,8 @@ struct RootView: View {
             )
         case .skills:
             skillNavigationSubtitle
+        case .connections:
+            connectionsStore.summaryLine
         case .flows:
             RootToolbars.flowsNavigationSubtitle(
                 flowsStore.selectedFlow
@@ -1066,6 +1096,8 @@ struct RootView: View {
             recordingsStore.showRecordingsOverview()
         case .skills:
             skillsStore.selectHome()
+        case .connections:
+            connectionsStore.selectedNodeId = nil
         case .todos:
             todosStore.selectedOccurrenceId = nil
         case .chat:
@@ -1223,6 +1255,7 @@ struct RootView: View {
         recordingsStore.resetForHomeSwitch()
         projectsStore.resetForHomeSwitch()
         skillsStore.resetForHomeSwitch()
+        connectionsStore.resetForHomeSwitch()
         memoriesStore.resetForHomeSwitch()
         libraryStore.resetForHomeSwitch()
         flowsStore.resetForHomeSwitch()

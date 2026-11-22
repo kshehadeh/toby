@@ -117,6 +117,7 @@ final class MenuBarController: NSObject {
 			integrationsItem(),
 			projectsItem(),
 			libraryItem(),
+			connectionsItem(),
 			skillsItem(),
 			memoriesItem(),
 			flowsItem(),
@@ -227,6 +228,10 @@ final class MenuBarController: NSObject {
 
 	private func libraryItem() -> NSMenuItem {
 		viewMenuItem(title: DetailRoute.library.menuTitle, route: .library, keyEquivalent: "0")
+	}
+
+	private func connectionsItem() -> NSMenuItem {
+		viewMenuItem(title: DetailRoute.connections.menuTitle, route: .connections)
 	}
 
 	private func skillsItem() -> NSMenuItem {

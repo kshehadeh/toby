@@ -323,6 +323,7 @@ struct TobyApp: App {
 		case .skills: return KeyboardShortcut("5", modifiers: .command)
 		case .flows: return KeyboardShortcut("8", modifiers: .command)
 		case .recordings: return KeyboardShortcut("9", modifiers: .command)
+		case .connections: return nil
 		}
 	}
 

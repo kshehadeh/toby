@@ -78,6 +78,7 @@ import {
 	handleGraphNeighbors,
 	handleGraphRebuild,
 } from "./handlers/followups";
+import { handleGraphSnapshot } from "./handlers/graph";
 import {
 	handleIntegrationGuidedSetup,
 	handleIntegrationSetupCancel,
@@ -222,6 +223,9 @@ export async function handleWebRequest(
 			pathname.startsWith("/api/followups/")
 		) {
 			return handleFollowups(req, url);
+		}
+		if (pathname === "/api/graph") {
+			return handleGraphSnapshot(req, url);
 		}
 		if (pathname === "/api/graph/rebuild") {
 			return handleGraphRebuild(req);

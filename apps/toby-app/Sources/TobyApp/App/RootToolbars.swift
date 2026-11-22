@@ -671,6 +671,22 @@ enum RootToolbars {
 		}
 	}
 
+	@ToolbarContentBuilder
+	static func connections(
+		common model: RootCommonToolbarModel,
+		title: String,
+		isLoading: Bool,
+		onRefresh: @escaping () -> Void
+	) -> some ToolbarContent {
+		common(model, header: RootHeaderTitle(title: title))
+		contextualActions {
+			Button("Refresh connections", systemImage: "arrow.clockwise", action: onRefresh)
+				.labelStyle(.iconOnly)
+				.disabled(isLoading)
+				.accessibilityIdentifier("toolbar-refresh-connections-button")
+		}
+	}
+
 	enum FlowsToolbarMode: Equatable {
 		/// Card / home list: New + Refresh.
 		case home

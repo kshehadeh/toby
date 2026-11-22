@@ -14,7 +14,7 @@ import {
 	SYMMETRIC_EDGE_TYPES,
 } from "./types";
 
-type NodeRow = {
+export type NodeRow = {
 	id: string;
 	type: string;
 	key: string;
@@ -28,7 +28,7 @@ type NodeRow = {
 	updated_at: string;
 };
 
-type EdgeRow = {
+export type EdgeRow = {
 	id: string;
 	src: string;
 	dst: string;
@@ -43,9 +43,9 @@ type EdgeRow = {
 	updated_at: string;
 };
 
-const NODE_COLUMNS =
+export const NODE_COLUMNS =
 	"id, type, key, label, props_json, sensitivity, visibility, ref_table, ref_id, created_at, updated_at";
-const EDGE_COLUMNS =
+export const EDGE_COLUMNS =
 	"id, src, dst, type, weight, confidence, origin, occurrences, provenance_node_id, reason, created_at, updated_at";
 
 function nowIso(): string {

@@ -6,6 +6,7 @@ enum TutorialStep: String, CaseIterable, Sendable {
 	case home, chats, projects, library, recordings, flows, skills, todos
 	case builtInFlow, howItWorks, flowSources, flowAI, flowSharing, createFlow
 	case editorTrigger, editorSources, editorAI, editorOutput
+	case connections
 
 	var title: String {
 		switch self {
@@ -17,6 +18,7 @@ enum TutorialStep: String, CaseIterable, Sendable {
 		case .flows: "Flows"
 		case .skills: "Skills"
 		case .todos: "Todos"
+		case .connections: "Connections"
 		case .builtInFlow: "Explore a built-in flow"
 		case .howItWorks: "How it works"
 		case .flowSources: "Gathers and acts"
@@ -39,6 +41,7 @@ enum TutorialStep: String, CaseIterable, Sendable {
 		case .flows: "Flows gather information, use AI, and deliver results. They can run manually, on a schedule, or in response to an event."
 		case .skills: "Skills give Toby reusable instructions for recurring tasks. Browse existing skills, or create one with instructions you want Toby to follow."
 		case .todos: "Keep tasks in Toby without an external account. Create a todo, add a due date or checklist, and choose a repeat when needed. Select a todo to inspect it; changes are saved only when you save the editor."
+		case .connections: "This map shows the people, organizations, projects, topics, and memories Toby has learned about, and how they connect. Drag to pan, pinch to zoom, and select a node to see its links. Use the legend to show or hide kinds."
 		case .builtInFlow: "Open this built-in flow to see its triggers, steps, and destinations. Exploring its details won’t run it."
 		case .howItWorks: "Read this section from top to bottom. It tells the story of what Toby does each time this flow runs."
 		case .flowSources: "Gathers and acts uses tools to fetch information or perform actions. Each step can pass its output to later steps."

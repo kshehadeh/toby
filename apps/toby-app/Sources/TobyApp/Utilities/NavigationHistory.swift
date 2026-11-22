@@ -9,6 +9,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 	case flows
 	case recordings
 	case skills
+	case connections
 
 	var id: String { rawValue }
 
@@ -23,6 +24,7 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .skills: return "Skills"
 		case .flows: return "Flows"
 		case .recordings: return "Recordings"
+		case .connections: return "Connections"
 		}
 	}
 
@@ -37,11 +39,12 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 		case .skills: return "graduationcap"
 		case .flows: return "arrow.triangle.branch"
 		case .recordings: return "waveform"
+		case .connections: return "point.3.connected.trianglepath.dotted"
 		}
 	}
 
 	/// All destinations in the main sidebar list, in display order.
-	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .todos, .projects, .library, .recordings, .flows, .skills]
+	static let sidebarPrimary: [DetailRoute] = [.dashboard, .chat, .todos, .projects, .library, .connections, .recordings, .flows, .skills]
 
 	/// Spoken hint for the destination row.
 	var sidebarHint: String {
@@ -62,6 +65,8 @@ enum DetailRoute: String, CaseIterable, Identifiable {
 			return "Create flows that run manually, on a schedule, or when events occur."
 		case .recordings:
 			return "Review audio recordings, transcripts, and chats created from recorded context."
+		case .connections:
+			return "Explore a map of the people, projects, topics, and memories Toby has learned about, and how they relate."
 		}
 	}
 }
