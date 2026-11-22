@@ -9,11 +9,13 @@ let package = Package(
 	products: [
 		.executable(name: "toby-app", targets: ["TobyApp"]),
 		.library(name: "TobyAI", targets: ["TobyAI"]),
+		.library(name: "TobyStore", targets: ["TobyStore"]),
 	],
 	dependencies: [
 		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
 		.package(url: "https://github.com/nalexn/ViewInspector", from: "0.10.0"),
 		.package(url: "https://github.com/mchakravarty/CodeEditorView", exact: "0.16.0"),
+		.package(url: "https://github.com/groue/GRDB.swift", from: "7.10.0"),
 	],
 	targets: [
 		.target(
@@ -25,10 +27,19 @@ let package = Package(
 				.linkedFramework("Accelerate"),
 			],
 		),
+		.target(
+			name: "TobyStore",
+			dependencies: [
+				"TobyAI",
+				.product(name: "GRDB", package: "GRDB.swift"),
+			],
+			path: "Sources/TobyStore",
+		),
 		.executableTarget(
 			name: "TobyApp",
 			dependencies: [
 				"TobyAI",
+				"TobyStore",
 				.product(name: "Sparkle", package: "Sparkle"),
 				.product(name: "CodeEditorView", package: "CodeEditorView"),
 				.product(name: "LanguageSupport", package: "CodeEditorView"),
@@ -84,6 +95,15 @@ let package = Package(
 			name: "TobyAITests",
 			dependencies: ["TobyAI"],
 			path: "Tests/TobyAITests",
+		),
+		.testTarget(
+			name: "TobyStoreTests",
+			dependencies: [
+				"TobyStore",
+				"TobyAI",
+				.product(name: "GRDB", package: "GRDB.swift"),
+			],
+			path: "Tests/TobyStoreTests",
 		),
 	],
 )
