@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import GRDB
 import TobyAI
@@ -258,6 +259,33 @@ final class NativeRuntime {
 		_ = try? chat()
 		_ = try? followups()
 		_ = try? flows()
+		_ = try? backups()
+	}
+
+	private var backupService: BackupService?
+	private var snapshotLoop: Task<Void, Never>?
+
+	/// Backup files and the daily data snapshots in the sync vault.
+	func backups() throws -> BackupService {
+		let database = try store()
+		if let backupService, backupService.paths == paths { return backupService }
+		let service = BackupService(paths: paths, writer: database.writer, secrets: KeychainSecretStore(), openRouter: KeychainKeyStore())
+		backupService = service
+		snapshotLoop?.cancel()
+		snapshotLoop = Task.detached(priority: .background) { await service.runSnapshotLoop() }
+		return service
+	}
+
+	/// Relaunch so a staged restore is applied before the database reopens.
+	func relaunchToApplyRestore() {
+		Task { @MainActor in
+			try? await Task.sleep(for: .seconds(1))
+			let process = Process()
+			process.executableURL = URL(fileURLWithPath: "/bin/sh")
+			process.arguments = ["-c", "sleep 1; open \"\(Bundle.main.bundleURL.path)\""]
+			try? process.run()
+			NSApp.terminate(nil)
+		}
 	}
 
 	/// Open the native database, importing the legacy home on first use.
@@ -265,11 +293,17 @@ final class NativeRuntime {
 		let current = TobyPaths.current()
 		if let database, current == paths { return database }
 		paths = current
+		// A staged restore swaps in before anything opens the database.
+		var restoredProjects: [String] = []
+		if BackupService.hasPending(current) {
+			restoredProjects = try BackupService.applyPending(current, secrets: KeychainSecretStore(), openRouter: KeychainKeyStore())
+		}
 		let opened = try TobyDatabase.open(paths: current)
 		let importer = LegacyImporter(paths: current, database: opened)
 		if try !importer.hasImported() {
 			lastImport = try importer.run()
 		}
+		try BackupService.repointProjects(restoredProjects, writer: opened.writer, projectsDir: current.projects)
 		database = opened
 		return opened
 	}
