@@ -251,7 +251,6 @@ struct AboutTobyView: View {
 		),
 		OpenSourceLibrary(name: "open", detail: "cross-platform browser and file opener"),
 		OpenSourceLibrary(name: "@slack/bolt", detail: "Slack app, OAuth, Socket Mode, and inbound chat support"),
-		OpenSourceLibrary(name: "@doist/todoist-sdk", detail: "Todoist task integration client"),
 		OpenSourceLibrary(name: "ImapFlow, mailparser, Nodemailer", detail: "IMAP, email parsing, and SMTP support"),
 		OpenSourceLibrary(
 			name: "Docusaurus, MDX, Prism React Renderer, lucide-react",

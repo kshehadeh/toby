@@ -6,7 +6,7 @@ import {
 	writeCredentials,
 } from "../../config/index";
 
-const MIGRATED_PLUGINS = ["todoist", "jira", "slack"] as const;
+const MIGRATED_PLUGINS = ["jira", "slack"] as const;
 
 /** Copy legacy top-level credential blocks into integrations.<name> when empty. */
 export function migrateLegacyPluginCredentials(): void {
@@ -90,32 +90,77 @@ function migratePrefixedIntegrationCredentialKeys(): void {
 	}
 }
 
-/** Drop config entries for integrations removed from the product. */
+/**
+ * Integrations removed from the product. Their config, credentials and any
+ * default-provider pointing at them are dropped. Todoist was replaced by
+ * built-in Toby todos.
+ */
+export const RETIRED_INTEGRATIONS = [
+	"applemail",
+	"websearch",
+	"bravesearch",
+	"todoist",
+] as const;
+
+/** Drop config and credential entries for integrations removed from the product. */
 function migrateRetiredIntegrations(): void {
+	const retired = new Set<string>(RETIRED_INTEGRATIONS);
+
 	const config = readConfig();
-	const integrations = config.integrations;
+	const integrations = config.integrations ?? {};
+	const defaults = config.defaultProviders ?? {};
+	const staleIntegrations = Object.keys(integrations).filter((k) =>
+		retired.has(k),
+	);
+	const staleDefaults = Object.entries(defaults).filter(
+		([, v]) => typeof v === "string" && retired.has(v),
+	);
+	if (staleIntegrations.length > 0 || staleDefaults.length > 0) {
+		const nextIntegrations = { ...integrations };
+		for (const name of staleIntegrations) {
+			Reflect.deleteProperty(nextIntegrations, name);
+		}
+		const nextDefaults = { ...defaults };
+		for (const [category] of staleDefaults) {
+			Reflect.deleteProperty(nextDefaults, category);
+		}
+		writeConfig({
+			...config,
+			integrations: nextIntegrations,
+			...(config.defaultProviders ? { defaultProviders: nextDefaults } : {}),
+		});
+	}
+
+	const creds = readCredentials();
+	const credIntegrations = creds.integrations ?? {};
+	const connections = creds.connections ?? {};
+	const staleCreds = Object.keys(credIntegrations).filter((k) =>
+		retired.has(k),
+	);
+	const staleConnections = Object.keys(connections).filter((k) =>
+		retired.has(k),
+	);
+	const hasLegacyTodoist = creds.todoist !== undefined;
 	if (
-		!integrations?.applemail &&
-		!integrations?.websearch &&
-		!integrations?.bravesearch
+		staleCreds.length === 0 &&
+		staleConnections.length === 0 &&
+		!hasLegacyTodoist
 	) {
 		return;
 	}
-
-	const nextIntegrations = { ...integrations };
-	Reflect.deleteProperty(nextIntegrations, "applemail");
-	Reflect.deleteProperty(nextIntegrations, "websearch");
-	Reflect.deleteProperty(nextIntegrations, "bravesearch");
-	writeConfig({
-		...config,
-		integrations: nextIntegrations,
-	});
-
-	const creds = readCredentials();
-	const credIntegrations = creds.integrations;
-	if (!credIntegrations?.websearch && !credIntegrations?.bravesearch) return;
 	const nextCredIntegrations = { ...credIntegrations };
-	Reflect.deleteProperty(nextCredIntegrations, "websearch");
-	Reflect.deleteProperty(nextCredIntegrations, "bravesearch");
-	writeCredentials({ ...creds, integrations: nextCredIntegrations });
+	for (const name of staleCreds) {
+		Reflect.deleteProperty(nextCredIntegrations, name);
+	}
+	const nextConnections = { ...connections };
+	for (const name of staleConnections) {
+		Reflect.deleteProperty(nextConnections, name);
+	}
+	const nextCreds: CredentialsFile = {
+		...creds,
+		integrations: nextCredIntegrations,
+		...(creds.connections ? { connections: nextConnections } : {}),
+	};
+	Reflect.deleteProperty(nextCreds, "todoist");
+	writeCredentials(nextCreds);
 }

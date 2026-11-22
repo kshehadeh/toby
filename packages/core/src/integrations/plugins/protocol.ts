@@ -207,7 +207,7 @@ export interface PluginStatusResponse {
 	readonly icon?: string;
 	/** Optional bundled image asset served by Toby's local HTTP API. */
 	readonly iconAsset?: PluginIconAsset;
-	/** URL/scheme that opens the provider's native app (e.g. "todoist://"). */
+	/** URL/scheme that opens the provider's native app (e.g. "ical://"). */
 	readonly launchUrl?: string;
 	/** Inbound transport type for logging (e.g. "socket_mode", "webhook"). */
 	readonly inboundTransport?: string;

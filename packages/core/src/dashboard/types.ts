@@ -141,7 +141,7 @@ export interface DashboardItem {
 	/** Tasks only: assignment and sharing. */
 	readonly task?: DashboardTaskFacts;
 	/**
-	 * Integration module name of the source provider (e.g. "todoist").
+	 * Integration module name of the source provider (e.g. "applereminders").
 	 * Set by the aggregator on merged category items so the UI can show a
 	 * per-item source icon; never set by individual plugins.
 	 */
@@ -188,7 +188,7 @@ export interface DashboardSummaryResult {
  * A single provider's dashboard summary, with provider metadata for UI rows.
  */
 export interface DashboardProviderSummary {
-	/** Integration module name (e.g. "email", "todoist"). */
+	/** Integration module name (e.g. "email", "applereminders"). */
 	readonly providerName: string;
 	/** Human-readable display name (e.g. "Email (IMAP/SMTP)"). */
 	readonly providerDisplayName: string;

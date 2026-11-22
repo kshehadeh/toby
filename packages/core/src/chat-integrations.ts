@@ -7,8 +7,8 @@ import type { IntegrationModule } from "./integrations/types";
 
 /**
  * Whether this integration can run in chat (picker + default selection).
- * Todoist treats a non-empty API key in credentials as usable even if
- * `toby connect todoist` was never run (configure-only setup).
+ * A module's `chatReadiness` can treat configure-only credentials (e.g. an
+ * API key saved without running `toby connect`) as usable.
  */
 export async function isIntegrationUsableInChat(
 	module: IntegrationModule,

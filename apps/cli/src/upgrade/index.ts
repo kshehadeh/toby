@@ -121,7 +121,6 @@ export function getStagingPaths(): {
 	readonly binaryPath: string;
 	readonly bunRuntimePath: string;
 	readonly pluginSampleTsPath: string;
-	readonly pluginTodoistPath: string;
 	readonly pluginSlackPath: string;
 	readonly pluginJiraPath: string;
 	readonly pluginNotionPath: string;
@@ -144,7 +143,6 @@ export function getStagingPaths(): {
 		binaryPath: path.join(stagingDir, "toby"),
 		bunRuntimePath: path.join(stagingDir, "bun"),
 		pluginSampleTsPath: path.join(stagingDir, "toby-plugin-sample-ts"),
-		pluginTodoistPath: path.join(stagingDir, "toby-plugin-todoist"),
 		pluginSlackPath: path.join(stagingDir, "toby-plugin-slack"),
 		pluginJiraPath: path.join(stagingDir, "toby-plugin-jira"),
 		pluginNotionPath: path.join(stagingDir, "toby-plugin-notion"),
@@ -243,7 +241,6 @@ export async function downloadRelease(
 		binaryPath,
 		bunRuntimePath,
 		pluginSampleTsPath,
-		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
 		pluginNotionPath,
@@ -268,9 +265,6 @@ export async function downloadRelease(
 		await rm(binaryPath, { force: true }).catch(() => undefined);
 		await rm(bunRuntimePath, { force: true }).catch(() => undefined);
 		await rm(pluginSampleTsPath, { recursive: true, force: true }).catch(
-			() => undefined,
-		);
-		await rm(pluginTodoistPath, { recursive: true, force: true }).catch(
 			() => undefined,
 		);
 		await rm(pluginSlackPath, { recursive: true, force: true }).catch(
@@ -491,7 +485,6 @@ export async function applyStagedRelease(
 	const {
 		bunRuntimePath,
 		pluginSampleTsPath,
-		pluginTodoistPath,
 		pluginSlackPath,
 		pluginJiraPath,
 		pluginNotionPath,
@@ -510,7 +503,6 @@ export async function applyStagedRelease(
 		pluginSampleTsPath,
 		"toby-plugin-sample-ts",
 	);
-	await installStagedPluginDirectory(pluginTodoistPath, "toby-plugin-todoist");
 	await installStagedPluginDirectory(pluginSlackPath, "toby-plugin-slack");
 	await installStagedPluginDirectory(pluginJiraPath, "toby-plugin-jira");
 	await installStagedPluginDirectory(pluginNotionPath, "toby-plugin-notion");
@@ -669,8 +661,13 @@ async function installStagedBunRuntime(stagingPath: string): Promise<void> {
 	await rename(tempDestination, installTarget);
 }
 
+/**
+ * Plugins retired from release bundles. Todoist was replaced by built-in Toby
+ * todos; their install dirs are removed on upgrade.
+ */
 const REMOVED_PLUGIN_BINARIES = [
 	"toby-plugin-applemail",
+	"toby-plugin-todoist",
 	"toby-plugin-sample",
 	"toby-plugin-applecalendar",
 	"TobyPluginMacOS_TobyPluginMacOSLib.bundle",

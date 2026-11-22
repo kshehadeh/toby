@@ -62,7 +62,7 @@ export const feedRuleCompileSchema = z.object({
 	summary: z
 		.string()
 		.describe(
-			"Short plain sentence of what the filters hide, e.g. 'Hides Todoist tasks outside the Inbox'. Empty when filters is empty.",
+			"Short plain sentence of what the filters hide, e.g. 'Hides reminders outside the Errands list'. Empty when filters is empty.",
 		),
 });
 
@@ -232,7 +232,7 @@ ${providers}
 
 Candidate fields you can filter on:
 - category: one of ${CATEGORIES.join(", ")}
-- provider: a provider id above (match the user's wording, e.g. "Todoist" → todoist)
+- provider: a provider id above (match the user's wording, e.g. "Reminders" → applereminders)
 - list: the item's list/project (tasks), folder or sender (email), or calendar name
 - assignment (tasks in shared projects): you, someone_else, unassigned. Items with no assignment info count as "you".
 

@@ -382,7 +382,7 @@ export interface CredentialsFile {
 	 * {@link CredentialsFile.integrations} `[id]`. MCP secrets live only here.
 	 */
 	connections?: Record<string, Record<string, string>>;
-	/** Legacy Todoist block; migrated to integrations.todoist on plugin load. */
+	/** Legacy Todoist block (Todoist is retired); stripped on plugin load. */
 	todoist?: Record<string, string>;
 	slack?: SlackCredentials;
 	ai?: AICredentials;
