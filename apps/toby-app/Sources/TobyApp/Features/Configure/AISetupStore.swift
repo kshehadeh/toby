@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import TobyAI
 
 @Observable @MainActor
 final class AISetupStore {
@@ -96,6 +97,10 @@ final class AISetupStore {
             guard response.ok, response.details?.testResponse != nil else {
                 error = "The server did not confirm a model response. Update or restart Toby’s server and try again."
                 return false
+            }
+            if providerId == "openrouter", let key = fields["apiKey"]?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty {
+                // Native AI reads the key from the Keychain.
+                try? KeychainKeyStore().save(key)
             }
             acceptConnection(response)
             return true

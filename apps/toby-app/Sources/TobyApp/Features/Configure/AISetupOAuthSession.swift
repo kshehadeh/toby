@@ -1,22 +1,43 @@
 import Foundation
 import Observation
+import TobyAI
 
-struct AIProviderOAuthStatus: Decodable {
-    let id: String
-    let state: String
-    let authorizationUrl: String
-    let expiresAt: Double
-    let error: String?
+/// One in-flight browser sign-in (implemented by `TobyAI.OpenRouterSignIn`).
+protocol OpenRouterSignInHandle: AnyObject, Sendable {
+    var authorizationURL: URL { get }
+    func waitForKey(timeout: Duration) async throws -> String
+    func cancel()
 }
+
+extension OpenRouterSignIn: OpenRouterSignInHandle {}
 
 @MainActor protocol AISetupOAuthClient {
-    func startOpenRouterOAuth() async throws -> AIProviderOAuthStatus
-    func fetchOpenRouterOAuth(id: String) async throws -> AIProviderOAuthStatus
-    func finishOpenRouterOAuth(id: String) async throws -> AIProviderSetupResponse
-    func cancelOpenRouterOAuth(id: String) async throws
+    /// Bind the loopback callback and build the OpenRouter authorization URL.
+    func beginOpenRouterSignIn() async throws -> any OpenRouterSignInHandle
+    /// Store the key in the Keychain and confirm a model answers.
+    func connectOpenRouter(apiKey: String) async throws -> AIProviderSetupResponse
 }
 
-/// Owns the browser handshake and polling; secrets stay in the daemon.
+/// Default client: native PKCE in-process; the key goes to the Keychain.
+///
+/// Migration bridge (until chat runs in Swift): the key is also handed to the
+/// daemon's provider setup so its chat pipeline keeps working, and that call
+/// performs the readiness test the UI shows.
+@MainActor struct NativeOpenRouterConnector: AISetupOAuthClient {
+    var keyStore = KeychainKeyStore()
+    var daemon = TobyClient()
+
+    func beginOpenRouterSignIn() async throws -> any OpenRouterSignInHandle {
+        try await OpenRouterSignIn.start()
+    }
+
+    func connectOpenRouter(apiKey: String) async throws -> AIProviderSetupResponse {
+        try keyStore.save(apiKey)
+        return try await daemon.setupAIProvider(providerId: "openrouter", fields: ["apiKey": apiKey])
+    }
+}
+
+/// Owns the browser handshake. The authorization code and key never leave the app.
 @Observable @MainActor
 final class AISetupOAuthSession {
     enum Phase { case idle, starting, waiting, exchanging, authorized, testing, completed, failed }
@@ -24,15 +45,18 @@ final class AISetupOAuthSession {
     private(set) var authorizationURL: URL?
     private(set) var error: String?
     private(set) var result: AIProviderSetupResponse?
-    private var id: String?
+    private var handle: (any OpenRouterSignInHandle)?
+    /// Held only between sign-in and a successful connection test, so a credits
+    /// failure can be retried without creating another key.
+    private var pendingKey: String?
     private var attempt = UUID()
     private var task: Task<Void, Never>?
     private let client: any AISetupOAuthClient
-    private let pollInterval: Duration
+    private let signInTimeout: Duration
 
-    init(client: any AISetupOAuthClient = TobyClient(), pollInterval: Duration = .seconds(1)) {
-        self.client = client
-        self.pollInterval = pollInterval
+    init(client: (any AISetupOAuthClient)? = nil, signInTimeout: Duration = .seconds(600)) {
+        self.client = client ?? NativeOpenRouterConnector()
+        self.signInTimeout = signInTimeout
     }
     var isActive: Bool { [.starting, .waiting, .exchanging, .authorized, .testing].contains(phase) }
     var isTesting: Bool { phase == .testing }
@@ -41,18 +65,20 @@ final class AISetupOAuthSession {
         guard !isActive else { return }
         error = nil
         result = nil
+        pendingKey = nil
         phase = .starting
         let currentAttempt = UUID()
         attempt = currentAttempt
         task = Task {
             do {
-                let session = try await client.startOpenRouterOAuth()
+                let handle = try await client.beginOpenRouterSignIn()
                 guard attempt == currentAttempt, !Task.isCancelled else {
-                    try? await client.cancelOpenRouterOAuth(id: session.id)
+                    handle.cancel()
                     return
                 }
-                id = session.id
-                guard let url = URL(string: session.authorizationUrl), url.scheme == "https", url.host == "openrouter.ai", url.path == "/auth" else {
+                self.handle = handle
+                let url = handle.authorizationURL
+                guard url.scheme == "https", url.host == "openrouter.ai", url.path == "/auth" else {
                     throw TobyClientError.invalidResponse
                 }
                 authorizationURL = url
@@ -60,30 +86,19 @@ final class AISetupOAuthSession {
                     throw TobyClientError.serverError("Toby couldn’t open your browser. Try connecting again.")
                 }
                 phase = .waiting
-                while !Task.isCancelled && attempt == currentAttempt {
-                    let status = try await client.fetchOpenRouterOAuth(id: session.id)
-                    guard attempt == currentAttempt, !Task.isCancelled else { return }
-                    switch status.state {
-                    case "waiting": phase = .waiting
-                    case "exchanging": phase = .exchanging
-                    case "authorized", "completed":
-                        phase = .authorized
-                        await finish(currentAttempt: currentAttempt)
-                        return
-                    case "error":
-                        throw TobyClientError.serverError(status.error ?? "Sign-in ended. Please try again.")
-                    default: throw TobyClientError.invalidResponse
-                    }
-                    try await Task.sleep(for: pollInterval)
-                }
+                let key = try await handle.waitForKey(timeout: signInTimeout)
+                guard attempt == currentAttempt, !Task.isCancelled else { return }
+                self.handle = nil
+                pendingKey = key
+                phase = .authorized
+                await finish(currentAttempt: currentAttempt)
             } catch {
                 guard attempt == currentAttempt, !Task.isCancelled else { return }
                 self.error = error.localizedDescription
-                let failedID = id
-                id = nil
+                handle?.cancel()
+                handle = nil
                 authorizationURL = nil
                 phase = .failed
-                if let failedID { try? await client.cancelOpenRouterOAuth(id: failedID) }
             }
         }
     }
@@ -96,38 +111,34 @@ final class AISetupOAuthSession {
     }
 
     func cancel() {
-        // A model test may already be committing settings. Let it finish.
+        // A connection test may already be committing settings. Let it finish.
         guard !isTesting else { return }
         attempt = UUID()
-        // Let an in-flight start return its id so we can delete the listener;
-        // cancelling URLSession before that response would orphan it until expiry.
         if phase != .starting { task?.cancel() }
         task = nil
-        let oldID = id
-        id = nil
+        handle?.cancel()
+        handle = nil
+        pendingKey = nil
         phase = .idle
         authorizationURL = nil
         error = nil
-        if let oldID { Task { try? await client.cancelOpenRouterOAuth(id: oldID) } }
     }
 
     private func finish(currentAttempt: UUID) async {
-        guard let id, attempt == currentAttempt else { return }
+        guard let key = pendingKey, attempt == currentAttempt else { return }
         phase = .testing
         error = nil
         do {
-            let response = try await client.finishOpenRouterOAuth(id: id)
+            let response = try await client.connectOpenRouter(apiKey: key)
             guard attempt == currentAttempt else { return }
             guard response.ok, response.details?.testResponse != nil else { throw TobyClientError.invalidResponse }
             result = response
             phase = .completed
             authorizationURL = nil
-            self.id = nil
+            pendingKey = nil
         } catch {
             guard attempt == currentAttempt else { return }
             self.error = error.localizedDescription
-            // Keep the daemon session so credits/network issues can be retried
-            // without creating another key. Expired sessions offer restart too.
             phase = .authorized
         }
     }

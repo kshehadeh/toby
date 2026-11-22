@@ -8,6 +8,7 @@ let package = Package(
 	],
 	products: [
 		.executable(name: "toby-app", targets: ["TobyApp"]),
+		.library(name: "TobyAI", targets: ["TobyAI"]),
 	],
 	dependencies: [
 		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
@@ -15,9 +16,19 @@ let package = Package(
 		.package(url: "https://github.com/mchakravarty/CodeEditorView", exact: "0.16.0"),
 	],
 	targets: [
+		.target(
+			name: "TobyAI",
+			path: "Sources/TobyAI",
+			linkerSettings: [
+				.linkedFramework("Network"),
+				.linkedFramework("Security"),
+				.linkedFramework("Accelerate"),
+			],
+		),
 		.executableTarget(
 			name: "TobyApp",
 			dependencies: [
+				"TobyAI",
 				.product(name: "Sparkle", package: "Sparkle"),
 				.product(name: "CodeEditorView", package: "CodeEditorView"),
 				.product(name: "LanguageSupport", package: "CodeEditorView"),
@@ -68,6 +79,11 @@ let package = Package(
 				.product(name: "LanguageSupport", package: "CodeEditorView"),
 			],
 			path: "Tests/TobyAppTests",
+		),
+		.testTarget(
+			name: "TobyAITests",
+			dependencies: ["TobyAI"],
+			path: "Tests/TobyAITests",
 		),
 	],
 )
