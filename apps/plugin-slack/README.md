@@ -31,3 +31,11 @@ For daemon inbound, configure **bot token** (xoxb-...) and **app token** (xapp-.
 
 - **chat** — post, reply, search channels/users/messages
 - **inbound** — @mentions, DMs, and thread follow-ups via Socket Mode
+
+## Standard tools
+
+- `getMentionsSummary` — `chat.mentionsSummary`, for Home.
+- `getRecentActivity` — `activity.recent`, for the observation ledger. Requires
+  an OAuth user token. Accepts `since` (ISO 8601) and optional `limit` (default
+  200, max 1000); returns newest-first, deduplicated mentions, DMs, and the
+  user's own messages with thread keys and actor identities.

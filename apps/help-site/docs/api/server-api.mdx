@@ -35,6 +35,26 @@ Paths under `/api/native/*` are **not** part of this API. They are hosted by Tob
 }
 ```
 
+## Follow-ups and graph
+
+Automatic [follow-ups](/docs/followups) use `/api/followups` to list loops and
+`/api/followups/:id` to inspect a loop with evidence (loop or todo ID).
+`POST /api/followups/run` starts a manual check. Its response includes a status
+(`ok`, `disabled`, `setup_required`, or `error`) and counters; HTTP 200 alone
+does not mean the check succeeded.
+
+Settings use `GET / PUT / PATCH /api/followups/config`. Available source status
+is at `GET /api/followups/sources`. Instructions use
+`GET / POST /api/followups/instructions` and
+`PATCH / DELETE /api/followups/instructions/:id`.
+Completed todos can be reopened with `POST /api/followups/:id/reopen`.
+`POST /api/followups/:id/feedback` accepts `{ "outcome": "not_useful" }`.
+
+Graph inspection uses `GET /api/graph/nodes/:id/neighbors` with optional
+`depth` (up to 3) and `limit` (up to 500).
+`POST /api/graph/rebuild` rebuilds derived graph context. Private nodes are not
+available through normal inspection.
+
 ## Common types
 
 ```ts

@@ -31,6 +31,7 @@ describe("slack plugin helpers", () => {
 	it("exposes expected chat tools", () => {
 		expect(TOOL_DEFINITIONS.map((t) => t.name).sort()).toEqual([
 			"getMentionsSummary",
+			"getRecentActivity",
 			"postToChannel",
 			"replyToPost",
 			"searchChannels",

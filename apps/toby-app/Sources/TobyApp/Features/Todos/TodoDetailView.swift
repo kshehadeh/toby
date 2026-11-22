@@ -4,6 +4,8 @@ struct TodoDetailView: View {
 	@Bindable var store: TodosStore
 	let todo: TobyTodo
 	@State private var showHistory = false
+	@State private var followupStore = FollowupTodoDetailStore()
+	@State private var followupActionError: String?
 
 	private var isEditable: Bool { !todo.deleted && todo.state.status == "open" }
 
@@ -12,12 +14,16 @@ struct TodoDetailView: View {
 			VStack(alignment: .leading, spacing: 22) {
 				DetailHeading(title: todo.title, accessibilityIdentifier: "todo-detail-title")
 				actions
+				if let followupActionError {
+					InlineStatusMessage(message: followupActionError, tone: .error)
+				}
 				metadata
 				if !todo.description.isEmpty {
 					DetailSection(title: "Description") {
 						MarkdownText(text: todo.description, font: .body, foregroundStyle: AppTheme.primaryText).textSelection(.enabled)
 					}
 				}
+				FollowupTodoSection(store: followupStore, todo: todo)
 				if isEditable || !todo.checklist.isEmpty {
 					TodoChecklistSection(store: store, todo: todo, isEditable: isEditable)
 				}
@@ -34,7 +40,10 @@ struct TodoDetailView: View {
 			.padding(AppTheme.contentPadding)
 		}
 		.background(SettingsDesign.canvasBackground)
-		.task(id: todo.revision) { if showHistory { await store.loadHistory(todo) } }
+		.task(id: "\(todo.id):\(todo.revision)") {
+			await followupStore.load(todoId: todo.id, force: true)
+			if showHistory { await store.loadHistory(todo) }
+		}
 		.onChange(of: showHistory) { _, shown in if shown { Task { await store.loadHistory(todo) } } }
 		.accessibilityIdentifier("todo-detail")
 	}
@@ -53,10 +62,29 @@ struct TodoDetailView: View {
 				tagMenu
 				Button("Delete", systemImage: "trash", role: .destructive) { store.pendingDelete = todo }
 			} else {
-				Button("Reopen", systemImage: "arrow.uturn.backward") { Task { await store.mutate("reopen", todo: todo) } }
+				if followupStore.detail == nil {
+					Button("Reopen", systemImage: "arrow.uturn.backward") {
+						Task { await reopenTodo(todo) }
+					}
+				}
 			}
 		}
-		.disabled(store.isSaving)
+		.disabled(store.isSaving || followupStore.isWorking)
+	}
+
+	private func reopenTodo(_ todo: TobyTodo) async {
+		followupActionError = nil
+		await followupStore.loadIfNeeded(todoId: todo.id)
+		if let error = followupStore.lookupError {
+			followupActionError = error
+			return
+		}
+		if followupStore.detail != nil {
+			await followupStore.reopen(todoId: todo.id)
+			followupActionError = followupStore.errorMessage
+		} else {
+			await store.mutate("reopen", todo: todo)
+		}
 	}
 
 	private var tagMenu: some View {

@@ -253,6 +253,9 @@ Slash commands: `/toby-swift-review`, `/swift-project-assessment`,
 | [`docs/flows.md`](docs/flows.md) | Named flow pipelines: SQLite definitions, seed-on-miss built-ins, nodes, runtime API, dashboard flows. |
 | [`docs/projects.md`](docs/projects.md) | Projects: SQLite metadata, `AGENTS.md`, skills, outputs. |
 | [`docs/todos.md`](docs/todos.md) | Built-in todos: tools, recurrence, notifications, backups, and merge-safe sync. |
+| [`docs/followups.md`](docs/followups.md) | Automatic todos: evaluator, evidence, lifecycle, settings, and API. |
+| [`docs/graph.md`](docs/graph.md) | SQLite property graph, enrichment, privacy, and performance. |
+| [`docs/observations.md`](docs/observations.md) | Source ledger and activity.recent plugin contract. |
 | [`docs/library.md`](docs/library.md) | Indexed file library (`~/.toby/library/`, `chat.sqlite` catalog, chat tools). |
 | [`docs/daemon.md`](docs/daemon.md) | Background daemon: Flow triggers, inbound, unified log. |
 | [`docs/server-api.md`](docs/server-api.md) | Local daemon HTTP API: routes, SSE chat, configure. |

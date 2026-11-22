@@ -30,6 +30,7 @@ import type {
 	StandardItemActionId,
 } from "../../dashboard/types";
 import { daemonLog } from "../../logging/daemon-log";
+import { ACTIVITY_RECENT_STANDARD_TOOL } from "../../observations/types";
 import { composeSystemPromptWithPersona } from "../../personas/prompt";
 import { registerPluginToolLabels } from "../../tool-labels";
 import type {
@@ -541,11 +542,17 @@ function itemActionResult(raw: unknown): DashboardItemActionResult {
 	};
 }
 
-/** Item-action tools are for non-AI surfaces; chat uses the richer tools. */
+/**
+ * Item-action and activity-feed tools are for non-AI surfaces (The Feed,
+ * the observation ledger); chat uses the richer tools.
+ */
 export function isChatHiddenPluginTool(definition: {
 	readonly standardTool?: string;
 }): boolean {
-	return isStandardItemActionId(definition.standardTool);
+	return (
+		isStandardItemActionId(definition.standardTool) ||
+		definition.standardTool === ACTIVITY_RECENT_STANDARD_TOOL
+	);
 }
 
 /**

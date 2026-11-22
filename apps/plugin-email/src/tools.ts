@@ -1,3 +1,4 @@
+import { fetchRecentEmailActivity } from "./activity";
 import {
 	type UnreadInboxMessage,
 	addFlags,
@@ -79,6 +80,26 @@ function messageSummary(m: CachedMessage): JsonRecord {
 }
 
 export const TOOL_DEFINITIONS = [
+	{
+		name: "getRecentActivity",
+		displayName: "Recent mail activity",
+		description:
+			"Recent INBOX and Sent messages for the observation ledger, newest first.",
+		readOnly: true,
+		standardTool: "activity.recent",
+		inputSchema: {
+			type: "object",
+			properties: {
+				since: {
+					type: "string",
+					format: "date-time",
+					description: "Include messages at or after this ISO 8601 timestamp",
+				},
+				limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
+			},
+			required: ["since"],
+		},
+	},
 	{
 		name: "getInboxOverview",
 		displayName: "Fetch inbox overview",
@@ -570,6 +591,26 @@ export async function executeTool(
 	result: unknown;
 	appliedActions?: string[];
 }> {
+	if (tool === "getRecentActivity") {
+		if (dryRun)
+			return {
+				result: {
+					dryRun: true,
+					note: "Would fetch recent INBOX and Sent activity.",
+				},
+			};
+		try {
+			return {
+				result: await fetchRecentEmailActivity(
+					config,
+					String(input.since ?? ""),
+					typeof input.limit === "number" ? input.limit : undefined,
+				),
+			};
+		} catch (error) {
+			return { result: { error: toErrorMessage(error) } };
+		}
+	}
 	const db = openDb(dataDir);
 	try {
 		return await executeToolInner(tool, input, config, dryRun, db);

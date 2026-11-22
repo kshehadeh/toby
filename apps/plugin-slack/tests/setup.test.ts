@@ -39,7 +39,7 @@ describe("Slack setup", () => {
 		const manifest = buildSlackManifest();
 		const published = await Bun.file(
 			new URL(
-				"../../help-site/static/slack-app-manifest.json",
+				"../../help-site/public/slack-app-manifest.json",
 				import.meta.url,
 			),
 		).json();

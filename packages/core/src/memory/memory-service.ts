@@ -1,3 +1,4 @@
+import { removeMemoryNode, syncMemoryNode } from "../graph/memory-hooks";
 import {
 	embedMemoryText,
 	findNearDuplicate,
@@ -289,18 +290,24 @@ export async function update(
 	if (!existing) {
 		throw new Error(`Memory ${memoryId} not found for user ${userId}`);
 	}
-	const updated = store.updateItem(userId, memoryId, patch);
+	const textChanged = patch.value !== undefined || patch.subject !== undefined;
+	const updated = store.getDb().transaction(() => {
+		const item = store.updateItem(userId, memoryId, patch);
+		if (item) syncMemoryNode(item, { textChanged });
+		return item;
+	})();
 	if (!updated) {
 		throw new Error(`Failed to update memory ${memoryId}`);
 	}
 	store.insertAuditEntry(userId, memoryId, "updated", { patch });
-	if (patch.value !== undefined || patch.subject !== undefined) {
+	if (textChanged) {
 		const embedder = resolveMemoryEmbedder();
 		if (embedder) {
 			await storeMemoryEmbedding(updated, embedder);
 		}
 	}
-	return store.getItem(userId, memoryId) ?? updated;
+	const final = store.getItem(userId, memoryId) ?? updated;
+	return final;
 }
 
 export function forget(userId: string, memoryId: string): void {
@@ -308,7 +315,10 @@ export function forget(userId: string, memoryId: string): void {
 	if (!existing) {
 		throw new Error(`Memory ${memoryId} not found for user ${userId}`);
 	}
-	store.deleteItem(userId, memoryId);
+	store.getDb().transaction(() => {
+		store.deleteItem(userId, memoryId);
+		removeMemoryNode(memoryId);
+	})();
 	store.insertAuditEntry(userId, memoryId, "forgotten");
 }
 
@@ -451,21 +461,26 @@ async function persistNewOrMerge(
 		};
 	}
 
-	const item = store.insertItem(
-		userId,
-		candidate.type,
-		candidate.subject,
-		candidate.value,
-		candidate.confidence,
-		candidate.sensitivity,
-		candidate.visibility,
-		candidate.expiresAt,
-	);
-	store.linkItemSource(item.id, sourceId);
+	const item = store.getDb().transaction(() => {
+		const inserted = store.insertItem(
+			userId,
+			candidate.type,
+			candidate.subject,
+			candidate.value,
+			candidate.confidence,
+			candidate.sensitivity,
+			candidate.visibility,
+			candidate.expiresAt,
+		);
+		store.linkItemSource(inserted.id, sourceId);
+		syncMemoryNode(inserted, { textChanged: true });
+		return inserted;
+	})();
 	if (embedder) {
 		await storeMemoryEmbedding(item, embedder, queryVector);
 	}
-	return { item: store.getItem(userId, item.id) ?? item, merged: false };
+	const saved = store.getItem(userId, item.id) ?? item;
+	return { item: saved, merged: false };
 }
 
 async function mergeIntoExisting(
@@ -481,7 +496,6 @@ async function mergeIntoExisting(
 		readonly embedder?: ReturnType<typeof resolveMemoryEmbedder>;
 	},
 ): Promise<MemoryItem> {
-	store.linkItemSource(existing.id, sourceId);
 	const patch: {
 		value?: string;
 		confidence?: number;
@@ -493,12 +507,19 @@ async function mergeIntoExisting(
 	if (nextConfidence !== existing.confidence) {
 		patch.confidence = nextConfidence;
 	}
-	const updated =
-		Object.keys(patch).length > 0
-			? (store.updateItem(userId, existing.id, patch) ?? existing)
-			: (store.updateItem(userId, existing.id, {
-					confidence: existing.confidence,
-				}) ?? existing);
+	const updated = store.getDb().transaction(() => {
+		store.linkItemSource(existing.id, sourceId);
+		const item =
+			store.updateItem(
+				userId,
+				existing.id,
+				Object.keys(patch).length > 0
+					? patch
+					: { confidence: existing.confidence },
+			) ?? existing;
+		syncMemoryNode(item, { textChanged: opts.updateValue });
+		return item;
+	})();
 	store.insertAuditEntry(userId, existing.id, "merged", {
 		reason: opts.reason,
 		score: opts.score,
@@ -511,7 +532,8 @@ async function mergeIntoExisting(
 			await storeMemoryEmbedding(updated, embedder, opts.queryVector);
 		}
 	}
-	return store.getItem(userId, existing.id) ?? updated;
+	const final = store.getItem(userId, existing.id) ?? updated;
+	return final;
 }
 
 function countOmitted(userId: string): number {

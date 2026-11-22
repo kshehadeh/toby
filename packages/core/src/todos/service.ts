@@ -355,7 +355,7 @@ export function createTodo(raw: unknown, ctx: MutationContext = {}) {
 	return transact("create", input, ctx, () => {
 		namedAvailable("list", input.listId);
 		for (const tag of input.tags) namedAvailable("tag", tag);
-		const id = randomUUID();
+		const id = idSchema.parse(ctx.internalTodoId ?? randomUUID());
 		const now = ctx.now ?? new Date().toISOString();
 		const fields: Record<string, unknown> = {
 			...todoFieldsSchema.parse(fieldsData(input)),

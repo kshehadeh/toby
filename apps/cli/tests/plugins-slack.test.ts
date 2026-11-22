@@ -88,6 +88,7 @@ describe("slack plugin", () => {
 		const names = (tools.data.tools ?? []).map((t) => t.name).sort();
 		expect(names).toEqual([
 			"getMentionsSummary",
+			"getRecentActivity",
 			"postToChannel",
 			"replyToPost",
 			"searchChannels",

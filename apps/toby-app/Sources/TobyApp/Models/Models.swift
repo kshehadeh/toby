@@ -437,11 +437,14 @@ struct AIModelOption: Decodable, Equatable, Hashable, Identifiable {
 	let displayName: String?
 	/// True when the provider catalog marks this model as a reasoning model.
 	let reasoning: Bool?
+	/// True when the provider catalog supports required structured output.
+	let structuredOutput: Bool?
 
-	init(id: String, displayName: String? = nil, reasoning: Bool? = nil) {
+	init(id: String, displayName: String? = nil, reasoning: Bool? = nil, structuredOutput: Bool? = nil) {
 		self.id = id
 		self.displayName = displayName
 		self.reasoning = reasoning
+		self.structuredOutput = structuredOutput
 	}
 
 	/// Menu / picker label; keeps the model id as the primary text.

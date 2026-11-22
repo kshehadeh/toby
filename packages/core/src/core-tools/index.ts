@@ -1,5 +1,9 @@
 import { type Tool, tool, zodSchema } from "ai";
 import { z } from "zod";
+import { explainTobyFollowup } from "../followups/explain";
+import { emailPersonKey } from "../graph/keys";
+import { neighbors } from "../graph/query";
+import { findNode, searchNodesByLabel } from "../graph/store";
 import * as todos from "../todos/service";
 import {
 	type MutationContext,
@@ -238,7 +242,7 @@ export function createCoreChatTools(ctx: {
 	dryRun: boolean;
 	appliedActions: string[];
 }): Record<string, Tool> {
-	return Object.fromEntries(
+	const tools = Object.fromEntries(
 		definitions.map((definition) => [
 			definition.chatName,
 			tool({
@@ -267,7 +271,53 @@ export function createCoreChatTools(ctx: {
 				},
 			}),
 		]),
-	);
+	) as Record<string, Tool>;
+	tools.explainTobyFollowup = tool({
+		description:
+			"Explain why Toby added an automatic follow-up todo, with its supporting sources.",
+		inputSchema: z.object({ todoId: idSchema }),
+		execute: async ({ todoId }) =>
+			explainTobyFollowup(todoId) ?? {
+				error: "No Toby follow-up is linked to this todo.",
+			},
+	});
+	tools.graphNeighbors = tool({
+		description:
+			"Find a person or entity and return its bounded, privacy-filtered graph neighborhood.",
+		inputSchema: z.object({ entity: z.string().trim().min(1).max(200) }),
+		execute: async ({ entity }) => {
+			const direct = entity.includes("@")
+				? findNode({ type: "person", key: emailPersonKey(entity) })
+				: null;
+			const matches = direct ? [direct] : searchNodesByLabel(entity, 10);
+			if (matches.length === 0)
+				return {
+					entity,
+					neighbors: [],
+					message: "No matching graph entity found.",
+				};
+			const exact = matches.filter(
+				(node) => node.label.toLowerCase() === entity.toLowerCase(),
+			);
+			const candidates = exact.length ? exact : matches;
+			if (candidates.length > 1)
+				return {
+					entity,
+					candidates: candidates.map((node) => ({
+						id: node.id,
+						type: node.type,
+						label: node.label,
+					})),
+				};
+			const node = candidates[0];
+			if (!node) return { entity, neighbors: [] };
+			return {
+				entity: { id: node.id, type: node.type, label: node.label },
+				neighbors: neighbors(node.id, { depth: 2, limit: 50 }),
+			};
+		},
+	});
+	return tools;
 }
 export async function coreFlowCatalog() {
 	return Promise.all(

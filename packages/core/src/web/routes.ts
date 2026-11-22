@@ -74,6 +74,11 @@ import {
 	handleFlowsList,
 } from "./handlers/flows";
 import {
+	handleFollowups,
+	handleGraphNeighbors,
+	handleGraphRebuild,
+} from "./handlers/followups";
+import {
 	handleIntegrationGuidedSetup,
 	handleIntegrationSetupCancel,
 	handleIntegrationSetupState,
@@ -212,6 +217,24 @@ export async function handleWebRequest(
 	const { pathname } = url;
 
 	if (pathname.startsWith("/api/")) {
+		if (
+			pathname === "/api/followups" ||
+			pathname.startsWith("/api/followups/")
+		) {
+			return handleFollowups(req, url);
+		}
+		if (pathname === "/api/graph/rebuild") {
+			return handleGraphRebuild(req);
+		}
+		const graphNeighborsMatch =
+			/^\/api\/graph\/nodes\/([^/]+)\/neighbors$/.exec(pathname);
+		if (graphNeighborsMatch) {
+			return handleGraphNeighbors(
+				req,
+				decodeURIComponent(graphNeighborsMatch[1] ?? ""),
+				url,
+			);
+		}
 		if (
 			pathname === "/api/user-tools" ||
 			pathname.startsWith("/api/user-tools/")

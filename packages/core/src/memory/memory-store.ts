@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { bufferToVector } from "../ai/vector";
 import { ensureTobyDir, getMemoryDbPath } from "../config/index";
+import { ensureGraphSchema } from "../graph/schema";
 import { escapeLikePattern } from "./keywords";
 import { memoryContentHash } from "./text";
 import type {
@@ -15,7 +16,7 @@ import type {
 	MemoryVisibility,
 } from "./types";
 
-type SqliteDb = {
+export type SqliteDb = {
 	exec: (sql: string) => void;
 	serialize: () => Uint8Array;
 	query: (sql: string) => {
@@ -52,6 +53,7 @@ export function getDb(): SqliteDb {
 	const db = new BunDatabase(getMemoryDbPath());
 	ensureSchema(db);
 	migrateMemoryItemsSchema(db);
+	ensureGraphSchema(db);
 	dbSingleton = db;
 	return db;
 }

@@ -22,6 +22,14 @@ Configure the port or disable the server in `~/.toby/config.json`:
 }
 ```
 
+## Follow-up and graph APIs
+
+See [followups.md](followups.md#http-and-chat-apis) for the follow-up route
+table, settings semantics, evidence, instructions, feedback, and manual run
+response. A manual run can return HTTP 200 with `status: "setup_required"` or
+`"error"`; clients must inspect the status and optional error.
+Graph inspection and rebuild endpoints are documented in [graph.md](graph.md).
+
 ## Common Types
 
 ```ts

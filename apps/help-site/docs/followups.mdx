@@ -1,0 +1,75 @@
+---
+title: Automatic follow-ups
+description: Let Toby turn reply obligations and commitments into todos, with evidence and undo.
+---
+
+# Automatic follow-ups
+
+Toby can turn connected activity into [Toby Todos](./todos) in the **From Toby**
+list. It tracks:
+
+- **Replies you owe**, such as a direct question that still needs an answer.
+- **Replies you're waiting for**, after a waiting period (three days by default).
+- **Commitments you made**, such as promising to send a deck.
+
+A model checks the evidence before Toby adds or resolves a follow-up. These are
+todos, not permission for Toby to send mail or carry out the task.
+
+## Set up follow-ups
+
+1. Connect an [email account](./integrations/email) or another supported activity source.
+2. Open **Settings → Follow-ups**.
+3. Leave **Evaluator** on **Automatic**, or choose a configured model that
+   supports structured output. Automatic tries Toby's auxiliary model, then
+   the model used by The Feed.
+4. Choose sources and kinds, then select **Save Changes**.
+5. Select **Check now** to run an immediate check.
+
+Email, calendar, and usable memories are on by default. Toby chats and todos
+provide evidence for updating existing follow-ups. Connected Slack activity
+can also contribute. Private and confirmation-required memories stay out of
+follow-up context. Source status shows the last check or a readable error.
+Forgetting a memory or making it private removes its stored activity copy too.
+
+If no eligible evaluator is configured, Check now reports what needs setup
+instead of adding todos without a model judgment.
+
+## See why Toby added a todo
+
+Open **Todos**, filter to the **From Toby** list, and select an item.
+**Why Toby added this** shows its kind, confidence, counterpart when known,
+and source evidence with reasons and links. You can also ask in chat,
+“Why did Toby add this follow-up?”
+
+Toby can complete the todo when new evidence shows the work is done, such as
+a sent reply or a related chat update. A vague intention is not completion.
+Enable completion notifications for a quiet summary.
+
+### Undo or give feedback
+
+- Choose **Reopen** on a completed follow-up to undo it. Toby needs evidence
+  from after you reopened it before completing it again.
+- Choose **Not useful** and confirm to delete the todo and record feedback.
+- You can complete or delete the todo yourself using the usual todo controls.
+
+Old evidence may no longer be available after retention cleanup. Inactive
+follow-up tracking expires after 30 days; that does not delete the todo.
+
+## Tune the checks
+
+Settings → Follow-ups lets you change the waiting period, confidence
+thresholds, check interval, and daily evaluation limit. Higher thresholds
+require stronger evidence. Automatic checks default to every 30 minutes,
+during The Feed's active hours, while the background service runs.
+
+Turn off automatic completion if you want to keep completing todos yourself.
+Toby can still mark its tracking loop resolved while leaving your todo open.
+Turn off **Create follow-up todos** to stop automatic checks.
+
+Add instructions such as “Prioritize direct client requests” or
+“Ignore routine status updates.” Instructions save separately from settings.
+You can keep up to 20, each up to 2,000 characters.
+
+Follow-ups reuse [memories](./memories) for context, but do not automatically
+save new memories from email or other activity. Follow-up tracking stays on
+this Mac; the todos use normal [todo sync](./todos#sync-across-macs-and-backups).

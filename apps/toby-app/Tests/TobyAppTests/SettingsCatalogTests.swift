@@ -164,6 +164,14 @@ struct SettingsCatalogTests {
 		}
 	}
 
+	@Test("settings window shows the follow-ups pane")
+	func settingsWindowShowsFollowupsSidebarRow() throws {
+		let view = SettingsWindowView(store: ConfigureStore())
+		#expect(throws: Never.self) {
+			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-sidebar-followups")
+		}
+	}
+
 	@Test("plugin nav key seeds a provider deep link")
 	func providerNavKeySeedsDeepLink() {
 		let store = ConfigureStore()

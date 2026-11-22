@@ -283,6 +283,40 @@ export interface ListenConfig {
 	readonly deleteAudioAfterTranscription?: boolean;
 }
 
+/** Automatic follow-up todos detected from connected sources and memory. */
+export interface FollowupsConfig {
+	/** Default: on when an eligible evaluator model resolves. */
+	readonly enabled?: boolean;
+	/** Small, cheap structured-output model for evaluation and graph extraction. */
+	readonly evaluator?: { readonly provider?: string; readonly model?: string };
+	/** Per-source switches keyed by source id (e.g. `plugin:email`, `toby.chat`). */
+	readonly sources?: Readonly<Record<string, boolean>>;
+	readonly kinds?: {
+		readonly oweReply?: boolean;
+		readonly awaitingReply?: boolean;
+		readonly commitment?: boolean;
+	};
+	/** Days without a reply before a "waiting on someone" follow-up opens (default 3). */
+	readonly awaitingReplyDays?: number;
+	readonly thresholds?: { readonly open?: number; readonly close?: number };
+	/** Complete todos automatically when evidence shows they are done (default true). */
+	readonly autoComplete?: boolean;
+	/** Quiet summary notification after automatic completions (default true). */
+	readonly notifications?: boolean;
+	/** Minutes between detector runs (default 30). */
+	readonly intervalMinutes?: number;
+	/** Daily cap on evaluated units (default 200). */
+	readonly maxEvaluationsPerDay?: number;
+}
+
+/** Knowledge graph enrichment settings. */
+export interface GraphConfig {
+	/** Cosine similarity for semantic `related_to` edges (default 0.8). */
+	readonly semanticThreshold?: number;
+	/** Daily cap on nodes sent for model entity extraction (default 300). */
+	readonly maxExtractionsPerDay?: number;
+}
+
 export interface TobyConfig {
 	integrations: Record<string, Record<string, unknown>>;
 	/**
@@ -306,6 +340,8 @@ export interface TobyConfig {
 	listen?: ListenConfig;
 	/** Provider + model used to summarize/caption library items on ingest. */
 	library?: LibraryConfig;
+	followups?: FollowupsConfig;
+	graph?: GraphConfig;
 }
 
 interface AICredentials {
@@ -467,6 +503,8 @@ export function readConfig(): TobyConfig {
 		dashboard: parsed.dashboard,
 		listen: parsed.listen,
 		library: parsed.library,
+		followups: parsed.followups,
+		graph: parsed.graph,
 	};
 }
 

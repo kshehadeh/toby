@@ -88,6 +88,7 @@ export async function handleAIProviders(): Promise<Response> {
 				id: m.id,
 				...(m.displayName ? { displayName: m.displayName } : {}),
 				...(m.reasoning ? { reasoning: true } : {}),
+				...(m.structuredOutput ? { structuredOutput: true } : {}),
 			})),
 			allowCustomModel: p.allowCustomModel ?? false,
 			configured: isAIProviderConfigured(p.id),

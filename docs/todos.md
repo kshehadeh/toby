@@ -23,6 +23,16 @@ Not included: collaboration, nested subtasks, dependencies, advanced calendar
 rules, or syncing/importing external task providers. Creating a todo records
 intent; it does not authorize Toby to perform the task.
 
+## Automatic todos
+
+[Follow-ups](followups.md) creates todos in **From Toby**, tagged **auto**, from
+source evidence. Stable internal IDs and creation idempotency let normal todo
+sync converge on the same item. Mutations carry source `followups`.
+The inspector exposes evidence, **Reopen** undo, and confirmed **Not useful**
+feedback. Auto completion uses the current revision; it never executes a task.
+The loop and graph are stored locally in `memory.sqlite`, separately from the
+syncable todo journal.
+
 ## Default routing
 
 Unqualified requests to create, list, update, complete, or remove todos or

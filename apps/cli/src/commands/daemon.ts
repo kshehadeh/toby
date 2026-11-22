@@ -13,6 +13,7 @@ import {
 import { runConfigSyncLoop } from "@toby/core/config/sync";
 import { runFeedScheduler } from "@toby/core/feed/scheduler";
 import { runFlowTriggerSupervisor } from "@toby/core/flows/triggers/supervisor";
+import { runFollowupsScheduler } from "@toby/core/followups/scheduler";
 import { warmupPluginToolDefinitions } from "@toby/core/integrations/index";
 import {
 	closeAllMcpSessions,
@@ -200,6 +201,7 @@ async function runForegroundDaemon(intervalSeconds: number): Promise<void> {
 		const tasks: Promise<void>[] = [
 			runChatInboundSupervisor(controller.signal),
 			runFlowTriggerSupervisor(controller.signal),
+			runFollowupsScheduler({ signal: controller.signal }),
 			startPluginPollingLoop({
 				signal: controller.signal,
 				onError: (name, message) => {

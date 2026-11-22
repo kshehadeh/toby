@@ -10,6 +10,9 @@ Human- and flow-oriented docs for this repository.
 | [commands.md](commands.md) | Shared CLI commands, native app launch, `config backup` / `config restore` / `config sync`. |
 | [projects.md](projects.md) | Projects: SQLite metadata, `AGENTS.md` guidance, skills, outputs. |
 | [todos.md](todos.md) | Built-in todos: domain rules, tools, API, recurrence, notifications, backups, and cross-Mac sync. |
+| [followups.md](followups.md) | Automatic todos: evaluator, evidence, lifecycle, settings, and API. |
+| [graph.md](graph.md) | SQLite property graph, enrichment, privacy-filtered traversal, and benchmark. |
+| [observations.md](observations.md) | Source ledger, activity.recent plugin contract, ingestion, and retention. |
 | [library.md](library.md) | Indexed file library: disk copies, `chat.sqlite` catalog, ingest, chat tools. |
 | [integrations.md](integrations.md) | `IntegrationModule` registry, first-party plugins, global tools. |
 | [mcp.md](mcp.md) | MCP servers as first-class connections: identity, transports, auth, tools. |

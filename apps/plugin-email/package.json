@@ -12,6 +12,7 @@
 	"scripts": {
 		"dev": "bun src/index.ts status",
 		"lint": "bunx biome check .",
-		"build": "bash ../../scripts/copy-bun-plugin-to-dist.sh"
+		"build": "bash ../../scripts/copy-bun-plugin-to-dist.sh",
+		"test": "bun test"
 	}
 }

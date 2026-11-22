@@ -164,4 +164,19 @@ src/memory/
   tools.ts            # AI tool wrappers
 ```
 
-Shared embedding helpers used by memory and tool routing live in [`packages/core/src/ai/embeddings.ts`](../packages/core/src/ai/embeddings.ts) and [`packages/core/src/ai/vector.ts`](../packages/core/src/ai/vector.ts). Cosine search is in-process (no sqlite-vec). Entity/relation tables for a memory graph are a later slice; this phase is embeddings, hybrid search, and dedup.
+Shared embedding helpers used by memory and tool routing live in [`packages/core/src/ai/embeddings.ts`](../packages/core/src/ai/embeddings.ts) and [`packages/core/src/ai/vector.ts`](../packages/core/src/ai/vector.ts). Cosine search is in-process (no sqlite-vec).
+
+## Knowledge graph and follow-ups
+
+Memory writes mirror nodes and subject relationships into the
+[property graph](graph.md) in the same SQLite transaction. Save, update, and
+merge refresh derived context; forget removes the node, edges, embedding, and
+enrichment work. Existing memories are backfilled, and semantic relationships
+reuse memory embeddings.
+Forgetting or restricting visibility removes any memory-sourced observation
+copy too. Changes to text or expiry discard stale copies, and future collection
+uses the current usable memory.
+
+[Automatic follow-ups](followups.md) use usable memories as evidence/context.
+Private, expired, and confirmation-required memories are excluded from normal
+traversal and prompts. Observations do not automatically propose new memories.

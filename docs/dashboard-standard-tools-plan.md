@@ -41,6 +41,14 @@ get a predictable shape back.
 
 ## Standard tool IDs
 
+`activity.recent` is a separate standard-tool contract for the
+[observation ledger](observations.md) and [automatic follow-ups](followups.md),
+not a dashboard count/summary tool. Core discovers every connected plugin
+with this tag. It accepts `{ since, limit }` and returns observations plus
+optional self identities. Calendar summaries also supply event notes/facts.
+Automatic todos reach The Feed through its existing todo candidate path;
+graph context is not yet part of Feed ranking.
+
 Each provider category maps to a reserved standard tool ID:
 
 | Provider category | Standard tool ID |

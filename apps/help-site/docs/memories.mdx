@@ -18,6 +18,11 @@ Memories are stored separately from chat history in `~/.toby/memory.sqlite`. The
 
 ## How memories are added
 
+Memories marked usable by AI also help [automatic follow-ups](./followups)
+connect activity to people and projects. Private and confirmation-required
+memories stay out of that context. Follow-ups do not automatically save
+memories from email or calendar activity.
+
 Memories are created through **conversation** and managed in the **Memories** window:
 
 1. You share something worth remembering, or Toby notices a stable preference from your work.
@@ -52,6 +57,9 @@ Toby classifies memory sensitivity:
 Sensitivity and visibility remain separate from saving. Sensitive or restricted memories saved from chat keep their confirmation-required visibility and stay out of normal chat instructions and retrieval. You can change visibility in the Memories window when you want Toby to reuse them.
 
 You can ask Toby to **forget** a memory or **explain** where one came from (provenance and audit trail).
+
+Forgetting a memory or making it private also removes its saved follow-up
+activity copy. Expired memories stop contributing to follow-up context.
 
 ## What you see in chat
 

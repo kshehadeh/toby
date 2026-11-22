@@ -149,7 +149,7 @@ function toErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-async function createConnectedImapClient(
+export async function createConnectedImapClient(
 	config: JsonRecord,
 	operation: string,
 ): Promise<import("imapflow").ImapFlow> {
@@ -221,7 +221,7 @@ export interface InboxSummaryOptions {
 }
 
 /** Headers that mark mail as list / bulk / machine-generated. */
-const BULK_HEADERS = [
+export const BULK_HEADERS = [
 	"list-unsubscribe",
 	"list-id",
 	"precedence",

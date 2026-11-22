@@ -51,6 +51,8 @@ export const sidebar: readonly SidebarItem[] = [
 			"personas",
 			"skills",
 			"memories",
+			"todos",
+			"followups",
 			"projects",
 			"library",
 			"listen",

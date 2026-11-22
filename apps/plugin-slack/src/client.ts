@@ -50,6 +50,8 @@ export interface SlackMessageSearchHit {
 	readonly channelId: string;
 	readonly channelName?: string;
 	readonly ts: string;
+	readonly threadTs?: string;
+	readonly teamId?: string;
 	readonly text: string;
 	readonly user?: string;
 	/** Sender display handle from search (`username`). */
@@ -765,48 +767,64 @@ export async function searchSlackMessages(
 		creds.authMethod === "oauth"
 			? undefined
 			: (creds.oauthUserToken ?? creds.botToken);
-	const json = await slackApi<{
-		ok: boolean;
-		error?: string;
-		messages?: {
-			matches?: Array<{
-				channel?: {
-					id?: string;
-					name?: string;
-					is_im?: boolean;
-					is_mpim?: boolean;
-				};
-				ts?: string;
-				text?: string;
-				user?: string;
-				username?: string;
-				permalink?: string;
-			}>;
-		};
-	}>(
-		config,
-		"search.messages",
-		{
-			query,
-			count: limit,
-			sort: "timestamp",
-			sort_dir: "desc",
-		},
-		token,
-	);
+	const cap = Math.max(1, Math.min(1000, Math.floor(limit)));
+	const hits: SlackMessageSearchHit[] = [];
+	for (let page = 1; hits.length < cap; page++) {
+		const json = await slackApi<{
+			ok: boolean;
+			error?: string;
+			messages?: {
+				paging?: { pages?: number };
+				matches?: Array<{
+					channel?: {
+						id?: string;
+						name?: string;
+						is_im?: boolean;
+						is_mpim?: boolean;
+					};
+					ts?: string;
+					thread_ts?: string;
+					team?: string;
+					text?: string;
+					user?: string;
+					username?: string;
+					permalink?: string;
+				}>;
+			};
+		}>(
+			config,
+			"search.messages",
+			{
+				query,
+				count: Math.min(100, cap),
+				page,
+				sort: "timestamp",
+				sort_dir: "desc",
+			},
+			token,
+		);
 
-	return (json.messages?.matches ?? [])
-		.filter((m) => typeof m.ts === "string")
-		.map((m) => ({
-			channelId: m.channel?.id ?? "",
-			channelName: m.channel?.name,
-			ts: m.ts as string,
-			text: m.text?.trim() ?? "",
-			user: m.user,
-			...(m.username ? { username: m.username } : {}),
-			permalink: m.permalink,
-			...(m.channel?.is_im || m.channel?.is_mpim ? { isDirect: true } : {}),
-		}));
+		const matches = json.messages?.matches ?? [];
+		hits.push(
+			...matches
+				.filter((m) => typeof m.ts === "string")
+				.map((m) => ({
+					channelId: m.channel?.id ?? "",
+					channelName: m.channel?.name,
+					ts: m.ts as string,
+					...(m.thread_ts ? { threadTs: m.thread_ts } : {}),
+					...(m.team ? { teamId: m.team } : {}),
+					text: m.text?.trim() ?? "",
+					user: m.user,
+					...(m.username ? { username: m.username } : {}),
+					permalink: m.permalink,
+					...(m.channel?.is_im || m.channel?.is_mpim ? { isDirect: true } : {}),
+				})),
+		);
+		if (matches.length === 0 || page >= (json.messages?.paging?.pages ?? 1))
+			break;
+	}
+	return hits.slice(0, cap);
 }
 
 /** Slack user id for the connected user token (search runs as this user). */

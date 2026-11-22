@@ -10,6 +10,7 @@ struct SettingsWindowView: View {
 	/// Soft-resets the app onto a new Toby data root (`nil` = default `~/.toby`).
 	var onSwitchTobyHome: ((String?) async throws -> Void)? = nil
 	@State private var appearancePreferences = AppearancePreferences.shared
+	@State private var followupsStore = FollowupsSettingsStore()
 	/// Sidebar selection. Client-only keys never go through the configure store.
 	@State private var selectedTabKey: String = SettingsItem.appearanceSectionKey
 	@AppStorage(AppearanceDefaultsKey.settingsLastTab)
@@ -26,12 +27,14 @@ struct SettingsWindowView: View {
 		SettingsItem.iCloudSectionKey,
 		SettingsItem.personasSectionKey,
 		SettingsItem.integrationsSectionKey,
+		SettingsItem.followupsSectionKey,
 	]
 
 	/// Sidebar row order (client-only + daemon-backed).
 	private static let sidebarOrder: [String] = [
 		SettingsItem.appearanceSectionKey, // General
 		"dashboard", // Home
+		SettingsItem.followupsSectionKey,
 		SettingsItem.aiSectionKey, // AI
 		"library", // Library
 		SettingsItem.personasSectionKey, // Personas
@@ -50,6 +53,7 @@ struct SettingsWindowView: View {
 			SettingsItem.personasSection,
 			SettingsItem.iCloudSection,
 			SettingsItem.integrationsSection,
+			SettingsItem.followupsSection,
 		]
 	}
 
@@ -86,6 +90,10 @@ struct SettingsWindowView: View {
 
 	private var isIntegrationsTab: Bool {
 		selectedTabKey == SettingsItem.integrationsSectionKey
+	}
+
+	private var isFollowupsTab: Bool {
+		selectedTabKey == SettingsItem.followupsSectionKey
 	}
 
 	private var isAITab: Bool {
@@ -267,6 +275,8 @@ struct SettingsWindowView: View {
 				PersonasSettingsView(store: store, path: $catalogPath)
 			} else if isICloudTab {
 				ICloudSyncSettingsView()
+			} else if isFollowupsTab {
+				FollowupsSettingsView(store: followupsStore)
 			} else if isIntegrationsTab {
 				IntegrationsSettingsView(store: store, path: $catalogPath)
 			} else if isAITab {
@@ -319,6 +329,7 @@ struct SettingsWindowView: View {
 			return "Personas"
 		}
 		if isICloudTab { return "Sync" }
+		if isFollowupsTab { return "Follow-ups" }
 		if isCatalogTab {
 			if let key = catalogPath.last {
 				return store.catalogChildren(for: selectedTabKey).first {

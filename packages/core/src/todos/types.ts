@@ -137,6 +137,8 @@ export class TodoError extends Error {
 export type MutationContext = {
 	source?: string;
 	idempotencyKey?: string;
+	/** Internal deterministic id used by automatic follow-ups. Not accepted by public tools. */
+	internalTodoId?: string;
 	expectedRevision?: string;
 	dryRun?: boolean;
 	now?: string;

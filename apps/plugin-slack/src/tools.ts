@@ -1,3 +1,4 @@
+import { fetchRecentSlackActivity } from "./activity";
 import {
 	postSlackMessage,
 	searchConversations,
@@ -10,6 +11,26 @@ import { consumeTokenRefreshPatch } from "./tokens";
 type JsonRecord = Record<string, unknown>;
 
 export const TOOL_DEFINITIONS = [
+	{
+		name: "getRecentActivity",
+		displayName: "Recent Slack activity",
+		description:
+			"Recent mentions, direct messages, and the user's own messages for the observation ledger. Requires a user token.",
+		readOnly: true,
+		standardTool: "activity.recent",
+		inputSchema: {
+			type: "object",
+			properties: {
+				since: {
+					type: "string",
+					format: "date-time",
+					description: "Include messages at or after this ISO 8601 timestamp",
+				},
+				limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
+			},
+			required: ["since"],
+		},
+	},
 	{
 		name: "postToChannel",
 		displayName: "Post to channel",
@@ -153,6 +174,23 @@ export async function executeTool(
 	const appliedActions: string[] = [];
 
 	switch (tool) {
+		case "getRecentActivity": {
+			if (dryRun)
+				return {
+					result: {
+						dryRun: true,
+						message: "Would list recent Slack activity.",
+					},
+				};
+			return {
+				result: await fetchRecentSlackActivity(
+					config,
+					String(input.since ?? ""),
+					typeof input.limit === "number" ? input.limit : undefined,
+				),
+				config: consumeTokenRefreshPatch(),
+			};
+		}
 		case "postToChannel": {
 			const channel = String(input.channel ?? "");
 			const text = String(input.text ?? "");

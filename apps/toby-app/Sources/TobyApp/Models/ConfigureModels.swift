@@ -67,6 +67,9 @@ struct SettingsItem: Decodable, Identifiable {
 	/// so it is always visible; children come from `/api/configure/sections`.
 	static let integrationsSectionKey = "integrations"
 
+	/// Client-owned automatic follow-up settings pane.
+	static let followupsSectionKey = "followups"
+
 	/// Daemon-backed AI providers catalog (`/api/configure/sections` → `ai`).
 	static let aiSectionKey = "ai"
 
@@ -154,6 +157,28 @@ struct SettingsItem: Decodable, Identifiable {
 			icon: nil,
 			group: nil,
 			description: "Connect services Toby can use in chat.",
+			docUrl: nil
+		)
+	}
+
+	static var followupsSection: SettingsItem {
+		SettingsItem(
+			label: "Follow-ups",
+			kind: .section,
+			key: followupsSectionKey,
+			navKey: followupsSectionKey,
+			children: nil,
+			masked: nil,
+			multiline: nil,
+			options: nil,
+			selectChoices: nil,
+			currentValue: nil,
+			selectedValues: nil,
+			readOnly: true,
+			iconUrl: nil,
+			icon: nil,
+			group: nil,
+			description: "Review activity and create todos when a reply or commitment needs follow-up.",
 			docUrl: nil
 		)
 	}

@@ -11,6 +11,7 @@ enum SettingsSidebarIcon {
 		case "chatinbound": return "bubble.left"
 		case "defaults": return "slider.horizontal.3"
 		case "ai": return "sparkles"
+		case "followups": return "arrowshape.turn.up.left"
 		case "transcription": return "pencil.and.scribble"
 		case "websearch": return "magnifyingglass"
 		case "weather": return "cloud.sun"
