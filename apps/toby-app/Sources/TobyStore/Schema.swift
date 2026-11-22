@@ -14,8 +14,36 @@ enum Schema {
 				try db.execute(sql: statement)
 			}
 		}
+		migrator.registerMigration("v2-mail") { db in
+			for statement in v2Mail {
+				try db.execute(sql: statement)
+			}
+		}
 		return migrator
 	}
+
+	/// Mail cache (mirrors the email plugin's `email.sqlite`, `mail_` prefixed).
+	static let v2Mail = [
+		"""
+		CREATE TABLE IF NOT EXISTS mail_messages (
+			uid INTEGER NOT NULL, mailbox TEXT NOT NULL, message_id TEXT, from_address TEXT, to_address TEXT,
+			cc_address TEXT, subject TEXT, date TEXT, snippet TEXT, flags TEXT, has_body INTEGER DEFAULT 0,
+			text_body TEXT, html_body TEXT, fetched_at TEXT, PRIMARY KEY (uid, mailbox)
+		)
+		""",
+		"CREATE INDEX IF NOT EXISTS idx_mail_messages_mailbox ON mail_messages(mailbox)",
+		"CREATE INDEX IF NOT EXISTS idx_mail_messages_date ON mail_messages(date DESC)",
+		"CREATE TABLE IF NOT EXISTS mail_sync_state (mailbox TEXT PRIMARY KEY, last_uid INTEGER, last_synced_at TEXT)",
+		"""
+		CREATE TABLE IF NOT EXISTS mail_drafts (
+			id TEXT PRIMARY KEY, to_address TEXT, cc_address TEXT, bcc_address TEXT, subject TEXT, body TEXT,
+			created_at TEXT, updated_at TEXT
+		)
+		""",
+	]
+
+	/// Tables copied from the email plugin's cache.
+	static let mailTables = [("drafts", "mail_drafts"), ("messages", "mail_messages"), ("sync_state", "mail_sync_state")]
 
 	/// Tables copied from legacy `chat.sqlite`.
 	static let chatTables = [

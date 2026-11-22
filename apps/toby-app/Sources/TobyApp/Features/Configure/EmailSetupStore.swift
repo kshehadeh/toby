@@ -173,6 +173,22 @@ final class EmailSetupStore {
 		if !trimmed(fromName).isEmpty {
 			changes["email.fromName"] = trimmed(fromName)
 		}
+		if NativeMode.isEnabled {
+			do {
+				var fields: [String: String] = [:]
+				for (key, value) in changes { fields[String(key.dropFirst("email.".count))] = value }
+				try await NativeRuntime.shared.mail().connect(fields)
+				password = ""
+				smtpPassword = ""
+				step = .ready
+				defaults.removeObject(forKey: stepKey)
+				defaults.removeObject(forKey: emailKey)
+				return true
+			} catch {
+				self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+				return false
+			}
+		}
 		do {
 			_ = try await client.patchConfigure(changes: changes)
 			let response = try await client.runIntegrationAction(name: "email", action: .connect)

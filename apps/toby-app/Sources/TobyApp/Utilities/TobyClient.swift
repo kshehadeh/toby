@@ -1,4 +1,5 @@
 import Foundation
+import TobyMail
 
 enum TobyClientError: LocalizedError {
 	case invalidResponse
@@ -866,6 +867,19 @@ struct TobyClient {
 	}
 
 	func discoverIntegrationSettings(name: String, email: String) async throws -> EmailDiscoverResponse {
+		if NativeMode.isEnabled, name == "email" {
+			guard let result = await MailDiscovery.discover(email) else {
+				throw TobyClientError.serverError("Enter a valid email address, such as name@example.com.")
+			}
+			var body: [String: Any] = [
+				"ok": true, "email": result.email, "domain": result.domain, "source": result.source,
+				"settings": try JSONSerialization.jsonObject(with: JSONEncoder().encode(result.settings)),
+			]
+			if let provider = result.providerName { body["providerName"] = provider }
+			if let appPassword = result.appPasswordRequired { body["appPasswordRequired"] = appPassword }
+			if let docs = result.documentationURL { body["documentationUrl"] = docs }
+			return try JSONDecoder().decode(EmailDiscoverResponse.self, from: JSONSerialization.data(withJSONObject: body))
+		}
 		let url = baseURL.appendingPathComponent("api/integrations/\(name)/discover")
 		var request = URLRequest(url: url)
 		request.httpMethod = "POST"

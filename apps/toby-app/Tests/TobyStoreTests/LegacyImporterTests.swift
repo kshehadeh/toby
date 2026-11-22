@@ -144,6 +144,30 @@ struct LegacyImporterTests {
 		#expect(try Data(contentsOf: fixture.paths.legacyChatDatabase) == legacyChatBefore)
 	}
 
+	@Test func importsTheEmailPluginCache() throws {
+		let fixture = try LegacyHomeFixture()
+		defer { fixture.cleanup() }
+		try FileManager.default.createDirectory(at: fixture.paths.legacyEmailDatabase.deletingLastPathComponent(), withIntermediateDirectories: true)
+		let legacy = try DatabaseQueue(path: fixture.paths.legacyEmailDatabase.path)
+		try legacy.write { db in
+			try db.execute(sql: """
+			CREATE TABLE messages (uid INTEGER NOT NULL, mailbox TEXT NOT NULL, message_id TEXT, from_address TEXT, to_address TEXT, cc_address TEXT,
+				subject TEXT, date TEXT, snippet TEXT, flags TEXT, has_body INTEGER DEFAULT 0, text_body TEXT, html_body TEXT, fetched_at TEXT, PRIMARY KEY (uid, mailbox));
+			CREATE TABLE sync_state (mailbox TEXT PRIMARY KEY, last_uid INTEGER, last_synced_at TEXT);
+			CREATE TABLE drafts (id TEXT PRIMARY KEY, to_address TEXT, cc_address TEXT, bcc_address TEXT, subject TEXT, body TEXT, created_at TEXT, updated_at TEXT);
+			INSERT INTO messages (uid, mailbox, subject, flags) VALUES (4, 'INBOX', 'Hi', '\\Seen'), (5, 'Sent', 'Re: Hi', '');
+			INSERT INTO sync_state VALUES ('INBOX', 4, '2026-01-01T00:00:00.000Z');
+			INSERT INTO drafts (id, to_address, subject, body) VALUES ('draft-1', 'a@b.c', 'Later', 'Body');
+			""")
+		}
+		try legacy.close()
+		let database = try TobyDatabase.open(paths: fixture.paths)
+		let report = try LegacyImporter(paths: fixture.paths, database: database, secrets: InMemorySecretStore(), openRouterKeyStore: nil).run()
+		#expect(report.rowsByTable["mail_messages"] == 2)
+		#expect(report.rowsByTable["mail_drafts"] == 1)
+		#expect(try database.count("mail_sync_state") == 1)
+	}
+
 	@Test func isIdempotent() throws {
 		let fixture = try LegacyHomeFixture()
 		defer { fixture.cleanup() }

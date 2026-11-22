@@ -103,7 +103,7 @@ final class NativeRuntime {
 		let toolbox = ChatToolbox(
 			todos: todos.actions, memory: memories.memory, graph: memories.graph, library: library.library,
 			projects: projects, skills: SkillService(root: paths.skills), tobyDirectory: paths.root, ai: ai,
-			apple: AppleTools(bridge: AppNativeBridge()),
+			apple: AppleTools(bridge: AppNativeBridge()), mail: try mail(),
 		)
 		let engine = ChatEngine(
 			sessions: projects.sessions, toolbox: toolbox, personas: personas, ai: ai,
@@ -120,6 +120,20 @@ final class NativeRuntime {
 		return router
 	}
 
+	private var mailService: MailService?
+	private var mailSyncLoop: Task<Void, Never>?
+
+	/// Built-in IMAP/SMTP mail. Account secrets live in the Keychain (`mail.*`).
+	func mail() throws -> MailService {
+		let database = try store()
+		if let mailService, mailService.isBacked(by: database.writer) { return mailService }
+		let service = MailService(writer: database.writer, secrets: KeychainSecretStore())
+		mailService = service
+		mailSyncLoop?.cancel()
+		mailSyncLoop = Task.detached(priority: .utility) { await service.runSyncLoop() }
+		return service
+	}
+
 	private var feedRouter: NativeFeedRouter?
 	private var feedStoreIdentity: ObjectIdentifier?
 	private var feedScheduler: Task<Void, Never>?
@@ -131,7 +145,7 @@ final class NativeRuntime {
 		if let feedRouter, feedStoreIdentity == identity { return feedRouter }
 		let apple = AppleTools(bridge: AppNativeBridge())
 		let service = FeedService(
-			sources: [CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple)],
+			sources: [MailFeedSource(mail: try mail()), CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple)],
 			todos: try todos().actions.service, memory: try memories().memory,
 			personas: PersonaService(tobyDirectory: paths.root), ai: ai, tobyDirectory: paths.root,
 		)

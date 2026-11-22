@@ -37,6 +37,7 @@ public struct TobyPaths: Sendable, Hashable {
 	public var legacyChatDatabase: URL { root.appending(path: "chat.sqlite") }
 	public var legacyMemoryDatabase: URL { root.appending(path: "memory.sqlite") }
 	public var legacyTodoDeviceDatabase: URL { root.appending(path: "todo-device.sqlite") }
+	public var legacyEmailDatabase: URL { root.appending(path: "plugins-data/email/email.sqlite") }
 	public var legacyConfig: URL { root.appending(path: "config.json") }
 	public var legacyCredentials: URL { root.appending(path: "credentials.json") }
 

@@ -1,0 +1,496 @@
+[
+  {
+    "group": "mail",
+    "name": "getInboxOverview",
+    "title": "Fetch inbox overview",
+    "description": "List cached messages from a mailbox (default INBOX). Returns uid, from, subject, date, snippet for each message. Data comes from the local SQLite cache; use syncMailbox to refresh.",
+    "readOnly": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum messages to return (default 50)"
+        },
+        "offset": {
+          "type": "number",
+          "description": "Skip this many messages (for pagination)"
+        }
+      }
+    }
+  },
+  {
+    "group": "mail",
+    "name": "getEmailMetadata",
+    "title": "Fetch email metadata",
+    "description": "Get cached metadata (from, to, cc, subject, date, snippet, flags) for specific message UIDs in a mailbox.",
+    "readOnly": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to fetch metadata for"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      },
+      "required": [
+        "uids"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "getEmailBody",
+    "title": "Fetch email body",
+    "description": "Get the full text and HTML body of a message. If the body is not cached locally, it will be fetched from the IMAP server.",
+    "readOnly": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "number",
+          "description": "Message UID"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      },
+      "required": [
+        "uid"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "searchEmails",
+    "title": "Search emails",
+    "description": "Search cached messages by keyword in subject, from, to, or snippet fields.",
+    "readOnly": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query (matched against subject, from, to, snippet)"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum results (default 20)"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "syncMailbox",
+    "title": "Sync mailbox",
+    "description": "Trigger a manual IMAP sync to refresh the local cache: fetch new messages, prune messages no longer on the server, and refresh flags on recent cached messages. Write tools also sync automatically after they complete.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      }
+    }
+  },
+  {
+    "group": "mail",
+    "name": "listMailboxes",
+    "title": "List mailboxes",
+    "description": "List all available IMAP mailboxes (folders) on the server. Use this to find mailbox names for move operations and to see special-use folders like Trash, Sent, Drafts.",
+    "readOnly": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "group": "mail",
+    "name": "markAsRead",
+    "title": "Mark emails as read",
+    "description": "Mark one or more messages as read by setting the \\Seen IMAP flag. Updates the local cache and re-syncs the mailbox afterward.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to mark as read"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      },
+      "required": [
+        "uids"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "markAsUnread",
+    "title": "Mark emails as unread",
+    "description": "Mark one or more messages as unread by removing the \\Seen IMAP flag. Updates the local cache and re-syncs the mailbox afterward.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to mark as unread"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      },
+      "required": [
+        "uids"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "setEmailFlags",
+    "title": "Set email flags",
+    "description": "Add or remove arbitrary IMAP flags on messages. Common flags: \\Seen (read), \\Flagged (starred), \\Answered (replied), \\Draft (draft). Custom labels (e.g. Gmail labels) may also be set this way. Updates the local cache and re-syncs the mailbox afterward.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to modify"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        },
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Flags to add (e.g. \\Flagged, \\Seen)"
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Flags to remove (e.g. \\Seen, \\Flagged)"
+        }
+      },
+      "required": [
+        "uids"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "moveToMailbox",
+    "title": "Move to mailbox",
+    "description": "Move one or more messages to a different IMAP mailbox. Use listMailboxes to find available mailbox names. Removes the messages from the source mailbox cache and re-syncs both source and destination afterward.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to move"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "Source IMAP mailbox name (default INBOX)"
+        },
+        "destination": {
+          "type": "string",
+          "description": "Destination mailbox name (e.g. Archive, [Gmail]/All Mail)"
+        }
+      },
+      "required": [
+        "uids",
+        "destination"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "deleteEmail",
+    "title": "Delete email",
+    "description": "Delete one or more messages. If the server has a Trash mailbox, messages are moved there. Otherwise the \\Deleted flag is set and the mailbox is expunged. Removes them from the local cache and re-syncs the source (and Trash when used) afterward.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to delete"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      },
+      "required": [
+        "uids"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "archiveEmail",
+    "title": "Archive email",
+    "description": "Archive one or more messages by moving them to the server's archive mailbox (auto-detected via the \\All special-use flag or common names like 'All Mail' or 'Archive'). Removes them from the local cache and re-syncs the source and archive mailboxes afterward.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "uids": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Message UIDs to archive"
+        },
+        "mailbox": {
+          "type": "string",
+          "description": "IMAP mailbox name (default INBOX)"
+        }
+      },
+      "required": [
+        "uids"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "createDraft",
+    "title": "Create draft",
+    "description": "Create a new email draft stored locally in the SQLite database. Drafts can be reviewed and sent via sendDraft.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Recipient email addresses"
+        },
+        "cc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bcc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "subject": {
+          "type": "string",
+          "description": "Email subject line"
+        },
+        "body": {
+          "type": "string",
+          "description": "Email body (plain text)"
+        }
+      },
+      "required": [
+        "to",
+        "subject",
+        "body"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "updateDraft",
+    "title": "Update draft",
+    "description": "Update an existing draft by ID.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Draft ID"
+        },
+        "to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bcc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "subject": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "listDrafts",
+    "title": "List drafts",
+    "description": "List all stored email drafts.",
+    "readOnly": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "number",
+          "description": "Maximum drafts to return (default 25)"
+        }
+      }
+    }
+  },
+  {
+    "group": "mail",
+    "name": "deleteDraft",
+    "title": "Delete draft",
+    "description": "Delete a stored draft by ID.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Draft ID to delete"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "sendEmail",
+    "title": "Send email",
+    "description": "Send an email immediately via SMTP. Respects dryRun: when dryRun is true, returns what would be sent without actually sending.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Recipient email addresses"
+        },
+        "cc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bcc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "subject": {
+          "type": "string",
+          "description": "Email subject line"
+        },
+        "body": {
+          "type": "string",
+          "description": "Email body (plain text)"
+        }
+      },
+      "required": [
+        "to",
+        "subject",
+        "body"
+      ]
+    }
+  },
+  {
+    "group": "mail",
+    "name": "sendDraft",
+    "title": "Send draft",
+    "description": "Send a stored draft via SMTP by draft ID. The draft is deleted after successful sending. Respects dryRun.",
+    "readOnly": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Draft ID to send"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  }
+]

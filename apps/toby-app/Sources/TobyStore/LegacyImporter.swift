@@ -73,6 +73,7 @@ public struct LegacyImporter: Sendable {
 			(paths.legacyChatDatabase, Schema.chatTables.map { ($0, $0) }),
 			(paths.legacyMemoryDatabase, Schema.memoryTables.map { ($0, $0) }),
 			(paths.legacyTodoDeviceDatabase, Schema.todoDeviceTables.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }),
+			(paths.legacyEmailDatabase, Schema.mailTables.map { (from: $0.0, to: $0.1) }),
 		]
 
 		for (file, tables) in sources {
