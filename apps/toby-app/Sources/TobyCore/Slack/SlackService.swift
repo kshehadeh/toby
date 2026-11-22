@@ -174,6 +174,7 @@ public struct SlackService: Sendable {
 		public var channelName: String?
 		public var ts: String
 		public var threadTS: String?
+		public var teamID: String?
 		public var text: String
 		public var user: String?
 		public var username: String?
@@ -193,20 +194,21 @@ public struct SlackService: Sendable {
 	}
 
 	/// `search.messages` (user token), newest first, paged up to `limit`.
-	public func searchMessages(_ query: String, limit: Int = 20) async throws -> [SearchHit] {
+	public func searchMessages(_ query: String, limit: Int = 20, ascending: Bool = false) async throws -> [SearchHit] {
 		let account = api.account()
 		let token = account.authMethod == "oauth" ? nil : (account["oauthUserToken"] ?? account["botToken"])
 		let cap = max(1, min(1000, limit))
 		var hits: [SearchHit] = []
 		var page = 1
 		while hits.count < cap {
-			let json = try await api.call("search.messages", ["query": query, "count": "\(min(100, cap))", "page": "\(page)", "sort": "timestamp", "sort_dir": "desc"], token: token)
+			let json = try await api.call("search.messages", ["query": query, "count": "\(min(100, cap))", "page": "\(page)", "sort": "timestamp", "sort_dir": ascending ? "asc" : "desc"], token: token)
 			let matches = json["messages"]?["matches"]?.arrayValue ?? []
 			hits += matches.compactMap { match in
 				guard let ts = match["ts"]?.stringValue else { return nil }
 				let channel = match["channel"]
 				return SearchHit(
 					channelID: channel?["id"]?.stringValue ?? "", channelName: channel?["name"]?.stringValue, ts: ts, threadTS: match["thread_ts"]?.stringValue,
+					teamID: match["team"]?.stringValue,
 					text: (match["text"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines), user: match["user"]?.stringValue,
 					username: match["username"]?.stringValue?.nilIfEmpty, permalink: match["permalink"]?.stringValue,
 					isDirect: channel?["is_im"] == true || channel?["is_mpim"] == true,
@@ -266,6 +268,61 @@ public struct SlackService: Sendable {
 			"groups": [["id": "mentions", "label": "Mentions", "count": .number(Double(items.count - direct))], ["id": "direct", "label": "Direct messages", "count": .number(Double(direct))]],
 			"generatedAt": .string(TodoRecurrence.isoString(now)),
 		]
+	}
+
+	// MARK: Activity (observation ledger)
+
+	static func threadTS(_ hit: SearchHit) -> String {
+		if let thread = hit.threadTS { return thread }
+		return hit.permalink.flatMap { URLComponents(string: $0)?.queryItems?.first { $0.name == "thread_ts" }?.value?.nilIfEmpty } ?? hit.ts
+	}
+
+	/// Mentions, DMs, and the user's own messages since `since`, oldest first.
+	public func recentActivity(since: String, limit: Int = 200) async throws -> ActivityResult {
+		guard let cutoff = TodoRecurrence.parseISO(since) else { throw SlackError.api("since must be an ISO 8601 timestamp with an offset.") }
+		let cap = max(1, min(1000, limit))
+		guard let selfID = try await searchUserID() else { throw SlackError.notConfigured("Slack activity needs a user token. Sign in to Slack again.") }
+		let after = FeedText.localDateKey(Calendar.current.date(byAdding: .day, value: -1, to: cutoff) ?? cutoff)
+		var hits: [SearchHit] = []
+		for query in ["<@\(selfID)> after:\(after)", "is:dm after:\(after)", "from:<@\(selfID)> after:\(after)"] {
+			hits += try await searchMessages(query, limit: min(1000, cap * 2), ascending: true)
+		}
+		return Self.activity(hits, selfID: selfID, cutoff: cutoff, cap: cap)
+	}
+
+	static func activity(_ hits: [SearchHit], selfID: String, cutoff: Date, cap: Int) -> ActivityResult {
+		var seen = Set<String>()
+		var out: [ObservationInput] = []
+		for hit in hits.sorted(by: { (Double($0.ts) ?? 0) < (Double($1.ts) ?? 0) }) {
+			guard !hit.channelID.isEmpty, let seconds = Double(hit.ts), seconds * 1000 >= cutoff.timeIntervalSince1970 * 1000 else { continue }
+			let external = "\(hit.channelID):\(hit.ts)"
+			guard seen.insert(external).inserted else { continue }
+			var scope: [String: JSONValue] = [:]
+			if let team = hit.teamID { scope["scope"] = .string(team) }
+			var actors: [JSONValue] = []
+			if let user = hit.user {
+				var author: [String: JSONValue] = ["role": "author", "handle": .string(user)]
+				author.merge(scope) { a, _ in a }
+				if let name = hit.username { author["name"] = .string(String(name.prefix(200))) }
+				actors.append(.object(author))
+			}
+			var mentioned: [String] = []
+			for match in hit.text.matches(of: /<@([A-Z0-9]+)(?:\|[^>]+)?>/) where !mentioned.contains(String(match.1)) { mentioned.append(String(match.1)) }
+			for handle in mentioned {
+				var entry: [String: JSONValue] = ["role": "mentioned", "handle": .string(handle)]
+				entry.merge(scope) { a, _ in a }
+				actors.append(.object(entry))
+			}
+			let firstLine = hit.text.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) ?? ""
+			out.append(ObservationInput(
+				externalID: external, kind: "chat.message", threadID: "\(hit.channelID):\(threadTS(hit))", direction: hit.user == selfID ? "outbound" : "inbound",
+				occurredAt: TodoRecurrence.isoString(Date(timeIntervalSince1970: seconds)), title: String(SlackText.clean(firstLine, selfID: selfID).prefix(1000)),
+				excerpt: String(SlackText.clean(hit.text, selfID: selfID).prefix(2000)), url: hit.permalink, actors: Array(actors.prefix(100)),
+				facts: ["isDm": .bool(hit.isDirect || hit.channelID.hasPrefix("D")), "channelName": .string(String((hit.channelName ?? "").prefix(500)))],
+			))
+			if out.count >= cap { break }
+		}
+		return ActivityResult(observations: out, selfHandles: [selfID])
 	}
 
 	// MARK: Tools

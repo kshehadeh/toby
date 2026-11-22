@@ -204,7 +204,7 @@ public final class PersonaService: Sendable {
 
 extension JSONEncoder {
 	/// Pretty, sorted output for human-edited files like `config.json`.
-	static var tobyPretty: JSONEncoder {
+	public static var tobyPretty: JSONEncoder {
 		let encoder = JSONEncoder()
 		encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
 		return encoder

@@ -431,6 +431,91 @@ public struct MailService: Sendable {
 		}
 	}
 
+	// MARK: Activity (observation ledger)
+
+	/// First message id in `References` / `In-Reply-To` / `Message-ID`, lowercased.
+	public static func threadID(references: String?, inReplyTo: String?, messageID: String?) -> String? {
+		func first(_ raw: String?) -> String? {
+			guard let raw else { return nil }
+			if let match = raw.firstMatch(of: /<([^<>]+)>/) { return String(match.1) }
+			return raw.trimmingCharacters(in: .whitespaces).split(whereSeparator: \.isWhitespace).first.map(String.init)
+		}
+		let id = [first(references), first(inReplyTo), first(messageID)].compactMap { $0?.nilIfEmpty }.first
+		return id?.replacingOccurrences(of: "<", with: "").replacingOccurrences(of: ">", with: "").lowercased().nilIfEmpty
+	}
+
+	/// Body text up to the first quoted-reply marker (≤ 2000 chars).
+	public static func trimSnippet(_ text: String) -> String {
+		var lines: [String] = []
+		for line in text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
+			if line.firstMatch(of: /(?i)^\s*(?:>|On .+wrote:|--\s*$|[-_]{2,}\s*Original Message|From:\s|Sent from my\b)/) != nil { break }
+			lines.append(line)
+		}
+		return String(lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines).prefix(2000))
+	}
+
+	/// INBOX and Sent mail since `since`, oldest first (read-only; bodies peeked).
+	public func recentActivity(since: String, limit: Int = 200) async throws -> ActivityResult {
+		guard let cutoff = TodoRecurrence.parseISO(since) else { throw MailError.server("since must be an ISO 8601 timestamp with an offset.") }
+		let cap = max(1, min(1000, limit))
+		let account = try requireAccount()
+		let selfSet = Set(account.selfAddresses.map { $0.lowercased() })
+		let headerFields = (Self.bulkHeaders + ["REFERENCES"]).joined(separator: " ")
+		let collected: [(mailbox: String, message: IMAPClient.Message, text: String)] = try await session(nil) { client in
+			let boxes = try await client.list()
+			let sent = boxes.first { $0.specialUse == "\\Sent" } ?? ["Sent", "Sent Items", "Sent Messages", "[Gmail]/Sent Mail"].lazy.compactMap { name in
+				boxes.first { $0.path.lowercased() == name.lowercased() || $0.name.lowercased() == name.lowercased() }
+			}.first
+			var out: [(String, IMAPClient.Message, String)] = []
+			for mailbox in [Self.defaultMailbox] + (sent.map { [$0.path] } ?? []) {
+				try await client.select(mailbox, readOnly: true)
+				let uids = try await client.search("SINCE \(IMAPClient.searchDate(cutoff))")
+				guard !uids.isEmpty else { continue }
+				let metadata = try await client.fetch(uids, items: "(UID FLAGS ENVELOPE INTERNALDATE BODY.PEEK[HEADER.FIELDS (\(headerFields))])")
+				let batch = metadata.filter { ($0.envelope?.date ?? $0.internalDate ?? .distantPast) >= cutoff }
+					.sorted { ($0.envelope?.date ?? $0.internalDate ?? .distantPast) < ($1.envelope?.date ?? $1.internalDate ?? .distantPast) }.prefix(cap)
+				let bodies = try await client.fetch(batch.map(\.uid), items: "(UID BODY.PEEK[]<0.32768>)")
+				let textByUID = Dictionary(bodies.map { ($0.uid, $0.source.map { MIME.body(of: $0).text } ?? "") }, uniquingKeysWith: { a, _ in a })
+				for message in batch { out.append((mailbox, message, textByUID[message.uid] ?? "")) }
+			}
+			return out
+		}
+		var seen = Set<String>()
+		var observations: [ObservationInput] = []
+		for (mailbox, message, text) in collected.sorted(by: { ($0.message.envelope?.date ?? $0.message.internalDate ?? .distantPast) < ($1.message.envelope?.date ?? $1.message.internalDate ?? .distantPast) }) {
+			guard let date = message.envelope?.date ?? message.internalDate, date >= cutoff else { continue }
+			let envelope = message.envelope
+			let external = envelope?.messageID.trimmingCharacters(in: .whitespaces).nilIfEmpty ?? "\(mailbox):\(message.uid)"
+			guard seen.insert(external).inserted else { continue }
+			var actors: [JSONValue] = []
+			for (role, list) in [("from", envelope?.from ?? []), ("to", envelope?.to ?? []), ("cc", envelope?.cc ?? [])] {
+				for address in list {
+					var actor: [String: JSONValue] = ["role": .string(role)]
+					if let name = address.name { actor["name"] = .string(String(name.prefix(200))) }
+					if !address.email.isEmpty { actor["email"] = .string(String(address.email.trimmingCharacters(in: .whitespaces).lowercased().prefix(320))) }
+					actors.append(.object(actor))
+				}
+			}
+			let fromEmail = envelope?.from.first?.email ?? ""
+			let outbound = (envelope?.from ?? []).contains { selfSet.contains($0.email.trimmingCharacters(in: .whitespaces).lowercased()) }
+			var observation = ObservationInput(
+				externalID: external, kind: "email.message",
+				threadID: Self.threadID(references: message.headers["references"], inReplyTo: envelope?.inReplyTo, messageID: envelope?.messageID),
+				direction: outbound ? "outbound" : "inbound", occurredAt: TodoRecurrence.isoString(date), title: String((envelope?.subject ?? "").prefix(1000)),
+				excerpt: Self.trimSnippet(text), actors: Array(actors.prefix(100)),
+			)
+			observation.facts = [
+				"bulk": .bool(Self.isBulk(message.headers, fromEmail: fromEmail)),
+				"direct": .bool((envelope?.to ?? []).contains { selfSet.contains($0.email.trimmingCharacters(in: .whitespaces).lowercased()) }),
+				"mailbox": .string(mailbox), "seen": .bool(message.flags.contains("\\Seen")), "answered": .bool(message.flags.contains("\\Answered")),
+				"flagged": .bool(message.flags.contains("\\Flagged")),
+			]
+			observations.append(observation)
+			if observations.count >= cap { break }
+		}
+		return ActivityResult(observations: observations, selfEmails: Array(selfSet))
+	}
+
 	// MARK: Background sync
 
 	/// Sync INBOX every `interval` while configured (the daemon's events poll).

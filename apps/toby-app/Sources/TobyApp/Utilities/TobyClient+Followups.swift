@@ -10,6 +10,11 @@ private func validateFollowupsResponse(_ response: URLResponse, data: Data) thro
 
 extension TobyClient {
 	func runFollowupsNow() async throws -> FollowupsRunResult {
+		if NativeMode.isEnabled {
+			let result = try JSONDecoder().decode(FollowupsRunResult.self, from: try await NativeRuntime.shared.followups().runNow())
+			guard result.status == "ok" else { throw TobyClientError.serverError(result.error ?? "Toby could not check follow-ups.") }
+			return result
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/followups/run"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -27,6 +32,7 @@ extension TobyClient {
 	}
 
 	func fetchFollowupsSettings() async throws -> FollowupsSettingsResponse {
+		if NativeMode.isEnabled { return try JSONDecoder().decode(FollowupsSettingsResponse.self, from: try await NativeRuntime.shared.followups().settings()) }
 		let url = baseURL.appendingPathComponent("api/followups/config")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validateFollowupsResponse(response, data: data)
@@ -34,6 +40,10 @@ extension TobyClient {
 	}
 
 	func saveFollowupsSettings(_ settings: FollowupsSettingsConfig, sourceDefaults: [String: Bool]) async throws -> FollowupsSettingsResponse {
+		if NativeMode.isEnabled {
+			let body = try JSONSerialization.data(withJSONObject: settings.requestBody(sourceDefaults: sourceDefaults))
+			return try JSONDecoder().decode(FollowupsSettingsResponse.self, from: try await NativeRuntime.shared.followups().saveSettings(body))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/followups/config"))
 		request.httpMethod = "PUT"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -44,6 +54,10 @@ extension TobyClient {
 	}
 
 	func fetchFollowupSources() async throws -> [FollowupSource] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let sources: [FollowupSource] }
+			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.followups().sources()).sources
+		}
 		let url = baseURL.appendingPathComponent("api/followups/sources")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validateFollowupsResponse(response, data: data)
@@ -52,6 +66,7 @@ extension TobyClient {
 	}
 
 	func fetchFollowupInstructions() async throws -> [FollowupInstruction] {
+		if NativeMode.isEnabled { return try JSONDecoder().decode(FollowupInstructionListResponse.self, from: try await NativeRuntime.shared.followups().instructions()).instructions }
 		let url = baseURL.appendingPathComponent("api/followups/instructions")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validateFollowupsResponse(response, data: data)
@@ -59,6 +74,7 @@ extension TobyClient {
 	}
 
 	func addFollowupInstruction(_ text: String) async throws -> [FollowupInstruction] {
+		if NativeMode.isEnabled { return try JSONDecoder().decode(FollowupInstructionListResponse.self, from: try await NativeRuntime.shared.followups().addInstruction(text)).instructions }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/followups/instructions"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -69,6 +85,7 @@ extension TobyClient {
 	}
 
 	func updateFollowupInstruction(id: String, text: String) async throws -> [FollowupInstruction] {
+		if NativeMode.isEnabled { return try JSONDecoder().decode(FollowupInstructionListResponse.self, from: try await NativeRuntime.shared.followups().updateInstruction(id, text)).instructions }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/followups/instructions/\(id)"))
 		request.httpMethod = "PATCH"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -79,6 +96,7 @@ extension TobyClient {
 	}
 
 	func deleteFollowupInstruction(id: String) async throws -> [FollowupInstruction] {
+		if NativeMode.isEnabled { return try JSONDecoder().decode(FollowupInstructionListResponse.self, from: try await NativeRuntime.shared.followups().deleteInstruction(id)).instructions }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/followups/instructions/\(id)"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -87,6 +105,7 @@ extension TobyClient {
 	}
 
 	func fetchFollowupDetail(todoId: String) async throws -> FollowupDetail? {
+		if NativeMode.isEnabled { return try await NativeRuntime.shared.followups().detail(todoId).map { try JSONDecoder().decode(FollowupDetail.self, from: $0) } }
 		let url = baseURL.appendingPathComponent("api/followups/\(todoId)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		if (response as? HTTPURLResponse)?.statusCode == 404 { return nil }
@@ -95,6 +114,12 @@ extension TobyClient {
 	}
 
 	func sendFollowupAction(todoId: String, action: String, body: [String: Any] = [:]) async throws {
+		if NativeMode.isEnabled {
+			let outcome = body["outcome"] as? String
+			try await NativeRuntime.shared.followups().action(todoId, action, outcome: outcome)
+			NotificationCenter.default.post(name: .todosDidChange, object: nil)
+			return
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/followups/\(todoId)/\(action)"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")

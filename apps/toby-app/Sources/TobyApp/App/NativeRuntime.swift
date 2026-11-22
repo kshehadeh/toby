@@ -149,6 +149,43 @@ final class NativeRuntime {
 		slackInbound = Task.detached(priority: .utility) { await inbound.run() }
 	}
 
+	private var followupsRouter: NativeFollowupsRouter?
+	private var followupsStoreIdentity: ObjectIdentifier?
+	private var followupsScheduler: Task<Void, Never>?
+
+	/// Follow-ups over the observation ledger (mail, Slack, calendar, chats,
+	/// todos, memory). Evaluation and extraction use the structured model.
+	func followups() throws -> NativeFollowupsRouter {
+		let database = try store()
+		let identity = ObjectIdentifier(database)
+		if let followupsRouter, followupsStoreIdentity == identity { return followupsRouter }
+		let todos = try todos().actions.service
+		let configURL = paths.legacyConfig
+		let keychain = KeychainKeyStore()
+		let signedIn: @Sendable () -> Bool = { ((try? keychain.read()) ?? nil)?.isEmpty == false }
+		let model = ai.model(ModelDefaults.structured)
+		let embedder = ai.embeddingModel()
+		let projects = ProjectService(writer: database.writer, tobyDirectory: paths.root)
+		let apple = AppleTools(bridge: AppNativeBridge())
+		let service = FollowupService(
+			writer: database.writer, todos: todos,
+			sources: [
+				MailObservationSource(mail: try mail()), SlackObservationSource(slack: slack), CalendarObservationSource(apple: apple, writer: database.writer),
+				MemoryObservationSource(writer: database.writer), ChatObservationSource(sessions: projects.sessions, writer: database.writer), TodoObservationSource(todos: todos),
+			],
+			config: { FollowupConfig(((try? Data(contentsOf: configURL)).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) })?["followups"]) },
+			embedder: { signedIn() ? embedder : nil },
+			evaluate: FollowupService.modelEvaluator(model), extract: GraphEnrichment.modelExtractor(model),
+			notify: NativeFollowupsRouter.notifyCompleted, ready: signedIn,
+		)
+		let router = NativeFollowupsRouter(followups: service, configURL: configURL)
+		followupsRouter = router
+		followupsStoreIdentity = identity
+		followupsScheduler?.cancel()
+		followupsScheduler = Task.detached(priority: .utility) { await service.runScheduler() }
+		return router
+	}
+
 	private var feedRouter: NativeFeedRouter?
 	private var feedStoreIdentity: ObjectIdentifier?
 	private var feedScheduler: Task<Void, Never>?
@@ -189,6 +226,7 @@ final class NativeRuntime {
 		_ = try? mail()
 		_ = try? feed()
 		_ = try? chat()
+		_ = try? followups()
 	}
 
 	/// Open the native database, importing the legacy home on first use.
