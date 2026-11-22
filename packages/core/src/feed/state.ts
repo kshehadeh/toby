@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { getDashboardFeedStatePath } from "../config/index";
 import { daemonLog } from "../logging/daemon-log";
+import {
+	type FeedRuleFilter,
+	feedRuleCompileSchema,
+} from "./instruction-filters";
 import type { FeedActionId, FeedContent, FeedItem } from "./types";
 
 /**
@@ -44,6 +48,58 @@ export interface FeedInstruction {
 	readonly createdAt: string;
 	/** Disabled instructions are kept for reference but not sent to the ranker. */
 	readonly enabled: boolean;
+	/**
+	 * How the instruction is enforced, compiled from its text (`hash`). A
+	 * `filter` rule hides matching candidates in code before ranking; every
+	 * instruction is also sent to the ranker as guidance.
+	 */
+	readonly rule?: FeedInstructionRule;
+}
+
+export type FeedInstructionRule =
+	| {
+			readonly status: "filter";
+			readonly hash: string;
+			readonly at: string;
+			readonly filters: readonly FeedRuleFilter[];
+			/** Plain description of what gets hidden, for the UI. */
+			readonly summary: string;
+	  }
+	/** Nothing to filter (ordering/emphasis): prompt guidance only. */
+	| { readonly status: "guidance"; readonly hash: string; readonly at: string }
+	/** Compile failed; retried later. */
+	| {
+			readonly status: "failed";
+			readonly hash: string;
+			readonly at: string;
+			readonly error: string;
+	  };
+
+function parseRule(raw: unknown): FeedInstructionRule | undefined {
+	if (!isRecord(raw)) return undefined;
+	if (typeof raw.hash !== "string" || typeof raw.at !== "string")
+		return undefined;
+	const { hash, at } = raw;
+	if (raw.status === "guidance") return { status: "guidance", hash, at };
+	if (raw.status === "failed")
+		return {
+			status: "failed",
+			hash,
+			at,
+			error: typeof raw.error === "string" ? raw.error : "",
+		};
+	if (raw.status === "filter") {
+		const parsed = feedRuleCompileSchema.shape.filters.safeParse(raw.filters);
+		if (!parsed.success || parsed.data.length === 0) return undefined;
+		return {
+			status: "filter",
+			hash,
+			at,
+			filters: parsed.data,
+			summary: typeof raw.summary === "string" ? raw.summary : "",
+		};
+	}
+	return undefined;
 }
 
 export interface FeedState {
@@ -140,11 +196,13 @@ function parseState(raw: unknown): FeedState {
 				!entry.text.trim()
 			)
 				continue;
+			const rule = parseRule(entry.rule);
 			instructions.push({
 				id: entry.id,
 				text: entry.text,
 				createdAt: entry.createdAt,
 				enabled: entry.enabled !== false,
+				...(rule ? { rule } : {}),
 			});
 		}
 	}
@@ -332,6 +390,21 @@ export function setInstructionEnabled(
 		...state,
 		instructions: state.instructions.map((i) =>
 			i.id === id ? { ...i, enabled } : i,
+		),
+	};
+}
+
+/** Store a compiled rule, only if the instruction's text still matches it. */
+export function setInstructionRule(
+	state: FeedState,
+	id: string,
+	rule: FeedInstructionRule,
+	currentHash: (text: string) => string,
+): FeedState {
+	return {
+		...state,
+		instructions: state.instructions.map((i) =>
+			i.id === id && currentHash(i.text) === rule.hash ? { ...i, rule } : i,
 		),
 	};
 }

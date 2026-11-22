@@ -187,6 +187,13 @@ struct FeedInstructionRow: View {
 					.foregroundStyle(instruction.enabled ? AppTheme.primaryText : AppTheme.tertiaryText)
 					.fixedSize(horizontal: false, vertical: true)
 					.textSelection(.enabled)
+				if instruction.enabled, let caption = instruction.enforcementCaption {
+					Text(caption)
+						.font(.system(size: 11))
+						.foregroundStyle(AppTheme.secondaryText)
+						.fixedSize(horizontal: false, vertical: true)
+						.accessibilityIdentifier("feed-instruction-enforcement-\(instruction.id)")
+				}
 				if let addedText {
 					Text(instruction.enabled ? addedText : "\(addedText) · Off")
 						.font(.system(size: 11))

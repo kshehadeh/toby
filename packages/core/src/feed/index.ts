@@ -4,6 +4,17 @@ import { type Persona, getDashboardFeedPath } from "../config/index";
 import { resolveDashboardPersona } from "../dashboard/prompts";
 import { daemonLog } from "../logging/daemon-log";
 import { collectFeedCandidates } from "./collect";
+import {
+	type CompileInstruction,
+	type FeedRuleFilter,
+	activeRuleFilters,
+	applyRuleFilters,
+	compileInstructionRule,
+	instructionRuleHash,
+	instructionsNeedingCompile,
+	modelRuleCompiler,
+	ruleContextFrom,
+} from "./instruction-filters";
 import { type FeedModelResolution, resolveFeedModel } from "./model";
 import {
 	type FeedPersonalization,
@@ -18,6 +29,8 @@ import {
 	feedbackCounts,
 	hiddenIds,
 	loadFeedState,
+	setInstructionRule,
+	updateFeedState,
 } from "./state";
 import type {
 	FeedCandidate,
@@ -166,6 +179,104 @@ export interface GetFeedOptions {
 	readonly resolveModel?: () => Promise<FeedModelResolution>;
 	/** Test seam for memories + feedback given to the ranker. */
 	readonly personalize?: (state: FeedState) => FeedPersonalization;
+	/** Test seam for compiling instructions into filters. */
+	readonly compileRule?: CompileInstruction;
+}
+
+const compiling = new Map<string, Promise<void>>();
+
+/**
+ * Compile enabled instructions that have no current rule, store the result,
+ * and return the filters in force. A compile failure leaves that instruction
+ * as prompt guidance until it is retried.
+ */
+export async function ensureFeedRuleFilters(params: {
+	readonly candidates: Parameters<typeof ruleContextFrom>[0];
+	readonly persona: Persona;
+	readonly model: FeedModelRef;
+	readonly now: Date;
+	readonly compile?: CompileInstruction;
+}): Promise<FeedRuleFilter[]> {
+	const pending = instructionsNeedingCompile(
+		loadFeedState(params.now).instructions,
+		params.now,
+	);
+	if (pending.length > 0) {
+		const compile =
+			params.compile ??
+			modelRuleCompiler({ persona: params.persona, model: params.model });
+		const context = ruleContextFrom(params.candidates);
+		await Promise.all(
+			pending.map((instruction) => {
+				const key = `${instruction.id}:${instructionRuleHash(instruction.text)}`;
+				const existing = compiling.get(key);
+				if (existing) return existing;
+				const job = compileInstructionRule(
+					instruction,
+					context,
+					compile,
+					params.now,
+				)
+					.then((rule) => {
+						if (rule.status === "failed")
+							daemonLog("warn", "general", "feed_rule_compile_failed", {
+								error: rule.error,
+							});
+						updateFeedState((s) =>
+							setInstructionRule(s, instruction.id, rule, instructionRuleHash),
+						);
+					})
+					.finally(() => compiling.delete(key));
+				compiling.set(key, job);
+				return job;
+			}),
+		);
+	}
+	return activeRuleFilters(loadFeedState(params.now).instructions);
+}
+
+/**
+ * Compile any new or edited instructions now (after one is added or turned
+ * on), so the instructions sheet can show how each is enforced. Never throws.
+ */
+export async function compileFeedInstructionRules(): Promise<void> {
+	try {
+		const resolution = await resolveFeedModel();
+		if (!resolution.ok) return;
+		const now = new Date();
+		const collection = await collectFeedCandidates({ force: false, now });
+		await ensureFeedRuleFilters({
+			candidates: collection.candidates,
+			persona: resolveDashboardPersona(),
+			model: resolution.ref,
+			now,
+		});
+	} catch (error) {
+		daemonLog("warn", "general", "feed_rule_compile_failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+/** Drop items the user's compiled instructions hide (e.g. from a cached ranking). */
+function applyRuleFiltersToContent(
+	content: FeedContent,
+	filters: readonly FeedRuleFilter[],
+): FeedContent {
+	if (filters.length === 0) return content;
+	const kept = applyRuleFilters(
+		content.items.map((item) => ({
+			item,
+			category: item.source.category,
+			providerName: item.source.providerName,
+			providerDisplayName: item.source.providerDisplayName,
+			subtitle: item.subtitle,
+		})),
+		filters,
+	);
+	return kept.length === content.items.length
+		? content
+		: { ...content, items: kept.map((k) => k.item) };
 }
 
 /**
@@ -185,7 +296,12 @@ export async function getFeedContent(
 ): Promise<FeedContent> {
 	const now = new Date();
 	const content = await buildFeedContent(options, now);
-	return applyFeedState(content, loadFeedState(now), now);
+	// A cached or background-pending ranking may predate a new instruction.
+	const filtered = applyRuleFiltersToContent(
+		content,
+		activeRuleFilters(loadFeedState(now).instructions),
+	);
+	return applyFeedState(filtered, loadFeedState(now), now);
 }
 
 async function buildFeedContent(
@@ -214,10 +330,22 @@ async function buildFeedContent(
 		force: force || awaitRerank,
 		now,
 	});
+	// Instructions that leave things out are enforced here, in code; the
+	// ranker still sees every instruction as guidance.
+	const ruleFilters = await ensureFeedRuleFilters({
+		candidates: collection.candidates,
+		persona,
+		model,
+		now,
+		...(options.compileRule ? { compile: options.compileRule } : {}),
+	});
 	const feedState = loadFeedState(now);
 	const hidden = hiddenIds(feedState, now);
 	const candidates = prefilterCandidates(
-		collection.candidates.filter((c) => !hidden.has(c.id)),
+		applyRuleFilters(
+			collection.candidates.filter((c) => !hidden.has(c.id)),
+			ruleFilters,
+		),
 		now,
 		feedbackCounts(feedState),
 	);

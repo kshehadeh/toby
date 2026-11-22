@@ -57,6 +57,22 @@ struct FeedInstructionsTests {
 		#expect(payload.instructions == [instruction("a", "Skip news", enabled: false)])
 	}
 
+	@Test("decodes enforcement and describes how each instruction is applied")
+	func decodesEnforcement() throws {
+		let json = """
+		{"instructions":[
+		{"id":"a","text":"Ignore Todoist outside the Inbox","createdAt":"2026-11-16T15:00:00.000Z","enabled":true,"enforcement":"filter","enforcementSummary":"Hides Todoist tasks outside the Inbox"},
+		{"id":"b","text":"Put email first","createdAt":"2026-11-16T15:00:00.000Z","enabled":true,"enforcement":"guidance"},
+		{"id":"c","text":"New","createdAt":"2026-11-16T15:00:00.000Z","enabled":true,"enforcement":"pending"}
+		]}
+		"""
+		let items = try JSONDecoder().decode(FeedInstructionsResponse.self, from: Data(json.utf8)).instructions
+		#expect(items[0].enforcementCaption == "Always enforced · Hides Todoist tasks outside the Inbox")
+		#expect(items[1].enforcementCaption == "Used as ranking guidance")
+		#expect(items[2].enforcementCaption == nil)
+		#expect(instruction("d", "Old daemon").enforcementCaption == nil)
+	}
+
 	@Test("store lists newest first, adds, toggles, deletes, and reports changes once")
 	func storeLifecycle() async {
 		let fake = FakeInstructions()

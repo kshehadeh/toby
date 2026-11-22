@@ -4,12 +4,15 @@ import { listFlowDashboardBlocks } from "../../dashboard/flow-blocks";
 import { STANDARD_TOOL_FOR_CATEGORY } from "../../dashboard/types";
 import { performFeedAction } from "../../feed/execute";
 import {
+	compileFeedInstructionRules,
 	findFeedItem,
 	getFeedContent,
 	getPersistedFeed,
 } from "../../feed/index";
+import { instructionRuleHash } from "../../feed/instruction-filters";
 import {
 	FEED_INSTRUCTIONS_MAX,
+	type FeedInstruction,
 	type FeedState,
 	addInstruction,
 	applyFeedState,
@@ -115,8 +118,35 @@ export async function handleDashboardFeedAction(
 
 const INSTRUCTIONS_PREFIX = "/api/dashboard/feed/instructions";
 
+/**
+ * How an instruction is enforced, for the instructions sheet:
+ * - `filter`   — compiled into a filter applied in code (`enforcementSummary`)
+ * - `guidance` — sent to the ranker only (ordering, emphasis)
+ * - `pending`  — not compiled yet (or the last attempt failed)
+ */
+export function instructionEnforcement(instruction: FeedInstruction): {
+	readonly enforcement: "filter" | "guidance" | "pending";
+	readonly enforcementSummary?: string;
+} {
+	const rule = instruction.rule;
+	if (!rule || rule.hash !== instructionRuleHash(instruction.text))
+		return { enforcement: "pending" };
+	if (rule.status === "filter")
+		return { enforcement: "filter", enforcementSummary: rule.summary };
+	if (rule.status === "guidance") return { enforcement: "guidance" };
+	return { enforcement: "pending" };
+}
+
 function instructionsBody(state: FeedState) {
-	return { instructions: state.instructions };
+	return {
+		instructions: state.instructions.map(({ rule: _rule, ...instruction }) => ({
+			...instruction,
+			...instructionEnforcement({
+				...instruction,
+				...(_rule ? { rule: _rule } : {}),
+			}),
+		})),
+	};
 }
 
 /**
@@ -155,6 +185,7 @@ export async function handleDashboardFeedInstructions(
 				(s) => addInstruction(s, parsed.text, now),
 				now,
 			);
+			void compileFeedInstructionRules();
 			return jsonResponse(instructionsBody(next), 201);
 		}
 		return errorResponse("Method not allowed", 405);
@@ -169,6 +200,7 @@ export async function handleDashboardFeedInstructions(
 		}
 		const enabled = body.enabled;
 		const next = updateFeedState((s) => setInstructionEnabled(s, id, enabled));
+		if (enabled) void compileFeedInstructionRules();
 		return jsonResponse(instructionsBody(next));
 	}
 	if (req.method === "DELETE") {

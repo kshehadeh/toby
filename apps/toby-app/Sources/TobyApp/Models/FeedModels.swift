@@ -170,9 +170,27 @@ struct FeedInstruction: Decodable, Equatable, Identifiable, Sendable {
 	let text: String
 	let createdAt: String
 	var enabled: Bool
+	/// `filter` (hidden in code before ranking), `guidance` (ranker only), or
+	/// `pending` (not compiled yet). Absent from older daemons.
+	var enforcement: String? = nil
+	/// What a `filter` instruction hides, e.g. "Hides Todoist tasks outside the Inbox".
+	var enforcementSummary: String? = nil
 
 	/// Character limit enforced by the daemon.
 	static let maxLength = 500
+
+	/// One-line caption describing how the instruction is applied, if known.
+	var enforcementCaption: String? {
+		switch enforcement {
+		case "filter":
+			let summary = enforcementSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+			return summary.isEmpty ? "Always enforced" : "Always enforced · \(summary)"
+		case "guidance":
+			return "Used as ranking guidance"
+		default:
+			return nil
+		}
+	}
 }
 
 /// `/api/dashboard/feed/instructions` response.
