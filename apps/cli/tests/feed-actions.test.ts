@@ -137,6 +137,25 @@ describe("feed action support", () => {
 		]);
 	});
 
+	it("always offers Complete on tasks and todos, after the model's picks", () => {
+		const todo = resolveActions(candidate({ category: "todos" }), [
+			"task.help",
+		]);
+		expect(todo.map((a) => a.id).slice(0, 2)).toEqual([
+			"task.help",
+			"task.complete",
+		]);
+		const unsupported = resolveActions(candidate({ category: "tasks" }), [
+			"task.help",
+		]);
+		expect(unsupported.map((a) => a.id)).not.toContain("task.complete");
+		const picked = resolveActions(candidate({ category: "todos" }), [
+			"task.complete",
+			"task.help",
+		]);
+		expect(picked.filter((a) => a.id === "task.complete")).toHaveLength(1);
+	});
+
 	it("drops unsupported provider actions the model picked", () => {
 		const ids = resolveActions(candidate(), ["email.archive"]).map((a) => a.id);
 		expect(ids).toEqual([

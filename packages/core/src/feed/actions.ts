@@ -111,6 +111,18 @@ const ALLOWED_BY_CATEGORY: Readonly<
 	news: ["news.discuss"],
 };
 
+/**
+ * Actions offered on every item of a category regardless of the model's
+ * picks (when the source supports them): finishing a task shouldn't depend
+ * on the ranker remembering to suggest it.
+ */
+const ALWAYS_OFFERED: Readonly<
+	Partial<Record<FeedCategory, readonly FeedActionId[]>>
+> = {
+	tasks: ["task.complete"],
+	todos: ["task.complete"],
+};
+
 /** Default primary action when the model picks none that are valid. */
 const DEFAULT_PRIMARY: Readonly<Record<FeedCategory, FeedActionId>> = {
 	email: "email.draftReply",
@@ -220,6 +232,9 @@ export function resolveActions(
 		}
 	}
 	if (ids.length === 0) ids.push(DEFAULT_PRIMARY[candidate.category]);
+	for (const id of ALWAYS_OFFERED[candidate.category] ?? []) {
+		if (allowed.has(id) && !ids.includes(id)) ids.push(id);
+	}
 	ids.push("open", "snooze", "notRelevant", "dismiss");
 	return ids
 		.map((id) => buildAction(id, candidate))

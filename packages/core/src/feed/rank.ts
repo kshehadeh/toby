@@ -26,7 +26,7 @@ import {
 export const FEED_FLOW_NAME = "dashboard.feed";
 export const MAX_FEED_ITEMS = 12;
 /** Bump when ranking prompt/schema semantics change so cached rankings re-run. */
-export const FEED_RANKING_VERSION = "rank-v7";
+export const FEED_RANKING_VERSION = "rank-v8";
 const RANK_TIMEOUT_MS = 60_000;
 const RANK_MAX_OUTPUT_TOKENS = 4000;
 

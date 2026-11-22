@@ -78,6 +78,7 @@ describe("getFeedContent", () => {
 		expect(first.items[0]?.title).toBe("File taxes");
 		expect(first.items[0]?.actions.map((a) => a.id)).toEqual([
 			"task.help",
+			"task.complete",
 			"snooze",
 			"notRelevant",
 			"dismiss",
