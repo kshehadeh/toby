@@ -47,6 +47,9 @@ let package = Package(
 			resources: [
 				.copy("Resources"),
 			],
+			linkerSettings: [
+				.linkedFramework("PDFKit"),
+			],
 		),
 		.executableTarget(
 			name: "TobyApp",

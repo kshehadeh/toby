@@ -65,6 +65,28 @@ final class NativeRuntime {
 		return router
 	}
 
+	private var libraryRouter: NativeLibraryRouter?
+
+	/// In-process library. Summaries use the fast model; embeddings OpenRouter.
+	func library() throws -> NativeLibraryRouter {
+		let database = try store()
+		if let libraryRouter, libraryRouter.library.isBacked(by: database.writer) { return libraryRouter }
+		let client = ai
+		let keychain = KeychainKeyStore()
+		let signedIn: @Sendable () -> Bool = { ((try? keychain.read()) ?? nil)?.isEmpty == false }
+		let router = NativeLibraryRouter(
+			library: LibraryService(
+				writer: database.writer,
+				libraryDirectory: paths.library,
+				summarizer: { signedIn() ? AILibrarySummarizer(model: client.model(ModelDefaults.fast)) : nil },
+				embedder: { signedIn() ? client.embeddingModel() : nil },
+			),
+			projects: ProjectService(writer: database.writer, tobyDirectory: paths.root),
+		)
+		libraryRouter = router
+		return router
+	}
+
 	/// In-process personas, skills, and projects.
 	func files() throws -> NativeFilesRouter {
 		let database = try store()

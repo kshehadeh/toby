@@ -1264,6 +1264,10 @@ struct TobyClient {
 		origin: String? = nil,
 		refreshCatalog: Bool = false
 	) async throws -> LibraryListResponse {
+		if NativeMode.isEnabled {
+			let data = try await NativeRuntime.shared.library().list(limit: limit, offset: offset, query: query, origin: origin, refresh: refreshCatalog)
+			return try JSONDecoder().decode(LibraryListResponse.self, from: data)
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/library"),
 			resolvingAgainstBaseURL: false,
@@ -1288,6 +1292,9 @@ struct TobyClient {
 	}
 
 	func fetchLibraryItem(id: String) async throws -> LibraryAsset {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().get(id)).item
+		}
 		let url = baseURL.appendingPathComponent("api/library/\(id)")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -1295,6 +1302,9 @@ struct TobyClient {
 	}
 
 	func createLibraryItem(_ request: LibraryCreateRequest) async throws -> LibraryCreateResponse {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(LibraryCreateResponse.self, from: try await NativeRuntime.shared.library().create(try JSONEncoder().encode(request)))
+		}
 		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/library"))
 		urlRequest.httpMethod = "POST"
 		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1305,6 +1315,9 @@ struct TobyClient {
 	}
 
 	func patchLibraryItem(id: String, patch: LibraryPatchRequest) async throws -> LibraryAsset {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().patch(id, try JSONEncoder().encode(patch))).item
+		}
 		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/library/\(id)"))
 		urlRequest.httpMethod = "PATCH"
 		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1315,6 +1328,10 @@ struct TobyClient {
 	}
 
 	func deleteLibraryItem(id: String) async throws {
+		if NativeMode.isEnabled {
+			try await NativeRuntime.shared.library().delete(id)
+			return
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/library/\(id)"))
 		request.httpMethod = "DELETE"
 		let (data, response) = try await URLSession.shared.data(for: request)
