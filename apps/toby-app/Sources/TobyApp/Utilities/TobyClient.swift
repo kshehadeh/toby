@@ -1140,6 +1140,9 @@ struct TobyClient {
 	/// The Feed: ranked cross-connection items with reasons and actions.
 	/// - Parameter fresh: When true, re-collects and re-ranks on the daemon.
 	func fetchDashboardFeed(fresh: Bool = false) async throws -> FeedContent {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(FeedContent.self, from: try await NativeRuntime.shared.feed().content(fresh: fresh))
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/dashboard/feed"),
 			resolvingAgainstBaseURL: false
@@ -1154,6 +1157,9 @@ struct TobyClient {
 
 	/// Runs a Feed tool / local action (`POST /api/dashboard/feed/actions`).
 	func performFeedAction(itemID: String, actionID: String) async throws -> FeedActionResponse {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(FeedActionResponse.self, from: try await NativeRuntime.shared.feed().perform(itemID: itemID, actionID: actionID))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/dashboard/feed/actions"))
 		// Provider actions (IMAP flags, archive) can be slow; the daemon hides
 		// the item up front, so waiting longer only avoids a false failure.
@@ -1174,12 +1180,18 @@ struct TobyClient {
 
 	/// The user's Feed instructions, oldest first.
 	func listFeedInstructions() async throws -> [FeedInstruction] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().instructions()).instructions
+		}
 		var request = URLRequest(url: feedInstructionsURL)
 		request.cachePolicy = .reloadIgnoringLocalCacheData
 		return try await sendFeedInstructions(request)
 	}
 
 	func addFeedInstruction(text: String) async throws -> [FeedInstruction] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().addInstruction(text)).instructions
+		}
 		var request = URLRequest(url: feedInstructionsURL)
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1188,6 +1200,9 @@ struct TobyClient {
 	}
 
 	func setFeedInstructionEnabled(id: String, enabled: Bool) async throws -> [FeedInstruction] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().setInstruction(id, enabled: enabled)).instructions
+		}
 		var request = URLRequest(url: feedInstructionsURL.appendingPathComponent(id))
 		request.httpMethod = "PATCH"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1196,6 +1211,9 @@ struct TobyClient {
 	}
 
 	func deleteFeedInstruction(id: String) async throws -> [FeedInstruction] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().removeInstruction(id)).instructions
+		}
 		var request = URLRequest(url: feedInstructionsURL.appendingPathComponent(id))
 		request.httpMethod = "DELETE"
 		return try await sendFeedInstructions(request)

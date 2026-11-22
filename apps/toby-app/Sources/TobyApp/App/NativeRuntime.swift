@@ -120,6 +120,29 @@ final class NativeRuntime {
 		return router
 	}
 
+	private var feedRouter: NativeFeedRouter?
+	private var feedStoreIdentity: ObjectIdentifier?
+	private var feedScheduler: Task<Void, Never>?
+
+	/// The native Feed (calendar, reminders, todos). Starts the 15-minute scheduler.
+	func feed() throws -> NativeFeedRouter {
+		let database = try store()
+		let identity = ObjectIdentifier(database)
+		if let feedRouter, feedStoreIdentity == identity { return feedRouter }
+		let apple = AppleTools(bridge: AppNativeBridge())
+		let service = FeedService(
+			sources: [CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple)],
+			todos: try todos().actions.service, memory: try memories().memory,
+			personas: PersonaService(tobyDirectory: paths.root), ai: ai, tobyDirectory: paths.root,
+		)
+		let router = NativeFeedRouter(feed: service)
+		feedRouter = router
+		feedStoreIdentity = identity
+		feedScheduler?.cancel()
+		feedScheduler = Task.detached(priority: .utility) { await service.runScheduler(notify: NativeFeedRouter.notify) }
+		return router
+	}
+
 	/// In-process personas, skills, and projects.
 	func files() throws -> NativeFilesRouter {
 		let database = try store()
