@@ -10,6 +10,7 @@ let package = Package(
 		.executable(name: "toby-app", targets: ["TobyApp"]),
 		.library(name: "TobyAI", targets: ["TobyAI"]),
 		.library(name: "TobyStore", targets: ["TobyStore"]),
+		.library(name: "TobyCore", targets: ["TobyCore"]),
 	],
 	dependencies: [
 		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
@@ -35,11 +36,21 @@ let package = Package(
 			],
 			path: "Sources/TobyStore",
 		),
+		.target(
+			name: "TobyCore",
+			dependencies: [
+				"TobyAI",
+				"TobyStore",
+				.product(name: "GRDB", package: "GRDB.swift"),
+			],
+			path: "Sources/TobyCore",
+		),
 		.executableTarget(
 			name: "TobyApp",
 			dependencies: [
 				"TobyAI",
 				"TobyStore",
+				"TobyCore",
 				.product(name: "Sparkle", package: "Sparkle"),
 				.product(name: "CodeEditorView", package: "CodeEditorView"),
 				.product(name: "LanguageSupport", package: "CodeEditorView"),
@@ -86,6 +97,8 @@ let package = Package(
 			name: "TobyAppTests",
 			dependencies: [
 				"TobyApp",
+				"TobyCore",
+				"TobyStore",
 				.product(name: "ViewInspector", package: "ViewInspector"),
 				.product(name: "LanguageSupport", package: "CodeEditorView"),
 			],
@@ -104,6 +117,16 @@ let package = Package(
 				.product(name: "GRDB", package: "GRDB.swift"),
 			],
 			path: "Tests/TobyStoreTests",
+		),
+		.testTarget(
+			name: "TobyCoreTests",
+			dependencies: [
+				"TobyCore",
+				"TobyStore",
+				"TobyAI",
+				.product(name: "GRDB", package: "GRDB.swift"),
+			],
+			path: "Tests/TobyCoreTests",
 		),
 	],
 )

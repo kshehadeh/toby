@@ -1,5 +1,6 @@
 import Foundation
 import TobyAI
+import TobyCore
 import TobyStore
 
 /// Migration switch between the TypeScript daemon and the native Swift core.
@@ -29,6 +30,22 @@ final class NativeRuntime {
 
 	/// The OpenRouter client, keyed from the Keychain.
 	let ai = OpenRouterClient(keyProvider: KeychainKeyStore())
+
+	private var todoRouter: NativeTodoRouter?
+	private var todoSyncLoop: Task<Void, Never>?
+
+	/// The in-process `/api/todos` implementation. Starts the todo sync loop.
+	func todos() throws -> NativeTodoRouter {
+		let database = try store()
+		if let todoRouter, todoRouter.service.isBacked(by: database) { return todoRouter }
+		let service = TodoService(writer: database.writer, tobyDirectory: paths.root)
+		let sync = NativeTodoSyncService(service: service, tobyDirectory: paths.root)
+		let router = NativeTodoRouter(actions: TodoActions(service: service), sync: sync)
+		todoRouter = router
+		todoSyncLoop?.cancel()
+		todoSyncLoop = Task.detached(priority: .utility) { await sync.runLoop() }
+		return router
+	}
 
 	/// Open the native database, importing the legacy home on first use.
 	func store() throws -> TobyDatabase {

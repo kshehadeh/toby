@@ -2,6 +2,11 @@ import Foundation
 
 extension TobyClient {
 	func todoRequest<T: Decodable>(_ path: String = "", query: [String: String] = [:], action: [String: Any]? = nil) async throws -> T {
+		if NativeMode.isEnabled {
+			let body = try action.map { try JSONSerialization.data(withJSONObject: $0) }
+			let data = try await NativeRuntime.shared.todos().handle(path: path, query: query, body: body)
+			return try JSONDecoder().decode(T.self, from: data)
+		}
 		guard var components = URLComponents(url: baseURL.appendingPathComponent("api/todos\(path)"), resolvingAgainstBaseURL: false) else {
 			throw TobyClientError.invalidResponse
 		}
