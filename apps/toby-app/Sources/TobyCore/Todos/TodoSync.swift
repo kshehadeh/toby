@@ -189,20 +189,10 @@ public struct TodoSyncSettings: Sendable, Equatable {
 		return resolved.hasSuffix("/config-sync") ? String(resolved.dropLast("config-sync".count)) + "sync" : resolved
 	}
 
-	/// The vault passphrase the daemon stored in the Keychain (`dev.toby.sync`),
-	/// falling back to `<tobyDir>/sync-passphrase`.
+	/// The sync vault password from Toby's Keychain vault (migrated from the
+	/// daemon's `dev.toby.sync` item), falling back to `<tobyDir>/sync-passphrase`.
 	public static func passphrase(tobyDirectory: URL) -> String? {
-		let query: [String: Any] = [
-			kSecClass as String: kSecClassGenericPassword,
-			kSecAttrService as String: "dev.toby.sync",
-			kSecAttrAccount as String: "vault-passphrase",
-			kSecReturnData as String: true,
-			kSecMatchLimit as String: kSecMatchLimitOne,
-		]
-		var item: CFTypeRef?
-		if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess, let data = item as? Data,
-		   let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty
-		{
+		if let text = TobyKeychain.shared.value("sync.passphrase")?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
 			return text
 		}
 		let file = tobyDirectory.appending(path: "sync-passphrase")

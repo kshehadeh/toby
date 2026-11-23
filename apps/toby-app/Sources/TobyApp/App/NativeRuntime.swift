@@ -262,6 +262,12 @@ final class NativeRuntime {
 		} catch {
 			TobyLog.shared.error("app", "store_open_failed", ["error": .string(error.localizedDescription)])
 		}
+		// Load the Keychain vault once (migrating older items without prompts).
+		_ = TobyKeychain.shared.value("openrouter.apiKey")
+		let skipped = TobyKeychain.shared.skippedLegacyKeys
+		if !skipped.isEmpty {
+			TobyLog.shared.warn("keychain", "legacy_secrets_need_reconnect", ["keys": .array(skipped.map(JSONValue.string))])
+		}
 		startBackgroundServices()
 	}
 

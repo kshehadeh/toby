@@ -19,19 +19,15 @@ public struct SyncVault: Sendable {
 		}
 
 		public static func keychain(tobyDirectory: URL) -> Passphrase {
-			@Sendable func base() -> [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.toby.sync", kSecAttrAccount as String: "vault-passphrase"] }
-			return Passphrase(
+			Passphrase(
 				read: { TodoSyncSettings.passphrase(tobyDirectory: tobyDirectory) },
 				write: { value in
-					SecItemDelete(base() as CFDictionary)
-					var add = base()
-					add[kSecValueData as String] = Data(value.utf8)
-					add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-					let status = SecItemAdd(add as CFDictionary, nil)
-					guard status == errSecSuccess else { throw BackupArchive.Failure("Could not save the sync password to Keychain (\(status)).") }
+					do { try TobyKeychain.shared.set(value, for: "sync.passphrase") } catch {
+						throw BackupArchive.Failure("Could not save the sync password to Keychain (\(error.localizedDescription)).")
+					}
 				},
 				delete: {
-					SecItemDelete(base() as CFDictionary)
+					try? TobyKeychain.shared.set(nil, for: "sync.passphrase")
 					try? FileManager.default.removeItem(at: tobyDirectory.appending(path: "sync-passphrase"))
 				},
 			)

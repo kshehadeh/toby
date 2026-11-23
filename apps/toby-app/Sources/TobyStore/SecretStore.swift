@@ -1,60 +1,25 @@
 import Foundation
 import Security
+import TobyAI
 
-/// Named secrets (Mail, Slack, …) in the login Keychain. The OpenRouter key has
-/// its own item (`TobyAI.KeychainKeyStore`).
+/// Named secrets (Mail, Slack, …).
 public protocol SecretStore: Sendable {
 	func secret(_ name: String) throws -> String?
 	func setSecret(_ value: String, for name: String) throws
 	func removeSecret(_ name: String) throws
 }
 
+/// Named secrets in Toby's single Keychain vault (`TobyKeychain`).
 public struct KeychainSecretStore: SecretStore {
-	public let service: String
+	let vault: TobyKeychain
 
-	public init(service: String = "app.toby.secrets") {
-		self.service = service
+	public init(vault: TobyKeychain = .shared) {
+		self.vault = vault
 	}
 
-	public func secret(_ name: String) throws -> String? {
-		var query = baseQuery(name)
-		query[kSecReturnData as String] = true
-		query[kSecMatchLimit as String] = kSecMatchLimitOne
-		var item: CFTypeRef?
-		let status = SecItemCopyMatching(query as CFDictionary, &item)
-		switch status {
-		case errSecSuccess: return (item as? Data).flatMap { String(data: $0, encoding: .utf8) }
-		case errSecItemNotFound: return nil
-		default: throw SecretStoreError(status: status)
-		}
-	}
-
-	public func setSecret(_ value: String, for name: String) throws {
-		let data = Data(value.utf8)
-		let status = SecItemUpdate(baseQuery(name) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-		if status == errSecItemNotFound {
-			var add = baseQuery(name)
-			add[kSecValueData as String] = data
-			add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-			let added = SecItemAdd(add as CFDictionary, nil)
-			guard added == errSecSuccess else { throw SecretStoreError(status: added) }
-		} else if status != errSecSuccess {
-			throw SecretStoreError(status: status)
-		}
-	}
-
-	public func removeSecret(_ name: String) throws {
-		let status = SecItemDelete(baseQuery(name) as CFDictionary)
-		guard status == errSecSuccess || status == errSecItemNotFound else { throw SecretStoreError(status: status) }
-	}
-
-	private func baseQuery(_ name: String) -> [String: Any] {
-		[
-			kSecClass as String: kSecClassGenericPassword,
-			kSecAttrService as String: service,
-			kSecAttrAccount as String: name,
-		]
-	}
+	public func secret(_ name: String) throws -> String? { vault.value(name) }
+	public func setSecret(_ value: String, for name: String) throws { try vault.set(value, for: name) }
+	public func removeSecret(_ name: String) throws { try vault.set(nil, for: name) }
 }
 
 /// In-memory secret store (tests, previews).
