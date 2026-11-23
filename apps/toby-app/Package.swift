@@ -12,6 +12,7 @@ let package = Package(
 		.library(name: "TobyStore", targets: ["TobyStore"]),
 		.library(name: "TobyCore", targets: ["TobyCore"]),
 		.library(name: "TobyMail", targets: ["TobyMail"]),
+		.executable(name: "toby-seed", targets: ["TobySeed"]),
 	],
 	dependencies: [
 		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
@@ -103,6 +104,16 @@ let package = Package(
 					"Sources/TobyApp/Info.plist",
 				]),
 			],
+		),
+		.executableTarget(
+			name: "TobySeed",
+			dependencies: [
+				"TobyAI",
+				"TobyStore",
+				"TobyCore",
+				.product(name: "GRDB", package: "GRDB.swift"),
+			],
+			path: "Sources/TobySeed",
 		),
 		.testTarget(
 			name: "TobyMailTests",

@@ -1,6 +1,6 @@
 # Listen recording fixtures
 
-Sample dual-source recordings used by `scripts/seed-toby-generic-home.ts`
+Sample dual-source recordings used by `toby-seed` (`apps/toby-app/Sources/TobySeed`)
 when building a demo Toby home.
 
 **Archive:** [`listen-recordings.zip`](./listen-recordings.zip) (~46 MB compressed)

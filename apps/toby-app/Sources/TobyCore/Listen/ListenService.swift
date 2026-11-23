@@ -61,7 +61,7 @@ public struct ListenService: Sendable {
 		(try? Data(contentsOf: dir.appending(path: "metadata.json"))).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) }?.objectValue
 	}
 
-	static func writeMetadata(_ dir: URL, _ metadata: [String: JSONValue]) throws {
+	public static func writeMetadata(_ dir: URL, _ metadata: [String: JSONValue]) throws {
 		try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 		var data = try JSONEncoder.tobyPretty.encode(JSONValue.object(metadata))
 		data.append(10)

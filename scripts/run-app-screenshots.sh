@@ -42,7 +42,7 @@ done
 needs_seed() {
 	[[ ! -d "$DEST" ]] && return 0
 	[[ ! -f "$DEST/config.json" ]] && return 0
-	[[ ! -f "$DEST/chat.sqlite" ]] && return 0
+	[[ ! -f "$DEST/app/toby.sqlite" ]] && return 0
 	return 1
 }
 
@@ -52,7 +52,7 @@ if [[ "$RESEED" -eq 1 ]] || needs_seed; then
 	else
 		echo "Generic screenshot home missing or incomplete; seeding $DEST …"
 	fi
-	bun "$ROOT/scripts/seed-toby-generic-home.ts" "$DEST"
+	swift run --package-path "$ROOT/apps/toby-app" -c release toby-seed "$DEST"
 else
 	echo "Using existing generic home: $DEST"
 	echo "(pass --reseed to wipe and rebuild)"
@@ -74,9 +74,6 @@ if pgrep -f 'Toby \(Dev\)' >/dev/null 2>&1; then
 fi
 
 echo "Launching with TOBY_DIR=$DEST"
-open -n -g \
-	--env "TOBY_DIR=${DEST}" \
-	--env "TOBY_CREDENTIALS_KEY_BACKEND=plaintext" \
-	"$APP"
+open -n -g --env "TOBY_DIR=${DEST}" "$APP"
 
 echo "Done. Demo UI should show sample data (not your personal ~/.toby home)."

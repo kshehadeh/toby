@@ -16,7 +16,7 @@
     "dev:upgrade-available": "bash ./scripts/run-app-upgrade-available.sh",
     "dev:sandbox": "bash ./scripts/run-sandbox.sh",
     "app:screenshots": "bash ./scripts/run-app-screenshots.sh",
-    "seed:home": "bun ./scripts/seed-toby-generic-home.ts",
+    "seed:home": "swift run --package-path apps/toby-app -c release toby-seed",
     "build:release": "./scripts/build-release-artifacts.sh",
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
     "test": "bun run test:swift",

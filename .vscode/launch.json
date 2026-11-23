@@ -3,26 +3,6 @@
 		{
 			"type": "swift",
 			"request": "launch",
-			"args": ["status"],
-			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
-			"name": "Debug toby-plugin-macos (apps/plugin-macos)",
-			"target": "toby-plugin-macos",
-			"configuration": "debug",
-			"preLaunchTask": "swift: Build Debug toby-plugin-macos (apps/plugin-macos)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
-			"args": ["status"],
-			"cwd": "${workspaceFolder:toby}/apps/plugin-macos",
-			"name": "Release toby-plugin-macos (apps/plugin-macos)",
-			"target": "toby-plugin-macos",
-			"configuration": "release",
-			"preLaunchTask": "swift: Build Release toby-plugin-macos (apps/plugin-macos)"
-		},
-		{
-			"type": "swift",
-			"request": "launch",
 			"args": [],
 			"cwd": "${workspaceFolder:toby}/apps/toby-app",
 			"name": "Debug toby-app (apps/toby-app)",
@@ -39,6 +19,26 @@
 			"target": "toby-app",
 			"configuration": "release",
 			"preLaunchTask": "swift: Build Release toby-app (apps/toby-app)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/toby-app",
+			"name": "Debug toby-seed (apps/toby-app)",
+			"target": "toby-seed",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug toby-seed (apps/toby-app)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:toby}/apps/toby-app",
+			"name": "Release toby-seed (apps/toby-app)",
+			"target": "toby-seed",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release toby-seed (apps/toby-app)"
 		}
 	]
 }

@@ -200,27 +200,24 @@ echo "PID=$PID"
 ```
 
 That script seeds `~/.toby-generic` when missing/incomplete, builds Dev, quits a
-leftover Dev process, and opens with `TOBY_DIR` + plaintext credentials via
-`open --env` (shell exports alone are not reliable with LaunchServices).
+leftover Dev process, and opens with `TOBY_DIR` via `open --env` (shell exports
+alone are not reliable with LaunchServices).
 
 Manual equivalent (if you need to customize):
 
 ```bash
-python3 scripts/seed-toby-generic-home.py   # safe to re-run; only rebuilds dest
+bun run seed:home   # swift run toby-seed; wipes and rebuilds ~/.toby-generic
 pkill -f 'Toby \(Dev\)' 2>/dev/null || true
 sleep 1
-open -n -g \
-  --env "TOBY_DIR=${HOME}/.toby-generic" \
-  --env "TOBY_CREDENTIALS_KEY_BACKEND=plaintext" \
-  "$(pwd)/dist/Toby (Dev).app"
+open -n -g --env "TOBY_DIR=${HOME}/.toby-generic" "$(pwd)/dist/Toby (Dev).app"
 ```
 
 Notes:
 
 - `-n` = new instance; `-g` = background (no focus steal).
-- `TOBY_CREDENTIALS_KEY_BACKEND=plaintext` keeps demo credentials in
-  `~/.toby-generic/credentials.json` readable without Keychain coupling to the
-  real home.
+- The seeder writes no secrets. Keychain items (OpenRouter, Mail, Slack) are
+  shared by every Toby home, so Sources reflect this Mac's real connections;
+  crop or avoid personal data accordingly.
 - Confirm the app is on the generic home if unsure: chat list / memories should
   show demo names (e.g. Alex Rivera, Morning briefing), not personal data.
 - After launch, drive the UI with **cua-driver** (`list_windows`,

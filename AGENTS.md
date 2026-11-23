@@ -27,6 +27,7 @@ VERSION         App version (read by scripts/build-app.sh)
 | `TobyCore` | Domain services: chat engine + tools, todos + todo sync, memories + graph, library, projects, personas, skills, Feed (Home), follow-ups + observations, flows + cron, recordings, mail and Slack services, backups + sync vault, unified log, changelog |
 | `TobyMail` | Dependency-free IMAP/SMTP client, MIME parsing, server discovery |
 | `TobyApp` | SwiftUI app: features, stores, native macOS handlers, `NativeRuntime` |
+| `TobySeed` | `toby-seed` command: builds a generic demo home for screenshots (`bun run seed:home`) |
 
 ### Inside `TobyApp`
 
