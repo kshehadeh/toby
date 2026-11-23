@@ -40,6 +40,8 @@ public struct MailAccount: Sendable, Equatable {
 	}
 
 	/// The user's own addresses (for direct/awaiting-reply facts).
+	var feedScope: String { FeedText.sha([imap.host.lowercased(), String(imap.port), imap.username].joined(separator: "\n")) }
+
 	public var selfAddresses: [String] { [imap.username, fromAddress].filter { $0.contains("@") } }
 }
 
@@ -96,8 +98,8 @@ public struct MailService: Sendable {
 	}
 
 	/// Run work in one logged-in session, optionally with a mailbox selected.
-	func session<T: Sendable>(_ mailbox: String? = nil, _ body: (IMAPClient) async throws -> T) async throws -> T {
-		let client = try await IMAPClient.connect(try requireAccount().imap, open: openStream)
+	func session<T: Sendable>(_ mailbox: String? = nil, account: MailAccount? = nil, _ body: (IMAPClient) async throws -> T) async throws -> T {
+		let client = try await IMAPClient.connect(try (account ?? requireAccount()).imap, open: openStream)
 		do {
 			if let mailbox { try await client.select(mailbox) }
 			let result = try await body(client)
@@ -132,26 +134,34 @@ public struct MailService: Sendable {
 		var date: String
 		var flags: [String]
 		var bulk: Bool
+		var messageID: String?
+		var received: String?
+		var ancestors: [String]
 	}
 
 	static func summaries(_ client: IMAPClient, _ uids: [Int]) async throws -> [Summary] {
-		let messages = try await client.fetch(uids, items: "(UID FLAGS ENVELOPE BODY.PEEK[HEADER.FIELDS (\(bulkHeaders.joined(separator: " ")))])")
+		let messages = try await client.fetch(uids, items: "(UID FLAGS ENVELOPE INTERNALDATE BODY.PEEK[HEADER.FIELDS (REFERENCES \(bulkHeaders.joined(separator: " ")))])")
 		return messages.map { message in
 			let envelope = message.envelope
 			let fromEmail = bare(envelope?.from ?? []).first ?? ""
 			return Summary(
 				uid: message.uid, fromAddress: format(envelope?.from ?? []), fromEmail: fromEmail, toEmails: bare(envelope?.to ?? []),
 				subject: envelope?.subject ?? "", date: iso(envelope?.date), flags: message.flags, bulk: isBulk(message.headers, fromEmail: fromEmail),
+				messageID: threadID(references: nil, inReplyTo: nil, messageID: envelope?.messageID),
+				received: message.internalDate.map(TodoRecurrence.isoString),
+				ancestors: [message.headers["references"], envelope?.inReplyTo].compactMap { $0 }.flatMap {
+					$0.split(whereSeparator: \.isWhitespace).compactMap { threadID(references: nil, inReplyTo: nil, messageID: String($0)) }
+				},
 			)
 		}.sorted { $0.date > $1.date }
 	}
 
 	/// Live unread INBOX summary plus read-but-unanswered mail from people
 	/// (the plugin's `getUnreadSummary`, the Feed's email source).
-	public func unreadSummary(limit: Int = 20, awaitingLimit: Int = 8, awaitingDays: Int = 7, now: Date = Date()) async throws -> JSONValue {
+	public func unreadSummary(limit: Int = 20, awaitingLimit: Int = 8, awaitingDays: Int = 7, now: Date = Date(), forFeed: Bool = false) async throws -> JSONValue {
 		let account = try requireAccount()
 		let selfSet = Set(account.selfAddresses.map { $0.lowercased() })
-		let (count, unread, awaiting) = try await session(Self.defaultMailbox) { client in
+		let (count, unread, awaiting, validity) = try await session(Self.defaultMailbox, account: account) { client in
 			let count = try await client.unseenCount(Self.defaultMailbox)
 			let unseen = try await client.search("UNSEEN")
 			let messages = try await Self.summaries(client, Array(unseen.suffix(limit)))
@@ -161,22 +171,31 @@ public struct MailService: Sendable {
 				let read = try await client.search("SEEN UNANSWERED SINCE \(since)")
 				awaiting = Array(try await Self.summaries(client, Array(read.suffix(60))).filter { !$0.bulk && !$0.fromEmail.isEmpty && !selfSet.contains($0.fromEmail) }.prefix(awaitingLimit))
 			}
-			return (count, messages, awaiting)
+			return (count, messages, awaiting, await client.uidValidity)
 		}
 		let correspondents = (try? correspondentAddresses(account.selfAddresses)) ?? []
 		func item(_ m: Summary, unread: Bool) -> JSONValue {
 			var email: [String: JSONValue] = ["unread": .bool(unread), "bulk": .bool(m.bulk), "knownSender": .bool(!m.fromEmail.isEmpty && correspondents.contains(m.fromEmail))]
 			if m.toEmails.contains(where: selfSet.contains) { email["direct"] = true }
 			if !unread { email["awaitingReply"] = true }
-			return [
+			var item: [String: JSONValue] = [
 				"id": .string("\(m.uid):\(Self.defaultMailbox)"), "title": .string(m.subject.isEmpty ? "(no subject)" : m.subject), "subtitle": .string(m.fromAddress),
 				"timestamp": .string(m.date), "urgency": .string(m.flags.contains("\\Flagged") ? "high" : "normal"), "email": .object(email),
 			]
+			if forFeed {
+				item["identity"] = [
+					"account": .string(account.feedScope), "message": m.messageID.map(JSONValue.string) ?? .null,
+					"received": m.received.map(JSONValue.string) ?? .null, "ancestors": .array(m.ancestors.map(JSONValue.string)),
+					"uid": .number(Double(m.uid)), "generation": validity.map { .number(Double($0)) } ?? .null,
+				]
+			}
+			return .object(item)
 		}
-		let unreadIDs = Set(unread.map(\.uid))
+		let incoming = forFeed ? unread.filter { !selfSet.contains($0.fromEmail) } : unread
+		let unreadIDs = Set(incoming.map(\.uid))
 		var result: [String: JSONValue] = [
 			"count": .number(Double(count)),
-			"items": .array(unread.map { item($0, unread: true) } + awaiting.filter { !unreadIDs.contains($0.uid) }.map { item($0, unread: false) }),
+			"items": .array(incoming.map { item($0, unread: true) } + awaiting.filter { !unreadIDs.contains($0.uid) }.map { item($0, unread: false) }),
 			"generatedAt": .string(TodoRecurrence.isoString(now)),
 		]
 		if let launch = Self.webmailURL(account.imap.host) { result["launchUrl"] = .string(launch) }
@@ -543,6 +562,7 @@ public struct MailFeedSource: FeedSource {
 	let mail: MailService
 	public init(mail: MailService) { self.mail = mail }
 	public var category: String { "email" }
+	public var accountScope: String? { mail.account()?.feedScope }
 	public var providerName: String { "email" }
 	public var providerDisplayName: String { "Email" }
 	public var launchURL: String? { mail.account().flatMap { MailService.webmailURL($0.imap.host) } }
@@ -550,7 +570,7 @@ public struct MailFeedSource: FeedSource {
 
 	public func summary(limit: Int) async throws -> JSONValue {
 		guard mail.isConfigured else { throw MailError.notConfigured("Email isn't connected.") }
-		return try await mail.unreadSummary(limit: limit)
+		return try await mail.unreadSummary(limit: limit, forFeed: true)
 	}
 
 	/// `uid:mailbox` item ids.

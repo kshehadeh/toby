@@ -16,6 +16,7 @@ final class FakeIMAPServer: @unchecked Sendable {
 		var to: String
 		var subject: String
 		var date: String
+		var messageID: String? = nil
 		var headers: String = ""
 		var body: String = "Hello"
 	}
@@ -24,6 +25,8 @@ final class FakeIMAPServer: @unchecked Sendable {
 	var boxes: [String: [Message]]
 	var special: [String: String]
 	var commands: [String] = []
+	var uidValidity = 1
+	var disconnectAfterMove = false
 
 	init(boxes: [String: [Message]], special: [String: String] = [:]) {
 		self.boxes = boxes
@@ -39,7 +42,7 @@ final class FakeIMAPServer: @unchecked Sendable {
 		if items.contains("ENVELOPE") {
 			let at = m.from.1.split(separator: "@")
 			let to = m.to.split(separator: "@")
-			parts.append("ENVELOPE (\"\(m.date)\" \"\(m.subject)\" ((\(Self.quote(m.from.0)) NIL \"\(at[0])\" \"\(at[1])\")) NIL NIL ((NIL NIL \"\(to[0])\" \"\(to[1])\")) NIL NIL NIL \"<\(m.uid)@x>\")")
+			parts.append("ENVELOPE (\"\(m.date)\" \"\(m.subject)\" ((\(Self.quote(m.from.0)) NIL \"\(at[0])\" \"\(at[1])\")) NIL NIL ((NIL NIL \"\(to[0])\" \"\(to[1])\")) NIL NIL NIL \"<\(m.messageID ?? "\(m.uid)@x")>\")")
 		}
 		if items.contains("INTERNALDATE") { parts.append("INTERNALDATE \"01-Jan-2026 10:00:00 +0000\"") }
 		if items.contains("HEADER.FIELDS") {
@@ -73,7 +76,7 @@ final class FakeIMAPServer: @unchecked Sendable {
 		case "LOGIN", "LOGOUT": return ok
 		case "SELECT", "EXAMINE":
 			selected = command.firstMatch(of: /"([^"]*)"/).map { String($0.1) }
-			return ok
+			return "* OK [UIDVALIDITY \(uidValidity)] active\r\n" + ok
 		case "STATUS":
 			let unseen = boxes["INBOX", default: []].filter { !$0.flags.contains("\\Seen") }.count
 			return "* STATUS INBOX (UNSEEN \(unseen))\r\n" + ok
@@ -112,6 +115,10 @@ final class FakeIMAPServer: @unchecked Sendable {
 				for index in moved.indices { moved[index].uid = base + index + 1 }
 				boxes[selected ?? ""] = box.filter { !wanted.contains($0.uid) }
 				boxes[destination, default: []] += moved
+				if disconnectAfterMove {
+					disconnectAfterMove = false
+					return "* BYE interrupted\r\n"
+				}
 				return ok
 			default: return "\(tag) BAD unknown\r\n"
 			}
@@ -253,7 +260,7 @@ struct MailServiceTests {
 		let home = FileManager.default.temporaryDirectory.appending(path: "toby-feed-\(UUID().uuidString)")
 		try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
 		defer { try? FileManager.default.removeItem(at: home) }
-		let feed = FeedService(
+		let feed = try FeedService(
 			sources: [MailFeedSource(mail: mail)], todos: TodoService(writer: database.writer, tobyDirectory: home), memory: MemoryService(writer: database.writer),
 			personas: PersonaService(tobyDirectory: home), ai: OpenRouterClient(keyProvider: StaticAPIKey("sk-or-test"), transport: MockTransport([])), tobyDirectory: home,
 			// The ranker only picks "add to todos" for every item.
@@ -302,5 +309,105 @@ struct MailServiceTests {
 		#expect(!MailService.isBulk(["auto-submitted": "no"], fromEmail: "a@b.c"))
 		#expect(MailService.isBulk([:], fromEmail: "no-reply@b.c"))
 		#expect(!MailService.isBulk([:], fromEmail: "ana@b.c"))
+	}
+}
+
+extension MailServiceTests {
+	@Test func archivedConversationOnlyReturnsForNewDelivery() async throws {
+		let home = try temporaryHome()
+		server.lock.withLock {
+			server.boxes["INBOX"]![1].headers = "References: <1@x>"
+			server.boxes["INBOX"]![2].subject = "Sale"
+		}
+		let feed = try conversationFeed(home)
+
+		let initial = try await feed.content()["items"]?.arrayValue ?? []
+		#expect(initial.count == 2)
+		let shown = try #require(initial.first { $0["source"]?["itemId"] == "2:INBOX" })
+		let target = try #require(shown["id"]?.stringValue)
+		_ = try await feed.perform(itemID: target, actionID: "email.archive")
+		let refreshed = try await feed.content(force: true)["items"]?.arrayValue ?? []
+		#expect(refreshed.compactMap { $0["source"]?["itemId"]?.stringValue } == ["3:INBOX"])
+		server.lock.withLock {
+			var reply = server.boxes["INBOX"]![0]
+			reply.uid = 4
+			reply.headers = "References: <1@x> <2@x>"
+			server.boxes["INBOX"]!.append(reply)
+			var duplicate = server.boxes["INBOX"]![0]
+			duplicate.messageID = "1@x"
+			duplicate.uid = 5
+			server.boxes["INBOX"]!.append(duplicate)
+		}
+		let next = try await feed.content(force: true)["items"]?.arrayValue ?? []
+		let reply = try #require(next.first { $0["source"]?["itemId"] == "4:INBOX" })
+		#expect(reply["source"]?["cardId"] == shown["source"]?["cardId"])
+		#expect(try await feed.perform(itemID: target, actionID: "email.archive")["ok"] == true)
+		server.lock.withLock { server.uidValidity += 1 }
+		let replyID = try #require(reply["id"]?.stringValue)
+		await #expect(throws: TodoError.self) { try await feed.perform(itemID: replyID, actionID: "email.archive") }
+		#expect(server.lock.withLock { server.boxes["INBOX"]!.contains { $0.uid == 4 } })
+	}
+}
+
+extension MailServiceTests {
+	private func conversationFeed(_ home: URL, now: Date = Date()) throws -> FeedService {
+		try FeedService(
+			sources: [MailFeedSource(mail: mail)], todos: TodoService(writer: database.writer, tobyDirectory: home),
+			memory: MemoryService(writer: database.writer), personas: PersonaService(tobyDirectory: home),
+			ai: OpenRouterClient(keyProvider: StaticAPIKey("test")), tobyDirectory: home, clock: { now },
+			rank: { _, _ in FeedServiceTests.allThree }
+		)
+	}
+
+	@Test func reconcilesArchiveWhenServerDisconnectsAfterMove() async throws {
+		let home = try temporaryHome()
+		let feed = try conversationFeed(home)
+		let items = try await feed.content()["items"]?.arrayValue ?? []
+		let target = try #require(items.first { $0["source"]?["itemId"] == "1:INBOX" }?["id"]?.stringValue)
+		server.lock.withLock { server.disconnectAfterMove = true }
+		await #expect(throws: TodoError.self) { try await feed.perform(itemID: target, actionID: "email.archive") }
+		#expect(try await feed.loadState()["items"]?[target]?["kind"] == "pending")
+		let restarted = try conversationFeed(home)
+		_ = try await restarted.content(force: true)
+		#expect(try await restarted.loadState()["items"]?[target]?["kind"] == "done")
+		#expect(server.lock.withLock { server.commands.filter { $0.hasPrefix("UID MOVE ") }.count } == 1)
+	}
+
+	@Test func switchingAccountRejectsOldReaderAndArchive() async throws {
+		let feed = try conversationFeed(temporaryHome())
+		let items = try await feed.content()["items"]?.arrayValue ?? []
+		let shown = try #require(items.first { $0["source"]?["itemId"] == "1:INBOX" })
+		let target = try #require(shown["id"]?.stringValue)
+		try secrets.setSecret("someone-else@example.com", for: "mail.imapUsername")
+		await #expect(throws: MailError.self) { try await mail.message(uid: 1, mailbox: "INBOX", identity: shown["source"]?["identity"]) }
+		await #expect(throws: TodoError.self) { try await feed.perform(itemID: target, actionID: "email.archive") }
+		let refreshed = try await feed.content(force: true)["items"]?.arrayValue ?? []
+		#expect(refreshed.contains { $0["source"]?["itemId"] == "1:INBOX" && $0["id"]?.stringValue != target })
+		#expect(server.lock.withLock { server.commands.contains { $0.hasPrefix("UID MOVE ") } } == false)
+	}
+}
+
+extension MailServiceTests {
+	@Test func snoozedThreadIncludesRepliesUntilTheDeadline() async throws {
+		let home = try temporaryHome()
+		let feed = try conversationFeed(home)
+		let items = try await feed.content()["items"]?.arrayValue ?? []
+		let target = try #require(items.first { $0["source"]?["itemId"] == "1:INBOX" }?["id"]?.stringValue)
+		_ = try await feed.perform(itemID: target, actionID: "snooze")
+		let entry = try await feed.storage.decision(target)
+		let until = try #require(entry?["until"]?.stringValue.flatMap(TodoRecurrence.parseISO))
+		server.lock.withLock {
+			var reply = server.boxes["INBOX"]![0]
+			reply.uid = 4
+			reply.headers = "References: <1@x>"
+			server.boxes["INBOX"]!.append(reply)
+		}
+		let before = try conversationFeed(home, now: until.addingTimeInterval(-1))
+		let hidden = try await before.content(force: true)["items"]?.arrayValue ?? []
+		#expect(!hidden.contains { $0["source"]?["itemId"] == "4:INBOX" })
+		let after = try conversationFeed(home, now: until)
+		let visible = try await after.content(force: true)["items"]?.arrayValue ?? []
+		#expect(visible.contains { $0["source"]?["itemId"] == "4:INBOX" })
+		#expect(!visible.contains { $0["source"]?["itemId"] == "1:INBOX" })
 	}
 }

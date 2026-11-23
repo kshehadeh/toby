@@ -1,9 +1,12 @@
 import Foundation
+import GRDB
+import TobyMail
 import TobyAI
 
 /// A built-in source of Feed items (replaces plugin dashboard tools).
 public protocol FeedSource: Sendable {
 	var category: String { get }
+	var accountScope: String? { get }
 	var providerName: String { get }
 	var providerDisplayName: String { get }
 	var launchURL: String? { get }
@@ -13,6 +16,10 @@ public protocol FeedSource: Sendable {
 	func summary(limit: Int) async throws -> JSONValue
 	/// Run a standard item action; returns a user-facing message.
 	func run(itemAction: String, itemID: String) async throws -> String
+}
+
+public extension FeedSource {
+	var accountScope: String? { nil }
 }
 
 public struct CalendarFeedSource: FeedSource {
@@ -43,11 +50,9 @@ public struct RemindersFeedSource: FeedSource {
 	}
 }
 
-/// The Feed (port of `feed/index.ts`, `collect.ts`, `rank.ts`, `state.ts`,
-/// `execute.ts`, `personalization.ts`). State and the ranked Feed persist to
-/// the same files the daemon used, so imported Feed state carries over.
+/// Collects and ranks Feed cards. Decisions live in the active Toby database.
 public actor FeedService {
-	public static let rankingVersion = "rank-v8"
+	public static let rankingVersion = "rank-v9"
 	static let maxItems = 12
 	static let rerankMaxAge: TimeInterval = 15 * 60
 	static let recentTTL: TimeInterval = 86400
@@ -58,7 +63,13 @@ public actor FeedService {
 	let memory: MemoryService
 	let personas: PersonaService
 	let ai: OpenRouterClient
-	let tobyDirectory: URL
+	let storage: FeedDatabase
+	var responseGeneration = 0
+	var activeActions = Set<String>()
+	var latestSignature: String?
+	var collectionGeneration = 0
+	var currentCandidates: Set<String>?
+	let clock: @Sendable () -> Date
 	let modelID: @Sendable () -> String
 	let rank: (@Sendable (_ system: String, _ user: String) async throws -> JSONValue)?
 	let compileRule: (@Sendable (_ text: String, _ candidates: [FeedCandidate]) async -> JSONValue)?
@@ -72,53 +83,38 @@ public actor FeedService {
 		personas: PersonaService,
 		ai: OpenRouterClient,
 		tobyDirectory: URL,
+		clock: @escaping @Sendable () -> Date = { Date() },
 		modelID: @escaping @Sendable () -> String = { ModelDefaults.structured },
 		rank: (@Sendable (String, String) async throws -> JSONValue)? = nil,
 		compileRule: (@Sendable (String, [FeedCandidate]) async -> JSONValue)? = nil,
-	) {
+	) throws {
 		self.compileRule = compileRule
 		self.sources = sources
 		self.todos = todos
 		self.memory = memory
 		self.personas = personas
 		self.ai = ai
-		self.tobyDirectory = tobyDirectory
+		self.storage = try FeedDatabase(writer: todos.store.writer, home: tobyDirectory)
+		self.clock = clock
 		self.modelID = modelID
 		self.rank = rank
 	}
 
-	var stateURL: URL { tobyDirectory.appending(path: "dashboard-feed-state.json") }
-	var feedURL: URL { tobyDirectory.appending(path: "dashboard-feed.json") }
-
-	// MARK: State file
-
-	func loadState(now: Date = Date()) -> [String: JSONValue] {
-		var state = ((try? Data(contentsOf: stateURL)).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) })?.objectValue ?? [:]
-		let cutoff = now.addingTimeInterval(-30 * 86400)
+	func loadState(now instant: Date? = nil) throws -> [String: JSONValue] {
+		let now = instant ?? clock()
+		var state = try storage.state()
 		var items: [String: JSONValue] = [:]
 		for (id, entry) in state["items"]?.objectValue ?? [:] {
-			guard let kind = entry["kind"]?.stringValue, let at = entry["at"]?.stringValue.flatMap(TodoRecurrence.parseISO) else { continue }
+			guard let kind = entry["kind"]?.stringValue else { continue }
 			if kind == "snoozed" {
 				guard let until = entry["until"]?.stringValue.flatMap(TodoRecurrence.parseISO), until > now else { continue }
-			} else if at < cutoff { continue }
+			}
 			items[id] = entry
 		}
 		state["items"] = .object(items)
-		state["notified"] = .object((state["notified"]?.objectValue ?? [:]).filter { ($0.value.stringValue.flatMap(TodoRecurrence.parseISO) ?? .distantPast) >= cutoff })
 		let feedbackCutoff = now.addingTimeInterval(-90 * 86400)
 		state["feedback"] = .array(Array((state["feedback"]?.arrayValue ?? []).filter { ($0["at"]?.stringValue.flatMap(TodoRecurrence.parseISO) ?? .distantPast) >= feedbackCutoff }.suffix(200)))
 		if state["instructions"] == nil { state["instructions"] = [] }
-		return state
-	}
-
-	func saveState(_ state: [String: JSONValue]) {
-		try? JSONEncoder.tobyPretty.encode(JSONValue.object(state)).write(to: stateURL, options: .atomic)
-	}
-
-	func updateState(_ body: (inout [String: JSONValue]) -> Void) -> [String: JSONValue] {
-		var state = loadState()
-		body(&state)
-		saveState(state)
 		return state
 	}
 
@@ -140,6 +136,7 @@ public actor FeedService {
 	func collect(now: Date) async -> (candidates: [FeedCandidate], sources: [JSONValue]) {
 		var candidates: [FeedCandidate] = []
 		var sourceList: [JSONValue] = []
+		let scopes = sources.map(\.accountScope)
 		await withTaskGroup(of: (Int, Result<JSONValue, Error>).self) { group in
 			for (index, source) in sources.enumerated() {
 				group.addTask {
@@ -150,7 +147,8 @@ public actor FeedService {
 			for await result in group { results.append(result) }
 			for (index, result) in results.sorted(by: { $0.0 < $1.0 }) {
 				let source = sources[index]
-				let key = "\(source.category):\(source.providerName)"
+				guard source.accountScope == scopes[index] else { continue }
+				let key = "\(source.category):\(source.providerName):\(scopes[index] ?? "")"
 				switch result {
 				case let .success(summary):
 					let fresh = (summary["items"]?.arrayValue ?? []).map {
@@ -174,11 +172,15 @@ public actor FeedService {
 				guard todo["deleted"] != true, todo["state"]?["status"] == "open", (dueDate.map { $0 <= tomorrow } ?? false) || high,
 				      let id = todo["id"]?.stringValue else { continue }
 				let description = (todo["description"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-				candidates.append(FeedCandidate(
+				let sequence = todo["sequence"]?.intValue ?? 0
+				var candidate = FeedCandidate(
 					id: FeedCandidate.makeID(category: "todos", provider: "toby", itemID: id), category: "todos", providerName: "toby",
 					providerDisplayName: "Toby Todos", itemID: id, title: todo["title"]?.stringValue ?? "", detail: description.isEmpty ? nil : String(description.prefix(280)),
 					dueDate: dueDate, urgency: high ? "high" : nil,
-				))
+				)
+				candidate.sequence = sequence
+				if sequence > 0 { candidate.id += ":occurrence-\(sequence)" }
+				candidates.append(candidate)
 			}
 			sourceList.append(["providerName": "toby", "providerDisplayName": "Toby Todos"])
 		}
@@ -310,6 +312,9 @@ public actor FeedService {
 			guard let c = byKey[key], !used.contains(key), let tier = entry["tier"]?.stringValue, let tierIndex = ["now", "today", "fyi"].firstIndex(of: tier) else { continue }
 			used.insert(key)
 			var source: [String: JSONValue] = ["category": .string(c.category), "providerName": .string(c.providerName), "itemId": .string(c.itemID)]
+			if let sequence = c.sequence { source["sequence"] = .number(Double(sequence)) }
+			if let identity = c.identity { source["identity"] = identity }
+			if let card = c.cardID { source["cardId"] = .string(card) }
 			if let display = c.providerDisplayName { source["providerDisplayName"] = .string(display) }
 			if let url = c.url { source["url"] = .string(url) }
 			let reason = (entry["reason"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -340,12 +345,12 @@ public actor FeedService {
 
 	// MARK: Content
 
-	func persisted() -> JSONValue? {
-		(try? Data(contentsOf: feedURL)).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) }
+	func persisted() throws -> JSONValue? {
+		try storage.writer.read { try FeedDatabase.value("ranking", $0) }
 	}
 
-	func persist(signature: String, content: JSONValue, now: Date) {
-		let previous = persisted()
+	func persist(signature: String, content: JSONValue, now: Date) throws {
+		let previous = try persisted()
 		var recent: [JSONValue] = []
 		var seen = Set((content["items"]?.arrayValue ?? []).compactMap { $0["id"]?.stringValue })
 		if let previous {
@@ -358,24 +363,29 @@ public actor FeedService {
 			}
 		}
 		let entry: JSONValue = ["signature": .string(signature), "rankedAt": .string(TodoRecurrence.isoString(now)), "content": content, "recentItems": .array(recent)]
-		try? JSONEncoder.tobyPretty.encode(entry).write(to: feedURL, options: .atomic)
+		try storage.writer.write { try FeedDatabase.set("ranking", entry, $0) }
 	}
 
-	func findItem(_ id: String) -> JSONValue? {
-		guard let feed = persisted() else { return nil }
+	func findItem(_ id: String) throws -> JSONValue? {
+		guard let feed = try persisted() else { return nil }
 		return feed["content"]?["items"]?.arrayValue?.first { $0["id"]?.stringValue == id }
 			?? feed["recentItems"]?.arrayValue?.first { $0["item"]?["id"]?.stringValue == id }?["item"]
 	}
 
 	/// Visible content: hide state-hidden items and rule-filtered items.
-	func visible(_ content: JSONValue, now: Date = Date()) -> JSONValue {
-		let state = loadState(now: now)
+	func visible(_ content: JSONValue, now instant: Date? = nil) throws -> JSONValue {
+		let now = instant ?? clock()
+		let state = try loadState(now: now)
 		let hidden = hiddenIDs(state, now: now)
 		let filters = FeedRules.active(state["instructions"]?.arrayValue ?? [])
 		guard case var .object(object) = content else { return content }
+		responseGeneration += 1
+		object["generation"] = .number(Double(responseGeneration))
 		object["items"] = .array((content["items"]?.arrayValue ?? []).filter { item in
 			guard let id = item["id"]?.stringValue, !hidden.contains(id) else { return false }
 			let source = item["source"]
+			if let currentCandidates, !currentCandidates.contains(id) { return false }
+			if FeedDatabase.covered(source?["identity"], card: source?["cardId"]?.stringValue, state: state, now: now) { return false }
 			return !filters.contains { FeedRules.matches($0, category: source?["category"]?.stringValue ?? "", providerName: source?["providerName"]?.stringValue ?? "", providerDisplayName: source?["providerDisplayName"]?.stringValue, subtitle: item["subtitle"]?.stringValue, task: nil) }
 		})
 		return .object(object)
@@ -383,33 +393,40 @@ public actor FeedService {
 
 	/// The Feed (`GET /api/dashboard/feed`). `force` re-collects and re-ranks.
 	public func content(force: Bool = false, awaitRerank: Bool = false) async throws -> JSONValue {
-		let now = Date()
-		return visible(try await build(force: force, awaitRerank: awaitRerank, now: now), now: now)
+		let now = clock()
+		return try visible(await build(force: force, awaitRerank: awaitRerank, now: now))
 	}
 
 	func build(force: Bool, awaitRerank: Bool, now: Date) async throws -> JSONValue {
 		let persona = personas.defaultPersona()
 		let model = modelID()
+		collectionGeneration += 1
+		let generation = collectionGeneration
+		await reconcilePendingActions()
 		let collection = await collect(now: now)
-		var state = loadState(now: now)
 		try await compilePendingRules(candidates: collection.candidates, now: now)
-		state = loadState(now: now)
+		guard generation == collectionGeneration else { return try persisted()?["content"] ?? ["status": "ok", "items": [], "generatedAt": .string(TodoRecurrence.isoString(now))] }
+		let collected = try storage.reconcile(collection.candidates)
+		let state = try loadState(now: now)
 		let hidden = hiddenIDs(state, now: now)
-		let filtered = FeedRules.apply(collection.candidates.filter { !hidden.contains($0.id) }, FeedRules.active(state["instructions"]?.arrayValue ?? []))
-		let candidates = FeedPrefilter.prefilter(filtered, now: now, feedback: feedbackCounts(state))
+		let filtered = FeedRules.apply(collected.filter { !hidden.contains($0.id) && !FeedDatabase.covered($0.identity, card: $0.cardID, state: state, now: now) }, FeedRules.active(state["instructions"]?.arrayValue ?? []))
+		let representatives = FeedDatabase.representatives(filtered)
+		currentCandidates = Set(representatives.map(\.id))
+		let candidates = FeedPrefilter.prefilter(representatives, now: now, feedback: feedbackCounts(state))
 		let personal = personalization(state)
 		let base: [String: JSONValue] = [
 			"generatedAt": .string(TodoRecurrence.isoString(now)), "personaName": .string(persona.name),
 			"model": ["provider": "openrouter", "model": .string(model)], "sources": .array(collection.sources),
 		]
 		if collection.sources.isEmpty { return .object(base.merging(["status": "noSources", "items": []]) { a, _ in a }) }
-		if candidates.isEmpty { return .object(base.merging(["status": "ok", "items": []]) { a, _ in a }) }
+		if candidates.isEmpty { latestSignature = nil; return .object(base.merging(["status": "ok", "items": []]) { a, _ in a }) }
 		let personalSignature = String(FeedText.sha(JSONValue.object([
 			"instructions": .array(personal.instructions.map(JSONValue.string)), "memories": .array(personal.memories.map(JSONValue.string)),
 			"notRelevant": .array(personal.notRelevant.map(JSONValue.string)),
 		]).jsonString()).prefix(16))
 		let signature = FeedPrefilter.signature(candidates, extra: [Self.rankingVersion, "openrouter", model, persona.name, personalSignature])
-		if !force, let previous = persisted(), previous["content"] != nil {
+		latestSignature = signature
+		if !force, let previous = try persisted(), previous["content"] != nil {
 			let fresh = previous["rankedAt"]?.stringValue.flatMap(TodoRecurrence.parseISO).map { now.timeIntervalSince($0) < Self.rerankMaxAge } ?? false
 			if previous["signature"]?.stringValue == signature, fresh { return previous["content"]! }
 			if previous["content"]?["status"] == "ok", !awaitRerank {
@@ -422,7 +439,7 @@ public actor FeedService {
 
 	func rerank(signature: String, candidates: [FeedCandidate], persona: Persona, personal: (instructions: [String], memories: [String], notRelevant: [String]), base: [String: JSONValue], model: String) -> Task<JSONValue, Error> {
 		if let existing = inFlight[signature] { return existing }
-		let system = systemPrompt(persona: persona, personal: personal, now: Date())
+		let system = systemPrompt(persona: persona, personal: personal, now: clock())
 		var user = "Candidates:\n\n\(Self.formatCandidates(candidates))"
 		if !personal.instructions.isEmpty {
 			user += "\n\nBefore ranking, drop every candidate the user's instructions exclude. Their instructions:\n" + personal.instructions.map { "- \($0)" }.joined(separator: "\n")
@@ -430,7 +447,7 @@ public actor FeedService {
 		let ai = ai
 		let rank = rank
 		let task = Task<JSONValue, Error> { [self] in
-			defer { Task { self.finished(signature) } }
+			defer { self.finished(signature) }
 			let ranking: JSONValue
 			do {
 				if let rank { ranking = try await rank(system, user) } else { ranking = try await generateJSON(ObjectRequest(
@@ -442,14 +459,17 @@ public actor FeedService {
 				if case .insufficientCredits = error { throw error }
 				var failed = base
 				failed["status"] = "error"
-				failed["items"] = self.persisted()?["content"]?["items"] ?? []
+				failed["items"] = try self.persisted()?["content"]?["items"] ?? []
 				failed["error"] = .string(error.localizedDescription)
 				return .object(failed)
 			}
 			var content = base
 			content["status"] = "ok"
 			content["items"] = .array(Self.items(from: ranking, candidates: candidates))
-			self.persist(signature: signature, content: .object(content), now: Date())
+			guard self.latestSignature == signature else {
+				return try self.persisted()?["content"] ?? .object(base.merging(["items": [], "status": "ok"]) { _, new in new })
+			}
+			try self.persist(signature: signature, content: .object(content), now: clock())
 			return .object(content)
 		}
 		inFlight[signature] = task
@@ -459,7 +479,7 @@ public actor FeedService {
 	func finished(_ signature: String) { inFlight[signature] = nil }
 
 	func compilePendingRules(candidates: [FeedCandidate], now: Date) async throws {
-		let instructions = loadState(now: now)["instructions"]?.arrayValue ?? []
+		let instructions = try loadState(now: now)["instructions"]?.arrayValue ?? []
 		let pending = instructions.filter { instruction in
 			guard instruction["enabled"] != false, let text = instruction["text"]?.stringValue else { return false }
 			guard let rule = instruction["rule"], rule["hash"]?.stringValue == FeedRules.hash(text) else { return true }
@@ -471,7 +491,7 @@ public actor FeedService {
 			let rule: JSONValue = if let compileRule { await compileRule(text, candidates) } else {
 				await FeedRules.compile(text, candidates: candidates, model: ai.model(modelID()), now: now)
 			}
-			_ = updateState { state in
+			_ = try storage.updateSettings { state in
 				state["instructions"] = .array((state["instructions"]?.arrayValue ?? []).map { entry in
 					guard entry["id"]?.stringValue == id, FeedRules.hash(entry["text"]?.stringValue ?? "") == rule["hash"]?.stringValue, case var .object(object) = entry else { return entry }
 					object["rule"] = rule
@@ -503,40 +523,48 @@ public actor FeedService {
 
 	/// Every action the item supports, as `{actions: […]}`.
 	public func actions(itemID: String) throws -> JSONValue {
-		guard let item = findItem(itemID) else { throw TodoError("not_found", "That item is no longer in The Feed. Refresh and try again.", status: 404) }
+		guard let item = try findItem(itemID) else { throw TodoError("not_found", "That item is no longer in The Feed. Refresh and try again.", status: 404) }
 		return ["actions": .array(availableActions(item))]
 	}
 
 	public func perform(itemID: String, actionID: String) async throws -> JSONValue {
-		guard let item = findItem(itemID) else { throw TodoError("not_found", "That item is no longer in The Feed. Refresh and try again.", status: 404) }
+		let previous = try storage.decision(itemID)
+		if let previous {
+			if previous["kind"] == "pending" { throw TodoError.invalid("Toby is checking the outcome of this action.") }
+			let snoozed = previous["kind"] == "snoozed"
+			let active = !snoozed || (previous["until"]?.stringValue.flatMap(TodoRecurrence.parseISO) ?? .distantPast) > clock()
+			if active, previous["action"]?.stringValue == actionID {
+				var response: [String: JSONValue] = ["ok": true, "message": "Already handled."]
+				response["todoId"] = previous["todoId"]
+				if let cached = try persisted()?["content"] { response["content"] = try visible(cached) }
+				return .object(response)
+			}
+			if !snoozed { throw TodoError.invalid("This Feed item has already been handled.") }
+		}
+		guard let item = try findItem(itemID) else { throw TodoError("not_found", "That item is no longer in The Feed. Refresh and try again.", status: 404) }
 		guard let action = availableActions(item).first(where: { $0["id"]?.stringValue == actionID }) else {
 			throw TodoError.invalid("\"\(actionID)\" isn't available for this item.")
 		}
 		let kind = action["kind"]?.stringValue ?? ""
 		if kind == "chat" || kind == "open" { throw TodoError.invalid("\"\(action["label"]?.stringValue ?? actionID)\" runs in the app.") }
-		let now = Date()
+		let now = clock()
 		let at = TodoRecurrence.isoString(now)
 		let source = item["source"] ?? .null
 		let category = source["category"]?.stringValue ?? ""
 		let provider = source["providerName"]?.stringValue ?? ""
 		let title = item["title"]?.stringValue ?? ""
-		func record(_ entry: JSONValue) {
-			_ = updateState { state in
-				var items = state["items"]?.objectValue ?? [:]
-				items[itemID] = entry
-				state["items"] = .object(items)
-			}
+		func record(_ entry: JSONValue) throws {
+			try storage.writer.write { try FeedDatabase.record(itemID, entry, $0) }
 		}
 		var message: String
 		var todoID: String?
 		switch actionID {
 		case "dismiss":
-			record(["kind": "dismissed", "at": .string(at)])
+			try record(["kind": "dismissed", "at": .string(at), "action": .string(actionID)])
 			message = "Dismissed."
 		case "notRelevant":
 			let key = FeedPrefilter.feedbackKey(category: category, providerName: provider, title: title, subtitle: item["subtitle"]?.stringValue) ?? "\(category):\(provider):\(title.lowercased())"
-			record(["kind": "dismissed", "at": .string(at)])
-			_ = updateState { state in
+			_ = try storage.updateSettings(decision: (itemID, ["kind": "dismissed", "at": .string(at), "action": .string(actionID)])) { state in
 				var feedback: [String: JSONValue] = ["key": .string(key), "category": .string(category), "title": .string(title), "at": .string(at)]
 				if let subtitle = item["subtitle"]?.stringValue { feedback["subtitle"] = .string(subtitle) }
 				state["feedback"] = .array(Array(((state["feedback"]?.arrayValue ?? []) + [.object(feedback)]).suffix(200)))
@@ -545,7 +573,7 @@ public actor FeedService {
 		case "snooze":
 			var tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: now) ?? now
 			tomorrow = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: tomorrow) ?? tomorrow
-			record(["kind": "snoozed", "at": .string(at), "until": .string(TodoRecurrence.isoString(tomorrow))])
+			try record(["kind": "snoozed", "at": .string(at), "action": .string(actionID), "until": .string(TodoRecurrence.isoString(tomorrow))])
 			message = "Snoozed until tomorrow morning."
 		case "todo.add":
 			let sourceName = source["providerDisplayName"]?.stringValue ?? provider
@@ -555,33 +583,63 @@ public actor FeedService {
 			if category == "calendar", let at = item["timestamp"]?.stringValue.flatMap(TodoRecurrence.parseISO) {
 				input["due"] = ["date": .string(FeedText.localDateKey(at)), "timezone": .string(TimeZone.current.identifier)]
 			}
-			todoID = try todos.create(.object(input), context: TodoMutationContext(source: "feed"))["id"]?.stringValue
-			record(["kind": "done", "at": .string(at), "action": "todo.add"])
+			var context = TodoMutationContext(source: "feed", idempotencyKey: "feed:add:" + itemID)
+			context.onCommit = { db, todo in
+				guard let id = todo["id"]?.stringValue else { throw TodoError.invalid("Missing created todo ID.") }
+				let decision: JSONValue = ["kind": "done", "at": .string(at), "action": "todo.add", "todoId": .string(id)]
+				try FeedDatabase.record(itemID, decision, db)
+				let todoTarget = FeedCandidate.makeID(category: "todos", provider: "toby", itemID: id)
+				try db.execute(sql: "INSERT OR REPLACE INTO feed_members(identity, card_id) VALUES (?, ?)", arguments: [todoTarget, source["cardId"]?.stringValue ?? itemID])
+				try FeedDatabase.record(todoTarget, decision, db)
+			}
+			todoID = try todos.create(.object(input), context: context)["id"]?.stringValue
 			message = "Added to your todos."
 		case "task.complete" where category == "todos":
-			_ = try todos.transition(source["itemId"]?.stringValue ?? "", action: "complete", sequence: nil, allowIncompleteChecklist: true, context: TodoMutationContext(source: "feed"))
-			record(["kind": "done", "at": .string(at), "action": "task.complete"])
+			var context = TodoMutationContext(source: "feed", idempotencyKey: "feed:complete:" + itemID)
+			context.onCommit = { db, _ in
+				try FeedDatabase.record(itemID, ["kind": "done", "at": .string(at), "action": "task.complete"], db)
+			}
+			_ = try todos.transition(source["itemId"]?.stringValue ?? "", action: "complete", sequence: source["sequence"]?.intValue ?? 0, allowIncompleteChecklist: true, context: context)
 			message = "Completed."
 		default:
 			guard let standard = FeedActions.providerActions[actionID], let feedSource = sources.first(where: { $0.providerName == provider }) else {
 				throw TodoError.invalid("\"\(action["label"]?.stringValue ?? actionID)\" can't run here.")
 			}
-			let previous = loadState(now: now)["items"]?[itemID]
-			record(["kind": "done", "at": .string(at), "action": .string(actionID)])
+			activeActions.insert(itemID)
+			defer { activeActions.remove(itemID) }
+			try record(["kind": "pending", "at": .string(at), "action": .string(actionID), "source": source])
 			do {
-				message = try await feedSource.run(itemAction: standard, itemID: source["itemId"]?.stringValue ?? "")
+				let target = source["itemId"]?.stringValue ?? ""
+				if let mail = feedSource as? MailFeedSource {
+					_ = try await mail.mail.feedAction(standard, itemID: target, identity: source["identity"], inspectOnly: false)
+					message = actionID == "email.archive" ? "Archived." : "Marked as read."
+				} else if let reminders = feedSource as? RemindersFeedSource {
+					try await reminders.apple.completeReminder(target, identity: source["identity"])
+					message = "Completed."
+				} else {
+					message = try await feedSource.run(itemAction: standard, itemID: target)
+				}
 			} catch {
-				_ = updateState { state in
-					var items = state["items"]?.objectValue ?? [:]
-					items[itemID] = previous
-					state["items"] = .object(items)
+				if let mailError = error as? MailError {
+					switch mailError {
+					case .timeout, .closed, .connection, .protocolError:
+						throw TodoError("action_pending", "The mail connection was interrupted. Toby will check whether the action completed.")
+					default: break
+					}
+				} else if error is URLError || error is CancellationError {
+					throw TodoError("action_pending", "Toby will check whether the interrupted action completed.")
+				}
+				try await storage.writer.write { db in
+					if let previous { try FeedDatabase.record(itemID, previous, db) }
+					else { try db.execute(sql: "DELETE FROM feed_decisions WHERE item_id = ?", arguments: [itemID]) }
 				}
 				throw TodoError("action_failed", (error as? LocalizedError)?.errorDescription ?? "\(action["label"]?.stringValue ?? actionID) failed.", status: 502)
 			}
+			try record(["kind": "done", "at": .string(at), "action": .string(actionID)])
 		}
 		var response: [String: JSONValue] = ["ok": true, "message": .string(message)]
 		if let todoID { response["todoId"] = .string(todoID) }
-		if let content = persisted()?["content"] { response["content"] = visible(content, now: now) }
+		if let content = try persisted()?["content"] { response["content"] = try visible(content) }
 		return .object(response)
 	}
 
@@ -604,14 +662,14 @@ public actor FeedService {
 		})]
 	}
 
-	public func instructions() -> JSONValue { instructionsBody(loadState()) }
+	public func instructions() throws -> JSONValue { instructionsBody(try loadState()) }
 
 	public func addInstruction(_ raw: String) throws -> JSONValue {
 		let text = MemoryText.collapseWhitespace(raw)
 		guard !text.isEmpty else { throw TodoError.invalid("Instruction text is required.") }
 		guard text.count <= 500 else { throw TodoError.invalid("Keep instructions under 500 characters.") }
-		guard (loadState()["instructions"]?.arrayValue ?? []).count < 50 else { throw TodoError.invalid("You can keep up to 50 instructions. Delete one first.") }
-		let state = updateState { state in
+		guard (try loadState()["instructions"]?.arrayValue ?? []).count < 50 else { throw TodoError.invalid("You can keep up to 50 instructions. Delete one first.") }
+		let state = try storage.updateSettings { state in
 			state["instructions"] = .array((state["instructions"]?.arrayValue ?? []) + [[
 				"id": .string(UUID().uuidString.lowercased()), "text": .string(text), "createdAt": .string(TodoRecurrence.isoString(Date())), "enabled": true,
 			]])
@@ -621,8 +679,8 @@ public actor FeedService {
 	}
 
 	public func setInstruction(_ id: String, enabled: Bool) throws -> JSONValue {
-		guard (loadState()["instructions"]?.arrayValue ?? []).contains(where: { $0["id"]?.stringValue == id }) else { throw TodoError("not_found", "Instruction not found", status: 404) }
-		return instructionsBody(updateState { state in
+		guard (try loadState()["instructions"]?.arrayValue ?? []).contains(where: { $0["id"]?.stringValue == id }) else { throw TodoError("not_found", "Instruction not found", status: 404) }
+		return try instructionsBody(storage.updateSettings { state in
 			state["instructions"] = .array((state["instructions"]?.arrayValue ?? []).map { entry in
 				guard entry["id"]?.stringValue == id, case var .object(object) = entry else { return entry }
 				object["enabled"] = .bool(enabled)
@@ -632,8 +690,8 @@ public actor FeedService {
 	}
 
 	public func removeInstruction(_ id: String) throws -> JSONValue {
-		guard (loadState()["instructions"]?.arrayValue ?? []).contains(where: { $0["id"]?.stringValue == id }) else { throw TodoError("not_found", "Instruction not found", status: 404) }
-		return instructionsBody(updateState { state in
+		guard (try loadState()["instructions"]?.arrayValue ?? []).contains(where: { $0["id"]?.stringValue == id }) else { throw TodoError("not_found", "Instruction not found", status: 404) }
+		return try instructionsBody(storage.updateSettings { state in
 			state["instructions"] = .array((state["instructions"]?.arrayValue ?? []).filter { $0["id"]?.stringValue != id })
 		})
 	}
@@ -651,20 +709,24 @@ public actor FeedService {
 				}
 			}
 			if let content = fetched {
-				let state = loadState()
-				let notified = state["notified"]?.objectValue ?? [:]
-				let fresh = (content["items"]?.arrayValue ?? []).filter { $0["tier"] == "now" && notified[$0["id"]?.stringValue ?? ""] == nil }
-				for item in fresh { await notify(item) }
-				if !fresh.isEmpty {
-					let at = TodoRecurrence.isoString(Date())
-					_ = updateState { state in
-						var notified = state["notified"]?.objectValue ?? [:]
-						for item in fresh { if let id = item["id"]?.stringValue { notified[id] = .string(at) } }
-						state["notified"] = .object(notified)
-					}
-				}
+				do { try await notifyNewItems(content, notify: notify) }
+				catch { TobyLog.shared.warn("feed", "notification_state_failed", ["error": .string(error.localizedDescription)]) }
 			}
 			try? await Task.sleep(for: interval)
+		}
+	}
+
+	private func notifyNewItems(_ content: JSONValue, notify: @escaping @Sendable (JSONValue) async -> Void) async throws {
+		for item in content["items"]?.arrayValue ?? [] where item["tier"] == "now" {
+			guard let id = item["id"]?.stringValue,
+			      try visible(["items": .array([item])])["items"]?.arrayValue?.isEmpty == false else { continue }
+			let identity = item["source"]?["identity"]
+			let key: String
+			if let account = identity?["account"]?.stringValue, let message = identity?["message"]?.stringValue {
+				key = "mail:" + FeedText.sha(account + "\n" + message)
+			} else { key = id }
+			guard try storage.claimNotification(key, target: id, at: clock()) else { continue }
+			await notify(item)
 		}
 	}
 }

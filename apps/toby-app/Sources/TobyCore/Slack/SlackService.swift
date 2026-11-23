@@ -263,6 +263,7 @@ public struct SlackService: Sendable {
 			]
 			if text.count > 160 { item["detail"] = .string(SlackText.truncate(text, 600)) }
 			if let timestamp = SlackText.isoTimestamp(hit.ts) { item["timestamp"] = .string(timestamp) }
+			if let team = hit.teamID { item["identity"] = ["scope": .string(team)] }
 			if let permalink = hit.permalink { item["url"] = .string(permalink) }
 			items.append(.object(item))
 			if items.count >= limit { break }
@@ -380,6 +381,7 @@ public struct SlackFeedSource: FeedSource {
 	let slack: SlackService
 	public init(slack: SlackService) { self.slack = slack }
 	public var category: String { "chat" }
+	public var accountScope: String? { slack.api.account()["teamId"] }
 	public var providerName: String { "slack" }
 	public var providerDisplayName: String { "Slack" }
 	public var launchURL: String? { "slack://open" }

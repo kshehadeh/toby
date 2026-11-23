@@ -27,6 +27,7 @@ final class FeedStore {
 	private let performRemote: @MainActor (String, String) async throws -> FeedActionResponse
 	@ObservationIgnored
 	private var inFlight: Task<Void, Never>?
+	@ObservationIgnored private var session = 0
 
 	init(client: TobyClient = TobyClient()) {
 		self.fetch = { fresh in try await client.fetchDashboardFeed(fresh: fresh) }
@@ -58,25 +59,29 @@ final class FeedStore {
 			await inFlight.value
 			return
 		}
-		let task = Task { @MainActor in await self.performUpdate(force: force) }
+		let session = self.session
+		let task = Task { @MainActor in await self.performUpdate(force: force, session: session) }
 		inFlight = task
 		await task.value
 		if inFlight == task { inFlight = nil }
 	}
 
-	private func performUpdate(force: Bool) async {
+	private func performUpdate(force: Bool, session: Int) async {
+		guard self.session == session else { return }
 		isLoading = true
-		defer { isLoading = false }
+		defer { if self.session == session { isLoading = false } }
 		do {
 			let next = try await fetch(force)
+			guard self.session == session else { return }
 			apply(next)
 			error = nil
 		} catch {
-			self.error = error.localizedDescription
+			if self.session == session { self.error = error.localizedDescription }
 		}
 	}
 
 	private func apply(_ next: FeedContent) {
+		if let incoming = next.generation, let current = content?.generation, incoming < current { return }
 		content = next
 		// Keep hiding only in-flight items; the daemon filters the rest.
 		hiddenIDs.formIntersection(busyIDs)
@@ -88,16 +93,18 @@ final class FeedStore {
 		guard action.runsInDaemon, !busyIDs.contains(item.id) else {
 			return .failure("\(action.label) isn't available.")
 		}
+		let session = self.session
 		busyIDs.insert(item.id)
 		hiddenIDs.insert(item.id)
-		defer { busyIDs.remove(item.id) }
+		defer { if self.session == session { busyIDs.remove(item.id) } }
 		do {
 			let response = try await performRemote(item.id, action.id)
-			if let next = response.content {
-				content = next
+			if self.session == session, let next = response.content {
+				apply(next)
 			}
 			return .success(response.message ?? "\(action.label) done.")
 		} catch {
+			guard self.session == session else { return .failure(error.localizedDescription) }
 			hiddenIDs.remove(item.id)
 			// The list may be stale (a background re-rank replaced it); reload so
 			// the user sees the current Feed.
@@ -112,6 +119,7 @@ final class FeedStore {
 	}
 
 	func reset() {
+		session += 1
 		inFlight?.cancel()
 		inFlight = nil
 		content = nil

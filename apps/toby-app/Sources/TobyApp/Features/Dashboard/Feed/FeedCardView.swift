@@ -157,7 +157,7 @@ struct FeedTierSection: View {
 				.foregroundStyle(AppTheme.tertiaryText)
 				.accessibilityAddTraits(.isHeader)
 			VStack(spacing: 0) {
-				ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+				ForEach(items.enumerated(), id: \.element.cardID) { index, item in
 					if index > 0 {
 						Divider().overlay(AppTheme.separator)
 					}

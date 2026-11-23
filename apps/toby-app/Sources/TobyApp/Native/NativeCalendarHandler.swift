@@ -254,6 +254,10 @@ enum NativeCalendarHandler {
 		return [
 			"uid": event.eventIdentifier ?? "",
 			"summary": event.title ?? "",
+			"sourceID": event.calendar.source.sourceIdentifier,
+			"calendarID": event.calendar.calendarIdentifier,
+			"externalID": event.calendarItemExternalIdentifier ?? "",
+			"occurrenceDate": (event.hasRecurrenceRules || event.isDetached) ? event.occurrenceDate.map { formatter.string(from: $0) } ?? "" : "",
 			"startDate": formatter.string(from: event.startDate),
 			"endDate": formatter.string(from: event.endDate),
 			"isAllDay": event.isAllDay,

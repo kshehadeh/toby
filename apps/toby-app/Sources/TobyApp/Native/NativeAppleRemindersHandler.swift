@@ -237,6 +237,13 @@ enum NativeAppleRemindersHandler {
 			return json(["ok": false, "error": "Reminder not found. Verify the id."])
 		}
 
+		if let expected = input["expectedIdentity"] as? [String: Any] {
+			let occurrence = reminder.hasRecurrenceRules ? date(from: reminder.dueDateComponents).map { isoString(from: $0) } : nil
+			guard expected["scope"] as? String == reminder.calendar.source.sourceIdentifier,
+			      expected["occurrence"] as? String == occurrence else {
+				return json(["ok": false, "error": "This reminder occurrence changed. Refresh The Feed."])
+			}
+		}
 		let completed = boolValue(input["completed"]) ?? true
 		reminder.isCompleted = completed
 		reminder.completionDate = completed ? Date() : nil
@@ -320,6 +327,8 @@ enum NativeAppleRemindersHandler {
 	private static func reminderToDict(_ reminder: EKReminder) -> [String: Any] {
 		var data: [String: Any] = [
 			"id": reminder.calendarItemIdentifier,
+			"sourceID": reminder.calendar.source.sourceIdentifier,
+			"isRecurring": reminder.hasRecurrenceRules,
 			"title": reminder.title ?? "",
 			"notes": reminder.notes ?? "",
 			"list": reminder.calendar.title,

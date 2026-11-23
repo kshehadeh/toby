@@ -34,6 +34,7 @@ public actor IMAPClient {
 	var tagCounter = 0
 	public private(set) var capabilities: Set<String> = []
 	var selected: String?
+	public private(set) var uidValidity: Int?
 
 	public init(stream: any MailStream) {
 		self.stream = stream
@@ -174,7 +175,12 @@ public actor IMAPClient {
 
 	public func select(_ mailbox: String, readOnly: Bool = false) async throws {
 		guard selected != mailbox else { return }
-		try await command([.raw(readOnly ? "EXAMINE " : "SELECT "), .argument(IMAPEncoding.encodeMailboxName(mailbox))])
+		let responses = try await command([.raw(readOnly ? "EXAMINE " : "SELECT "), .argument(IMAPEncoding.encodeMailboxName(mailbox))])
+		uidValidity = responses.compactMap { values in
+			guard values.count >= 3, let code = values[2].text?.uppercased(),
+			      code.hasPrefix("[UIDVALIDITY "), code.hasSuffix("]") else { return nil }
+			return Int(code.dropFirst("[UIDVALIDITY ".count).dropLast())
+		}.first
 		selected = mailbox
 	}
 

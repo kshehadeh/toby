@@ -59,7 +59,7 @@ final class EmailReaderStore {
 	init(request: EmailReaderRequest, client: TobyClient = TobyClient()) {
 		self.request = request
 		self.actions = request.feedItem?.actions ?? []
-		self.fetch = { try await client.fetchEmail($0) }
+		self.fetch = { try await client.fetchEmail($0, identity: request.feedItem?.source.identity) }
 		self.fetchActions = { try await client.fetchFeedItemActions(itemID: $0) }
 	}
 

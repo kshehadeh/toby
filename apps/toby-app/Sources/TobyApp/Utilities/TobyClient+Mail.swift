@@ -1,12 +1,13 @@
 import Foundation
+import TobyAI
 import TobyCore
 import TobyMail
 
 extension TobyClient {
 	/// The full message for the email reader. Doesn't mark it read.
-	func fetchEmail(_ reference: EmailReference) async throws -> EmailMessage {
+	func fetchEmail(_ reference: EmailReference, identity: JSONValue? = nil) async throws -> EmailMessage {
 		let mail = try NativeRuntime.shared.mail()
-		return EmailMessage(try await mail.message(uid: reference.uid, mailbox: reference.mailbox))
+		return EmailMessage(try await mail.message(uid: reference.uid, mailbox: reference.mailbox, identity: identity))
 	}
 }
 

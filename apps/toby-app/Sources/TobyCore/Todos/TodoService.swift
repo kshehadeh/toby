@@ -284,6 +284,7 @@ public final class TodoService: Sendable {
 			)
 			applied = try self.store.apply(db, op)
 			let result = try built.result(db)
+			try context.onCommit?(db, result)
 			if let key = context.idempotencyKey {
 				try db.execute(
 					sql: "INSERT INTO todo_requests(key, fingerprint, result) VALUES (?, ?, ?)",

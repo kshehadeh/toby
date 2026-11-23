@@ -54,9 +54,12 @@ frameworks only through the `NativeBridge` protocol (`AppNativeBridge` →
 - Secrets (OpenRouter key, `mail.*`, `slack.*`, sync vault password) live in the
   Keychain.
 - First launch on an older home runs `LegacyImporter` (chat/memory databases,
-  credentials, feed state), then `LegacyDaemonCleanup` stops a running
+  credentials), then `LegacyDaemonCleanup` stops a running
   `toby daemon` once and deletes `plugins`, `plugins-data`, `helpers/bun`,
   `daemon.lock`, `native-port`, `staging`.
+- The Feed imports legacy dashboard JSON once. Decisions, mail thread membership,
+  instructions and ranked cards then live in the native database. Older builds
+  read the JSON snapshot from before the upgrade.
 - Background work runs while the app is running: mail sync, Feed scheduler,
   follow-ups, flow triggers, Slack replies (Socket Mode), todo sync, daily
   data snapshots.
@@ -99,8 +102,8 @@ after building and mounting the DMG.
   (`.chat`, `.fast`, `.structured`); the only user override is
   `toby.ai.chatModel` (Settings → Account) plus per-persona models.
 - **Data compatibility:** native services emit the same JSON shapes the app
-  models decode, and read/write existing file formats (Feed state,
-  `config.json`, recordings, `.tbybak` backups, the todo sync vault).
+  models decode, and read/write existing file formats (`config.json`,
+  recordings, `.tbybak` backups, the todo sync vault).
 - **Swift 6 strict concurrency.** Return values (not `Row`) from GRDB closures;
   `nonisolated(unsafe)` for static regexes.
 - **`@Observable` and TobyCore:** TobyCore defines a type named

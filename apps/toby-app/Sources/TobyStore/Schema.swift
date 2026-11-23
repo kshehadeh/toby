@@ -19,6 +19,13 @@ enum Schema {
 				try db.execute(sql: statement)
 			}
 		}
+		migrator.registerMigration("v3-feed") { db in
+			try db.execute(sql: "CREATE TABLE feed_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+			try db.execute(sql: "CREATE TABLE feed_decisions (item_id TEXT PRIMARY KEY, decision TEXT NOT NULL)")
+			try db.execute(sql: "CREATE INDEX feed_pending_actions ON feed_decisions(item_id) WHERE json_extract(decision, '$.kind') = 'pending'")
+			try db.execute(sql: "CREATE TABLE feed_members (identity TEXT PRIMARY KEY, card_id TEXT NOT NULL, activity TEXT)")
+			try db.execute(sql: "CREATE INDEX feed_members_card ON feed_members(card_id)")
+		}
 		return migrator
 	}
 

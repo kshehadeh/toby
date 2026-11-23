@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import Testing
 import TobyAI
 @testable import TobyCore
@@ -110,9 +111,9 @@ struct FeedServiceTests {
 		["status": "guidance", "hash": .string(FeedRules.hash(text)), "at": .string(TodoRecurrence.isoString(Date()))]
 	}
 
-	func service(_ recorder: RankRecorder, compile: @escaping @Sendable (String, [FeedCandidate]) async -> JSONValue = Self.guidance) -> FeedService {
+	func service(_ recorder: RankRecorder, compile: @escaping @Sendable (String, [FeedCandidate]) async -> JSONValue = Self.guidance) throws -> FeedService {
 		let apple = AppleTools(bridge: bridge)
-		return FeedService(
+		return try FeedService(
 			sources: [CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple)],
 			todos: todos, memory: MemoryService(writer: database.writer), personas: PersonaService(tobyDirectory: home),
 			ai: OpenRouterClient(keyProvider: StaticAPIKey("sk-or-test"), transport: MockTransport([])), tobyDirectory: home,
@@ -129,14 +130,14 @@ struct FeedServiceTests {
 
 	@Test func ranksPersistsAndReusesTheFeed() async throws {
 		let recorder = RankRecorder(Self.allThree)
-		let feed = service(recorder)
+		let feed = try service(recorder)
 		let content = try await feed.content()
 		#expect(content["status"] == "ok")
 		#expect(content["items"]?.arrayValue?.count == 3)
 		#expect(recorder.calls.count == 1)
 		#expect(recorder.calls[0].user.contains("[calendar] Budget review"))
 		#expect(recorder.calls[0].user.contains("[todos] Ship release"))
-		#expect(FileManager.default.fileExists(atPath: home.appending(path: "dashboard-feed.json").path))
+		#expect(try await feed.persisted() != nil)
 		_ = try await feed.content()
 		#expect(recorder.calls.count == 1, "fresh cache with the same signature skips re-ranking")
 		_ = try await feed.content(force: true)
@@ -144,7 +145,7 @@ struct FeedServiceTests {
 	}
 
 	@Test func actionsUpdateStateAndSources() async throws {
-		let feed = service(RankRecorder(Self.allThree))
+		let feed = try service(RankRecorder(Self.allThree))
 		let content = try await feed.content()
 		let ids = content["items"]!.arrayValue!.compactMap { $0["id"]?.stringValue }
 		let reminder = try #require(ids.first { $0.hasPrefix("tasks:applereminders") })
@@ -164,26 +165,26 @@ struct FeedServiceTests {
 		#expect(added["todoId"]?.stringValue != nil)
 		#expect(added["content"]?["items"]?.arrayValue?.isEmpty == true)
 
-		let state = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: home.appending(path: "dashboard-feed-state.json")))
+		let state = try await feed.loadState()
 		#expect(state["items"]?[event]?["kind"] == "done")
 		#expect(state["items"]?[event]?["action"] == "todo.add")
 	}
 
 	@Test func notRelevantRecordsFeedbackAndSnoozeHides() async throws {
-		let feed = service(RankRecorder(Self.allThree))
+		let feed = try service(RankRecorder(Self.allThree))
 		let ids = try await feed.content()["items"]!.arrayValue!.compactMap { $0["id"]?.stringValue }
 		_ = try await feed.perform(itemID: ids[0], actionID: "notRelevant")
 		let snoozed = try await feed.perform(itemID: ids[1], actionID: "snooze")
 		#expect(snoozed["message"] == "Snoozed until tomorrow morning.")
 		#expect(snoozed["content"]?["items"]?.arrayValue?.count == 1)
-		let state = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: home.appending(path: "dashboard-feed-state.json")))
+		let state = try await feed.loadState()
 		#expect(state["feedback"]?.arrayValue?.count == 1)
 		await #expect(throws: TodoError.self) { try await feed.perform(itemID: ids[2], actionID: "email.archive") }
 	}
 
 	@Test func instructionsAreValidatedAndReachTheRanker() async throws {
 		let recorder = RankRecorder(Self.allThree)
-		let feed = service(recorder)
+		let feed = try service(recorder)
 		await #expect(throws: TodoError.self) { try await feed.addInstruction("   ") }
 		let body = try await feed.addInstruction("Put   work first")
 		let entry = try #require(body["instructions"]?.arrayValue?.first)
@@ -191,7 +192,7 @@ struct FeedServiceTests {
 		#expect(entry["enforcement"] == "pending")
 		#expect(entry["rule"] == nil)
 		_ = try await feed.content(force: true)
-		#expect(await feed.instructions()["instructions"]?[0]?["enforcement"] == "guidance")
+		#expect(try await feed.instructions()["instructions"]?[0]?["enforcement"] == "guidance")
 		#expect(recorder.calls.last?.system.contains("USER INSTRUCTIONS — highest priority") == true)
 		#expect(recorder.calls.last?.user.contains("- Put work first") == true)
 		let id = try #require(entry["id"]?.stringValue)
@@ -201,7 +202,7 @@ struct FeedServiceTests {
 
 	@Test func compiledFiltersHideItemsBeforeRanking() async throws {
 		let recorder = RankRecorder(Self.allThree)
-		let feed = service(recorder) { text, candidates in
+		let feed = try service(recorder) { text, candidates in
 			#expect(candidates.contains { $0.subtitle == "Errands" })
 			return ["status": "filter", "hash": .string(FeedRules.hash(text)), "at": .string(TodoRecurrence.isoString(Date())), "summary": "Hides Errands",
 			        "filters": [["categories": ["tasks"], "providers": ["applereminders"], "listMode": "in", "lists": ["errands"], "assignmentMode": "any", "assignments": []]]]
@@ -210,8 +211,168 @@ struct FeedServiceTests {
 		let content = try await feed.content(force: true)
 		#expect(recorder.calls.last?.user.contains("Buy milk") == false)
 		#expect(content["items"]?.arrayValue?.count == 2)
-		let entry = await feed.instructions()["instructions"]?[0]
+		let entry = try await feed.instructions()["instructions"]?[0]
 		#expect(entry?["enforcement"] == "filter")
 		#expect(entry?["enforcementSummary"] == "Hides Errands")
+	}
+}
+
+extension FeedServiceTests {
+	@Test func convertedTodoStaysInTodosAcrossRefreshAndRetry() async throws {
+		let feed = try service(RankRecorder(Self.allThree))
+		let items = try await feed.content()["items"]?.arrayValue ?? []
+		let event = try #require(items.first { $0["source"]?["category"] == "calendar" }?["id"]?.stringValue)
+		let first = try await feed.perform(itemID: event, actionID: "todo.add")
+		let todoID = try #require(first["todoId"]?.stringValue)
+		let afterRestart = try service(RankRecorder(Self.allThree))
+		let retry = try await afterRestart.perform(itemID: event, actionID: "todo.add")
+		#expect(retry["todoId"] == first["todoId"])
+		let refreshed = try await afterRestart.content(force: true)["items"]?.arrayValue ?? []
+		#expect(!refreshed.contains { $0["id"]?.stringValue == event || $0["source"]?["itemId"]?.stringValue == todoID })
+		let open = try todos.list(["status": "open"])["todos"]?.arrayValue ?? []
+		#expect(open.filter { $0["title"] == "Budget review" }.count == 1)
+	}
+
+	@Test func importsBeforeRefreshAndKeepsOldDismissalsOnDisk() async throws {
+		let paths = TobyPaths(root: home)
+		let old: JSONValue = ["items": ["tasks:applereminders:r1": ["kind": "dismissed", "at": "2020-01-01T00:00:00Z"]], "instructions": []]
+		let file = home.appending(path: "dashboard-feed-state.json")
+		try Data("invalid".utf8).write(to: file)
+		let db = try TobyDatabase.open(paths: paths)
+		#expect(throws: DecodingError.self) { try FeedDatabase(writer: db.writer, home: home) }
+		try Data(old.jsonString().utf8).write(to: file)
+		_ = try FeedDatabase(writer: db.writer, home: home)
+		try Data("{}".utf8).write(to: file)
+		let reopened = try TobyDatabase.open(paths: paths)
+		let feed = try FeedService(
+			sources: [RemindersFeedSource(apple: AppleTools(bridge: bridge))],
+			todos: TodoService(writer: reopened.writer, tobyDirectory: home), memory: MemoryService(writer: reopened.writer),
+			personas: PersonaService(tobyDirectory: home), ai: OpenRouterClient(keyProvider: StaticAPIKey("test")),
+			tobyDirectory: home, rank: { _, _ in Self.allThree }
+		)
+		#expect(try await feed.content(force: true)["items"]?.arrayValue == [])
+		#expect(try await feed.loadState()["items"]?["tasks:applereminders:r1"]?["kind"] == "dismissed")
+	}
+}
+
+private actor PausedFeedRank {
+	private var calls = 0
+	private var started: CheckedContinuation<Void, Never>?
+	private var resume: CheckedContinuation<Void, Never>?
+
+	func rank() async -> JSONValue {
+		calls += 1
+		if calls == 2 {
+			await withCheckedContinuation {
+				resume = $0
+				started?.resume()
+				started = nil
+			}
+		}
+		return FeedServiceTests.allThree
+	}
+
+	func waitForRank() async {
+		if resume == nil { await withCheckedContinuation { started = $0 } }
+	}
+
+	func finish() { resume?.resume(); resume = nil }
+}
+
+extension FeedServiceTests {
+	@Test func dismissalDuringRankingSurvivesLateResult() async throws {
+		let paused = PausedFeedRank()
+		let feed = try FeedService(
+			sources: [CalendarFeedSource(apple: AppleTools(bridge: bridge))],
+			todos: todos, memory: MemoryService(writer: database.writer), personas: PersonaService(tobyDirectory: home),
+			ai: OpenRouterClient(keyProvider: StaticAPIKey("test")), tobyDirectory: home, rank: { _, _ in await paused.rank() }
+		)
+		let first = try await feed.content()
+		let id = try #require(first["items"]?[0]?["id"]?.stringValue)
+		let refresh = Task { try await feed.content(force: true) }
+		await paused.waitForRank()
+		_ = try await feed.perform(itemID: id, actionID: "dismiss")
+		await paused.finish()
+		let returned = try await refresh.value
+		#expect(returned["items"]?.arrayValue?.contains { $0["id"]?.stringValue == id } == false)
+		let next = try await feed.content()
+		#expect(next["items"]?.arrayValue?.contains { $0["id"]?.stringValue == id } == false)
+	}
+}
+
+extension FeedServiceTests {
+	@Test func nextTodoOccurrenceHasItsOwnActions() async throws {
+		let created = try todos.create(["title": "Daily", "priority": "high", "due": due("2026-01-01"), "recurrence": calendarRule("day")])
+		let id = try #require(created["id"]?.stringValue)
+		let feed = try FeedService(
+			sources: [], todos: todos, memory: MemoryService(writer: database.writer), personas: PersonaService(tobyDirectory: home),
+			ai: OpenRouterClient(keyProvider: StaticAPIKey("test")), tobyDirectory: home, rank: { _, _ in
+				["items": .array((1 ... 2).map { ["key": .string("c\($0)"), "tier": "today", "actions": ["task.complete"]] })]
+			}
+		)
+		let initial = try await feed.content()["items"]?.arrayValue ?? []
+		let first = try #require(initial.first { $0["source"]?["itemId"]?.stringValue == id }?["id"]?.stringValue)
+		_ = try await feed.perform(itemID: first, actionID: "task.complete")
+		let next = try await feed.content(force: true)["items"]?.arrayValue ?? []
+		#expect(next.contains { $0["source"]?["itemId"]?.stringValue == id && $0["source"]?["sequence"] == 1 && $0["id"]?.stringValue != first })
+		#expect(try await feed.perform(itemID: first, actionID: "task.complete")["ok"] == true)
+		#expect(try todos.get(id)["sequence"] == 1)
+	}
+}
+
+extension FeedServiceTests {
+	@Test func failedDecisionRollsBackTodoCreation() async throws {
+		let feed = try service(RankRecorder(Self.allThree))
+		let items = try await feed.content()["items"]?.arrayValue ?? []
+		let event = try #require(items.first { $0["source"]?["category"] == "calendar" }?["id"]?.stringValue)
+		try await database.writer.write { db in
+			try db.execute(sql: "CREATE TRIGGER reject_feed BEFORE INSERT ON feed_decisions BEGIN SELECT RAISE(ABORT, 'simulated write failure'); END")
+		}
+		await #expect(throws: DatabaseError.self) { try await feed.perform(itemID: event, actionID: "todo.add") }
+		let open = try todos.list(["status": "open"])["todos"]?.arrayValue ?? []
+		#expect(!open.contains { $0["title"] == "Budget review" })
+		#expect(try await feed.storage.decision(event) == nil)
+		try await database.writer.write { db in try db.execute(sql: "DROP TRIGGER reject_feed") }
+		#expect(try await feed.perform(itemID: event, actionID: "todo.add")["todoId"]?.stringValue != nil)
+	}
+
+	@Test func changingRecurringReminderDatePreservesDismissal() throws {
+		let storage = try FeedDatabase(writer: database.writer, home: home)
+		func reminder(_ date: String) -> FeedCandidate {
+			FeedCandidate(category: "tasks", providerName: "applereminders", providerDisplayName: nil,
+			              item: ["id": "r1", "title": "Review", "identity": ["scope": "account", "occurrence": .string(date)]])
+		}
+		let original = try #require(try storage.reconcile([reminder("2026-11-23")]).first)
+		try database.writer.write { db in
+			try FeedDatabase.record(original.id, ["kind": "dismissed", "at": "2026-11-23T10:00:00Z"], db)
+		}
+		let edited = try #require(try storage.reconcile([reminder("2026-11-24")]).first)
+		#expect(edited.cardID == original.cardID)
+		#expect(try FeedDatabase.covered(edited.identity, card: edited.cardID, state: storage.state(), now: Date()))
+	}
+}
+
+extension FeedServiceTests {
+	@Test func recurringCalendarIdentitySurvivesRescheduleAndImportsNotification() throws {
+		let oldID = "calendar:applecalendar:old"
+		let stamp = "2026-11-23T10:00:00Z"
+		let prior: JSONValue = ["id": .string(oldID), "title": "Review", "timestamp": .string(stamp)]
+		let state: JSONValue = ["notified": .object([oldID: .string(stamp)])]
+		let ranked: JSONValue = ["content": ["items": .array([prior])]]
+		try Data(state.jsonString().utf8).write(to: home.appending(path: "dashboard-feed-state.json"))
+		try Data(ranked.jsonString().utf8).write(to: home.appending(path: "dashboard-feed.json"))
+		let storage = try FeedDatabase(writer: database.writer, home: home)
+		func event(_ id: String, occurrence: String, start: String) -> FeedCandidate {
+			FeedCandidate(category: "calendar", providerName: "applecalendar", providerDisplayName: nil, item: [
+				"id": .string(id), "title": "Review", "timestamp": .string(start),
+				"identity": ["scope": "work", "calendar": "primary", "record": "series", "occurrence": .string(occurrence)],
+			])
+		}
+		let original = try #require(try storage.reconcile([event("old", occurrence: stamp, start: stamp)]).first)
+		#expect(try !storage.claimNotification(original.id, target: original.id, at: Date()))
+		let tomorrow = "2026-11-24T10:00:00Z"
+		let updated = try storage.reconcile([event("detached", occurrence: stamp, start: tomorrow), event("next", occurrence: tomorrow, start: tomorrow)])
+		#expect(updated[0].id == original.id)
+		#expect(updated[1].id != original.id)
 	}
 }

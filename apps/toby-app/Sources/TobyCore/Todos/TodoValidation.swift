@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import TobyAI
 
 /// A todo-domain error. `code` and `status` match the daemon's API so callers
@@ -23,6 +24,8 @@ public struct TodoError: Error, Sendable, Equatable, LocalizedError {
 
 /// Caller context for a mutation (mirrors the TS `MutationContext`).
 public struct TodoMutationContext: Sendable {
+	/// Participating local services commit their side of a mutation in the same transaction.
+	var onCommit: (@Sendable (Database, JSONValue) throws -> Void)?
 	public var source: String?
 	public var idempotencyKey: String?
 	/// Deterministic id used by automatic follow-ups; not accepted from tools.

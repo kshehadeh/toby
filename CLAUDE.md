@@ -21,6 +21,8 @@ New capabilities (sources, tools, background work) are Swift services in
 audio, TCC) stays in `Sources/TobyApp/Native/`, reached via `NativeBridge` →
 `NativeDispatcher`.
 
+Feed state lives in the native database. The first Feed load or database backup imports the legacy dashboard JSON files. Older builds read the original JSON snapshot.
+
 ## Running the app
 
 ```sh

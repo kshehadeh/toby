@@ -1,4 +1,5 @@
 import Foundation
+import TobyAI
 
 /// Priority bucket for a Feed item, highest first. Mirrors core `FeedTier`.
 enum FeedTier: String, Decodable, CaseIterable, Sendable {
@@ -50,6 +51,8 @@ struct FeedItemSource: Decodable, Equatable, Sendable {
 	let providerName: String
 	var providerDisplayName: String?
 	let itemId: String
+	var identity: JSONValue?
+	var cardId: String?
 	var url: String?
 }
 
@@ -62,6 +65,8 @@ struct FeedItem: Decodable, Equatable, Identifiable, Sendable {
 	let reason: String
 	var timestamp: String?
 	let actions: [FeedAction]
+
+	var cardID: String { source.cardId ?? id }
 
 	/// SF Symbol for the item's source category.
 	var systemImage: String {
@@ -148,6 +153,7 @@ struct FeedContent: Decodable, Equatable, Sendable {
 	let status: Status
 	let items: [FeedItem]
 	let generatedAt: String
+	var generation: Int?
 	var personaName: String?
 	var model: FeedModelRef?
 	var setupReason: String?

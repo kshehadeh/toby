@@ -141,6 +141,9 @@ public struct AppleTools: Sendable {
 			if let recurring = event["isRecurring"]?.boolValue { facts["recurring"] = .bool(recurring) }
 			let detail = location ?? (allDay ? "All day" : (end.map { "\(start ?? "") – \($0)" } ?? start))
 			var item: [String: JSONValue] = ["id": event["uid"] ?? "", "title": event["summary"] ?? "", "urgency": .string(urgency), "event": .object(facts)]
+			if let scope = event["sourceID"] {
+				item["identity"] = ["scope": scope, "calendar": event["calendarID"] ?? .null, "record": event["externalID"] ?? .null, "occurrence": event["occurrenceDate"] ?? ""]
+			}
 			if let calendar { item["subtitle"] = .string(calendar); item["groupId"] = .string(calendar) }
 			if let detail { item["detail"] = .string(detail) }
 			if let start { item["timestamp"] = .string(start) }
@@ -168,6 +171,9 @@ public struct AppleTools: Sendable {
 			}
 			let escaped = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id
 			var item: [String: JSONValue] = ["id": .string(id), "title": reminder["title"] ?? "", "urgency": .string(urgency)]
+			if let scope = reminder["sourceID"] {
+				item["identity"] = ["scope": scope, "occurrence": reminder["isRecurring"] == true ? reminder["dueDate"] ?? .null : .null]
+			}
 			if !id.isEmpty { item["url"] = .string("x-apple-reminderkit://REMCDReminder/\(escaped)") } else if let url = reminder["url"]?.stringValue { item["url"] = .string(url) }
 			if let list { item["subtitle"] = .string(list); item["groupId"] = .string(list) }
 			if let notes = reminder["notes"]?.stringValue { item["detail"] = .string(notes) }
@@ -181,7 +187,9 @@ public struct AppleTools: Sendable {
 		]
 	}
 
-	public func completeReminder(_ id: String) async throws {
-		_ = try await bridge.data("reminders/complete", ["id": .string(id), "completed": true])
+	public func completeReminder(_ id: String, identity: JSONValue? = nil) async throws {
+		var input: [String: JSONValue] = ["id": .string(id), "completed": true]
+		input["expectedIdentity"] = identity
+		_ = try await bridge.data("reminders/complete", .object(input))
 	}
 }

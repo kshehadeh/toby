@@ -1,5 +1,6 @@
 import Foundation
 import TobyMail
+import TobyAI
 
 /// One message as the email reader shows it.
 public struct MailMessageDetail: Sendable {
@@ -20,10 +21,13 @@ public struct MailMessageDetail: Sendable {
 extension MailService {
 	/// Fetch a full message for reading. Uses `BODY.PEEK`, so opening a message
 	/// never marks it read on the server.
-	public func message(uid: Int, mailbox: String) async throws -> MailMessageDetail {
+	public func message(uid: Int, mailbox: String, identity: JSONValue? = nil) async throws -> MailMessageDetail {
 		let account = try requireAccount()
-		let fetched = try await session(mailbox) { client in
-			try await client.fetch([uid], items: "(UID FLAGS ENVELOPE INTERNALDATE BODY.PEEK[])").first { $0.uid == uid }
+		if let identity, identity["account"]?.stringValue != account.feedScope { throw MailError.server("This message belongs to another account.") }
+		let fetched = try await session(mailbox, account: account) { client in
+			let message = try await client.fetch([uid], items: "(UID FLAGS ENVELOPE INTERNALDATE BODY.PEEK[])").first { $0.uid == uid }
+			if let identity { try await validateFeedTarget(identity, account: account, validity: client.uidValidity, message: message) }
+			return message
 		}
 		guard let fetched, let source = fetched.source else {
 			throw MailError.server("This message is no longer in \(mailbox == Self.defaultMailbox ? "your inbox" : mailbox). It may have been moved or deleted.")

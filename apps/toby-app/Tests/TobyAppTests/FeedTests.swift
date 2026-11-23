@@ -255,3 +255,19 @@ struct FeedTests {
 		}
 	}
 }
+
+extension FeedTests {
+	@Test func olderResponseCannotUndoDismissal() async throws {
+		var first = try decodeFeed()
+		first.generation = 1
+		let store = FeedStore(fetch: { _ in first }, perform: { id, _ in
+			FeedActionResponse(ok: true, content: FeedContent(status: .ok, items: first.items.filter { $0.id != id }, generatedAt: first.generatedAt, generation: 2))
+		})
+		await store.update(force: false)
+		let item = try #require(first.items.first)
+		await store.dismiss(item)
+		await store.update(force: true)
+		#expect(store.content?.generation == 2)
+		#expect(store.content?.items.contains { $0.id == item.id } == false)
+	}
+}

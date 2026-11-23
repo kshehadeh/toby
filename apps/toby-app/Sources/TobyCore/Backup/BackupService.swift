@@ -91,6 +91,7 @@ public struct BackupService: Sendable {
 
 	/// A consistent copy of the live database (`VACUUM INTO`).
 	func databaseSnapshot() throws -> Data {
+		_ = try FeedDatabase(writer: writer, home: paths.root)
 		let tmp = FileManager.default.temporaryDirectory.appending(path: "toby-backup-\(UUID().uuidString).sqlite")
 		defer { try? FileManager.default.removeItem(at: tmp) }
 		try writer.writeWithoutTransaction { db in try db.execute(sql: "VACUUM INTO ?", arguments: [tmp.path]) }
@@ -258,6 +259,10 @@ public struct BackupService: Sendable {
 		let pending = paths.root.appending(path: dirName)
 		var swaps: [(live: URL, staged: URL)] = []
 		if manifest["database"] == true {
+			// A database from another backup must never adopt this home's loose Feed files.
+			let marker = pending.appending(path: FeedDatabase.restoredHomeMarker)
+			try Data().write(to: marker, options: .atomic)
+			swaps.append((paths.root.appending(path: FeedDatabase.restoredHomeMarker), marker))
 			if manifest["legacy"] == true {
 				swaps.append((paths.legacyChatDatabase, pending.appending(path: "chat.sqlite")))
 				swaps.append((paths.legacyMemoryDatabase, pending.appending(path: "memory.sqlite")))

@@ -9,6 +9,9 @@ public struct FeedCandidate: Sendable, Hashable {
 	public var providerName: String
 	public var providerDisplayName: String?
 	public var itemID: String
+	var identity: JSONValue?
+	var cardID: String?
+	var sequence: Int?
 	public var title: String
 	public var subtitle: String?
 	public var detail: String?
@@ -38,6 +41,7 @@ public struct FeedCandidate: Sendable, Hashable {
 		timestamp = item["timestamp"]?.stringValue?.nilIfEmpty
 		urgency = item["urgency"]?.stringValue
 		url = item["url"]?.stringValue?.nilIfEmpty
+		identity = item["identity"]
 		event = item["event"]
 		email = item["email"]
 		task = item["task"]
@@ -378,7 +382,7 @@ public enum FeedPrefilter {
 		var text = extra.map { "\($0)\n" }.joined()
 		for c in candidates.sorted(by: { $0.id < $1.id }) {
 			let facts = [c.event, c.email, c.task].map { $0.map { $0.isNull ? "" : $0.jsonString() } ?? "" }
-			text += "\(c.id)|\(c.title)|\(c.timestamp ?? "")|\(c.dueDate ?? "")|\(c.urgency ?? "")|\(facts.joined(separator: "|"))\n"
+			text += "\(c.cardID ?? c.id)|\(c.id)|\(c.title)|\(c.timestamp ?? "")|\(c.dueDate ?? "")|\(c.urgency ?? "")|\(facts.joined(separator: "|"))\n"
 		}
 		return String(FeedText.sha(text).prefix(32))
 	}

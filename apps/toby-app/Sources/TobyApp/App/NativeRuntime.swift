@@ -229,7 +229,7 @@ final class NativeRuntime {
 		let identity = ObjectIdentifier(database)
 		if let feedRouter, feedStoreIdentity == identity { return feedRouter }
 		let apple = AppleTools(bridge: AppNativeBridge())
-		let service = FeedService(
+		let service = try FeedService(
 			sources: [MailFeedSource(mail: try mail()), CalendarFeedSource(apple: apple), RemindersFeedSource(apple: apple), SlackFeedSource(slack: slack)],
 			todos: try todos().actions.service, memory: try memories().memory,
 			personas: PersonaService(tobyDirectory: paths.root), ai: ai, tobyDirectory: paths.root,

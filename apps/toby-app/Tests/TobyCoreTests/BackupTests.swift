@@ -28,6 +28,8 @@ struct BackupTests {
 	static func fixture(_ name: String) -> URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "Fixtures/\(name)") }
 
 	@Test func roundTripsDatabaseFilesAndSettings() throws {
+		let decision: JSONValue = ["kind": "dismissed", "at": "2020-01-01T00:00:00Z"]
+		try Data(JSONValue.object(["items": ["card": decision]]).jsonString().utf8).write(to: home.appending(path: "dashboard-feed-state.json"))
 		let projectDir = home.appending(path: "custom/project-a")
 		try FileManager.default.createDirectory(at: projectDir.appending(path: "outputs"), withIntermediateDirectories: true)
 		try Data("report".utf8).write(to: projectDir.appending(path: "outputs/r.md"))
@@ -66,6 +68,8 @@ struct BackupTests {
 		#expect(try String(contentsOf: paths.projects.appending(path: "p1/outputs/r.md"), encoding: .utf8) == "report")
 
 		let reopened = try TobyDatabase.open(paths: paths)
+		let feed = try FeedDatabase(writer: reopened.writer, home: home)
+		#expect(try feed.state()["items"]?["card"] == decision)
 		try BackupService.repointProjects(projects, writer: reopened.writer, projectsDir: paths.projects)
 		let folder = try reopened.writer.read { db in try String.fetchOne(db, sql: "SELECT folder_path FROM projects WHERE id = 'p1'") }
 		#expect(folder == paths.projects.appending(path: "p1").path)
@@ -73,6 +77,8 @@ struct BackupTests {
 
 	@Test func readsADaemonArchive() throws {
 		let service = BackupService(paths: paths, writer: database.writer, secrets: secrets, openRouter: nil)
+		try Data(#"{"items":{"left-over":{"kind":"dismissed","at":"2020-01-01T00:00:00Z"}}}"#.utf8)
+			.write(to: home.appending(path: "dashboard-feed-state.json"))
 		let staged = try service.restore(file: Self.fixture("ts-backup.tbybak"), password: "hunter2")
 		#expect(staged.legacy && staged.database && staged.projects && staged.settings)
 		#expect(!staged.recordings)
@@ -82,6 +88,9 @@ struct BackupTests {
 		#expect(!FileManager.default.fileExists(atPath: paths.database.path), "native DB set aside so the import re-runs")
 		#expect(try String(contentsOf: paths.projects.appending(path: "p1/notes/f.txt"), encoding: .utf8) == "hello project")
 		#expect(try secrets.secret("mail.imapPassword") == "pw", "legacy credentials map to secrets")
+		let restored = try TobyDatabase.inMemory()
+		let feed = try FeedDatabase(writer: restored.writer, home: home)
+		#expect(try feed.decision("left-over") == nil)
 		let header = try BackupArchive.Reader.header(Self.fixture("ts-backup.tbybak")).header
 		#expect(header["info"]?["deviceName"] == "TS Mac")
 	}
