@@ -123,6 +123,14 @@ struct SettingsWindowView: View {
 	private var canGoForward: Bool { historyIndex < navigationHistory.count - 1 }
 
 	var body: some View {
+		if NativeMode.isEnabled {
+			NativeSettingsView(store: store, onSwitchTobyHome: onSwitchTobyHome)
+		} else {
+			daemonSettings
+		}
+	}
+
+	private var daemonSettings: some View {
 		NavigationSplitView(columnVisibility: .constant(.all)) {
 			settingsSidebar
 				.navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)

@@ -258,6 +258,7 @@ public actor SlackInbound {
 			} catch {
 				lastError = (error as? LocalizedError)?.errorDescription ?? "\(error)"
 				state = .error
+				TobyLog.shared.warn("chat-inbound", "slack_socket_error", ["error": .string(lastError ?? "")])
 			}
 			state = .reconnecting
 			try? await Task.sleep(for: delay)

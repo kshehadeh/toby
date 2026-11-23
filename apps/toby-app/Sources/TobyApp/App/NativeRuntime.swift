@@ -143,12 +143,30 @@ final class NativeRuntime {
 	private var slackInbound: Task<Void, Never>?
 
 	/// Slack replies (Socket Mode) when `chatInbound` is enabled for Slack.
+	/// The running Slack replies service (nil when chat replies are off).
+	private(set) var slackInboundService: SlackInbound?
+
+	private var inboundInputs: (engine: ChatEngine, sessions: ChatSessionStore, writer: any DatabaseWriter)?
+
+	/// Re-read `chatInbound` and restart (or stop) Slack replies.
+	func reloadChatReplies() {
+		if let inputs = inboundInputs {
+			startSlackInbound(engine: inputs.engine, sessions: inputs.sessions, writer: inputs.writer)
+		} else {
+			_ = try? chat()
+		}
+	}
+
 	private func startSlackInbound(engine: ChatEngine, sessions: ChatSessionStore, writer: any DatabaseWriter) {
+		inboundInputs = (engine, sessions, writer)
 		slackInbound?.cancel()
+		slackInbound = nil
+		slackInboundService = nil
 		let config = (try? Data(contentsOf: paths.legacyConfig)).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) }?["chatInbound"]
 		guard config?["enabled"] == true, (config?["integration"]?.stringValue ?? "slack") == "slack" else { return }
 		let persona = config?["persona"]?.stringValue
 		let inbound = SlackInbound(slack: slack, engine: engine, sessions: sessions, writer: writer, personaName: { persona })
+		slackInboundService = inbound
 		slackInbound = Task.detached(priority: .utility) { await inbound.run() }
 	}
 
@@ -298,6 +316,7 @@ final class NativeRuntime {
 		let current = TobyPaths.current()
 		if let database, current == paths { return database }
 		paths = current
+		TobyLog.shared.configure(tobyDirectory: current.root)
 		// A staged restore swaps in before anything opens the database.
 		var restoredProjects: [String] = []
 		if BackupService.hasPending(current) {

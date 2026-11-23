@@ -36,6 +36,9 @@ struct TobyClient {
 	}
 
 	func fetchStatus() async throws -> AppStatus {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(AppStatus.self, from: Data(await NativeStatusRouter.appStatus().jsonString().utf8))
+		}
 		let url = baseURL.appendingPathComponent("api/status")
 		var request = URLRequest(url: url)
 		request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -45,6 +48,9 @@ struct TobyClient {
 	}
 
 	func fetchDaemonStatus() async throws -> DaemonStatus {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(DaemonStatus.self, from: Data(await NativeStatusRouter.daemonStatus().jsonString().utf8))
+		}
 		let url = baseURL.appendingPathComponent("api/daemon/status")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -99,6 +105,9 @@ struct TobyClient {
 	}
 
 	func fetchAIProviders() async throws -> [AIProviderInfo] {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(AIProvidersResponse.self, from: Data(await NativeStatusRouter.providers().jsonString().utf8)).providers
+		}
 		let url = baseURL.appendingPathComponent("api/ai/providers")
 		var request = URLRequest(url: url)
 		request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -143,6 +152,16 @@ struct TobyClient {
 		fields: [String: String],
 		model: String? = nil,
 	) async throws -> AIProviderSetupResponse {
+		if NativeMode.isEnabled {
+			// OpenRouter only: store the key and confirm it answers with a balance.
+			guard providerId == "openrouter" else { throw TobyClientError.serverError("Toby uses OpenRouter for AI.") }
+			if let key = fields["apiKey"]?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty { try KeychainKeyStore().save(key) }
+			let credits = try await NativeRuntime.shared.ai.credits()
+			if let model { UserDefaults.standard.set(model, forKey: AccountSettingsModel.chatModelKey) }
+			let payload: JSONValue = ["ok": true, "providerId": "openrouter", "model": model.map(JSONValue.string) ?? .null, "configured": true,
+			                          "remaining": .number(credits.totalCredits - credits.totalUsage), "totalSpent": .number(credits.totalUsage)]
+			return try JSONDecoder().decode(AIProviderSetupResponse.self, from: Data(payload.jsonString().utf8))
+		}
 		let encoded = providerId.addingPercentEncoding(
 			withAllowedCharacters: .urlPathAllowed,
 		) ?? providerId
@@ -775,6 +794,10 @@ struct TobyClient {
 	}
 
 	func createIssue(type: String, details: String) async throws -> CreateIssueResponse {
+		if NativeMode.isEnabled {
+			let version = await NativeStatusRouter.version
+			return try JSONDecoder().decode(CreateIssueResponse.self, from: Data(IssueReport.fallback(type: type, details: details, version: version).jsonString().utf8))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/issues"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1132,6 +1155,9 @@ struct TobyClient {
 	}
 
 	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ChangelogResponse.self, from: Data(try await Changelog.fetch(limit: limit).jsonString().utf8))
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/releases/changelog"),
 			resolvingAgainstBaseURL: false,
@@ -1151,6 +1177,10 @@ struct TobyClient {
 		query: String? = nil,
 		limit: Int = 100
 	) async throws -> LogsListResponse {
+		if NativeMode.isEnabled {
+			let result = TobyLog.shared.query(.init(source: source, level: level, category: category, type: type, query: query, limit: limit))
+			return try LogsListParser.parse(Data(result.jsonString().utf8))
+		}
 		var components = URLComponents(
 			url: baseURL.appendingPathComponent("api/logs"),
 			resolvingAgainstBaseURL: false,
@@ -1192,6 +1222,12 @@ struct TobyClient {
 	// MARK: - Home (Actions + The Feed)
 
 	func fetchFlowDashboardBlocks() async throws -> [FlowDashboardBlockInfo] {
+		if NativeMode.isEnabled {
+			struct Payload: Decodable { let blocks: [FlowDashboardBlockInfo] }
+			let writer = try await NativeRuntime.shared.store().writer
+			let blocks = try await writer.read { db in try FlowDocuments.dashboardBlocks(db) }
+			return try JSONDecoder().decode(Payload.self, from: Data(blocks.jsonString().utf8)).blocks
+		}
 		let url = baseURL.appendingPathComponent("api/dashboard/flow-blocks")
 		var request = URLRequest(url: url)
 		request.cachePolicy = .reloadIgnoringLocalCacheData

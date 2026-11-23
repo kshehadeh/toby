@@ -266,6 +266,8 @@ public actor FlowService {
 		let trigger = "\(claimed.event["type"]?.stringValue ?? ""):\(claimed.binding.trigger["id"]?.stringValue ?? "")"
 		let result = await runner.run(claimed.binding.document, options: FlowRunner.Options(inputs: inputs, trigger: trigger))
 		let cancelled = Task.isCancelled
+		TobyLog.shared.write(result.ok ? "info" : "warn", category: "flows", type: result.ok ? "flow_run_complete" : "flow_run_failed",
+		                     data: ["flow": .string(claimed.binding.flowID), "trigger": .string(trigger), "error": result.ok ? .null : .string(result.error ?? "")])
 		try? await writer.write { db in
 			try Self.finish(db, claimed.id, status: cancelled ? "interrupted" : result.ok ? "success" : "error", reason: result.ok ? nil : result.error, runID: result.runID, output: result.extracted?["text"]?.stringValue)
 		}

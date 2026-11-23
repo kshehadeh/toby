@@ -618,7 +618,13 @@ public actor FeedService {
 	public func runScheduler(interval: Duration = .seconds(15 * 60), notify: @escaping @Sendable (JSONValue) async -> Void) async {
 		while !Task.isCancelled {
 			let hour = Calendar.current.component(.hour, from: Date())
-			if (7 ..< 22).contains(hour), let content = try? await content(force: false, awaitRerank: true) {
+			var fetched: JSONValue?
+			if (7 ..< 22).contains(hour) {
+				do { fetched = try await content(force: false, awaitRerank: true) } catch {
+					TobyLog.shared.warn("feed", "feed_refresh_failed", ["error": .string((error as? LocalizedError)?.errorDescription ?? "\(error)")])
+				}
+			}
+			if let content = fetched {
 				let state = loadState()
 				let notified = state["notified"]?.objectValue ?? [:]
 				let fresh = (content["items"]?.arrayValue ?? []).filter { $0["tier"] == "now" && notified[$0["id"]?.stringValue ?? ""] == nil }

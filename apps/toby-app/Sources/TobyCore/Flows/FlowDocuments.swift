@@ -452,3 +452,27 @@ public enum FlowDocuments {
 		return db.changesCount > 0
 	}
 }
+
+extension FlowDocuments {
+	/// Custom flows shown as Home actions (port of `dashboard/flow-blocks.ts`).
+	public static func dashboardBlocks(_ db: Database) throws -> JSONValue {
+		var blocks: [(String, JSONValue)] = []
+		for record in try list(db) where !record.builtin {
+			let destinations = record.document["destinations"]?.arrayValue ?? []
+			guard let dest = destinations.first(where: { $0["type"] == "dashboard" }), dest["variant"] == "runner" else { continue }
+			let triggers = record.document["triggers"]?.arrayValue ?? []
+			guard triggers.contains(where: { $0["enabled"] == true && $0["source"]?["type"] == "home.action" }) else { continue }
+			let last = try Row.fetchOne(db, sql: "SELECT started_at, completed_at FROM flow_runs WHERE flow_name = ? AND status = 'success' ORDER BY COALESCE(completed_at, started_at) DESC LIMIT 1", arguments: [record.id])
+				.map { (($0["completed_at"] as String?) ?? ($0["started_at"] as String?)) }
+			func optional(_ value: JSONValue?) -> JSONValue { value?.stringValue.map(JSONValue.string) ?? .null }
+			blocks.append((record.name.lowercased(), [
+				"id": .string(record.id), "flowId": .string(record.id), "title": .string(record.name),
+				"description": record.description.map(JSONValue.string) ?? .null, "icon": optional(record.document["icon"]),
+				"color": optional(record.document["color"]), "dashboardColor": optional(dest["color"]), "variant": "runner",
+				"lastRanAt": (last ?? nil).map(JSONValue.string) ?? .null,
+				"showsResultSheet": .bool(destinations.contains { $0["type"] == "modal" }),
+			]))
+		}
+		return ["blocks": .array(blocks.sorted { $0.0 < $1.0 }.map(\.1))]
+	}
+}

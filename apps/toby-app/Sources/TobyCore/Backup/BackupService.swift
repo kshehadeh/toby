@@ -406,7 +406,13 @@ public struct BackupService: Sendable {
 		while !Task.isCancelled {
 			let last = syncState()["lastDatabaseBackupAt"]?.stringValue.flatMap(TodoRecurrence.parseISO)
 			if snapshotsEnabled, last.map({ Date().timeIntervalSince($0) >= 86400 }) ?? true {
-				do { try createSnapshot() } catch { updateSyncState { $0["lastDatabaseBackupError"] = .string((error as? LocalizedError)?.errorDescription ?? "\(error)") } }
+				do {
+					let snapshot = try createSnapshot()
+					TobyLog.shared.info("backup", "data_snapshot_created", ["filename": .string(snapshot.filename)])
+				} catch {
+					TobyLog.shared.warn("backup", "data_snapshot_failed", ["error": .string((error as? LocalizedError)?.errorDescription ?? "\(error)")])
+					updateSyncState { $0["lastDatabaseBackupError"] = .string((error as? LocalizedError)?.errorDescription ?? "\(error)") }
+				}
 			}
 			try? await Task.sleep(for: .seconds(3600))
 		}

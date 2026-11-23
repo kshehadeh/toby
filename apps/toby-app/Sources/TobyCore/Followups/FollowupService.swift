@@ -668,7 +668,10 @@ public actor FollowupService {
 		try? await Task.sleep(for: .seconds(60))
 		while !Task.isCancelled {
 			let config = config()
-			if config.enabled, (7 ..< 22).contains(Calendar.current.component(.hour, from: Date())) { _ = await runOnce() }
+			if config.enabled, (7 ..< 22).contains(Calendar.current.component(.hour, from: Date())) {
+				let stats = await runOnce()
+				if stats.status == "error" { TobyLog.shared.warn("followups", "followups_run_failed", ["error": .string(stats.error ?? "")]) }
+			}
 			try? await Task.sleep(for: .seconds(Double(config.intervalMinutes) * 60))
 		}
 	}

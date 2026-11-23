@@ -521,7 +521,14 @@ public struct MailService: Sendable {
 	/// Sync INBOX every `interval` while configured (the daemon's events poll).
 	public func runSyncLoop(interval: Duration = .seconds(300)) async {
 		while !Task.isCancelled {
-			if isConfigured { _ = try? await sync() }
+			if isConfigured {
+				do {
+					let result = try await sync()
+					if result.newCount > 0 { TobyLog.shared.info("mail", "mail_sync_complete", ["newCount": .number(Double(result.newCount))]) }
+				} catch {
+					TobyLog.shared.warn("mail", "mail_sync_failed", ["error": .string((error as? LocalizedError)?.errorDescription ?? "\(error)")])
+				}
+			}
 			try? await Task.sleep(for: interval)
 		}
 	}
