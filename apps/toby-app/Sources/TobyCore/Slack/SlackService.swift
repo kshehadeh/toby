@@ -4,6 +4,11 @@ import TobyAI
 /// Slack as a built-in source: mentions/DMs for The Feed, chat tools, and
 /// posting for the inbound bridge (port of the Slack plugin).
 public struct SlackService: Sendable {
+	/// `Result(catching:)` for async work (the async overload isn't in every toolchain).
+	static func capture<T>(_ body: () async throws -> T) async -> Result<T, Error> {
+		do { return .success(try await body()) } catch { return .failure(error) }
+	}
+
 	public let api: SlackAPI
 
 	public init(api: SlackAPI) { self.api = api }
@@ -234,8 +239,8 @@ public struct SlackService: Sendable {
 		var components = Calendar.current.dateComponents([.year, .month, .day], from: now)
 		components.day = (components.day ?? 1) - 3
 		let after = Calendar.current.date(from: components).map { FeedText.localDateKey($0) } ?? ""
-		async let mentions = Result { try await searchMessages("<@\(selfID)> after:\(after)", limit: limit) }
-		async let direct = Result { try await searchMessages("is:dm after:\(after)", limit: limit) }
+		async let mentions = Self.capture { try await searchMessages("<@\(selfID)> after:\(after)", limit: limit) }
+		async let direct = Self.capture { try await searchMessages("is:dm after:\(after)", limit: limit) }
 		let results = await [mentions, direct]
 		let hits = results.flatMap { (try? $0.get()) ?? [] }
 		if hits.isEmpty, case let .failure(error)? = results.first(where: { if case .failure = $0 { true } else { false } }) { throw error }

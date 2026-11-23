@@ -1,0 +1,40 @@
+# Compile the app on the same runner and Xcode as release.yml, so toolchain
+# differences surface before a version tag is pushed.
+name: Build check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/toby-app/**"
+      - "scripts/build-app.sh"
+      - ".github/workflows/build-check.yml"
+  pull_request:
+    paths:
+      - "apps/toby-app/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Cache SwiftPM binary artifacts
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm/artifacts
+          key: swiftpm-artifacts-${{ hashFiles('apps/toby-app/Package.resolved') }}
+
+      - name: Prefetch Sparkle binary artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/prefetch-sparkle-spm-artifact.sh
+
+      - name: Build (release)
+        run: swift build -c release --package-path apps/toby-app

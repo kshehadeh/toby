@@ -142,7 +142,9 @@ public actor FeedService {
 		var sourceList: [JSONValue] = []
 		await withTaskGroup(of: (Int, Result<JSONValue, Error>).self) { group in
 			for (index, source) in sources.enumerated() {
-				group.addTask { (index, await Result { try await source.summary(limit: source.category == "news" ? 12 : 30) }) }
+				group.addTask {
+					do { return (index, .success(try await source.summary(limit: source.category == "news" ? 12 : 30))) } catch { return (index, .failure(error)) }
+				}
 			}
 			var results = [(Int, Result<JSONValue, Error>)]()
 			for await result in group { results.append(result) }
