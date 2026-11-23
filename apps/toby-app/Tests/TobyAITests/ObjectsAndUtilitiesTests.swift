@@ -29,6 +29,7 @@ struct GenerateObjectTests {
 			messages: [.user("a, b")],
 			schema: Self.schema,
 			schemaName: "FeedRanking",
+			temperature: 0.2,
 		), as: Ranking.self)
 
 		#expect(result.object == Ranking(ids: ["a", "b"], note: nil))
@@ -38,6 +39,8 @@ struct GenerateObjectTests {
 		#expect(body["response_format"]?["json_schema"]?["name"] == "FeedRanking")
 		#expect(body["response_format"]?["json_schema"]?["strict"] == true)
 		#expect(body["provider"] == ["require_parameters": true])
+		// Required parameters must not include temperature: reasoning models reject it.
+		#expect(body["temperature"] == nil)
 		#expect(body["stream"] == nil)
 	}
 

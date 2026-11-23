@@ -123,7 +123,11 @@ private func body(for request: ObjectRequest, messages: [Message]) -> JSONValue 
 	case .jsonPrompt:
 		body["response_format"] = ["type": "json_object"]
 	}
-	if let temperature = request.temperature { body["temperature"] = .number(temperature) }
+	// `require_parameters` makes every sent parameter mandatory, and reasoning
+	// models (e.g. gpt-5-mini) accept no `temperature` on any endpoint. A
+	// sampling hint must not exclude every upstream ("No endpoints found that
+	// can handle the requested parameters"), so strict-schema requests omit it.
+	if let temperature = request.temperature, request.mode != .jsonSchema { body["temperature"] = .number(temperature) }
 	if let maxTokens = request.maxOutputTokens { body["max_tokens"] = .number(Double(maxTokens)) }
 	return .object(body)
 }
