@@ -79,6 +79,17 @@ bun run app:screenshots  # Dev app against a seeded generic home
 
 Swift tests need Xcode selected (`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`).
 
+The app icon source is `images/app-icon.png` (dark squircle plate with the
+white-outlined face baked in, so macOS 26 renders it full-size instead of
+jailing it); `scripts/build-app-icon.sh` generates `AppIcon.icns`. The freeform
+face artwork for the DMG is `images/toby-face.png`. DMG
+packaging uses `scripts/dmg-settings.py` and checked-in 1×/2× backgrounds,
+regenerated with `swift scripts/render-dmg-background.swift`. It requires
+macOS 26+ and Python 3.11+ and installs pinned build-only Python dependencies
+under `dist/.dmg-tools`; no Finder automation or Python code ships in the app.
+Validate with `dist/.dmg-tools/bin/python scripts/test-packaging.py --volume <mount-path>`
+after building and mounting the DMG.
+
 ## Conventions for agents
 
 - **Single app.** Do not add plugins, MCP, a daemon or local HTTP server, a

@@ -29,6 +29,7 @@ function expectFile(relative, { executable = false } = {}) {
 expectFile("MacOS/toby-app", { executable: true });
 expectFile("Info.plist");
 expectFile("Frameworks/Sparkle.framework");
+expectFile("Resources/AppIcon.icns");
 
 const resources = path.join(app, "Resources");
 const bundles = fs.existsSync(resources)

@@ -201,11 +201,16 @@ Use SF Symbols by semantic name at medium or semibold, usually 10–18pt. Mark
 decorative symbols `accessibilityHidden(true)`. Use shipped image assets rather
 than redrawing integration/provider/persona marks.
 
-The Dock icon is the Icon Composer document `apps/toby-app/AppIcon.icon`
-(layered Liquid Glass: orange fill, cream glass bubble, navy portrait). The
-bubble is inset in the plate so the container stays visible; dark keeps a cream
-bubble on a dark plate, and tinted/clear use a light bubble with dark lines so
-the mark does not wash out. `toby-128.png` is the in-app header mark.
+The Dock and Finder icon is `images/app-icon.png`: a dark navy squircle plate
+at the full 824pt icon-grid size, with the Toby face-and-shoulders portrait
+large inside it (navy ink, off-white interior, continuous white outer
+outline). The squircle is baked in on purpose: macOS 26 shrinks transparent
+freeform icons into a gray tile, so the icon ships pre-masked and no orange
+plate or speech bubble remains. `scripts/build-app-icon.sh` creates the multi-resolution
+`AppIcon.icns` from it. The freeform face (same outline, transparent surround)
+is `images/toby-face.png`, used as the large portrait on the right side of the
+DMG window, with Toby and Applications on the left joined by an installation
+arrow. `toby-128.png` is the in-app header mark.
 `toby-menubar.png` is a template speech-bubble glyph for the status item
 (`isTemplate = true`).
 

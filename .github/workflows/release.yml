@@ -180,6 +180,11 @@ jobs:
           xcrun stapler staple dist/Toby.app
           xcrun stapler validate dist/Toby.app
 
+      - name: Set up Python for DMG packaging
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
       - name: Build DMG
         run: |
           chmod +x scripts/build-dmg.sh

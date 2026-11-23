@@ -6,9 +6,6 @@ PKG="$ROOT/apps/toby-app"
 DIST="$ROOT/dist"
 ARCH="${SWIFT_ARCH:-$(uname -m)}"
 APP_VARIANT="${TOBY_APP_VARIANT:-development}"
-ICON_MASTER="$ROOT/images/512x512.png"
-ICON_SRC="$ROOT/images/app-icon.png"
-ICON_COMPOSER="$PKG/AppIcon.icon"
 ENTITLEMENTS="$PKG/TobyApp.entitlements"
 APP_VERSION="${TOBY_APP_VERSION:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
 APP_BUILD_NUMBER="${TOBY_APP_BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-1}}"
@@ -106,77 +103,8 @@ if [[ -z "${CODE_SIGN_IDENTITY}" ]]; then
 	exit 1
 fi
 
-prepare_app_icon_source() {
-	if [[ -f "${ICON_SRC}" ]]; then
-		return
-	fi
-	if [[ ! -f "${ICON_MASTER}" ]]; then
-		echo "Missing icon source: ${ICON_MASTER}" >&2
-		exit 1
-	fi
-	if ! command -v magick >/dev/null 2>&1; then
-		echo "ImageMagick (magick) is required to generate ${ICON_SRC}." >&2
-		exit 1
-	fi
-	echo "Generating app icon from ${ICON_MASTER}…"
-	# Flatten the speech-bubble portrait onto a white square canvas.
-	magick "${ICON_MASTER}" \
-		-trim +repage \
-		-background white -alpha remove -alpha off \
-		-resize 820x820 \
-		-background white -gravity center -extent 1024x1024 \
-		"${ICON_SRC}"
-}
-
-build_app_icon() {
-	mkdir -p "${APP}/Contents/Resources"
-	if [[ -d "${ICON_COMPOSER}" && -f "${ICON_COMPOSER}/icon.json" ]]; then
-		echo "Compiling Icon Composer document ${ICON_COMPOSER}…"
-		local compile_dir partial
-		compile_dir="$(mktemp -d)"
-		partial="$(mktemp)"
-		xcrun actool "${ICON_COMPOSER}" \
-			--compile "${compile_dir}" \
-			--platform macosx \
-			--minimum-deployment-target 26.0 \
-			--app-icon AppIcon \
-			--output-partial-info-plist "${partial}" \
-			>/dev/null
-		if [[ -f "${compile_dir}/AppIcon.icns" ]]; then
-			cp "${compile_dir}/AppIcon.icns" "${APP}/Contents/Resources/AppIcon.icns"
-		fi
-		if [[ -f "${compile_dir}/Assets.car" ]]; then
-			cp "${compile_dir}/Assets.car" "${APP}/Contents/Resources/Assets.car"
-		fi
-		rm -rf "${compile_dir}" "${partial}"
-		return
-	fi
-
-	echo "Icon Composer document missing; falling back to flattened PNG icon." >&2
-	prepare_app_icon_source
-	local iconset icns
-	iconset="$(mktemp -d)/AppIcon.iconset"
-	icns="$(mktemp -t toby-app-icon).icns"
-	mkdir -p "${iconset}"
-
-	sips -z 16 16 "${ICON_SRC}" --out "${iconset}/icon_16x16.png" >/dev/null
-	sips -z 32 32 "${ICON_SRC}" --out "${iconset}/icon_16x16@2x.png" >/dev/null
-	sips -z 32 32 "${ICON_SRC}" --out "${iconset}/icon_32x32.png" >/dev/null
-	sips -z 64 64 "${ICON_SRC}" --out "${iconset}/icon_32x32@2x.png" >/dev/null
-	sips -z 128 128 "${ICON_SRC}" --out "${iconset}/icon_128x128.png" >/dev/null
-	sips -z 256 256 "${ICON_SRC}" --out "${iconset}/icon_128x128@2x.png" >/dev/null
-	sips -z 256 256 "${ICON_SRC}" --out "${iconset}/icon_256x256.png" >/dev/null
-	sips -z 512 512 "${ICON_SRC}" --out "${iconset}/icon_256x256@2x.png" >/dev/null
-	sips -z 512 512 "${ICON_SRC}" --out "${iconset}/icon_512x512.png" >/dev/null
-	sips -z 1024 1024 "${ICON_SRC}" --out "${iconset}/icon_512x512@2x.png" >/dev/null
-
-	iconutil -c icns "${iconset}" -o "${icns}"
-	cp "${icns}" "${APP}/Contents/Resources/AppIcon.icns"
-	rm -f "${icns}"
-}
-
-if [[ ! -d "${ICON_COMPOSER}" && ! -f "${ICON_SRC}" && ! -f "${ICON_MASTER}" ]]; then
-	echo "Missing app icon source: ${ICON_COMPOSER}, ${ICON_SRC}, or ${ICON_MASTER}" >&2
+if [[ ! -f "${ROOT}/images/app-icon.png" ]]; then
+	echo "Missing app icon source: ${ROOT}/images/app-icon.png" >&2
 	exit 1
 fi
 
@@ -236,8 +164,6 @@ cat >"${APP}/Contents/Info.plist" <<'PLIST'
 	<key>CFBundleIdentifier</key>
 	<string>__TOBY_APP_BUNDLE_ID__</string>
 	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
@@ -356,7 +282,7 @@ copy_sparkle_framework() {
 
 copy_sparkle_framework
 
-build_app_icon
+bash "${ROOT}/scripts/build-app-icon.sh" "${APP}/Contents/Resources/AppIcon.icns"
 
 # For production builds, skip code signing here. The release workflow signs
 # the executable and frameworks and

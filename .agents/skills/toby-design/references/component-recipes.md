@@ -5,7 +5,7 @@ SwiftUI is authoritative; Figma names describe the library catalog.
 
 | Need / Figma family | Native source | Required behavior |
 | --- | --- | --- |
-| Theme/foundation | `UI/Theme/AppTheme.swift`, `SettingsDesign.swift`, `NSColor+TobyTheme.swift` | Use semantic dynamic colors and constants. Never pin a light/dark RGB in a view. Dock icon is `apps/toby-app/AppIcon.icon`; menu bar uses `toby-menubar` as a template image. |
+| Theme/foundation | `UI/Theme/AppTheme.swift`, `SettingsDesign.swift`, `NSColor+TobyTheme.swift` | Use semantic dynamic colors and constants. Never pin a light/dark RGB in a view. Dock icon is the dark squircle with the white-outlined face in `images/app-icon.png`, packaged by `scripts/build-app-icon.sh`; the freeform face is `images/toby-face.png`; menu bar uses `toby-menubar` as a template image. |
 | Button / icon button | `UI/SettingsControls/SettingsActionButton.swift`, `SettingsDestructiveButton.swift`; native `Button` elsewhere | One prominent primary action per view; destructive uses role/tint. Label every icon-only action. |
 | Badge / chip / progress | `UI/Primitives/InputDock.swift`, feature-local rows | Chips expose removal. Progress reflects actual bounded work; do not use as decoration. |
 | Settings card/row/section | `UI/SettingsControls/{SettingsCard,SettingsRow,SettingsSectionHeader}.swift` | Card owns fill/border with concentric corners; rows use 42pt minimum and omit the trailing divider on the last row. Controls keep their native labels and disabled reasons. Prefer grouped `Form` in the Settings window. |

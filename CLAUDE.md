@@ -70,6 +70,17 @@ bun run typecheck       # help site TypeScript
 The app version comes from `VERSION`; `bun run release -- <patch|minor|major> --ci`
 bumps it (see the `release-toby` skill).
 
+The app icon is `images/app-icon.png`, a dark squircle with the white-outlined
+face baked in (macOS 26 jails transparent freeform icons), packaged as
+`AppIcon.icns` by `scripts/build-app-icon.sh`. The freeform face artwork is
+`images/toby-face.png`. DMG packaging requires
+macOS 26+ and Python 3.11+; `scripts/build-dmg.sh` installs pinned build-only
+dependencies in `dist/.dmg-tools` and configures Finder without GUI automation.
+Its layout is in `scripts/dmg-settings.py`. Rebuild the checked-in 1×/2×
+backgrounds with `swift scripts/render-dmg-background.swift` after artwork changes.
+Run packaging checks with `dist/.dmg-tools/bin/python scripts/test-packaging.py`;
+add `--volume <mount-path>` to also verify the final mounted DMG.
+
 ## Swift review skills (agents)
 
 | Skill | Purpose |
