@@ -36,6 +36,7 @@ public actor StreamTaskConnection: MailStream {
 	let task: URLSessionStreamTask
 	let session: URLSession
 	let timeout: TimeInterval
+	let host: String
 	var buffer = Data()
 
 	public static func open(host: String, port: Int, tls: Bool, timeout: TimeInterval = 60) async throws -> StreamTaskConnection {
@@ -45,13 +46,24 @@ public actor StreamTaskConnection: MailStream {
 		let task = session.streamTask(withHostName: host, port: port)
 		task.resume()
 		if tls { task.startSecureConnection() }
-		return StreamTaskConnection(task: task, session: session, timeout: timeout)
+		return StreamTaskConnection(task: task, session: session, timeout: timeout, host: host)
 	}
 
-	init(task: URLSessionStreamTask, session: URLSession, timeout: TimeInterval) {
+	init(task: URLSessionStreamTask, session: URLSession, timeout: TimeInterval, host: String = "") {
 		self.task = task
 		self.session = session
 		self.timeout = timeout
+		self.host = host
+	}
+
+	/// Readable text for stream errors. CFNetwork host-lookup failures
+	/// (codes 1 and 2) otherwise surface as "kCFErrorDomainCFNetwork error 2."
+	static func describe(_ error: Error, host: String) -> String {
+		let nsError = error as NSError
+		if nsError.domain == kCFErrorDomainCFNetwork as String, nsError.code == 1 || nsError.code == 2 {
+			return "Couldn't find the mail server \"\(host)\". Check the server name."
+		}
+		return error.localizedDescription
 	}
 
 	func fill() async throws {
@@ -61,7 +73,7 @@ public actor StreamTaskConnection: MailStream {
 		} catch let error as URLError where error.code == .timedOut {
 			throw MailError.timeout
 		} catch {
-			throw MailError.connection(error.localizedDescription)
+			throw MailError.connection(Self.describe(error, host: host))
 		}
 		if let data, !data.isEmpty { buffer.append(data) } else if eof { throw MailError.closed }
 	}
@@ -88,7 +100,7 @@ public actor StreamTaskConnection: MailStream {
 		do {
 			try await task.write(data, timeout: timeout)
 		} catch {
-			throw MailError.connection(error.localizedDescription)
+			throw MailError.connection(Self.describe(error, host: host))
 		}
 	}
 
@@ -111,6 +123,20 @@ public struct MailServer: Sendable, Equatable {
 	public var secure: Bool
 	public var username: String
 	public var password: String
+
+	/// Bare hostname from user input: drops a scheme (`imaps://`), path,
+	/// trailing dot, and `:port` suffix, none of which resolve via DNS.
+	public static func normalizeHost(_ raw: String) -> String {
+		var host = Substring(raw.trimmingCharacters(in: .whitespacesAndNewlines))
+		if let scheme = host.range(of: "://") { host = host[scheme.upperBound...] }
+		if let slash = host.firstIndex(of: "/") { host = host[..<slash] }
+		if let at = host.lastIndex(of: "@") { host = host[host.index(after: at)...] }
+		if let colon = host.lastIndex(of: ":"), host.firstIndex(of: ":") == colon, host[host.index(after: colon)...].allSatisfy(\.isNumber) {
+			host = host[..<colon]
+		}
+		while host.hasSuffix(".") { host = host.dropLast() }
+		return String(host)
+	}
 
 	public init(host: String, port: Int, secure: Bool, username: String, password: String) {
 		self.host = host

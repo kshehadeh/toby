@@ -30,10 +30,11 @@ public struct MailAccount: Sendable, Equatable {
 	/// Parse raw fields; nil without IMAP host, username, and password.
 	public init?(_ raw: [String: String]) {
 		func value(_ key: String) -> String { (raw[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
-		guard !value("imapHost").isEmpty, !value("imapUsername").isEmpty, !value("imapPassword").isEmpty else { return nil }
-		imap = MailServer(host: value("imapHost"), port: Self.port(raw["imapPort"], 993), secure: Self.bool(raw["imapSecure"], true), username: value("imapUsername"), password: value("imapPassword"))
-		smtp = value("smtpHost").isEmpty || value("smtpUsername").isEmpty || value("smtpPassword").isEmpty ? nil
-			: MailServer(host: value("smtpHost"), port: Self.port(raw["smtpPort"], 587), secure: Self.bool(raw["smtpSecure"], false), username: value("smtpUsername"), password: value("smtpPassword"))
+		func host(_ key: String) -> String { MailServer.normalizeHost(value(key)) }
+		guard !host("imapHost").isEmpty, !value("imapUsername").isEmpty, !value("imapPassword").isEmpty else { return nil }
+		imap = MailServer(host: host("imapHost"), port: Self.port(raw["imapPort"], 993), secure: Self.bool(raw["imapSecure"], true), username: value("imapUsername"), password: value("imapPassword"))
+		smtp = host("smtpHost").isEmpty || value("smtpUsername").isEmpty || value("smtpPassword").isEmpty ? nil
+			: MailServer(host: host("smtpHost"), port: Self.port(raw["smtpPort"], 587), secure: Self.bool(raw["smtpSecure"], false), username: value("smtpUsername"), password: value("smtpPassword"))
 		fromAddress = value("fromAddress")
 		fromName = value("fromName")
 	}
@@ -81,6 +82,9 @@ public struct MailService: Sendable {
 		guard let account = MailAccount(raw) else { throw MailError.notConfigured("Email requires IMAP credentials (host, port, username, password).") }
 		let client = try await IMAPClient.connect(account.imap, open: openStream)
 		await client.logout()
+		var raw = raw
+		raw["imapHost"] = account.imap.host
+		if let smtpHost = raw["smtpHost"] { raw["smtpHost"] = MailServer.normalizeHost(smtpHost) }
 		for field in MailAccount.fields {
 			let value = (raw[field] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 			if value.isEmpty { try secrets.removeSecret("mail.\(field)") } else { try secrets.setSecret(value, for: "mail.\(field)") }

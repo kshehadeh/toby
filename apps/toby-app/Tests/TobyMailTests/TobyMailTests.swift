@@ -220,3 +220,18 @@ struct SMTPTests {
 		#expect(custom?.settings == .init(imapHost: "mail.ex.org", imapPort: "993", imapSecure: "true", imapUsername: "kim", smtpHost: "smtp.ex.org", smtpPort: "587", smtpSecure: "false", smtpUsername: "kim@ex.org", fromAddress: "kim@ex.org"))
 	}
 }
+
+@Test func normalizeHostStripsSchemePortAndPath() {
+	#expect(MailServer.normalizeHost("  imap.gmail.com ") == "imap.gmail.com")
+	#expect(MailServer.normalizeHost("imap.gmail.com:993") == "imap.gmail.com")
+	#expect(MailServer.normalizeHost("imaps://imap.gmail.com:993/") == "imap.gmail.com")
+	#expect(MailServer.normalizeHost("smtp.example.com.") == "smtp.example.com")
+	#expect(MailServer.normalizeHost("") == "")
+}
+
+@Test func hostLookupFailureIsReadable() {
+	let error = NSError(domain: kCFErrorDomainCFNetwork as String, code: 2)
+	#expect(StreamTaskConnection.describe(error, host: "imap.nope.example") == "Couldn't find the mail server \"imap.nope.example\". Check the server name.")
+	let other = NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "Offline"])
+	#expect(StreamTaskConnection.describe(other, host: "x") == "Offline")
+}
