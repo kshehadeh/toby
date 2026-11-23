@@ -233,6 +233,46 @@ struct MailServiceTests {
 		await #expect(throws: TodoError.self) { try await source.run(itemAction: "email.archiveItem", itemID: "x") }
 	}
 
+	@Test func readsAFullMessageWithoutMarkingItRead() async throws {
+		let message = try await mail.message(uid: 1, mailbox: "INBOX")
+		#expect(message.subject == "Lunch?")
+		#expect(message.from == [MIME.Address(name: "Ana", email: "ana@y.com")])
+		#expect(message.to.map(\.email) == ["me@x.com"])
+		#expect(message.date == Date(timeIntervalSince1970: 1_772_445_600))
+		#expect(message.isUnread)
+		#expect(message.content.text == "Hello")
+		#expect(message.webmailURL == "https://mail.google.com/mail/u/0/#inbox")
+		#expect(server.lock.withLock { server.boxes["INBOX"]![0].flags.isEmpty && !server.commands.contains { $0.contains("STORE") } })
+		#expect(try await mail.message(uid: 3, mailbox: "INBOX").isUnread == false)
+		await #expect(throws: MailError.server("This message is no longer in your inbox. It may have been moved or deleted.")) {
+			try await mail.message(uid: 99, mailbox: "INBOX")
+		}
+	}
+
+	@Test func feedOffersEveryEmailActionToTheReader() async throws {
+		let home = FileManager.default.temporaryDirectory.appending(path: "toby-feed-\(UUID().uuidString)")
+		try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: home) }
+		let feed = FeedService(
+			sources: [MailFeedSource(mail: mail)], todos: TodoService(writer: database.writer, tobyDirectory: home), memory: MemoryService(writer: database.writer),
+			personas: PersonaService(tobyDirectory: home), ai: OpenRouterClient(keyProvider: StaticAPIKey("sk-or-test"), transport: MockTransport([])), tobyDirectory: home,
+			// The ranker only picks "add to todos" for every item.
+			rank: { _, _ in ["items": .array((1 ... 3).map { ["key": .string("c\($0)"), "tier": "today", "priority": 50, "reason": "r", "actions": ["todo.add"]] })] },
+		)
+		let content = try await feed.content()
+		let item = try #require(content["items"]?.arrayValue?.first { $0["source"]?["itemId"] == "1:INBOX" })
+		let id = try #require(item["id"]?.stringValue)
+		#expect(item["actions"]?.arrayValue?.contains { $0["id"] == "email.archive" } == false)
+		let offered = try await feed.actions(itemID: id)["actions"]?.arrayValue ?? []
+		let offeredIDs = offered.compactMap { $0["id"]?.stringValue }
+		for action in ["email.draftReply", "email.archive", "email.markRead", "todo.add", "snooze", "dismiss"] { #expect(offeredIDs.contains(action), "\(action)") }
+		#expect(offered.first { $0["id"] == "email.draftReply" }?["prompt"]?.stringValue?.contains("`1:INBOX`") == true)
+		_ = try await feed.perform(itemID: id, actionID: "email.archive")
+		#expect(server.lock.withLock { server.boxes["INBOX"]!.contains { $0.uid == 1 } } == false)
+		await #expect(throws: TodoError.self) { try await feed.perform(itemID: id, actionID: "task.complete") }
+		await #expect(throws: TodoError.self) { try await feed.actions(itemID: "email:email:404") }
+	}
+
 	@Test func toolsReadBodiesAndManageDrafts() async throws {
 		try await mail.sync()
 		let tools = Dictionary(uniqueKeysWithValues: mail.tools(dryRun: false).map { ($0.tool.name, $0.tool) })

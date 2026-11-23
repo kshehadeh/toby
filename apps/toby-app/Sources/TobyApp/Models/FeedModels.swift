@@ -36,6 +36,9 @@ struct FeedAction: Decodable, Equatable, Identifiable, Sendable {
 
 	static let dismissID = "dismiss"
 	static let snoozeID = "snooze"
+	static let draftReplyID = "email.draftReply"
+	static let archiveID = "email.archive"
+	static let markReadID = "email.markRead"
 
 	var isDismiss: Bool { id == Self.dismissID }
 	/// Runs through the daemon (`POST …/feed/actions`) rather than in the app.
@@ -118,6 +121,12 @@ struct FeedItem: Decodable, Equatable, Identifiable, Sendable {
 
 	/// Feed-state actions for the overflow menu (everything but snooze).
 	var menuStateActions: [FeedAction] { stateActions.filter { $0.id != FeedAction.snoozeID } }
+
+	/// The message behind an email item, for the in-app reader.
+	var emailReference: EmailReference? {
+		guard source.category == "email", source.providerName == "email" else { return nil }
+		return EmailReference(itemID: source.itemId)
+	}
 
 	var canDismiss: Bool { actions.contains(where: \.isDismiss) }
 }

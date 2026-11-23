@@ -57,6 +57,8 @@ struct DashboardView: View {
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
 	@State private var now = Date()
+	/// The Feed email open in the reader.
+	@State private var openEmail: EmailReaderRequest?
 	/// Frozen inspector ideal width for this presentation so persisting the
 	/// user’s drag does not fight the system divider.
 	@State private var actionsInspectorIdealWidth: CGFloat?
@@ -147,6 +149,23 @@ struct DashboardView: View {
 					isShowingFeedInstructions.wrappedValue = false
 				}
 			}
+			.sheet(item: $openEmail) { request in
+				EmailReaderSheet(
+					store: EmailReaderStore(request: request),
+					onAction: { performReaderAction($0, request: request) },
+					onClose: { openEmail = nil }
+				)
+			}
+	}
+
+	/// Acting on an email finishes with it, so the reader closes first.
+	private func performReaderAction(_ action: FeedAction, request: EmailReaderRequest) {
+		openEmail = nil
+		guard let item = request.feedItem, action.runsInDaemon else {
+			performFeedAction(action)
+			return
+		}
+		Task { showFeedOutcome(await store.feed.perform(action, on: item)) }
 	}
 
 	/// Re-rank once after the instructions sheet closes if anything changed.
@@ -222,6 +241,7 @@ struct DashboardView: View {
 			store: store.feed,
 			onPerform: performFeedAction,
 			onOutcome: showFeedOutcome,
+			onViewEmail: { openEmail = EmailReaderRequest(feedItem: $0) },
 			onOpenSettings: { onOpenSettings("dashboard") },
 			onGuide: { isShowingFeedInstructions.wrappedValue = true }
 		)

@@ -352,6 +352,12 @@ struct TobyClient {
 		return try JSONDecoder().decode(FeedActionResponse.self, from: try await NativeRuntime.shared.feed().perform(itemID: itemID, actionID: actionID))
 	}
 
+	/// Every action a Feed item supports, including ones its row doesn't show.
+	func fetchFeedItemActions(itemID: String) async throws -> [FeedAction] {
+		struct Payload: Decodable { let actions: [FeedAction] }
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.feed().actions(itemID: itemID)).actions
+	}
+
 	// MARK: - Feed instructions
 
 	/// The user's Feed instructions, oldest first.

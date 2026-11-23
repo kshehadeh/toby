@@ -20,6 +20,7 @@ struct NativeFeedRouter: Sendable {
 	func perform(itemID: String, actionID: String) async throws -> Data {
 		try await run { try await feed.perform(itemID: itemID, actionID: actionID) }
 	}
+	func actions(itemID: String) async throws -> Data { try await run { try await feed.actions(itemID: itemID) } }
 	func instructions() async throws -> Data { try await run { await feed.instructions() } }
 	func addInstruction(_ text: String) async throws -> Data { try await run { try await feed.addInstruction(text) } }
 	func setInstruction(_ id: String, enabled: Bool) async throws -> Data { try await run { try await feed.setInstruction(id, enabled: enabled) } }

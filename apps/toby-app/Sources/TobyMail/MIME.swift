@@ -139,7 +139,8 @@ public enum MIME {
 
 	static func transferDecode(_ data: Data, encoding: String?) -> Data {
 		switch encoding?.trimmingCharacters(in: .whitespaces).lowercased() {
-		case "base64": Data(base64Encoded: padded(String(decoding: data, as: UTF8.self))) ?? Data()
+		// The byte path is fast enough for attachments; the text path repairs missing padding.
+		case "base64": Data(base64Encoded: data, options: .ignoreUnknownCharacters) ?? Data(base64Encoded: padded(String(decoding: data, as: UTF8.self))) ?? Data()
 		case "quoted-printable": quotedPrintable(data)
 		default: data
 		}

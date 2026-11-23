@@ -483,9 +483,33 @@ public actor FeedService {
 
 	// MARK: Actions (`POST /api/dashboard/feed/actions`)
 
+	/// The ranked actions plus, for email, the rest its source supports. The
+	/// email reader offers the full set (reply, archive, mark read, …) even
+	/// when the ranker picked fewer for the Feed row.
+	func availableActions(_ item: JSONValue) -> [JSONValue] {
+		let ranked = item["actions"]?.arrayValue ?? []
+		let source = item["source"] ?? .null
+		guard source["category"] == "email", let provider = source["providerName"]?.stringValue,
+		      let feedSource = sources.first(where: { $0.providerName == provider }) else { return ranked }
+		var candidate = FeedCandidate(
+			id: item["id"]?.stringValue ?? "", category: "email", providerName: provider, providerDisplayName: source["providerDisplayName"]?.stringValue,
+			itemID: source["itemId"]?.stringValue ?? "", title: item["title"]?.stringValue ?? "",
+		)
+		candidate.subtitle = item["subtitle"]?.stringValue
+		candidate.providerActions = feedSource.itemActions
+		let rankedIDs = Set(ranked.compactMap { $0["id"]?.stringValue })
+		return ranked + FeedActions.allowedIDs(candidate).filter { !rankedIDs.contains($0) }.compactMap { FeedActions.build($0, candidate) }
+	}
+
+	/// Every action the item supports, as `{actions: […]}`.
+	public func actions(itemID: String) throws -> JSONValue {
+		guard let item = findItem(itemID) else { throw TodoError("not_found", "That item is no longer in The Feed. Refresh and try again.", status: 404) }
+		return ["actions": .array(availableActions(item))]
+	}
+
 	public func perform(itemID: String, actionID: String) async throws -> JSONValue {
 		guard let item = findItem(itemID) else { throw TodoError("not_found", "That item is no longer in The Feed. Refresh and try again.", status: 404) }
-		guard let action = item["actions"]?.arrayValue?.first(where: { $0["id"]?.stringValue == actionID }) else {
+		guard let action = availableActions(item).first(where: { $0["id"]?.stringValue == actionID }) else {
 			throw TodoError.invalid("\"\(actionID)\" isn't available for this item.")
 		}
 		let kind = action["kind"]?.stringValue ?? ""
