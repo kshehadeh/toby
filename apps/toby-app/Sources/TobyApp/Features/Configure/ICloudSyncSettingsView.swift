@@ -210,6 +210,8 @@ struct ICloudSyncSettingsView: View {
 
 	private var paneIntro: String {
 		switch selectedPane {
+		case .setup where NativeMode.isEnabled:
+			return "Choose one destination and password for todo sync and data backups."
 		case .setup:
 			return "Choose one destination and password for settings sync and data backups. Manage saved copies separately in Settings backups and Data backups."
 		case .settings:
@@ -221,7 +223,8 @@ struct ICloudSyncSettingsView: View {
 
 	private var panePicker: some View {
 		Picker("Section", selection: $selectedPane) {
-			ForEach(SyncSettingsPane.allCases) { pane in
+			// Settings sync is gone in the native app; only setup + data backups remain.
+			ForEach(SyncSettingsPane.allCases.filter { !NativeMode.isEnabled || $0 != .settings }) { pane in
 				Text(pane.title).tag(pane)
 			}
 		}
