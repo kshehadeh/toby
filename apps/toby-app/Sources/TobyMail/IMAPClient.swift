@@ -176,7 +176,7 @@ public actor IMAPClient {
 	public func select(_ mailbox: String, readOnly: Bool = false) async throws {
 		guard selected != mailbox else { return }
 		let responses = try await command([.raw(readOnly ? "EXAMINE " : "SELECT "), .argument(IMAPEncoding.encodeMailboxName(mailbox))])
-		uidValidity = responses.compactMap { values in
+		uidValidity = responses.compactMap { values -> Int? in
 			guard values.count >= 3, let code = values[2].text?.uppercased(),
 			      code.hasPrefix("[UIDVALIDITY "), code.hasSuffix("]") else { return nil }
 			return Int(code.dropFirst("[UIDVALIDITY ".count).dropLast())
