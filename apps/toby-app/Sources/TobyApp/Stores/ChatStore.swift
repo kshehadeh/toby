@@ -145,6 +145,7 @@ final class ChatStore {
 	private var askUserContinuation: CheckedContinuation<(selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?), Never>?
 	@ObservationIgnored
 	nonisolated(unsafe) private var recordingStatusTask: Task<Void, Never>?
+	@ObservationIgnored
 	nonisolated(unsafe) private var externalSessionRefreshTask: Task<Void, Never>?
 
 	init(

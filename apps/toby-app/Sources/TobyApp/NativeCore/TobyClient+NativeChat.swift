@@ -12,10 +12,10 @@ extension TobyClient {
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
 		onPosted: (@MainActor () -> Void)?,
 	) async throws -> TurnDonePayload {
-		let router = try await NativeRuntime.shared.chat()
+		let router = try NativeRuntime.shared.chat()
 		let files = attachments.map { ChatEngine.Attachment(filename: $0.filename, mediaType: $0.mediaType, dataBase64: $0.dataBase64, byteSize: $0.byteSize) }
 		let stream = router.turn(sessionID: sessionId, text: text, attachments: files, turnID: clientTurnId)
-		await onPosted?()
+		onPosted?()
 		let decoder = JSONDecoder()
 		for await item in stream {
 			switch item {

@@ -26,7 +26,7 @@ struct TobyClient {
 	init() {}
 
 	func fetchStatus() async throws -> AppStatus {
-		return try JSONDecoder().decode(AppStatus.self, from: Data(await NativeStatusRouter.appStatus().jsonString().utf8))
+		return try JSONDecoder().decode(AppStatus.self, from: Data(NativeStatusRouter.appStatus().jsonString().utf8))
 	}
 
 	func fetchDaemonStatus() async throws -> DaemonStatus {
@@ -35,16 +35,16 @@ struct TobyClient {
 
 	func listSessions(limit: Int = 20) async throws -> [SessionSummary] {
 		struct Payload: Decodable { let sessions: [SessionSummary] }
-		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.chat().list(limit: limit)).sessions
+		return try JSONDecoder().decode(Payload.self, from: try NativeRuntime.shared.chat().list(limit: limit)).sessions
 	}
 
 	func listPersonas() async throws -> [PersonaOption] {
 		struct Payload: Decodable { let personas: [PersonaOption] }
-		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().personaList()).personas
+		return try JSONDecoder().decode(Payload.self, from: try NativeRuntime.shared.files().personaList()).personas
 	}
 
 	func fetchPersonaDetail(name: String) async throws -> PersonaDetail {
-		return try JSONDecoder().decode(PersonaDetailResponse.self, from: try await NativeRuntime.shared.files().personaDetail(name)).persona
+		return try JSONDecoder().decode(PersonaDetailResponse.self, from: try NativeRuntime.shared.files().personaDetail(name)).persona
 	}
 
 	func fetchAIProviders() async throws -> [AIProviderInfo] {
@@ -100,23 +100,23 @@ struct TobyClient {
 	}
 
 	func fetchSession(id: String) async throws -> SessionDetail {
-		return try JSONDecoder().decode(SessionDetail.self, from: try await NativeRuntime.shared.chat().detail(id))
+		return try JSONDecoder().decode(SessionDetail.self, from: try NativeRuntime.shared.chat().detail(id))
 	}
 
 	func createSession(persona: String? = nil) async throws -> CreateSessionResponse {
-		return try JSONDecoder().decode(CreateSessionResponse.self, from: try await NativeRuntime.shared.chat().create(persona: persona))
+		return try JSONDecoder().decode(CreateSessionResponse.self, from: try NativeRuntime.shared.chat().create(persona: persona))
 	}
 
 	func listProjects() async throws -> [ProjectSummary] {
-		return try JSONDecoder().decode(ProjectsListResponse.self, from: try await NativeRuntime.shared.files().projectList()).projects
+		return try JSONDecoder().decode(ProjectsListResponse.self, from: try NativeRuntime.shared.files().projectList()).projects
 	}
 
 	func fetchProject(id: String) async throws -> ProjectDetailResponse {
-		return try JSONDecoder().decode(ProjectDetailResponse.self, from: try await NativeRuntime.shared.files().project(id))
+		return try JSONDecoder().decode(ProjectDetailResponse.self, from: try NativeRuntime.shared.files().project(id))
 	}
 
 	func createProject(name: String = "New project") async throws -> ProjectSummary {
-		return try JSONDecoder().decode(ProjectMutationResponse.self, from: try await NativeRuntime.shared.files().createProject(name: name)).project
+		return try JSONDecoder().decode(ProjectMutationResponse.self, from: try NativeRuntime.shared.files().createProject(name: name)).project
 	}
 
 	func updateProject(
@@ -126,25 +126,25 @@ struct TobyClient {
 		personaName: String? = nil,
 		folderPath: String? = nil,
 	) async throws -> ProjectSummary {
-		let data = try await NativeRuntime.shared.files().updateProject(id, name: name, summary: summary, personaName: personaName, folderPath: folderPath)
+		let data = try NativeRuntime.shared.files().updateProject(id, name: name, summary: summary, personaName: personaName, folderPath: folderPath)
 		return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
 	}
 
 	func deleteProject(id: String) async throws {
-		try await NativeRuntime.shared.files().deleteProject(id)
+		try NativeRuntime.shared.files().deleteProject(id)
 		return
 	}
 
 	func fetchProjectTree(id: String) async throws -> [ProjectTreeEntry] {
-		return try JSONDecoder().decode(ProjectTreeResponse.self, from: try await NativeRuntime.shared.files().projectTree(id)).tree
+		return try JSONDecoder().decode(ProjectTreeResponse.self, from: try NativeRuntime.shared.files().projectTree(id)).tree
 	}
 
 	func createProjectSession(projectId: String) async throws -> SessionSummary {
-		return try JSONDecoder().decode(ProjectSessionResponse.self, from: try await NativeRuntime.shared.files().createProjectSession(projectId)).session
+		return try JSONDecoder().decode(ProjectSessionResponse.self, from: try NativeRuntime.shared.files().createProjectSession(projectId)).session
 	}
 
 	func deleteSession(id: String) async throws {
-		try await NativeRuntime.shared.chat().delete(id)
+		try NativeRuntime.shared.chat().delete(id)
 		return
 	}
 
@@ -204,7 +204,7 @@ struct TobyClient {
 	}
 
 	func cancelTurn(sessionId: String, turnId: String) async {
-		guard let router = try? await NativeRuntime.shared.chat() else { return }
+		guard let router = try? NativeRuntime.shared.chat() else { return }
 		await router.cancel(turnID: turnId)
 		return
 	}
@@ -236,7 +236,7 @@ struct TobyClient {
 	}
 
 	func createIssue(type: String, details: String) async throws -> CreateIssueResponse {
-		let version = await NativeStatusRouter.version
+		let version = NativeStatusRouter.version
 		return try JSONDecoder().decode(CreateIssueResponse.self, from: Data(IssueReport.fallback(type: type, details: details, version: version).jsonString().utf8))
 	}
 
@@ -258,7 +258,7 @@ struct TobyClient {
 
 	func listSkills() async throws -> [SkillListItem] {
 		struct Payload: Decodable { let skills: [SkillListItem] }
-		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillList()).skills
+		return try JSONDecoder().decode(Payload.self, from: try NativeRuntime.shared.files().skillList()).skills
 	}
 
 	// MARK: - Flows
@@ -307,7 +307,7 @@ struct TobyClient {
 
 	func fetchSkill(dirName: String) async throws -> SkillDetail {
 		struct Payload: Decodable { let skill: SkillDetail }
-		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillDetail(dirName)).skill
+		return try JSONDecoder().decode(Payload.self, from: try NativeRuntime.shared.files().skillDetail(dirName)).skill
 	}
 
 	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {
@@ -331,7 +331,7 @@ struct TobyClient {
 
 	func fetchFlowDashboardBlocks() async throws -> [FlowDashboardBlockInfo] {
 		struct Payload: Decodable { let blocks: [FlowDashboardBlockInfo] }
-		let writer = try await NativeRuntime.shared.store().writer
+		let writer = try NativeRuntime.shared.store().writer
 		let blocks = try await writer.read { db in try FlowDocuments.dashboardBlocks(db) }
 		return try JSONDecoder().decode(Payload.self, from: Data(blocks.jsonString().utf8)).blocks
 	}
@@ -379,7 +379,7 @@ struct TobyClient {
 	}
 
 	func fetchMemory(id: String) async throws -> MemoryItem {
-		return try JSONDecoder().decode(MemoryDetailResponse.self, from: try await NativeRuntime.shared.memories().get(id)).memory
+		return try JSONDecoder().decode(MemoryDetailResponse.self, from: try NativeRuntime.shared.memories().get(id)).memory
 	}
 
 	func createMemory(_ request: MemoryCreateRequest) async throws -> MemoryItem {
@@ -393,7 +393,7 @@ struct TobyClient {
 	}
 
 	func deleteMemory(id: String) async throws {
-		try await NativeRuntime.shared.memories().delete(id)
+		try NativeRuntime.shared.memories().delete(id)
 		return
 	}
 
@@ -411,7 +411,7 @@ struct TobyClient {
 	}
 
 	func fetchLibraryItem(id: String) async throws -> LibraryAsset {
-		return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().get(id)).item
+		return try JSONDecoder().decode(LibraryDetailResponse.self, from: try NativeRuntime.shared.library().get(id)).item
 	}
 
 	func createLibraryItem(_ request: LibraryCreateRequest) async throws -> LibraryCreateResponse {
@@ -423,31 +423,31 @@ struct TobyClient {
 	}
 
 	func deleteLibraryItem(id: String) async throws {
-		try await NativeRuntime.shared.library().delete(id)
+		try NativeRuntime.shared.library().delete(id)
 		return
 	}
 
 	/// Create a password-encrypted complete backup (binary archive stream).
 	func createConfigBackup(password: String) async throws -> ConfigBackupCreateResponse {
-		let service = try await NativeRuntime.shared.backups()
+		let service = try NativeRuntime.shared.backups()
 		let url = FileManager.default.temporaryDirectory.appending(path: BackupService.fileName())
-		try await Task.detached(priority: .userInitiated) { try service.create(password: password, to: url) }.value
+		_ = try await Task.detached(priority: .userInitiated) { try service.create(password: password, to: url) }.value
 		return ConfigBackupCreateResponse(backupData: Data(), suggestedFileName: url.lastPathComponent, fileURL: url)
 	}
 
 	/// Restore Toby data from a backup file (v3 archive or legacy JSON envelope).
 	func restoreConfigBackup(backupData: Data, password: String?, confirm: Bool = true) async throws {
-		let service = try await NativeRuntime.shared.backups()
+		let service = try NativeRuntime.shared.backups()
 		let url = FileManager.default.temporaryDirectory.appending(path: "toby-restore-\(UUID().uuidString).tbybak")
 		try backupData.write(to: url)
 		defer { try? FileManager.default.removeItem(at: url) }
 		try await Task.detached(priority: .userInitiated) { _ = try service.restore(file: url, password: password ?? "") }.value
-		await NativeRuntime.shared.relaunchToApplyRestore()
+		NativeRuntime.shared.relaunchToApplyRestore()
 		return
 	}
 
 	func fetchConfigSyncStatus() async throws -> ConfigSyncStatus {
-		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(await NativeRuntime.shared.vault().status().jsonString().utf8))
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(NativeRuntime.shared.vault().status().jsonString().utf8))
 	}
 
 	func enableConfigSync(
@@ -456,13 +456,13 @@ struct TobyClient {
 		backend: String? = nil,
 		folderPath: String? = nil
 	) async throws -> ConfigSyncStatus {
-		let vault = await NativeRuntime.shared.vault()
+		let vault = NativeRuntime.shared.vault()
 		let status = try await Task.detached { try vault.enable(password: password, mode: mode, backend: backend, folderPath: folderPath) }.value
 		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
 	}
 
 	func disableConfigSync(deleteCloud: Bool = false) async throws -> ConfigSyncStatus {
-		let vault = await NativeRuntime.shared.vault()
+		let vault = NativeRuntime.shared.vault()
 		let status = try await Task.detached { try vault.disable(deleteCloud: deleteCloud) }.value
 		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
 	}
@@ -480,25 +480,25 @@ struct TobyClient {
 	}
 
 	func setDatabaseBackupsEnabled(_ enabled: Bool) async throws -> ConfigSyncStatus {
-		try await NativeRuntime.shared.backups().setSnapshotsEnabled(enabled)
+		try NativeRuntime.shared.backups().setSnapshotsEnabled(enabled)
 		return try await fetchConfigSyncStatus()
 	}
 
 	func createDatabaseBackupNow() async throws {
-		let service = try await NativeRuntime.shared.backups()
+		let service = try NativeRuntime.shared.backups()
 		try await Task.detached(priority: .userInitiated) { _ = try service.createSnapshot() }.value
 		return
 	}
 
 	func listDatabaseBackups() async throws -> [DatabaseSyncBackup] {
-		let service = try await NativeRuntime.shared.backups()
+		let service = try NativeRuntime.shared.backups()
 		return try JSONDecoder().decode([DatabaseSyncBackup].self, from: Data(service.snapshotsJSON().jsonString().utf8))
 	}
 
 	func restoreDatabaseBackup(deviceId: String, filename: String) async throws {
-		let service = try await NativeRuntime.shared.backups()
+		let service = try NativeRuntime.shared.backups()
 		try await Task.detached(priority: .userInitiated) { _ = try service.restoreSnapshot(deviceID: deviceId, filename: filename) }.value
-		await NativeRuntime.shared.relaunchToApplyRestore()
+		NativeRuntime.shared.relaunchToApplyRestore()
 		return
 	}
 }

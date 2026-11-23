@@ -38,9 +38,9 @@ struct NativeAutomationPayload: Codable {
 }
 
 struct NativeAutomationEvent: Codable {
-  let version = 1
+  var version = 1
   let id: String
-  let source = "macos"
+  var source = "macos"
   let type: String
   let occurredAt: String
   let observationSessionId: String
