@@ -251,7 +251,7 @@ public enum ObservationLedger {
 				stats.fetched += result.observations.count
 				let (selfEmails, selfHandles) = (emails, handles)
 				let statuses = try await writer.write { db in
-					try result.observations.map { item in (try? ingest(db, source: source.id, raw: item, emails: selfEmails, handles: selfHandles, now: now)) ?? .unchanged }
+					result.observations.map { item in (try? ingest(db, source: source.id, raw: item, emails: selfEmails, handles: selfHandles, now: now)) ?? .unchanged }
 				}
 				for status in statuses {
 					switch status {

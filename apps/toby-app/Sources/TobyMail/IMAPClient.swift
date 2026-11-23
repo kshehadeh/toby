@@ -267,7 +267,7 @@ public actor IMAPClient {
 
 	public func store(_ uids: [Int], add: Bool, flags: [String]) async throws {
 		guard !uids.isEmpty, !flags.isEmpty else { return }
-		try await command("UID STORE \(IMAPEncoding.sequenceSet(uids)) \(add ? "+" : "-")FLAGS.SILENT (\(flags.joined(separator: " ")))")
+		_ = try await command("UID STORE \(IMAPEncoding.sequenceSet(uids)) \(add ? "+" : "-")FLAGS.SILENT (\(flags.joined(separator: " ")))")
 	}
 
 	public func move(_ uids: [Int], to destination: String) async throws {
@@ -285,9 +285,9 @@ public actor IMAPClient {
 
 	public func expunge(_ uids: [Int]? = nil) async throws {
 		if let uids, capabilities.contains("UIDPLUS") {
-			try await command("UID EXPUNGE \(IMAPEncoding.sequenceSet(uids))")
+			_ = try await command("UID EXPUNGE \(IMAPEncoding.sequenceSet(uids))")
 		} else {
-			try await command("EXPUNGE")
+			_ = try await command("EXPUNGE")
 		}
 	}
 

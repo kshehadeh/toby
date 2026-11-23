@@ -339,7 +339,7 @@ public actor FlowService {
 				workers += 1
 				Task { [self] in
 					_ = await self.work(claimed)
-					await self.workerDone()
+					self.workerDone()
 				}
 			}
 			try? await Task.sleep(for: .seconds(Double(min(15, 5 * max(1, failures)))))

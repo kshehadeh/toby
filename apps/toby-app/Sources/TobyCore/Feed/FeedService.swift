@@ -428,7 +428,7 @@ public actor FeedService {
 		let ai = ai
 		let rank = rank
 		let task = Task<JSONValue, Error> { [self] in
-			defer { Task { await self.finished(signature) } }
+			defer { Task { self.finished(signature) } }
 			let ranking: JSONValue
 			do {
 				if let rank { ranking = try await rank(system, user) } else { ranking = try await generateJSON(ObjectRequest(
@@ -440,14 +440,14 @@ public actor FeedService {
 				if case .insufficientCredits = error { throw error }
 				var failed = base
 				failed["status"] = "error"
-				failed["items"] = await self.persisted()?["content"]?["items"] ?? []
+				failed["items"] = self.persisted()?["content"]?["items"] ?? []
 				failed["error"] = .string(error.localizedDescription)
 				return .object(failed)
 			}
 			var content = base
 			content["status"] = "ok"
 			content["items"] = .array(Self.items(from: ranking, candidates: candidates))
-			await self.persist(signature: signature, content: .object(content), now: Date())
+			self.persist(signature: signature, content: .object(content), now: Date())
 			return .object(content)
 		}
 		inFlight[signature] = task

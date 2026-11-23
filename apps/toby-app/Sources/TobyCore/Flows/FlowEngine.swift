@@ -382,7 +382,7 @@ public struct FlowRunner: Sendable {
 		var runID: String?
 		if options.record {
 			let newID = UUID().uuidString.lowercased()
-			let inserted = try? await writer.write { db in
+			let inserted: Void? = try? await writer.write { db in
 				try db.execute(sql: """
 				INSERT INTO flow_runs (id, flow_name, status, persona_name, provider, model, trigger, definition_snapshot_json, initial_inputs_json, started_at)
 				VALUES (?, ?, 'running', ?, 'openrouter', ?, ?, ?, ?, ?)
