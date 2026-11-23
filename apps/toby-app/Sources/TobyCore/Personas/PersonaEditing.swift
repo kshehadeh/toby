@@ -21,7 +21,7 @@ extension PersonaService {
 	/// Update a persona. Built-ins accept only a model change.
 	public func update(_ original: String, name: String?, instructions: String?, promptMode: String?, model: String?) throws -> String {
 		if Self.isBuiltIn(original) {
-			guard name == nil, instructions == nil, promptMode == nil else { throw TodoError.invalid("Built-in personas only support provider and model edits") }
+			guard name == nil, instructions == nil, promptMode == nil else { throw TodoError.invalid("Built-in personas only support model changes") }
 			guard var persona = resolve(original) else { throw TodoError("not_found", "Persona \"\(original)\" not found", status: 404) }
 			if let model = model?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty { persona.model = model; persona.provider = "openrouter" }
 			try save(persona)

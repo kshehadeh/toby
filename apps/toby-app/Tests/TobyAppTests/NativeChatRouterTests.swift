@@ -45,6 +45,7 @@ import TobyStore
 				reply(1, "B", "B")
 			case let .done(data): done = try JSONDecoder().decode(TurnDonePayload.self, from: data)
 			case let .failed(message): Issue.record("turn failed: \(message)")
+			case let .outOfCredits(message): Issue.record("out of credits: \(message)")
 			}
 		}
 		#expect(prompts.map(\.query) == ["Pick one"])

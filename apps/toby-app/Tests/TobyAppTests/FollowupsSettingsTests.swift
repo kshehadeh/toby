@@ -84,15 +84,6 @@ struct FollowupsSettingsTests {
 		]
 		store.configuration.sources = ["calendar": true]
 		store.savedConfiguration = store.configuration
-		store.providers = [
-			AIProviderInfo(
-				providerId: "openai",
-				displayName: "OpenAI",
-				models: [AIModelOption(id: "gpt-4.1-mini", structuredOutput: true)],
-				allowCustomModel: false,
-				configured: true
-			),
-		]
 		store.instructions = [
 			FollowupInstruction(id: "instruction-1", text: "Prioritize direct requests", updatedAt: nil),
 		]
@@ -103,7 +94,7 @@ struct FollowupsSettingsTests {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "followups-settings-form")
 		}
 		#expect(throws: Never.self) { try view.inspect().find(text: "Calendar") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "OpenAI · gpt-4.1-mini") }
+		#expect(throws: (any Error).self) { try view.inspect().find(viewWithAccessibilityIdentifier: "followups-evaluator-picker") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Prioritize direct requests") }
 		#expect(throws: Never.self) { try view.inspect().find(button: "Check now") }
 		#expect(!store.hasUnsavedChanges)

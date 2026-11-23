@@ -88,7 +88,6 @@ struct FlowRunDetailView: View {
 					DetailMetadataRow(label: "Flow", value: run.flowName)
 					DetailMetadataRow(label: "Trigger", value: run.trigger ?? "—")
 					DetailMetadataRow(label: "Persona", value: run.personaName ?? "—")
-					DetailMetadataRow(label: "Provider", value: run.provider ?? "—")
 					DetailMetadataRow(label: "Model", value: run.model ?? "—")
 					if let failedNodeId = run.failedNodeId {
 						DetailMetadataRow(label: "Failed node", value: failedNodeId)

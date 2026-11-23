@@ -4,27 +4,6 @@ struct FollowupsSettingsView: View {
 	@Bindable var store: FollowupsSettingsStore
 	@State private var pendingInstructionDeletion: FollowupInstruction?
 
-	private var evaluatorOptions: [FollowupEvaluatorOption] {
-		store.providers.flatMap { provider in
-			provider.models
-				.filter { $0.structuredOutput == true }
-				.map {
-					FollowupEvaluatorOption(
-						provider: provider.providerId,
-						providerName: provider.displayName,
-						model: $0.id
-					)
-				}
-		}
-	}
-
-	private var savedEvaluatorKey: String? {
-		guard let provider = store.configuration.evaluator?.provider,
-			let model = store.configuration.evaluator?.model
-		else { return nil }
-		return FollowupEvaluatorOption.key(provider: provider, model: model)
-	}
-
 	var body: some View {
 		Group {
 			if store.isLoading && !store.hasLoaded {
@@ -105,35 +84,8 @@ struct FollowupsSettingsView: View {
 			}
 
 			Section {
-				Picker("Evaluator", selection: evaluatorSelection) {
-					Text("Automatic (recommended)").tag("")
-					ForEach(evaluatorOptions) { option in
-						Text(option.label).tag(option.id)
-					}
-					if let savedEvaluatorKey,
-						!evaluatorOptions.contains(where: { $0.id == savedEvaluatorKey })
-					{
-						Text("Saved model (not in catalog)").tag(savedEvaluatorKey)
-					}
-				}
-				.pickerStyle(.menu)
-				.accessibilityIdentifier("followups-evaluator-picker")
-
-				if evaluatorOptions.isEmpty {
-					Text("Set up a configured model that supports structured output to choose a custom evaluator. Toby will use its default eligible model when this is left on Automatic.")
-						.font(.caption)
-						.foregroundStyle(.secondary)
-						.fixedSize(horizontal: false, vertical: true)
-				}
-			} header: {
-				Text("Evaluator model")
-			} footer: {
-				Text("The evaluator makes every open and close decision. Only configured models marked as supporting structured output are listed.")
-			}
-
-			Section {
 				if store.sources.isEmpty {
-					Text("No activity sources are available. Connect an email or calendar integration to enable follow-up detection.")
+					Text("No activity sources are available. Connect Mail or Slack in Settings → Sources, or allow Calendar access, to enable follow-up detection.")
 						.font(.callout)
 						.foregroundStyle(.secondary)
 				} else {
@@ -241,24 +193,6 @@ struct FollowupsSettingsView: View {
 		.accessibilityIdentifier("followups-settings-form")
 	}
 
-	private var evaluatorSelection: Binding<String> {
-		Binding(
-			get: { savedEvaluatorKey ?? "" },
-			set: { value in
-				guard !value.isEmpty else {
-					store.configuration.evaluator = nil
-					return
-				}
-				let parts = value.components(separatedBy: FollowupEvaluatorOption.separator)
-				guard parts.count == 2 else { return }
-				store.configuration.evaluator = FollowupsEvaluatorPreference(
-					provider: parts[0],
-					model: parts[1]
-				)
-			}
-		)
-	}
-
 	private var instructionsSection: some View {
 		Section {
 			if store.instructions.isEmpty {
@@ -361,20 +295,5 @@ struct FollowupsSettingsView: View {
 			return hours == 1 ? "1 hour" : "\(hours) hours"
 		}
 		return "\(minutes) minutes"
-	}
-}
-
-private struct FollowupEvaluatorOption: Identifiable {
-	static let separator = "\u{1f}"
-
-	let provider: String
-	let providerName: String
-	let model: String
-
-	var id: String { Self.key(provider: provider, model: model) }
-	var label: String { "\(providerName) · \(model)" }
-
-	static func key(provider: String, model: String) -> String {
-		"\(provider)\(separator)\(model)"
 	}
 }

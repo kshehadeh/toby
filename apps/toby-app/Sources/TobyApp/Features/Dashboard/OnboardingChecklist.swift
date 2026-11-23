@@ -7,7 +7,6 @@ enum OnboardingStepKind: String, Identifiable {
 	case grantPermissions
 	case createSchedule
 	case createSkill
-	case setupTranscription
 	case recordAndTranscribe
 	case samplePrompt
 
@@ -49,35 +48,22 @@ struct OnboardingChecklist: Equatable {
 		hasRequiredPermissions: Bool,
 		hasSchedule: Bool,
 		hasSkill: Bool,
-		hasTranscriptionConfigured: Bool,
-		transcriptionNeedsApiKey: Bool = false,
-		transcriptionProviderLabel: String? = nil,
 		hasRecording: Bool,
 		hasSession: Bool
 	) -> OnboardingChecklist {
-		let transcriptionSubtitle: String = {
-			if hasTranscriptionConfigured {
-				return "Ready to turn recordings into text"
-			}
-			if transcriptionNeedsApiKey {
-				let name = transcriptionProviderLabel ?? "this provider"
-				return "Add an API key for \(name)"
-			}
-			return "Provider, model, and a working API key"
-		}()
 		return OnboardingChecklist(steps: [
 			OnboardingStep(
 				kind: .configureAIProvider,
-				title: "Configure AI provider",
-				subtitle: "Connect Vercel or OpenRouter (guided)",
+				title: "Sign in with OpenRouter",
+				subtitle: "One account for every AI model Toby uses",
 				systemImage: "cpu",
 				isComplete: hasConfiguredAIProvider,
 				actionLabel: "Connect"
 			),
 			OnboardingStep(
 				kind: .connectIntegrations,
-				title: "Connect integrations",
-				subtitle: "Link Gmail, Slack & Calendar",
+				title: "Connect your apps",
+				subtitle: "Mail, Slack, and Calendar",
 				systemImage: "puzzlepiece.extension",
 				isComplete: hasConnectedIntegrations,
 				actionLabel: "Connect"
@@ -113,14 +99,6 @@ struct OnboardingChecklist: Equatable {
 				systemImage: DetailRoute.skills.systemImage,
 				isComplete: hasSkill,
 				actionLabel: "Create"
-			),
-			OnboardingStep(
-				kind: .setupTranscription,
-				title: "Set up transcription provider",
-				subtitle: transcriptionSubtitle,
-				systemImage: "pencil.and.scribble",
-				isComplete: hasTranscriptionConfigured,
-				actionLabel: transcriptionNeedsApiKey ? "Add key" : "Set up"
 			),
 			OnboardingStep(
 				kind: .recordAndTranscribe,

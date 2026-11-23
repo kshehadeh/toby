@@ -67,7 +67,7 @@ struct FeedCardBody: View {
 			)
 		} else if let content, content.status == .noSources {
 			DashboardEmptyState(
-				message: "Connect email, calendar, or a task provider to see what needs your attention."
+				message: "Connect Mail or Slack, allow Calendar access, or add todos to see what needs your attention."
 			)
 		} else if let content {
 			itemsOrEmpty(content)

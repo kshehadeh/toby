@@ -1,53 +1,45 @@
 import Foundation
+import TobyAI
 
-/// Persistent notice that a credit-based AI gateway cannot pay for a request.
+/// Persistent notice that the OpenRouter account has no credit left for a request.
 struct GatewayFundsNotice: Equatable {
-	static let code = "gateway_funds_exhausted"
+	/// Error codes that mean "out of credits" (`insufficient_credits` from the
+	/// native core; `gateway_funds_exhausted` from older run records).
+	static let codes: Set<String> = ["insufficient_credits", "gateway_funds_exhausted"]
 
-	let providerId: String
 	let activity: String
 
-	var providerName: String {
-		switch providerId {
-		case "vercel": "Vercel AI Gateway"
-		case "openrouter": "OpenRouter"
-		default: providerId
-		}
-	}
-
-	var title: String { "\(providerName) is out of funds" }
+	var title: String { "OpenRouter is out of credits" }
 	var message: String { "Toby couldn't \(activity)." }
 	/// Short sentence used on the surface that failed.
-	var detailMessage: String { "\(providerName) is out of funds." }
-	var settingsNavKey: String { "ai.\(providerId)" }
+	var detailMessage: String { "Your OpenRouter account is out of credits." }
+	var settingsNavKey: String { "account" }
 
-	init(providerId: String, activity: String) {
-		self.providerId = providerId
+	init(activity: String) {
 		self.activity = activity
 	}
 
-	/// Decode the daemon payload (`code`, `providerId`, `activity`).
+	/// Decode a result payload (`code`, `activity`).
 	init?(json: [String: Any]) {
 		guard
-			json["code"] as? String == Self.code,
-			let providerId = json["providerId"] as? String,
-			providerId == "vercel" || providerId == "openrouter",
+			let code = json["code"] as? String, Self.codes.contains(code),
 			let activity = json["activity"] as? String,
 			!activity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 		else { return nil }
-		self.init(providerId: providerId, activity: activity)
+		self.init(activity: activity)
 	}
 
-	/// Library indexing stores only the short sentence on the item.
+	/// Library indexing stores only the error sentence on the item.
 	init?(libraryError message: String) {
-		switch message {
-		case "Vercel AI Gateway is out of funds.":
-			self.init(providerId: "vercel", activity: "summarize a library file")
-		case "OpenRouter is out of funds.":
-			self.init(providerId: "openrouter", activity: "summarize a library file")
-		default:
-			return nil
-		}
+		let text = message.lowercased()
+		guard text.contains("out of credits") || text.contains("out of funds") || text.contains("insufficient credits") else { return nil }
+		self.init(activity: "summarize a library file")
+	}
+
+	/// The notice for an out-of-credits AI error, if `error` is one.
+	init?(error: Error, activity: String) {
+		guard case .insufficientCredits = error as? AIError else { return nil }
+		self.init(activity: activity)
 	}
 
 	static func post(_ notice: GatewayFundsNotice) {
@@ -63,6 +55,7 @@ struct GatewayFundsNotice: Equatable {
 extension Error {
 	var isGatewayFundsExhausted: Bool {
 		if case .gatewayFunds = self as? TobyClientError { return true }
+		if case .insufficientCredits = self as? AIError { return true }
 		return false
 	}
 }

@@ -320,8 +320,6 @@ struct DashboardView: View {
 			onCreateSchedule()
 		case .createSkill:
 			onCreateSkill()
-		case .setupTranscription:
-			onOpenSettings("transcription")
 		case .recordAndTranscribe:
 			onSelectRoute(.recordings)
 		case .samplePrompt:

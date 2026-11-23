@@ -15,14 +15,13 @@ struct DashboardModelsTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
 		#expect(checklist.completedCount == 3)
-		#expect(checklist.totalCount == 9)
+		#expect(checklist.totalCount == 8)
 		#expect(checklist.isComplete == false)
-		#expect(checklist.progress == 3.0 / 9.0)
+		#expect(checklist.progress == 3.0 / 8.0)
 		#expect(checklist.upNextKind == .grantPermissions)
 	}
 
@@ -35,12 +34,11 @@ struct DashboardModelsTests {
 			hasRequiredPermissions: true,
 			hasSchedule: true,
 			hasSkill: true,
-			hasTranscriptionConfigured: true,
 			hasRecording: true,
 			hasSession: true
 		)
 		#expect(checklist.isComplete)
-		#expect(checklist.completedCount == 9)
+		#expect(checklist.completedCount == 8)
 		#expect(checklist.upNextKind == nil)
 	}
 
@@ -53,13 +51,12 @@ struct DashboardModelsTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
 		#expect(checklist.upNextKind == .connectIntegrations)
 		let ai = checklist.steps.first { $0.kind == .configureAIProvider }
-		#expect(ai?.subtitle == "Connect Vercel or OpenRouter (guided)")
+		#expect(ai?.subtitle == "One account for every AI model Toby uses")
 		#expect(ai?.systemImage == "cpu")
 		#expect(ai?.isComplete == true)
 		#expect(ai?.actionLabel == "Connect")
@@ -167,7 +164,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
@@ -188,7 +184,6 @@ struct DashboardViewTests {
 				hasRequiredPermissions: false,
 				hasSchedule: false,
 				hasSkill: false,
-				hasTranscriptionConfigured: false,
 				hasRecording: false,
 				hasSession: false
 			),
@@ -228,7 +223,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
@@ -248,7 +242,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
@@ -268,7 +261,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
@@ -283,7 +275,7 @@ struct DashboardViewTests {
 			try card.inspect().find(text: " of 9 done")
 		}
 		#expect(throws: Never.self) {
-			try card.inspect().find(text: "Connect Vercel or OpenRouter (guided)")
+			try card.inspect().find(text: "One account for every AI model Toby uses")
 		}
 	}
 
@@ -454,7 +446,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: true,
 			hasSchedule: true,
 			hasSkill: true,
-			hasTranscriptionConfigured: true,
 			hasRecording: true,
 			hasSession: true
 		)
@@ -488,7 +479,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: true,
 			hasSchedule: true,
 			hasSkill: true,
-			hasTranscriptionConfigured: true,
 			hasRecording: true,
 			hasSession: true
 		)
@@ -521,7 +511,6 @@ struct DashboardViewTests {
 			hasRequiredPermissions: false,
 			hasSchedule: false,
 			hasSkill: false,
-			hasTranscriptionConfigured: false,
 			hasRecording: false,
 			hasSession: false
 		)
@@ -545,39 +534,6 @@ struct DashboardViewTests {
 		#expect(didOpenPersonaPicker)
 	}
 
-	@Test("setup transcription action opens settings on transcription section")
-	func setupTranscriptionOpensTranscriptionSettings() throws {
-		var openedNavKey: String?
-		// Complete earlier steps so transcription is "up next" and shows its action.
-		let checklist = OnboardingChecklist.make(
-			hasConfiguredAIProvider: true,
-			hasConnectedIntegrations: true,
-			hasModelConfigured: true,
-			hasRequiredPermissions: true,
-			hasSchedule: true,
-			hasSkill: true,
-			hasTranscriptionConfigured: false,
-			hasRecording: false,
-			hasSession: false
-		)
-		let view = DashboardView(
-			store: DashboardStore(),
-			userName: "Karim",
-			onboarding: checklist,
-			isOnboardingReady: true,
-			onRefresh: {},
-			onSelectRoute: { _ in },
-			onOpenSettings: { openedNavKey = $0 },
-			onOpenPermissions: {},
-			actionContext: .init(startChat: {}),
-			appearancePreferences: makeAppearance()
-		)
-		let button = try view.inspect().find(
-			viewWithAccessibilityIdentifier: "onboarding-action-setupTranscription"
-		).button()
-		try button.tap()
-		#expect(openedNavKey == "transcription")
-	}
 }
 
 @MainActor
@@ -775,7 +731,6 @@ struct DashboardFlowBlocksTests {
 				hasRequiredPermissions: true,
 				hasSchedule: true,
 				hasSkill: true,
-				hasTranscriptionConfigured: true,
 				hasRecording: true,
 				hasSession: true
 			),
@@ -812,7 +767,6 @@ struct DashboardFlowBlocksTests {
 				hasRequiredPermissions: true,
 				hasSchedule: true,
 				hasSkill: true,
-				hasTranscriptionConfigured: true,
 				hasRecording: true,
 				hasSession: true
 			),
@@ -850,7 +804,6 @@ struct DashboardFlowBlocksTests {
 				hasRequiredPermissions: true,
 				hasSchedule: true,
 				hasSkill: true,
-				hasTranscriptionConfigured: true,
 				hasRecording: true,
 				hasSession: true
 			),

@@ -17,13 +17,6 @@ struct ChatRecordingControllerTests {
 		)
 	}
 
-	@Test("unconfigured transcription toast opens settings")
-	func unconfiguredToast() {
-		let toast = ChatRecordingController.unconfiguredTranscriptionToast()
-		#expect(toast.style == .error)
-		#expect(toast.action == .openSettings(navKey: "transcription"))
-	}
-
 	@Test("completion toast prefers first error over success")
 	func completionToastError() {
 		let toast = ChatRecordingController.completionToast(

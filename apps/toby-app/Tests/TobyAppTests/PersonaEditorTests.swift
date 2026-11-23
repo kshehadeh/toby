@@ -1,4 +1,5 @@
 import Testing
+import TobyAI
 import SwiftUI
 @testable import TobyApp
 import ViewInspector
@@ -40,10 +41,8 @@ struct PersonaEditorTests {
 	func canSaveValidName() throws {
 		let store = PersonaEditorStore(mode: .create)
 		store.name = "My Persona"
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
-		]
-		store.provider = "openai"
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = true
 		#expect(store.canSave)
 	}
 
@@ -58,10 +57,8 @@ struct PersonaEditorTests {
 	@Test("availableModels includes current model even if not in provider list")
 	func availableModelsIncludesCurrentModel() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
-		store.provider = "openai"
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.model = "custom-model"
 		let models = store.availableModels
 		#expect(models.map(\.id).contains("gpt-5"))
@@ -71,10 +68,8 @@ struct PersonaEditorTests {
 	@Test("availableModels returns provider models")
 	func availableModelsFromProvider() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5", "gpt-5-mini"], allowCustomModel: false),
-		]
-		store.provider = "openai"
+		store.catalogModels = [AIModelOption(id: "gpt-5"), AIModelOption(id: "gpt-5-mini")]
+		store.isSignedIn = false
 		store.model = "gpt-5"
 		let models = store.availableModels
 		#expect(models.map(\.id).contains("gpt-5"))
@@ -92,9 +87,8 @@ struct PersonaEditorTests {
 	@Test("editor view renders name field in create mode")
 	func editorViewRendersNameField() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "Test"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorView(store: store, onSaved: {}, onCancel: {})
@@ -104,9 +98,8 @@ struct PersonaEditorTests {
 	@Test("editor view renders edit title in edit mode")
 	func editorViewRendersEditTitle() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorView(store: store, onSaved: {}, onCancel: {})
@@ -116,15 +109,13 @@ struct PersonaEditorTests {
 	@Test("editor view renders provider and model labels")
 	func editorViewRendersProviderModel() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
-		store.provider = "openai"
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.model = "gpt-5"
 		store.name = "Test"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorView(store: store, onSaved: {}, onCancel: {})
-		#expect(throws: Never.self) { try view.inspect().find(text: "Provider") }
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Provider") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Model") }
 	}
 
@@ -175,116 +166,25 @@ struct PersonaEditorTests {
 		#expect(store.hasCustomImage)
 	}
 
-	// MARK: - AI provider configuration validation
+	// MARK: - OpenRouter sign-in
 
-	@Test("hasConfiguredProviders is false when no providers are configured")
-	func hasConfiguredProvidersNone() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: false),
-		]
-		#expect(!store.hasConfiguredProviders)
-	}
-
-	@Test("hasConfiguredProviders is true when at least one provider is configured")
-	func hasConfiguredProvidersSome() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
-		]
-		#expect(store.hasConfiguredProviders)
-	}
-
-	@Test("isSelectedProviderConfigured is false when selected provider is not configured")
-	func isSelectedProviderConfiguredFalse() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
-		]
-		store.provider = "openai"
-		#expect(!store.isSelectedProviderConfigured)
-	}
-
-	@Test("isSelectedProviderConfigured is true when selected provider is configured")
-	func isSelectedProviderConfiguredTrue() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
-		]
-		store.provider = "openai"
-		#expect(store.isSelectedProviderConfigured)
-	}
-
-	@Test("canSave is false when no providers are configured")
-	func canSaveNoConfiguredProviders() throws {
+	@Test("canSave requires an OpenRouter sign-in")
+	func canSaveRequiresSignIn() throws {
 		let store = PersonaEditorStore(mode: .create)
 		store.name = "My Persona"
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-		]
-		store.provider = "openai"
+		store.isSignedIn = false
 		#expect(!store.canSave)
-	}
-
-	@Test("canSave is false when selected provider is not configured")
-	func canSaveUnconfiguredSelectedProvider() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.name = "My Persona"
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
-		]
-		store.provider = "openai"
-		#expect(!store.canSave)
-	}
-
-	@Test("canSave is true when selected provider is configured")
-	func canSaveConfiguredSelectedProvider() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.name = "My Persona"
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
-		]
-		store.provider = "openai"
+		#expect(store.signInMessage?.contains("Sign in with OpenRouter") == true)
+		store.isSignedIn = true
 		#expect(store.canSave)
+		#expect(store.signInMessage == nil)
 	}
 
-	@Test("providerValidationMessage is non-nil when no providers are configured")
-	func providerValidationMessageNoneConfigured() throws {
+	@Test("new personas default to Toby's chat model")
+	func defaultsToChatModel() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-		]
-		store.provider = "openai"
-		let message = store.providerValidationMessage
-		#expect(message != nil)
-		#expect(message?.contains("No AI provider") == true)
-	}
-
-	@Test("providerValidationMessage is non-nil when selected provider is not configured")
-	func providerValidationMessageUnconfiguredSelected() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: false),
-			AIProviderInfo(providerId: "vercel", displayName: "Vercel AI Gateway", models: ["openai/gpt-5"], allowCustomModel: true, configured: true),
-		]
-		store.provider = "openai"
-		let message = store.providerValidationMessage
-		#expect(message != nil)
-		#expect(message?.contains("not configured") == true)
-	}
-
-	@Test("providerValidationMessage is nil when selected provider is configured")
-	func providerValidationMessageConfigured() throws {
-		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
-		]
-		store.provider = "openai"
-		#expect(store.providerValidationMessage == nil)
+		#expect(store.model == ModelRole.chat.defaultModelId)
+		#expect(store.model.contains("/"), "an OpenRouter model slug")
 	}
 
 	// MARK: - Dirty tracking & Reset (issue #74)
@@ -309,7 +209,6 @@ struct PersonaEditorTests {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
-		store.provider = "openai"
 		store.model = "gpt-5"
 		store.promptMode = "add"
 		store.captureSnapshot()
@@ -331,7 +230,6 @@ struct PersonaEditorTests {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
-		store.provider = "openai"
 		store.model = "gpt-5"
 		store.promptMode = "add"
 		store.captureSnapshot()
@@ -347,9 +245,8 @@ struct PersonaEditorTests {
 	@Test("Reset button is not present in inline settings form")
 	func inlineFormHidesCancelButton() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorFormView(
@@ -366,9 +263,8 @@ struct PersonaEditorTests {
 	@Test("Reset button is present when onReset is provided")
 	func formViewShowsResetButton() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
 		store.captureSnapshot()
@@ -385,9 +281,8 @@ struct PersonaEditorTests {
 	@Test("form view shows unsaved changes indicator when dirty")
 	func formViewShowsUnsavedChangesIndicator() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
 		store.captureSnapshot()

@@ -13,7 +13,7 @@ enum NativeSpeechFileTranscription {
 			}
 			guard SpeechTranscriber.isAvailable,
 				let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) else {
-				throw NativeAudioError.runtime("Apple transcription is unavailable for this Mac or language. Choose another provider in Settings → Transcription.")
+				throw NativeAudioError.runtime("Speech recognition is unavailable for this Mac or language. The audio has been kept.")
 			}
 			let transcriber = SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [], attributeOptions: [.audioTimeRange])
 			if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {

@@ -70,7 +70,6 @@ struct TobyClient {
 	func createPersona(
 		name: String,
 		instructions: String,
-		provider: String,
 		model: String,
 		promptMode: String,
 	) async throws -> ConfigureActionResponse {
@@ -79,7 +78,6 @@ struct TobyClient {
 			body: [
 				"name": name,
 				"instructions": instructions,
-				"provider": provider,
 				"model": model,
 				"promptMode": promptMode,
 			],
@@ -90,14 +88,12 @@ struct TobyClient {
 		originalName: String,
 		name: String?,
 		instructions: String?,
-		provider: String?,
 		model: String?,
 		promptMode: String?,
 	) async throws -> ConfigureActionResponse {
 		var body: [String: String] = ["originalName": originalName]
 		if let name { body["name"] = name }
 		if let instructions { body["instructions"] = instructions }
-		if let provider { body["provider"] = provider }
 		if let model { body["model"] = model }
 		if let promptMode { body["promptMode"] = promptMode }
 		return try await runConfigureAction("update-persona", body: body)
@@ -343,7 +339,12 @@ struct TobyClient {
 	/// The Feed: ranked cross-connection items with reasons and actions.
 	/// - Parameter fresh: When true, re-collects and re-ranks on the daemon.
 	func fetchDashboardFeed(fresh: Bool = false) async throws -> FeedContent {
-		return try JSONDecoder().decode(FeedContent.self, from: try await NativeRuntime.shared.feed().content(fresh: fresh))
+		do {
+			return try JSONDecoder().decode(FeedContent.self, from: try await NativeRuntime.shared.feed().content(fresh: fresh))
+		} catch {
+			if let notice = GatewayFundsNotice(error: error, activity: "update Home") { GatewayFundsNotice.post(notice) }
+			throw error
+		}
 	}
 
 	/// Runs a Feed tool / local action (`POST /api/dashboard/feed/actions`).

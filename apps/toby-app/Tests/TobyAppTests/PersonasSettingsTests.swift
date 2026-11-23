@@ -18,9 +18,8 @@ struct PersonasSettingsTests {
 	func deleteNoOpInCreateMode() async throws {
 		let store = PersonaEditorStore(mode: .create)
 		store.name = "Test"
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false, configured: true),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = true
 		await store.delete()
 		// Delete should not change state in create mode.
 		#expect(store.saveState != .saved)
@@ -39,9 +38,8 @@ struct PersonasSettingsTests {
 	@Test("form view renders create title")
 	func formViewRendersCreateTitle() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "Test"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorFormView(store: store, onSaved: {}, onCancel: {})
@@ -51,9 +49,8 @@ struct PersonasSettingsTests {
 	@Test("form view renders edit title")
 	func formViewRendersEditTitle() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorFormView(store: store, onSaved: {}, onCancel: {})
@@ -63,9 +60,8 @@ struct PersonasSettingsTests {
 	@Test("form view shows persona and model sections")
 	func formViewShowsSectionTabs() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "Test"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorFormView(store: store, onSaved: {}, onCancel: {})
@@ -83,27 +79,24 @@ struct PersonasSettingsTests {
 		#expect(throws: Never.self) { try view.inspect().find(text: "Prompt Mode") }
 	}
 
-	@Test("form view renders provider and model labels")
+	@Test("form view renders the model label without a provider picker")
 	func formViewRendersProviderModel() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
-		store.provider = "openai"
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.model = "gpt-5"
 		store.name = "Test"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorFormView(store: store, onSaved: {}, onCancel: {})
-		#expect(throws: Never.self) { try view.inspect().find(text: "Provider") }
+		#expect(throws: (any Error).self) { try view.inspect().find(text: "Provider") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Model") }
 	}
 
 	@Test("form view shows delete button when enabled")
 	func formViewShowsDeleteButton() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.isBuiltIn = false
 		store.instructions = "Be helpful"
@@ -120,9 +113,8 @@ struct PersonasSettingsTests {
 	@Test("form view hides delete button when disabled")
 	func formViewHidesDeleteButton() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.isBuiltIn = false
 		store.instructions = "Be helpful"
@@ -140,9 +132,8 @@ struct PersonasSettingsTests {
 	@Test("catalog destination hides in-content title")
 	func formViewHidesChromeHeader() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorFormView(
@@ -157,9 +148,8 @@ struct PersonasSettingsTests {
 	@Test("catalog destination shows delete in the footer")
 	func formViewShowsDeleteWithoutHeader() throws {
 		let store = PersonaEditorStore(mode: .edit(name: "MyPersona"))
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "MyPersona"
 		store.isBuiltIn = false
 		store.instructions = "Be helpful"
@@ -288,9 +278,8 @@ struct PersonasSettingsTests {
 	@Test("window editor view renders create title via form view")
 	func windowEditorViewStillRenders() throws {
 		let store = PersonaEditorStore(mode: .create)
-		store.providers = [
-			AIProviderInfo(providerId: "openai", displayName: "OpenAI", models: ["gpt-5"], allowCustomModel: false),
-		]
+		store.catalogModels = [AIModelOption(id: "gpt-5")]
+		store.isSignedIn = false
 		store.name = "Test"
 		store.instructions = "Be helpful"
 		let view = PersonaEditorView(store: store, onSaved: {}, onCancel: {})

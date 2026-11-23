@@ -628,9 +628,6 @@ final class ChatStore {
 		isListenRequestInFlight = true
 		beginRecordingStatusUpdates()
 		defer { isListenRequestInFlight = false }
-		if status?.transcription?.configured != true {
-			toast = ChatRecordingController.unconfiguredTranscriptionToast()
-		}
 		var ui = recordingUIState()
 		do {
 			let sources = ConfigReader.listenRecordSources()

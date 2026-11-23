@@ -14,16 +14,6 @@ struct ChatRecordingUIState {
 enum ChatRecordingController {
 	// MARK: - Toasts
 
-	static func unconfiguredTranscriptionToast() -> AppToastState {
-		AppToastState(
-			style: .error,
-			title: "No transcription model configured",
-			message:
-				"Audio will be saved without a transcript. Choose a transcription provider to enable transcripts.",
-			action: .openSettings(navKey: "transcription"),
-		)
-	}
-
 	static func recordingFailedToast(message: String) -> AppToastState {
 		AppToastState(
 			style: .error,

@@ -2,7 +2,7 @@ import Foundation
 import TobyCore
 
 extension TobyClient {
-	/// Native-mode counterpart of the SSE turn stream: same callbacks, same payloads.
+	/// Run a chat turn in process, reporting events, questions, and the result.
 	func streamNativeTurn(
 		sessionId: String,
 		text: String,
@@ -34,6 +34,9 @@ extension TobyClient {
 					?? TurnDonePayload(turnId: clientTurnId, text: "", appliedActions: [], sessionName: nil, usage: nil, contextWindow: nil)
 			case let .failed(message):
 				throw TobyClientError.serverError(message)
+			case let .outOfCredits(message):
+				GatewayFundsNotice.post(GatewayFundsNotice(activity: "send your message"))
+				throw TobyClientError.gatewayFunds(message)
 			}
 		}
 		return TurnDonePayload(turnId: clientTurnId, text: "", appliedActions: [], sessionName: nil, usage: nil, contextWindow: nil)

@@ -1,4 +1,5 @@
 import Testing
+import TobyAI
 import SwiftUI
 @testable import TobyApp
 import ViewInspector
@@ -7,7 +8,7 @@ import ViewInspector
 @Suite("Gateway funds banner")
 struct GatewayFundsBannerTests {
 	private func notice() -> GatewayFundsNotice {
-		GatewayFundsNotice(providerId: "vercel", activity: "send your message")
+		GatewayFundsNotice(activity: "send your message")
 	}
 
 	@Test("names the gateway and the attempt")
@@ -18,11 +19,11 @@ struct GatewayFundsBannerTests {
 			onClose: {}
 		)
 		let text = try view.inspect().findAll(ViewType.Text.self).map { try $0.string() }
-		#expect(text.contains("Vercel AI Gateway is out of funds"))
+		#expect(text.contains("OpenRouter is out of credits"))
 		#expect(text.contains("Toby couldn't send your message."))
 	}
 
-	@Test("Open Settings reports the provider section and leaves the banner up")
+	@Test("Open Settings opens Account and leaves the banner up")
 	func openSettingsDoesNotClose() throws {
 		var navKey: String?
 		var closed = false
@@ -32,7 +33,7 @@ struct GatewayFundsBannerTests {
 			onClose: { closed = true }
 		)
 		try view.inspect().find(button: "Open Settings").tap()
-		#expect(navKey == "ai.vercel")
+		#expect(navKey == "account")
 		#expect(closed == false)
 	}
 
@@ -59,7 +60,7 @@ struct GatewayFundsPresentationTests {
 	func skipsToast() {
 		let store = ChatStore()
 		store.presentFailure(
-			TobyClientError.gatewayFunds("Vercel AI Gateway is out of funds.")
+			TobyClientError.gatewayFunds("Your OpenRouter account is out of credits.")
 		)
 		#expect(store.toast == nil)
 
@@ -71,17 +72,19 @@ struct GatewayFundsPresentationTests {
 	@Test("a later funds failure replaces the notice in place")
 	func replacesNotice() {
 		let store = ChatStore()
-		store.gatewayFundsNotice = GatewayFundsNotice(
-			providerId: "vercel",
-			activity: "send your message"
-		)
-		store.gatewayFundsNotice = GatewayFundsNotice(
-			providerId: "openrouter",
-			activity: "update the dashboard"
-		)
-		#expect(store.gatewayFundsNotice?.providerName == "OpenRouter")
+		store.gatewayFundsNotice = GatewayFundsNotice(activity: "send your message")
+		store.gatewayFundsNotice = GatewayFundsNotice(activity: "update the dashboard")
 		#expect(store.gatewayFundsNotice?.message == "Toby couldn't update the dashboard.")
-		#expect(store.gatewayFundsNotice?.settingsNavKey == "ai.openrouter")
+		#expect(store.gatewayFundsNotice?.settingsNavKey == "account")
+	}
+
+	@Test("native out-of-credits errors and codes map to the notice")
+	func mapsNativeSignals() {
+		#expect(GatewayFundsNotice(error: AIError.insufficientCredits(message: ""), activity: "x") != nil)
+		#expect(GatewayFundsNotice(error: AIError.cancelled, activity: "x") == nil)
+		#expect(GatewayFundsNotice(json: ["code": "insufficient_credits", "activity": "run a flow"])?.message == "Toby couldn't run a flow.")
+		#expect(GatewayFundsNotice(libraryError: "Your OpenRouter account is out of credits.") != nil)
+		#expect(GatewayFundsNotice(libraryError: "Some other failure") == nil)
 	}
 
 	@Test("transcription funds failure keeps the local status and skips the toast")
@@ -94,12 +97,12 @@ struct GatewayFundsPresentationTests {
 		)
 		ChatRecordingController.applyTranscriptionFailed(
 			recordingId: "rec-1",
-			errorDescription: "Vercel AI Gateway is out of funds.",
+			errorDescription: "Your OpenRouter account is out of credits.",
 			suppressToast: true,
 			into: &state
 		)
 		#expect(state.toast == nil)
 		#expect(state.recordingProcessing?.stage == .failed)
-		#expect(state.recordingProcessing?.message?.contains("out of funds") == true)
+		#expect(state.recordingProcessing?.message?.contains("out of credits") == true)
 	}
 }

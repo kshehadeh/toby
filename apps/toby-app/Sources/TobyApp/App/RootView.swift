@@ -1086,7 +1086,6 @@ struct RootView: View {
             permissionsStore.statuses.filter(\.isGranted).map(\.kind)
         )
         let requiredPermissions = granted.contains(.microphone) && granted.contains(.screenCapture)
-        let tx = store.status?.transcription
         return OnboardingChecklist.make(
             hasConfiguredAIProvider: hasAIProvider,
             hasConnectedIntegrations: connected,
@@ -1094,9 +1093,6 @@ struct RootView: View {
             hasRequiredPermissions: requiredPermissions,
             hasSchedule: flowsStore.flows.contains { $0.triggers?.contains { $0.source.type == "schedule" } ?? false },
             hasSkill: !skillsStore.skills.isEmpty,
-            hasTranscriptionConfigured: tx?.configured ?? false,
-            transcriptionNeedsApiKey: tx?.needsApiKey ?? false,
-            transcriptionProviderLabel: tx?.provider,
             hasRecording: !recordingsStore.recordings.isEmpty,
             hasSession: !store.sessions.isEmpty
         )

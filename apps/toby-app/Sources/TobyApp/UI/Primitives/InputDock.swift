@@ -107,8 +107,8 @@ struct InputDock: View {
 							.foregroundStyle(AppTheme.tertiaryText)
 					}
 						.buttonStyle(.plain)
-						.help("Provider doesn't support context window information.")
-						.accessibilityLabel("Provider doesn't support context window information")
+						.help("This model doesn't report its context window.")
+						.accessibilityLabel("This model doesn't report its context window")
 						.accessibilityIdentifier("context-window-unavailable")
 				}
 				if isLoading {

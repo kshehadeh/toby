@@ -7,7 +7,6 @@ final class FollowupsSettingsStore {
 	var instructions: [FollowupInstruction] = []
 	var instructionDrafts: [String: String] = [:]
 	var newInstruction = ""
-	var providers: [AIProviderInfo] = []
 	var savedConfiguration: FollowupsSettingsConfig?
 	var isLoading = false
 	var isSaving = false
@@ -49,9 +48,6 @@ final class FollowupsSettingsStore {
 			sources = fetchedSources
 			instructions = fetchedInstructions
 			instructionDrafts = Dictionary(uniqueKeysWithValues: fetchedInstructions.map { ($0.id, $0.text) })
-			if let availableProviders = try? await client.fetchAIProviders() {
-				providers = availableProviders.filter(\.configured)
-			}
 			hasLoaded = true
 			errorMessage = nil
 		} catch {

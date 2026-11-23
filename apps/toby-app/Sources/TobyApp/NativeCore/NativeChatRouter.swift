@@ -8,6 +8,8 @@ enum NativeTurnItem: Sendable {
 	case askUser(turnID: String, requestID: String, query: String, options: [String], reply: @Sendable (Int, String, String) -> Void)
 	case done(Data)
 	case failed(String)
+	/// OpenRouter has no credit left for this turn.
+	case outOfCredits(String)
 }
 
 /// In-process `/api/sessions` (native mode).
@@ -67,7 +69,9 @@ struct NativeChatRouter: Sendable {
 					)
 					continuation.yield(.done(Data(done.jsonString().utf8)))
 				} catch AIError.cancelled {
-					// Like a daemon stream that ends without `done`.
+					// The stream ends without `done`.
+				} catch let AIError.insufficientCredits(message) {
+					continuation.yield(.outOfCredits(AIError.insufficientCredits(message: message).errorDescription ?? message))
 				} catch {
 					continuation.yield(.failed((error as? LocalizedError)?.errorDescription ?? String(describing: error)))
 				}

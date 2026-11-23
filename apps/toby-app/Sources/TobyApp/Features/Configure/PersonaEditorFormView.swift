@@ -76,7 +76,7 @@ struct PersonaEditorFormView: View {
 
 	@ViewBuilder
 	private var content: some View {
-		if store.isLoading && store.providers.isEmpty {
+		if store.isLoading && store.catalogModels.isEmpty {
 			ProgressView("Loading…")
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 		} else {
@@ -127,7 +127,7 @@ struct PersonaEditorFormView: View {
 	private var modelPane: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 20) {
-				providerModelRow
+				modelRow
 				promptModeRow
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
@@ -224,71 +224,27 @@ struct PersonaEditorFormView: View {
 		}
 	}
 
-	private var providerModelRow: some View {
-		VStack(alignment: .leading, spacing: 8) {
-			HStack(spacing: 16) {
-				VStack(alignment: .leading, spacing: 6) {
-					Text("Provider")
-						.font(.subheadline.weight(.medium))
-						.foregroundStyle(SettingsDesign.sectionHeader)
-					providerMenu
-				}
-				VStack(alignment: .leading, spacing: 6) {
-					Text("Model")
-						.font(.subheadline.weight(.medium))
-						.foregroundStyle(SettingsDesign.sectionHeader)
-					modelMenu
-				}
-			}
-			if let message = store.providerValidationMessage {
+	private var modelRow: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			Text("Model")
+				.font(.subheadline.weight(.medium))
+				.foregroundStyle(SettingsDesign.sectionHeader)
+			SettingsSelectChoiceField(
+				title: "Model",
+				choices: store.availableModels.map {
+					SettingsSelectChoice(value: $0.id, label: $0.pickerLabel)
+				},
+				selection: $store.model,
+			)
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.disabled(!store.isSignedIn)
+			if let message = store.signInMessage {
 				Text(message)
 					.font(.caption)
-					.foregroundStyle(store.hasConfiguredProviders ? .orange : .red)
+					.foregroundStyle(.orange)
 					.fixedSize(horizontal: false, vertical: true)
 			}
 		}
-	}
-
-	private var providerMenu: some View {
-		SettingsSelectChoiceField(
-			title: "Provider",
-			choices: store.hasConfiguredProviders
-				? store.providers.filter { $0.configured }.map {
-					SettingsSelectChoice(value: $0.providerId, label: $0.displayName)
-				}
-				: store.providers.map {
-					SettingsSelectChoice(value: $0.providerId, label: $0.displayName)
-				},
-			selection: providerBinding,
-		)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.disabled(!store.hasConfiguredProviders)
-	}
-
-	private var modelMenu: some View {
-		SettingsSelectChoiceField(
-			title: "Model",
-			choices: store.availableModels.map {
-				SettingsSelectChoice(value: $0.id, label: $0.pickerLabel)
-			},
-			selection: $store.model,
-		)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.disabled(!store.hasConfiguredProviders || !store.isSelectedProviderConfigured)
-	}
-
-	private var providerBinding: Binding<String> {
-		Binding(
-			get: { store.provider },
-			set: { providerId in
-				store.provider = providerId
-				if let provider = store.providers.first(where: { $0.providerId == providerId }),
-					let firstModel = provider.models.first
-				{
-					store.model = firstModel.id
-				}
-			},
-		)
 	}
 
 	private var promptModeRow: some View {

@@ -52,10 +52,10 @@ final class NativeSpeechTranscriber {
 
 	func prepare(sources: [String], startedAt: Date) async throws -> [String: SpeechAudioFeed] {
 		guard SpeechTranscriber.isAvailable else {
-			throw NativeAudioError.runtime("Apple transcription is unavailable on this Mac. Choose another provider in Settings → Transcription.")
+			throw NativeAudioError.runtime("Speech recognition is unavailable on this Mac. The recording is saved without a live transcript.")
 		}
 		guard let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
-			throw NativeAudioError.runtime("Apple transcription does not support \(locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier). Change your Mac’s language or choose another provider in Settings → Transcription.")
+			throw NativeAudioError.runtime("Apple transcription does not support \(locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier). Change your Mac’s language to transcribe recordings.")
 		}
 		locale = supported
 		var feeds: [String: SpeechAudioFeed] = [:]

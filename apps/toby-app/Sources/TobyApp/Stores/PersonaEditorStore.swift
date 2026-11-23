@@ -1,4 +1,5 @@
 import Foundation
+import TobyAI
 import Observation
 
 @Observable
@@ -27,7 +28,6 @@ final class PersonaEditorStore {
 	private struct Snapshot: Equatable {
 		var name: String
 		var instructions: String
-		var provider: String
 		var model: String
 		var promptMode: String
 	}
@@ -36,13 +36,15 @@ final class PersonaEditorStore {
 	let id = UUID()
 	var name = ""
 	var instructions = ""
-	var provider = "openai"
-	var model = "gpt-5-mini"
+	var model = ModelRole.chat.defaultModelId
 	var promptMode = "add"
 	var imagePath: String?
 	var imageUrl: String?
 	var isBuiltIn = false
-	var providers: [AIProviderInfo] = []
+	/// OpenRouter models from the live catalog (empty until signed in).
+	var catalogModels: [AIModelOption] = []
+	/// Whether an OpenRouter key is saved.
+	var isSignedIn = false
 	var isLoading = false
 	var isSavingImage = false
 	var saveState: SaveState = .idle
@@ -83,38 +85,15 @@ final class PersonaEditorStore {
 	}
 
 	var availableModels: [AIModelOption] {
-		guard let info = providers.first(where: { $0.providerId == provider }) else {
-			return model.isEmpty ? [] : [AIModelOption(id: model)]
-		}
-		var models = info.models
+		var models = catalogModels
 		if !model.isEmpty && !models.contains(where: { $0.id == model }) {
-			models.append(AIModelOption(id: model))
+			models.insert(AIModelOption(id: model), at: 0)
 		}
 		return models
 	}
 
-	var hasConfiguredProviders: Bool {
-		providers.contains { $0.configured }
-	}
-
-	var isSelectedProviderConfigured: Bool {
-		guard let info = providers.first(where: { $0.providerId == provider }) else {
-			return false
-		}
-		return info.configured
-	}
-
-	var providerValidationMessage: String? {
-		if !hasConfiguredProviders {
-			return "No AI provider is configured. Open Settings → AI to add an API key, then return here to choose a provider."
-		}
-		if !isSelectedProviderConfigured {
-			if let info = providers.first(where: { $0.providerId == provider }) {
-				return "\"\(info.displayName)\" is not configured. Choose a configured provider or add its API key in Settings → AI."
-			}
-			return "Selected provider is not configured."
-		}
-		return nil
+	var signInMessage: String? {
+		isSignedIn ? nil : "Sign in with OpenRouter in Settings → Account to choose a model."
 	}
 
 	var canSave: Bool {
@@ -122,10 +101,7 @@ final class PersonaEditorStore {
 		guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
 			return false
 		}
-		guard hasConfiguredProviders, isSelectedProviderConfigured else {
-			return false
-		}
-		return true
+		return isSignedIn
 	}
 
 	/// True when any editable field differs from its value at load time.
@@ -133,7 +109,6 @@ final class PersonaEditorStore {
 		guard let original = originalSnapshot else { return false }
 		return name != original.name
 			|| instructions != original.instructions
-			|| provider != original.provider
 			|| model != original.model
 			|| promptMode != original.promptMode
 	}
@@ -144,7 +119,6 @@ final class PersonaEditorStore {
 		guard let original = originalSnapshot else { return }
 		name = original.name
 		instructions = original.instructions
-		provider = original.provider
 		model = original.model
 		promptMode = original.promptMode
 		errorMessage = nil
@@ -157,7 +131,6 @@ final class PersonaEditorStore {
 		originalSnapshot = Snapshot(
 			name: name,
 			instructions: instructions,
-			provider: provider,
 			model: model,
 			promptMode: promptMode
 		)
@@ -168,12 +141,13 @@ final class PersonaEditorStore {
 		errorMessage = nil
 		defer { isLoading = false }
 		do {
-			providers = try await client.fetchAIProviders()
+			let openRouter = try await client.fetchAIProviders().first
+			isSignedIn = openRouter?.configured == true
+			catalogModels = (openRouter?.models ?? []).sorted { ($0.displayName ?? $0.id) < ($1.displayName ?? $1.id) }
 			if case .edit(let personaName) = mode {
 				let detail = try await client.fetchPersonaDetail(name: personaName)
 				name = detail.name
 				instructions = detail.instructions
-				provider = detail.provider
 				model = detail.model
 				promptMode = detail.promptMode
 				imagePath = detail.imagePath
@@ -200,7 +174,6 @@ final class PersonaEditorStore {
 				_ = try await client.createPersona(
 					name: name,
 					instructions: instructions,
-					provider: provider,
 					model: model,
 					promptMode: promptMode,
 				)
@@ -209,7 +182,6 @@ final class PersonaEditorStore {
 					originalName: originalName,
 					name: isBuiltIn ? nil : (name != originalName ? name : nil),
 					instructions: isBuiltIn ? nil : instructions,
-					provider: provider,
 					model: model,
 					promptMode: isBuiltIn ? nil : promptMode,
 				)
