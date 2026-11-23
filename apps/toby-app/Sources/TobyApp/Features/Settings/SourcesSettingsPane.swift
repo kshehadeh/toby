@@ -131,7 +131,16 @@ struct SlackConnectSheet: View {
 				case .botToken:
 					SecureField("Bot token (xoxb-…)", text: $botToken)
 				}
-				SecureField("App-level token for replies (xapp-…, optional)", text: $appToken)
+				Section {
+					if method == .oauth {
+						SecureField("Bot token (xoxb-…)", text: $botToken)
+					}
+					SecureField("App-level token (xapp-…)", text: $appToken)
+				} header: {
+					Text("Chat replies (optional)")
+				} footer: {
+					Text("Toby answers Slack messages over Socket Mode, which needs your app's bot token and an app-level token with connections:write.")
+				}
 			}
 			.formStyle(.grouped)
 			if let error { Text(error).foregroundStyle(.red).font(.callout) }
@@ -172,6 +181,7 @@ struct SlackConnectSheet: View {
 				patch = ["authMethod": "bot_token", "botToken": botToken.trimmed]
 			}
 			if !appToken.isBlank { patch["appToken"] = appToken.trimmed }
+			if method == .oauth, !botToken.isBlank { patch["botToken"] = botToken.trimmed }
 			try api.save(patch)
 			let identity = try await api.call("auth.test")
 			try api.save(["teamName": identity["team"]?.stringValue ?? patch["teamName"] ?? "", "teamId": identity["team_id"]?.stringValue ?? patch["teamId"] ?? ""])

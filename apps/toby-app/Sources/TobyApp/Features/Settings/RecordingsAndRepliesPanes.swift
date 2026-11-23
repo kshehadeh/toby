@@ -34,10 +34,24 @@ struct SettingsPersonaPicker: View {
 struct RecordingsSettingsPane: View {
 	@State private var deleteAudio = NativeConfig.bool("listen.deleteAudioAfterTranscription", default: true)
 	@State private var summaryPersona = NativeConfig.string("listen.summaryPersona")
+	@State private var recordMic = NativeConfig.bool("listen.recordMic", default: true)
+	@State private var recordSystem = NativeConfig.bool("listen.recordSystem", default: true)
 	@State private var error: String?
 
 	var body: some View {
 		SwiftUI.Form {
+			Section {
+				Toggle("Record microphone", isOn: $recordMic)
+					.disabled(recordMic && !recordSystem)
+					.accessibilityIdentifier("recordings-record-mic")
+				Toggle("Record system audio", isOn: $recordSystem)
+					.disabled(recordSystem && !recordMic)
+					.accessibilityIdentifier("recordings-record-system")
+			} header: {
+				Text("Sources")
+			} footer: {
+				Text("System audio captures other apps, such as meetings. At least one source stays on.")
+			}
 			Section {
 				Toggle("Delete audio after transcription", isOn: $deleteAudio)
 					.accessibilityIdentifier("recordings-delete-audio")
@@ -51,6 +65,8 @@ struct RecordingsSettingsPane: View {
 		}
 		.tobySettingsFormStyle()
 		.onChange(of: deleteAudio) { _, value in error = NativeConfig.set("listen.deleteAudioAfterTranscription", .bool(value)) }
+		.onChange(of: recordMic) { _, value in error = NativeConfig.set("listen.recordMic", .bool(value)) }
+		.onChange(of: recordSystem) { _, value in error = NativeConfig.set("listen.recordSystem", .bool(value)) }
 		.onChange(of: summaryPersona) { _, value in error = NativeConfig.set("listen.summaryPersona", value.isEmpty ? nil : .string(value)) }
 	}
 }
