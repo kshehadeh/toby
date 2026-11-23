@@ -1,6 +1,6 @@
 {
   "name": "toby",
-  "version": "0.198.1",
+  "version": "0.198.2",
   "private": true,
   "description": "Toby — a native macOS assistant. This package only holds the help site and release tooling; the app is Swift (apps/toby-app).",
   "type": "module",
