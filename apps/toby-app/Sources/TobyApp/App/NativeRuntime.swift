@@ -276,6 +276,11 @@ final class NativeRuntime {
 		return service
 	}
 
+	/// The sync vault shared by todo sync and data snapshots.
+	func vault() -> SyncVault {
+		SyncVault(tobyDirectory: paths.root, passphrase: .keychain(tobyDirectory: paths.root))
+	}
+
 	/// Relaunch so a staged restore is applied before the database reopens.
 	func relaunchToApplyRestore() {
 		Task { @MainActor in

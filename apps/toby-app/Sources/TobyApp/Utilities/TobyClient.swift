@@ -1,5 +1,6 @@
 import Foundation
 import TobyAI
+import TobyCore
 import TobyMail
 
 enum TobyClientError: LocalizedError {
@@ -1446,6 +1447,12 @@ struct TobyClient {
 
 	/// Create a password-encrypted complete backup (binary archive stream).
 	func createConfigBackup(password: String) async throws -> ConfigBackupCreateResponse {
+		if NativeMode.isEnabled {
+			let service = try await NativeRuntime.shared.backups()
+			let url = FileManager.default.temporaryDirectory.appending(path: BackupService.fileName())
+			try await Task.detached(priority: .userInitiated) { try service.create(password: password, to: url) }.value
+			return ConfigBackupCreateResponse(backupData: Data(), suggestedFileName: url.lastPathComponent, fileURL: url)
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/backup"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1468,6 +1475,15 @@ struct TobyClient {
 
 	/// Restore Toby data from a backup file (v3 archive or legacy JSON envelope).
 	func restoreConfigBackup(backupData: Data, password: String?, confirm: Bool = true) async throws {
+		if NativeMode.isEnabled {
+			let service = try await NativeRuntime.shared.backups()
+			let url = FileManager.default.temporaryDirectory.appending(path: "toby-restore-\(UUID().uuidString).tbybak")
+			try backupData.write(to: url)
+			defer { try? FileManager.default.removeItem(at: url) }
+			try await Task.detached(priority: .userInitiated) { _ = try service.restore(file: url, password: password ?? "") }.value
+			await NativeRuntime.shared.relaunchToApplyRestore()
+			return
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/restore"))
 		request.httpMethod = "POST"
 		request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
@@ -1480,6 +1496,9 @@ struct TobyClient {
 	}
 
 	func fetchConfigSyncStatus() async throws -> ConfigSyncStatus {
+		if NativeMode.isEnabled {
+			return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(await NativeRuntime.shared.vault().status().jsonString().utf8))
+		}
 		let url = baseURL.appendingPathComponent("api/config/sync")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -1492,6 +1511,11 @@ struct TobyClient {
 		backend: String? = nil,
 		folderPath: String? = nil
 	) async throws -> ConfigSyncStatus {
+		if NativeMode.isEnabled {
+			let vault = await NativeRuntime.shared.vault()
+			let status = try await Task.detached { try vault.enable(password: password, mode: mode, backend: backend, folderPath: folderPath) }.value
+			return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/enable"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1506,6 +1530,11 @@ struct TobyClient {
 	}
 
 	func disableConfigSync(deleteCloud: Bool = false) async throws -> ConfigSyncStatus {
+		if NativeMode.isEnabled {
+			let vault = await NativeRuntime.shared.vault()
+			let status = try await Task.detached { try vault.disable(deleteCloud: deleteCloud) }.value
+			return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
+		}
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/disable"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1516,6 +1545,7 @@ struct TobyClient {
 	}
 
 	func pushConfigSync() async throws {
+		if NativeMode.isEnabled { return } // settings sync was removed
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/push"))
 		request.httpMethod = "POST"
 		let (data, response) = try await URLSession.shared.data(for: request)
@@ -1523,6 +1553,7 @@ struct TobyClient {
 	}
 
 	func pullConfigSync() async throws {
+		if NativeMode.isEnabled { return } // settings sync was removed
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/pull"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1532,6 +1563,7 @@ struct TobyClient {
 	}
 
 	func listConfigSyncHistory() async throws -> [ConfigSyncHistoryItem] {
+		if NativeMode.isEnabled { return [] }
 		let url = baseURL.appendingPathComponent("api/config/sync/history")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -1540,6 +1572,7 @@ struct TobyClient {
 	}
 
 	func restoreConfigSyncHistory(filename: String) async throws {
+		if NativeMode.isEnabled { throw TobyClientError.invalidResponse }
 		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/restore-history"))
 		request.httpMethod = "POST"
 		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1552,6 +1585,10 @@ struct TobyClient {
 	}
 
 	func setDatabaseBackupsEnabled(_ enabled: Bool) async throws -> ConfigSyncStatus {
+		if NativeMode.isEnabled {
+			try await NativeRuntime.shared.backups().setSnapshotsEnabled(enabled)
+			return try await fetchConfigSyncStatus()
+		}
 		let action = enabled ? "enable" : "disable"
 		var request = URLRequest(
 			url: baseURL.appendingPathComponent("api/config/sync/data-backups/\(action)")
@@ -1568,6 +1605,11 @@ struct TobyClient {
 	}
 
 	func createDatabaseBackupNow() async throws {
+		if NativeMode.isEnabled {
+			let service = try await NativeRuntime.shared.backups()
+			try await Task.detached(priority: .userInitiated) { _ = try service.createSnapshot() }.value
+			return
+		}
 		var request = URLRequest(
 			url: baseURL.appendingPathComponent("api/config/sync/data-backups/create")
 		)
@@ -1577,6 +1619,10 @@ struct TobyClient {
 	}
 
 	func listDatabaseBackups() async throws -> [DatabaseSyncBackup] {
+		if NativeMode.isEnabled {
+			let service = try await NativeRuntime.shared.backups()
+			return try JSONDecoder().decode([DatabaseSyncBackup].self, from: Data(service.snapshotsJSON().jsonString().utf8))
+		}
 		let url = baseURL.appendingPathComponent("api/config/sync/data-backups")
 		let (data, response) = try await URLSession.shared.data(from: url)
 		try validate(response: response, data: data)
@@ -1585,6 +1631,12 @@ struct TobyClient {
 	}
 
 	func restoreDatabaseBackup(deviceId: String, filename: String) async throws {
+		if NativeMode.isEnabled {
+			let service = try await NativeRuntime.shared.backups()
+			try await Task.detached(priority: .userInitiated) { _ = try service.restoreSnapshot(deviceID: deviceId, filename: filename) }.value
+			await NativeRuntime.shared.relaunchToApplyRestore()
+			return
+		}
 		var request = URLRequest(
 			url: baseURL.appendingPathComponent("api/config/sync/data-backups/restore")
 		)
@@ -1603,6 +1655,8 @@ struct TobyClient {
 struct ConfigBackupCreateResponse {
 	let backupData: Data
 	let suggestedFileName: String
+	/// Native mode: the finished archive on disk (moved to the chosen location).
+	var fileURL: URL? = nil
 }
 
 // MARK: - Config sync models

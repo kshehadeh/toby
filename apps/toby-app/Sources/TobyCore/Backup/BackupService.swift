@@ -199,7 +199,7 @@ public struct BackupService: Sendable {
 	func stageLegacyDatabases(_ raw: Data, into pending: URL) throws {
 		let bundle = try JSONDecoder().decode(JSONValue.self, from: raw)
 		for name in ["chat", "memory"] {
-			guard let snapshot = bundle[name], snapshot["compression"] == "gzip", let encoded = snapshot["data"]?.stringValue, let gz = Data(base64Encoded: encoded) else {
+			guard let snapshot = bundle[name], snapshot["compression"] == "gzip-base64", let encoded = snapshot["data"]?.stringValue, let gz = Data(base64Encoded: encoded) else {
 				throw BackupArchive.Failure("Not a valid Toby database backup.")
 			}
 			let bytes = try BackupArchive.gunzip(gz)

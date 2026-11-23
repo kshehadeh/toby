@@ -101,9 +101,15 @@ struct ConfigBackupSheet: View {
 			let result = try await client.createConfigBackup(password: password)
 
 			guard let url = presentSavePanel(suggestedName: result.suggestedFileName) else {
+				if let file = result.fileURL { try? FileManager.default.removeItem(at: file) }
 				return
 			}
-			try result.backupData.write(to: url, options: .atomic)
+			if let file = result.fileURL {
+				if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+				try FileManager.default.moveItem(at: file, to: url)
+			} else {
+				try result.backupData.write(to: url, options: .atomic)
+			}
 			onSuccess(url.path)
 			onDismiss()
 		} catch {
