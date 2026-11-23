@@ -16,7 +16,7 @@ public struct AppleTools: Sendable {
 	}
 
 	static let definitions: [Definition] = {
-		guard let url = Bundle.module.url(forResource: "apple-tools", withExtension: "json", subdirectory: "Resources"),
+		guard let url = Bundle.tobyCoreResources.url(forResource: "apple-tools", withExtension: "json", subdirectory: "Resources"),
 		      let data = try? Data(contentsOf: url),
 		      let list = try? JSONDecoder().decode(JSONValue.self, from: data).arrayValue else { return [] }
 		return list.compactMap { item in

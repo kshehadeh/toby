@@ -98,7 +98,7 @@ public struct SkillService: Sendable {
 		let fm = FileManager.default
 		let marker = root.appending(path: ".builtin-seeds/flow-builder")
 		guard !fm.fileExists(atPath: marker.path),
-		      let source = Bundle.module.url(forResource: "SKILL", withExtension: "md", subdirectory: "Resources/skills/flow-builder"),
+		      let source = Bundle.tobyCoreResources.url(forResource: "SKILL", withExtension: "md", subdirectory: "Resources/skills/flow-builder"),
 		      let contents = try? Data(contentsOf: source) else { return }
 		let skillFile = root.appending(path: "flow-builder/SKILL.md")
 		try? fm.createDirectory(at: skillFile.deletingLastPathComponent(), withIntermediateDirectories: true)

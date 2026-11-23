@@ -15,7 +15,7 @@ extension MailService {
 	}
 
 	static let toolDefinitions: [ToolDefinition] = {
-		guard let url = Bundle.module.url(forResource: "mail-tools", withExtension: "json", subdirectory: "Resources"),
+		guard let url = Bundle.tobyCoreResources.url(forResource: "mail-tools", withExtension: "json", subdirectory: "Resources"),
 		      let data = try? Data(contentsOf: url), let list = try? JSONDecoder().decode(JSONValue.self, from: data).arrayValue else { return [] }
 		return list.compactMap { item in
 			guard let name = item["name"]?.stringValue else { return nil }

@@ -55,7 +55,7 @@ public final class PersonaService: Sendable {
 	}
 
 	static func resource(_ name: String) -> String {
-		guard let url = Bundle.module.url(forResource: name, withExtension: "md", subdirectory: "Resources/personas"),
+		guard let url = Bundle.tobyCoreResources.url(forResource: name, withExtension: "md", subdirectory: "Resources/personas"),
 		      let text = try? String(contentsOf: url, encoding: .utf8) else { return "" }
 		return text
 	}
@@ -171,7 +171,7 @@ public final class PersonaService: Sendable {
 		let user = tobyDirectory.appending(path: "persona/images/\(name)")
 		if FileManager.default.fileExists(atPath: user.path) { return user }
 		let bundled = name == "default.png" ? "toby.png" : name
-		return Bundle.module.url(forResource: (bundled as NSString).deletingPathExtension, withExtension: (bundled as NSString).pathExtension, subdirectory: "Resources/personas")
+		return Bundle.tobyCoreResources.url(forResource: (bundled as NSString).deletingPathExtension, withExtension: (bundled as NSString).pathExtension, subdirectory: "Resources/personas")
 	}
 
 	// MARK: API payloads
