@@ -43,8 +43,7 @@ Add or modify native macOS windows in the Toby app (`apps/toby-app/`). The app u
 - `apps/toby-app/Sources/TobyApp/UI/Theme/AppTheme.swift` — sidebar/content colors and sizing constants.
 - `apps/toby-app/Sources/TobyApp/UI/Theme/SettingsDesign.swift` — canvas/card colors used by settings-style views.
 - `apps/toby-app/Sources/TobyApp/Features/Sidebar/AppSidebar.swift` — main destination list + compact persona footer (different from settings sidebars).
-- `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsWindowView.swift` — Settings preferences window.
-- `apps/toby-app/Sources/TobyApp/Features/Configure/SettingsCatalogView.swift` — catalog tabs (Integrations, AI) that push child detail.
+- `apps/toby-app/Sources/TobyApp/Features/Settings/NativeSettingsView.swift` — Settings window (`NativeSettingsSection` sidebar + panes).
 
 ## Workflow A — Sidebar window
 
@@ -78,13 +77,13 @@ Tahoe System Settings is a **sidebar** `NavigationSplitView` plus grouped `Form`
 
 1. Prefer an `NSWindow` with `.fullSizeContentView` when SwiftUI `Window` does not produce glass corners; otherwise keep `Window("Settings", id: "settings")` in `TobyApp.swift` with `.windowStyle(.automatic)`, `.defaultPosition(.center)` (first launch only; later opens restore the saved frame), resizable defaults, and `.commandsRemoved()`.
 2. Root view:
-   - Load top-level sections from the configure API / `ConfigureStore.settingsSections`.
-   - Use `NavigationSplitView` with `.listStyle(.sidebar)` for General, Sync, Personas, Integrations, and daemon sections.
-   - Detail panes: `Form { Section { … } }.formStyle(.grouped).scrollContentBackground(.hidden)`.
-   - Nested sections (Personas, Integrations, AI) are catalog tabs: one sidebar row, child detail pushed in a `NavigationStack`.
+   - Sections are the `NativeSettingsSection` cases (General, Account, Sources, Personas, Follow-ups, Recordings, Chat Replies, Sync & Backup, Permissions); add a case and a pane view for a new section.
+   - Use `NavigationSplitView` with `.listStyle(.sidebar)`.
+   - Detail panes: `Form { Section { … } }` with `.tobySettingsFormStyle()`.
+   - Personas is a catalog: one sidebar row, the editor pushed in a `NavigationStack`.
    - `SettingsCard` remains valid for in-app settings-style **content** (schedule editor), not for the Settings window itself.
 3. Open via `openWindow(id: "settings")` / `OpenWindowBridge` / Cmd+, (`OpenSettingsMenuItem`). Do **not** use a main-window `DetailRoute` for Settings.
-4. Deep links set `ConfigureStore` selection (`selectSection` / `selectedNavKey`) then open the window.
+4. Deep links set `ConfigureStore.selectedNavKey` (via `RootSettingsNavigation.prepare`) then open the window; `NativeSettingsSection(navKey:)` maps legacy keys.
 
 Do not add toolbar-tab chrome. New settings belong in the sidebar + grouped Form.
 

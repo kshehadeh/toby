@@ -6,7 +6,7 @@ title: Email
 <BrandTitle icon="/img/integrations/email.png">Email</BrandTitle>
 Connect Toby to any IMAP/SMTP mailbox to read, search, and organize email from chat.
 
-Email ships as a plugin bundled with Toby.app installs and updates under `~/.toby/plugins/`.
+Email is built into Toby; there is nothing to install.
 
 ## Prerequisites
 
@@ -14,17 +14,15 @@ Email ships as a plugin bundled with Toby.app installs and updates under `~/.tob
 - Your IMAP **host**, **port**, **username**, and **password**
 - Your SMTP **host**, **port**, **username**, and **password**
 
-<Callout type="tip" title="Use guided setup in Toby.app">
+<Callout type="tip" title="Guided setup">
 
-Open **Toby.app → Settings → Integrations → Email** and click **Start setup**. Enter your email address and Toby looks up the IMAP and SMTP servers for that domain. Confirm the servers, add your password (often an app password), and connect.
-
-**Setup Guide** on the same page remains available when you already know the server settings and want to enter them yourself.
+Open **Settings → Sources** and click **Connect…** next to **Mail**. Enter your email address and Toby looks up the IMAP and SMTP servers for that domain. Confirm the servers, add your password (often an app password), and connect.
 
 </Callout>
 
 ## How IMAP/SMTP credentials work
 
-The Email plugin uses standard IMAP and SMTP credentials instead of OAuth. You provide:
+Toby uses standard IMAP and SMTP credentials instead of OAuth. You provide:
 
 - **IMAP host** and **port** (e.g. `imap.gmail.com:993` for Gmail, `imap.fastmail.com:993` for Fastmail, `outlook.office365.com:993` for Outlook/Microsoft 365)
 - **IMAP username** (usually your email address) and **password** (use an **App Password** if your provider requires one — see below)
@@ -35,39 +33,29 @@ Use **port 993** with **SSL/TLS** for IMAP (recommended) or port 143 with STARTT
 
 ### App passwords
 
-Many providers (Gmail, Yahoo, iCloud, Fastmail, and others) require an **App Password** instead of your regular account password when IMAP/SMTP access is enabled. Create one in your provider's security or account settings and use that password in the configure fields below.
+Many providers (Gmail, Yahoo, iCloud, Fastmail, and others) require an **App Password** instead of your regular account password when IMAP/SMTP access is enabled. Create one in your provider's security or account settings and use that password during setup.
 
-## Configure
+## Enter servers yourself
 
-Open **Toby.app → Settings → Integrations → Email** and fill in the **Incoming mail (IMAP)**, **Outgoing mail (SMTP)** and **Sender** sections:
+If Toby can't find your servers, the setup sheet lets you enter them:
 
 | Section | Field | Description |
 | ------- | ----- | ----------- |
-| Incoming mail (IMAP) | Server | IMAP server hostname (e.g. `imap.gmail.com`) |
-| Incoming mail (IMAP) | Port | IMAP server port (default `993`) |
+| Incoming mail (IMAP) | Server, Port | e.g. `imap.gmail.com`, `993` |
 | Incoming mail (IMAP) | Use TLS | On for port 993 |
-| Incoming mail (IMAP) | Username | Your email address or IMAP login |
-| Incoming mail (IMAP) | Password | Account password or App Password (shown as **Saved** once stored) |
-| Outgoing mail (SMTP) | Server | SMTP server hostname (e.g. `smtp.gmail.com`) |
-| Outgoing mail (SMTP) | Port | SMTP server port (`587` for STARTTLS, `465` for TLS) |
-| Outgoing mail (SMTP) | Use TLS | On for port 465, off for STARTTLS on 587 |
-| Outgoing mail (SMTP) | Username | Your email address or SMTP login |
-| Outgoing mail (SMTP) | Password | Account password or App Password |
-| Sender | Email address, Name | What recipients see on messages Toby sends |
+| Incoming mail (IMAP) | Username, Password | Your login and password or App Password |
+| Outgoing mail (SMTP) | Server, Port | e.g. `smtp.gmail.com`, `465` or `587` |
+| Outgoing mail (SMTP) | Use TLS | On for 465, off for STARTTLS on 587 |
+| Outgoing mail (SMTP) | Username, Password | Often the same as IMAP |
+| Sender | Name | What recipients see on messages Toby sends |
 
-Save the configuration.
-
-## Connect
-
-Click **Connect** on the Email detail page. Toby validates your IMAP and SMTP credentials and marks the integration connected.
-
-## Verify
-
-Return to **Settings → Integrations**. Email should show as connected and healthy. You can also open the Email detail page to confirm status text from Toby.
+Toby checks the IMAP and SMTP connections before saving. Passwords are stored
+in your Mac's Keychain.
 
 ## Disconnect
 
-Select Email in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag — it does not delete your mail at the provider.
+Click **Disconnect** next to **Mail** in **Settings → Sources**. Toby removes the
+saved credentials from your Keychain; your mail at the provider is untouched.
 
 ## Example chat prompts
 
@@ -79,6 +67,6 @@ Switch to the built-in [**Mailman** persona](../personas#mailman) for inbox tria
 
 ## Related
 
-- [Integrations overview](overview)
+- [Sources overview](overview)
 - [Personas](../personas)
 - [Configure and connect](../getting-started/configure-and-status)

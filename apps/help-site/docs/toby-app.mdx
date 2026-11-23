@@ -42,8 +42,7 @@ GitHub notifications."
 
 The sheet lists every instruction you've written, newest first. Use the switch
 to turn one off without losing it, or the trash button to delete it. When you
-close the sheet after a change, The Feed updates with your instructions. The Feed is always on; if it needs a model
-that supports structured output, it says so and links to **Settings → Home**.
+close the sheet after a change, The Feed updates with your instructions. The Feed is always on and uses your default persona.
 
 One-click buttons you create with [flows](./flows) appear in the **Actions**
 sidebar on the right. Click the sidebar icon in the toolbar to hide or show it.
@@ -62,9 +61,8 @@ least one Actions button. While editing you can:
 Click **Done** or press **Escape** when finished. Your choices are saved on
 this Mac.
 
-More options are under **Settings → Home**:
+More options are under **Settings → General → Home**:
 
-- **Home persona** chooses the persona The Feed uses.
 - **Hide onboarding checklist** hides the setup checklist. You can also click
   **Hide** next to the checklist's progress count.
 - **Reset Home layout** shows hidden actions, clears action colors, and
@@ -143,7 +141,7 @@ with…** and Toby opens a new chat with that request.
 | **⌘,** | Settings |
 | **⌘1** | Home |
 | **⌘2** | Chats |
-| **⌘3** | Settings → Integrations |
+| **⌘3** | Settings → Sources |
 | **⌘4** | Projects |
 | **⌘5** | Skills |
 | **⌘6** | Memories |
@@ -259,21 +257,21 @@ notices are separate from tutorials.
 | **File → New Chat / Schedule / Skill / Project / Memory** | Create a new item |
 | **File → Permissions…** | Review the macOS permissions Toby uses (microphone, calendar, location, and so on) and grant any that are missing |
 | **File → Backup Toby Data… / Restore Toby Data…** | Save or restore an encrypted backup of everything. See [Security](./security#backup-and-restore). |
-| **View → Connection Status…** | Check the background service and inbound chat |
 | **Help → Toby Help** | Open this site |
 | **Help → Report an Issue…** | Send a bug report |
 
 ## Troubleshooting
 
-- **The status dot isn't green, or Toby isn't responding.** Click the dot and
-  choose **Restart server**, or open the command palette (**⌘K**) and run
-  **Restart server**. Quitting and reopening Toby also works.
-- **An integration stopped working.** Open **Settings → Integrations**, pick
-  it, and click **Re-connect**.
+- **Toby isn't responding.** Quit and reopen Toby. **Help → Logs** shows what
+  background work (mail, Home, follow-ups, flows) last did.
+- **Mail or Slack stopped working.** Open **Settings → Sources**, disconnect it,
+  and connect again.
+- **AI requests fail.** Check **Settings → Account**: you may need to sign in
+  again or add credits.
 - **macOS didn't ask for a permission, or you clicked Don't Allow.** Open
   **File → Permissions…** and click **Allow**, or **Open System Settings**
   if it was previously denied.
 - **Something else.** Use **Help → Report an Issue…**.
 
-For how the app and its background service fit together, see
+For how the app fits together, see
 [Architecture](./architecture/overview).

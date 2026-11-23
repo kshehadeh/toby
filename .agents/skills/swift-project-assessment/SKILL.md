@@ -42,9 +42,9 @@ Do **not** dump the full YAML into chat unless the user asks.
 
 1. **Read first, then write.** Prefer evidence from the repo over assumptions.
 2. **Mark confidence.** Use `intentional` / `likely` / `uncertain` for non-obvious patterns.
-3. **Scope = Toby.app.** Primary target is `apps/toby-app/`. Note monorepo context only as it
-   affects the app (daemon HTTP client, native API for plugins). Do not assess TypeScript packages
-   as if they were Swift.
+3. **Scope = the Swift package.** Primary target is `apps/toby-app/` (TobyApp plus the
+   TobyCore, TobyAI, TobyStore and TobyMail targets). The only other code in the repo is the
+   help site (`apps/help-site/`), which is out of scope.
 4. **Respect sibling skills.** Record pointers; do not duplicate their checklists:
    - `toby-native-window` — window chrome patterns
    - `swiftui-expert-skill` / `swiftui-pro` — framework best-practice references
@@ -97,9 +97,9 @@ Fill these fields (names match the schema):
 - **Swift / deployment target**
 - **Observation** — `@Observable` + `@State` ownership vs Combine/`ObservableObject`
 - **Navigation** — `NavigationSplitView`, multi-`Window`/`WindowGroup`, settings patterns
-- **Persistence** — daemon/SQLite via HTTP; local `UserDefaults` for appearance; no SwiftData expected
+- **Persistence** — GRDB SQLite (`TobyStore`, `~/.toby/app/toby.sqlite`); Keychain for secrets; `UserDefaults` for appearance; no SwiftData expected
 - **DI** — initializer injection of stores into root; `@Environment` for openWindow / shared prefs
-- **Networking** — `TobyClient` → local daemon; `NativeServer` for TCC-gated plugin APIs
+- **Networking** — `TobyClient` is an in-process facade over `NativeRuntime` services; TobyAI → OpenRouter; TobyMail IMAP/SMTP; Slack Web API / Socket Mode
 - **UIKit/AppKit** — AppKit allowed where necessary (window chrome, menu bar, native bridges); prefer SwiftUI for product UI
 - **Feature boundaries** — list major `Features/*` modules and shared layers (`Stores`, `UI`, `Native`, `Models`)
 
@@ -118,7 +118,7 @@ Fill these fields (names match the schema):
 - Prefer Observation (`@Observable`) recommendations; do not suggest migrating to `ObservableObject`
 - Do not recommend UIKit migration or iOS-only APIs
 - Validate colors/spacing against `AppTheme` / `SettingsDesign`
-- Native TCC work stays in `Native/`; product UI talks HTTP to daemon/native server
+- Native TCC work stays in `Native/` (reached by TobyCore through `NativeBridge` → `NativeDispatcher`); domain logic lives in TobyCore, not views
 - Ignore “add SwiftData” unless persistence requirements change
 
 `Potential Risks` are structural only (e.g. shared stores growing unbounded, client API surface size).
@@ -131,7 +131,7 @@ Set `assessed_at` to today’s date (ISO `YYYY-MM-DD`) and `source: swift-projec
 ### 6) Chat summary (short)
 
 ```
-Project: Toby.app — macOS 26+ SwiftUI product UI over local daemon
+Project: Toby.app — macOS 26+ SwiftUI app with an in-process Swift core
 Architecture: Feature folders + @Observable @MainActor stores
 Key guidance: …
 Artifact: .agents/context/swift-project-assessment.yaml
@@ -142,7 +142,7 @@ Artifact: .agents/context/swift-project-assessment.yaml
 - Line-level code review
 - Performance profiling / Instruments
 - Changing product code (assessment is read-only except the YAML artifact)
-- TypeScript / plugin implementation review
+- Help-site (Next.js) review
 
 ## Downstream consumers
 

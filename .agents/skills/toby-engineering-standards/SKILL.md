@@ -32,7 +32,7 @@ running `/swift-project-assessment` for a fuller context pack.
 - Do not duplicate SwiftUI property-wrapper / performance deep dives — hand those to
   `swiftui-architecture-review`.
 - Do not demand product refactors that violate documented ownership (e.g. moving harness
-  logic into the app, or adding Swift plugins).
+  logic into views, or reintroducing plugins or a background server).
 
 ## Standards checklist
 
@@ -40,18 +40,20 @@ running `/swift-project-assessment` for a fuller context pack.
 
 | Layer | Path | May contain | Must not |
 | --- | --- | --- | --- |
-| Features | `Sources/TobyApp/Features/*` | SwiftUI feature UI | Daemon business logic; raw TCC framework use that belongs in Native |
-| Stores | `Sources/TobyApp/Stores/*` | `@Observable` UI state + client calls | Permanent product rules that belong in `@toby/core` |
+| Features | `Sources/TobyApp/Features/*` | SwiftUI feature UI | Business logic that belongs in TobyCore; raw TCC framework use that belongs in Native |
+| Stores | `Sources/TobyApp/Stores/*` | `@Observable` UI state + `TobyClient` calls | Permanent product rules that belong in TobyCore |
 | UI | `Sources/TobyApp/UI/*` | Shared primitives, theme, markdown | Feature-specific flows |
-| Native | `Sources/TobyApp/Native/*` | TCC / framework bridges, native HTTP API | Chat transcript UI |
-| Utilities / Models | `Utilities/`, `Models/` | Shared clients, DTOs, pure helpers | View trees |
-| Core (TS) | `packages/core` | Harness, pipeline, plugins registry | Imported by Toby.app (forbidden) |
-| Plugins | `apps/plugin-*` | TypeScript bun-package integrations | New compiled Swift/binary plugins |
+| Native | `Sources/TobyApp/Native/*` | TCC / framework bridges behind `NativeDispatcher` | Chat transcript UI |
+| NativeCore | `Sources/TobyApp/NativeCore/*` | Routers that adapt TobyCore services to the app's JSON models | View trees |
+| Utilities / Models | `Utilities/`, `Models/` | `TobyClient` (in-process facade), DTOs, pure helpers | View trees |
+| TobyCore | `Sources/TobyCore` | Domain services (chat, sources, Home, follow-ups, flows, sync, backup) | SwiftUI / AppKit |
+| TobyAI / TobyStore / TobyMail | `Sources/Toby{AI,Store,Mail}` | OpenRouter SDK; SQLite + legacy import; IMAP/SMTP | App types |
 
-**App ↔ daemon:** UI uses `TobyClient` / HTTP. **Plugins ↔ native:** plugins call
-Toby.app `NativeServer`, not private app types.
+**App ↔ core:** UI calls `TobyClient`, which calls `NativeRuntime` services in
+process. TobyCore reaches macOS frameworks only through the `NativeBridge`
+protocol (implemented by `AppNativeBridge` → `NativeDispatcher`).
 
-Reference: `docs/architecture.md`, `Agents.md` Core vs CLI vs Toby.app table.
+Reference: `AGENTS.md` → Architecture.
 
 ### S2 — Design system
 
@@ -125,20 +127,20 @@ From `Claude.md` / project practice:
 ### S9 — Security & privacy
 
 - No API keys or tokens in the Swift sources or test fixtures
-- Appearance/`UserDefaults` is not a credentials store (Keychain / daemon credentials only)
+- Appearance/`UserDefaults` is not a credentials store (Keychain only, via `SecretStore` / `KeychainKeyStore`)
 - TCC prompts and privileged APIs stay behind `Native/*` handlers
 
 ### S10 — Docs when behavior changes
 
-If the change alters user-visible or developer-documented behavior, flag missing
-`docs/` and/or `apps/help-site/docs/` updates and point to **`toby-docs`**.
+If the change alters user-visible behavior, flag missing
+`apps/help-site/docs/` updates and point to **`toby-docs`**.
 
-### S11 — Monorepo / plugin policy
+### S11 — Single-app policy
 
-- **Do not** add first-party integrations under `packages/core/src/integrations/<name>/`
-  (plugins only; `BUILTIN_MODULES` empty by design)
-- **Do not** create compiled binary or Swift plugins; TypeScript bun-package only
-- Native macOS product code lives only in `apps/toby-app/`
+- Toby is one native app: **no** plugins, MCP, background daemon, local HTTP
+  server, CLI, or TypeScript runtime code
+- New sources and tools are Swift services in TobyCore exposed as chat tools
+- AI goes through TobyAI / OpenRouter only
 
 ## Scope selection
 

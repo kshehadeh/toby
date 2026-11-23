@@ -10,7 +10,7 @@ const columns: readonly { title: string; items: readonly FooterLink[] }[] = [
 		title: "Product",
 		items: [
 			{ label: "Features", href: "/#features" },
-			{ label: "Integrations", href: "/#integrations" },
+			{ label: "Sources", href: "/#integrations" },
 			{ label: "Privacy", href: "/#privacy" },
 			{ label: "Download", href: "/docs/getting-started/install" },
 		],
@@ -22,14 +22,7 @@ const columns: readonly { title: string; items: readonly FooterLink[] }[] = [
 			{ label: "Getting started", href: "/docs/getting-started/install" },
 			{ label: "Things to try", href: "/docs/examples" },
 			{ label: "Security", href: "/docs/security" },
-		],
-	},
-	{
-		title: "Developers",
-		items: [
-			{ label: "Create a plugin", href: "/docs/plugins/creating-a-plugin" },
-			{ label: "Local APIs", href: "/docs/api/overview" },
-			{ label: "Architecture", href: "/docs/architecture/overview" },
+			{ label: "How Toby works", href: "/docs/architecture/overview" },
 		],
 	},
 	{

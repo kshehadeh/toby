@@ -27,17 +27,17 @@ especially well if you:
 
 - Get more email than you can read, and want to know what actually matters
 - Juggle meetings and want notes and action items without typing them up
-- Keep tasks in Todoist or Apple Reminders and want help deciding what to do next
+- Keep tasks in Toby or Apple Reminders and want help deciding what to do next
 - Do the same report, recap, or check-in every week and want it done for you
 
 ## What Toby can do
 
 <FeatureHeading icon="bot" tone="ai" title="Answer questions about your day" />
 
-Connect your email, calendar, tasks, Slack, Notion, or Jira, and Toby can read
+Connect your email, calendar, reminders, and Slack, and Toby can read
 and act on them for you. It can summarize, search, draft replies, create
 events and reminders, and pull information from several apps into a single
-answer. See [Integrations](./integrations/overview).
+answer. See [Sources](./integrations/overview).
 
 <FeatureHeading icon="mic" tone="mic" title="Record and summarize meetings" />
 
@@ -68,19 +68,18 @@ a Shortcut, or hide distracting windows, all by asking. See
 <FeatureHeading icon="message" tone="chat" title="Chat from Slack" />
 
 Mention Toby in Slack and it replies in the thread, using the same knowledge and
-connected apps as on your Mac. See [Chat surfaces](./chat-surfaces/overview).
+connected apps as on your Mac. See [Inbound chat](./configuration/inbound-chat).
 
 ## How Toby works, in brief
 
 - **It runs on your Mac.** Toby is a native macOS app. Your settings, chat
   history, recordings, and passwords are stored on your computer, and
   passwords are encrypted. See [Security](./security).
-- **It uses an AI model you choose.** Toby sends your requests to an AI
-  service such as Vercel AI Gateway, OpenRouter, or OpenAI, or to a model
-  running on your own Mac with Ollama. You add one key during setup. See
-  [Set up AI](./getting-started/setup-ai).
+- **It uses OpenRouter for AI.** Toby sends your requests to models from
+  OpenAI, Anthropic, Google, and others through your OpenRouter account. You
+  sign in once during setup. See [Set up AI](./getting-started/setup-ai).
 - **It only sees what you connect.** Toby can only reach the apps you connect
-  in **Settings → Integrations**, and you can disconnect them at any time.
+  in **Settings → Sources** (plus the macOS permissions you grant), and you can disconnect them at any time.
 
 ## Get started
 

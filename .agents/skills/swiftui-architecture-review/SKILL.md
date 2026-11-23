@@ -33,7 +33,7 @@ belongs to **`toby-engineering-standards`**, not this skill.
 
 - Report **genuine problems only** — no nitpicks, no invented issues, no style prefs outside
   architecture and SwiftUI correctness.
-- Respect intentional patterns recorded in the assessment (e.g. dual ConfigureStore, AppKit
+- Respect intentional patterns recorded in the assessment (e.g. AppKit
   for menu bar, custom Settings tabs).
 - Prefer native SwiftUI; AppKit only where the assessment marks it intentional (windows,
   menu bar, native bridges).
@@ -65,7 +65,7 @@ file when unsure.
 
 - Does the change respect feature boundaries (`Features/`, `Stores/`, `UI/`, `Native/`)?
 - Are new types landing in the right layer?
-- Does UI talk to the daemon via `TobyClient` rather than reimplementing harness logic?
+- Does UI call `TobyClient` / TobyCore services rather than reimplementing domain logic in views?
 - Are native/TCC operations confined to `Native/`?
 - Does state ownership match the project pattern (`@Observable` store, injection from parent)?
 

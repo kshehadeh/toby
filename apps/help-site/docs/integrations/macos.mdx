@@ -4,35 +4,23 @@ title: macOS
 ---
 
 <BrandTitle icon="/img/integrations/macos.png">macOS</BrandTitle>
-Connect Toby to local macOS system controls. The macOS plugin delegates all
-macOS-native operations to **Toby.app's native API server** — CoreWLAN,
-CoreAudio, IOBluetooth, IOKit, and AppKit run inside Toby.app, which holds the
-TCC permissions. No third-party tools or Homebrew packages are required.
+Toby can control your Mac: Wi-Fi, Bluetooth, audio, display, clipboard,
+windows and apps, files, Shortcuts, and more. These controls are built into
+Toby.app. No third-party tools or Homebrew packages are required.
 
 <Callout type="info" title="Platform">
 
 
-**macOS only.** The plugin is included automatically with Toby.app installs
-under `~/.toby/plugins/`.
+**macOS only.** Always available; nothing to connect.
 
 
 </Callout>
 
-## Prerequisites
+## Setup
 
-- macOS 26 or later with Toby running locally on the Mac you want to control
-- Toby.app running for macOS system tools (the plugin auto-launches Toby.app in the background if needed)
-
-## Connect
-
-Open **Toby.app → Settings → Integrations → macOS** and click **Connect**.
-
-Toby probes native system APIs and stores a connected flag in `~/.toby/config.json`.
-
-If chat says **macOS context unavailable** while Settings shows it connected,
-that can indicate a chat preparation error even when the native connection is
-healthy. Update Toby and start a new chat. In development, rebuild the macOS
-plugin and restart the daemon so it reloads the plugin's chat templates.
+There is nothing to connect. Some controls need a macOS permission the first
+time (for example Accessibility for window controls). Review access under
+**Settings → Permissions**.
 
 ## Find local files
 
@@ -47,24 +35,6 @@ macOS may ask you to allow Toby to access Downloads, Desktop, or Documents.
 If access is denied, enable the relevant folder under **System Settings →
 Privacy & Security → Files and Folders → Toby**, then retry. Development builds
 appear as **Toby (Dev)**. The permission belongs to Toby.app.
-
-## Optional setup (bundled shortcuts)
-
-The macOS plugin can install signed **Toby Focus On** and **Toby Focus Off**
-shortcuts. Apple requires you to confirm each import in Shortcuts.app.
-
-If the integration offers a **Setup** action on its detail page (or during
-onboarding), run it once. Setup is idempotent — shortcuts already on your Mac
-are skipped.
-
-## Configure
-
-Open **Toby.app → Settings → Integrations → macOS**. There are no credential fields —
-connect is a one-time session flag on this Mac.
-
-## Verify
-
-Return to **Settings → Integrations**. macOS should show as connected and healthy.
 
 ## Capabilities
 
@@ -150,18 +120,14 @@ Toby never escalates privileges for you without an explicit system prompt.
 - **Display brightness** on some Apple Silicon Macs may not be readable or adjustable through the IODisplay APIs.
 - **Notification Center** is not exposed through a stable public API, so Toby does not list notifications.
 
-## Disconnect
-
-Select macOS in **Settings → Integrations** and click **Disconnect**. This clears Toby's connection flag; it does not modify system settings.
-
 ## Related
 
-- [Integrations overview](overview)
+- [Sources overview](overview)
 - [Apple Calendar](apple-calendar)
 - [Apple Reminders](apple-reminders)
 - [Apple Contacts](apple-contacts)
 - [Toby.app](../toby-app)
-- [Configure and connect](../getting-started/configure-and-status)
+- [Connect your apps](../getting-started/configure-and-status)
 
 ## Event-triggered workflows
 

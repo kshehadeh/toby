@@ -19,11 +19,11 @@ Personas don't teach Toby procedures. That's what [skills](./skills) are for.
 
 - **Prioritization** — A “technologist” persona cares more about technical threads; a “project manager” persona cares more about schedules and cross-team coordination.
 - **Tone and depth** — Instructions can ask for brevity, bullet summaries, or executive-level framing.
-- **Model choice** — Each persona can use a different provider and model (for example, a faster model for triage, a larger one for drafting). See [AI providers](./ai-providers/overview) for API keys and recommended models. In the model picker, entries tagged **· reasoning** come from the provider catalog (for example Vercel `reasoning` tags) and are better for deep thinking than short dashboard-style summaries.
+- **Model choice** — Each persona can use a different OpenRouter model (for example, a faster model for triage, a larger one for drafting). See [OpenRouter](./ai-providers/openrouter). In the model picker, entries tagged **· reasoning** are better for deep thinking than short summaries.
 
 ## Built-in personas
 
-Toby ships a small set of built-in personas. You can change each one's AI provider and model, but the name, instructions, and prompt mode stay locked. Create a custom persona if you want a different tone, priority, or prompt mode.
+Toby ships a small set of built-in personas. You can change each one's model, but the name, instructions, and prompt mode stay locked. Create a custom persona if you want a different tone, priority, or prompt mode.
 
 ### Toby (default)
 
@@ -59,7 +59,7 @@ lists every persona; click a row to edit it:
 
 ![Toby.app Personas catalog](/img/toby-app-settings-personas.png)
 
-The editor has two sections. **Persona** holds the icon, name, and instructions. **Model** holds the provider, model, and prompt mode (add or replace).
+The editor has two sections. **Persona** holds the icon, name, and instructions. **Model** holds the model and prompt mode (add or replace).
 
 - **Add Persona** — create a persona from those sections
 - **Set as default** — the persona used when chat starts

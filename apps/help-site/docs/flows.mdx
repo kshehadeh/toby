@@ -187,14 +187,14 @@ user permissions, so review code before saving and testing it.
 
 Tool steps show the reference you can copy into a prompt. The LLM step's
 **Insert step output** menu inserts one for you. For example,
-`{{json bag.jiraIssues}}` includes the Jira data when a step saves its output as
-`jiraIssues`. The reference uses the saved output name, which can differ from
+`{{json bag.unreadMail}}` includes the mail data when a step saves its output as
+`unreadMail`. The reference uses the saved output name, which can differ from
 the step's name. When multiple steps share a reference, the last step's data is
 used.
 
 To inspect the actual data, open a flow's **Recent runs**, select a run, and
-expand the step's **Outputs** under **Nodes**. The Jira search output includes an
-`issues` array. An LLM output saved as `summary` is displayed from
+expand the step's **Outputs** under **Nodes**. A mail search output includes a
+`messages` array. An LLM output saved as `summary` is displayed from
 `summary.markdown`; flow creation now checks that the requested result exists
 in the step outputs.
 
@@ -252,8 +252,7 @@ Chat remains the interactive option for open-ended work and follow-up questions.
 
 ## Tips
 
-- Connect Email, tasks, and Calendar integrations so dashboard flows have something useful to summarize.
-- Tune **Settings → Home** for the persona used by Home AI blurbs.
+- Connect Email and Calendar so dashboard flows have something useful to summarize.
 - Use the **Flows** window when you want to see *why* a dashboard blurb looks the way it does (which tools ran, and recent history).
 - For a first custom flow, start with tools whose arguments you already know (Wi-Fi off, volume, minimize all). Leave “pick these emails and archive them” to chat.
 

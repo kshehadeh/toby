@@ -1,67 +1,52 @@
 # Toby — Developer Guide
 
-## Project layout
+Toby is a single native macOS app (Swift 6 / SwiftUI, macOS 26+). No
+TypeScript runtime, CLI, daemon, local HTTP server, plugins, or MCP; AI goes
+through OpenRouter via the in-repo TobyAI module. See [`AGENTS.md`](AGENTS.md)
+for the full architecture and conventions.
 
-Monorepo managed with Bun workspaces and Turbo.
+## Project layout
 
 ```
 apps/
-  cli/          TypeScript maintenance CLI (Commander) — no terminal TUI
-  toby-app/     Native macOS app (Swift 6 / SwiftUI, macOS 26+) — only native code in the repo
-  plugin-*/     First-party plugins (all TypeScript bun-package format)
-packages/
-  core/         Shared harness (chat pipeline, AI, plugins, config, daemon API)
+  toby-app/     Swift package — TobyApp, TobyCore, TobyAI, TobyStore, TobyMail
+  help-site/    Public docs site (Next.js, Vercel)
+scripts/        build-app.sh, release, dev-loop and screenshot scripts
+VERSION         App version
 ```
 
-## Plugin convention
-
-All new plugins **must** be TypeScript bun-package plugins (directory with
-`manifest.json` + TypeScript entrypoint, executed via Toby's bundled Bun
-runtime). Do not create compiled binary or Swift plugins. The only native
-macOS code in this repository is the Toby.app itself (`apps/toby-app/`).
-
-When a plugin needs macOS framework access (EventKit, Shortcuts, system APIs,
-TCC-protected resources), the TypeScript plugin delegates those operations to
-Toby.app's native API server rather than compiling its own native binary. See
-[`toby-plugin-macos`](apps/plugin-macos/) and
-[`toby-plugin-applecalendar`](apps/plugin-applecalendar/) for reference.
+New capabilities (sources, tools, background work) are Swift services in
+`TobyCore`, exposed to chat through `ChatToolbox` and to the UI through
+`NativeRuntime` / `TobyClient`. macOS framework access (EventKit, Contacts,
+audio, TCC) stays in `Sources/TobyApp/Native/`, reached via `NativeBridge` →
+`NativeDispatcher`.
 
 ## Running the app
 
 ```sh
 bun run app          # build dev macOS app and open it
-bun run dev          # run CLI in dev/watch mode
 bun run dev:upgrade-available  # Dev app with a fake pending update (toolbar + tip)
+bun run dev:sandbox  # Dev app against a temp TOBY_DIR
 ```
+
+Never point development builds at a real `~/.toby` you care about: the first
+launch imports it and removes legacy daemon files. Copy it to a scratch
+`TOBY_DIR` instead.
 
 ## Tests
 
-### TypeScript (CLI + plugins)
 ```sh
-bun run test         # run all Vitest tests via Turbo
-bun run test:watch   # watch mode for CLI tests only
-```
-
-### Swift (native macOS app — ViewInspector)
-```sh
-bun run test:swift   # swift test --package-path apps/toby-app
+bun run test         # swift test --package-path apps/toby-app
 ```
 
 > **Prerequisite:** active developer directory must point to Xcode, not just CLT.
 > Run once if needed: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
 
-Swift tests live in `apps/toby-app/Tests/TobyAppTests/` and use the Swift Testing
-framework (`import Testing`) with ViewInspector for SwiftUI view assertions.
-
-## Building
-
-```sh
-bun run build:app       # build macOS .app bundle (dev variant)
-bun run build:release   # full release build (all plugins + app)
-bun run typecheck       # TypeScript type check across all packages
-bun run lint            # Biome lint
-bun run lint:fix        # Biome lint with auto-fix
-```
+- Core suites: `Tests/TobyCoreTests`, `TobyAITests`, `TobyStoreTests`, `TobyMailTests`.
+- UI tests: `Tests/TobyAppTests/` use Swift Testing (`import Testing`) with
+  ViewInspector. Known pre-existing ViewInspector failures and a signal-5
+  runner crash exist; compare against a baseline worktree.
+- Test processes always use a temporary Toby home.
 
 ## Adding Swift UI tests
 
@@ -72,32 +57,42 @@ bun run lint:fix        # Biome lint with auto-fix
    than using `find(viewWithId:)` — system images without explicit `.accessibilityLabel()`
    create `AccessibilityImageLabel` modifiers that block ViewInspector tree traversal.
 
-## Swift review skills (agents)
+## Building
 
-For SwiftUI / macOS architecture and quality reviews, use the pipeline in
-`.agents/skills/` rather than a single monolithic checklist:
+```sh
+bun run build:app       # build macOS .app bundle (dev variant)
+bun run build:release   # production Toby.app (signed/notarized in CI)
+bun run build:dmg       # release build + DMG
+bun run lint            # Biome (help site + scripts)
+bun run typecheck       # help site TypeScript
+```
+
+The app version comes from `VERSION`; `bun run release -- <patch|minor|major> --ci`
+bumps it (see the `release-toby` skill).
+
+## Swift review skills (agents)
 
 | Skill | Purpose |
 | ----- | ------- |
 | `swift-project-assessment` | Repo context → `.agents/context/swift-project-assessment.yaml` |
 | `swiftui-architecture-review` | Framework + architecture review (assumes assessment) |
-| `toby-engineering-standards` | Toby ownership, design system, tests, file size, plugins |
+| `toby-engineering-standards` | Ownership, design system, tests, file size, single-app policy |
 | `toby-swift-review` | Orchestrator (assessment → architecture → standards) |
 
 Deep SwiftUI references remain in `swiftui-pro` and `swiftui-expert-skill`.
-Window chrome: `toby-native-window`. See `Agents.md` → **Swift review skills**.
+Window chrome: `toby-native-window`.
 
 ## CI
 
-- `release.yml` — triggered on version tags; builds, signs, notarizes, and publishes;
-  its GitHub Pages job now only publishes the Sparkle `appcast.xml`. Builds from
-  v0.194.3 read `https://www.tobyai.app/appcast.xml` (Vercel redirects it to the
-  latest release asset); v0.194.2 and earlier read
+- `release.yml` — triggered on version tags; builds, signs, notarizes, and publishes
+  the DMG and Sparkle `appcast.xml`. Its GitHub Pages job only publishes the
+  appcast. Builds from v0.194.3 read `https://www.tobyai.app/appcast.xml` (Vercel
+  redirects it to the latest release asset); v0.194.2 and earlier read
   `https://kshehadeh.github.io/toby/appcast.xml`, so keep the Pages job until
   those installs have updated
 - Help site — Vercel project `toby-docs` (Git integration) deploys production on
   every merge to `main` that touches `apps/help-site/` (config in
   `apps/help-site/vercel.json`); serves `www.tobyai.app` (`tobyai.app` redirects
   there; shipped app builds still link to the legacy `toby.iwonderdesigns.com`)
-- `e2e.yml` (`.github/workflows/e2e.yml`) — runs Swift UI tests on every PR
+- `e2e.yml` (`.github/workflows/e2e.yml`) — runs Swift tests on every PR
 - Requires Xcode on the runner: workflow selects it with `xcode-select` before testing

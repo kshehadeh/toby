@@ -5,63 +5,33 @@ title: Inbound chat
 
 # Inbound chat
 
-**Inbound chat** lets an external integration (today primarily **Slack**) drive Toby turns without you typing in the Mac app—for example when someone @mentions the bot in a channel.
+**Chat replies** let people talk to Toby from Slack: someone @mentions your
+Slack app in a channel, or messages it directly, and Toby answers in the same
+thread using the persona you choose.
 
-Settings live under **Toby.app → Settings → Chat** (inbound / daemon chat).
+## Turn it on
 
-## Global settings
+1. Connect Slack with a **bot token** and an **app-level token** (see
+   [Slack → Let Toby reply](../integrations/slack#3-let-toby-reply-in-slack-optional)).
+2. Open **Settings → Chat Replies** and turn on **Reply to Slack messages**.
+3. Pick the persona Toby replies as (**Reply as**).
 
-| Setting | Purpose |
-| ------- | ------- |
-| **Enable inbound chat** | Master switch. Off by default. |
-| **Active integration** | Which connected integration owns inbound (for example Slack), or **None** |
-| **Persona for inbound turns** | Persona used for headless turns, or **(default)** for your default persona |
+Toby connects to Slack over Socket Mode while your Mac is awake and Toby is
+running (it can stay in the menu bar and start at login). The sidebar shows
+whether replies are connected; if not, the details explain what's missing.
 
-These values are stored in `~/.toby/config.json` under `chatInbound.*`.
+## How it works
 
-The background service must be running (Toby.app normally keeps it up). Inbound status also appears in daemon status (`/api/daemon/status`) and in the app’s server status UI (the status-dot control in the sidebar footer).
-
-## Per-integration requirements
-
-Global enable is not enough. The active integration must:
-
-1. Be **connected** under Integrations  
-2. Support inbound (plugin capability, for example Slack’s `inbound run`)  
-3. Have any **extra credentials** inbound needs (often different from chat OAuth)
-
-### Slack example
-
-Slack chat tools can use user OAuth, but **@mentions** need a **bot token** and **app-level token**, Socket Mode, and the right scopes. Full steps: [Slack → Inbound @mentions](../integrations/slack#inbound-mentions).
-
-The **Set up Slack** wizard guides app creation, checks bot and Socket Mode
-credentials, enables inbound with your chosen persona, and offers a DM or @mention
-test. You can finish without the message test, with verification marked incomplete.
-
-Typical flow:
-
-1. **Settings → Chat** — enable inbound, set **Active integration** to Slack, pick a persona.
-2. **Settings → Integrations → Slack** — set Bot Token, App Token (and related fields that appear when inbound targets Slack).
-3. Ensure the Slack app has Socket Mode and event subscriptions as described in the Slack guide.
-
-## Troubleshooting startup
-
-If inbound status shows an error, check its detail in the app’s server status
-control. Slack needs both **Bot Token** (`xoxb-…`) and **App Token** (`xapp-…`);
-connecting Slack with OAuth alone does not supply the Socket Mode app token. Add
-the missing credentials under **Settings → Integrations → Slack**, then reload
-inbound settings or restart the background service. A startup failure is reported
-as an error rather than a connected listener.
-
-## Behavior notes
-
-- Inbound turns use the same core chat pipeline as the Mac app (tools, memory, skills), under the chosen persona.
-- Turning inbound **off** stops listening; it does not disconnect the integration or delete credentials.
-- Only one **active** inbound integration is selected globally at a time.
-- **Sessions:** external threads and DMs map to Toby chat sessions so follow-ups keep context. In Slack, that means **one session per channel thread**, and **one session per 1:1 DM** with the bot (not a new session on every message). See [Chat surfaces → How conversations map to Toby sessions](../chat-surfaces/overview#how-conversations-map-to-toby-sessions).
+- **Chats:** each Slack thread, and each DM, maps to one Toby chat, so
+  follow-ups keep context. Replied chats appear in Toby's sidebar.
+- **Progress:** while Toby works, it posts a short status line in the thread
+  and replaces it with the answer.
+- **Questions:** if Toby needs a choice from you, it asks in the thread and
+  continues when you answer there.
+- **One Mac:** run replies on only one Mac per Slack app; two Macs listening
+  with the same app would both answer.
 
 ## Related
 
-- [Chat surfaces](../chat-surfaces/overview) — tools vs inbound product overview
-- [Configuration overview](./overview)
-- [Slack](../integrations/slack) — OAuth vs inbound tokens
-- [Local APIs](../api/overview) — daemon status fields for inbound
+- [Slack](../integrations/slack)
+- [Personas](../personas)

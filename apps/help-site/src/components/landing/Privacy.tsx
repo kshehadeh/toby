@@ -1,13 +1,9 @@
 import {
-	Code,
 	HardDrive,
 	KeyRound,
 	type LucideIcon,
-	Plug,
-	Server,
 	SlidersHorizontal,
 	Sparkles,
-	Terminal,
 } from "lucide-react";
 import Link from "next/link";
 import { ButtonLink } from "../Button";
@@ -28,45 +24,18 @@ const privacy: readonly Point[] = [
 	},
 	{
 		icon: KeyRound,
-		title: "Encrypted secrets",
-		body: "API keys and tokens are encrypted with AES-256-GCM, with the key held in your Keychain.",
+		title: "Secrets in your Keychain",
+		body: "Your AI key, mail passwords, and Slack tokens live in the macOS Keychain. Backups are encrypted.",
 	},
 	{
 		icon: Sparkles,
-		title: "Your choice of AI",
-		body: "Use Vercel AI Gateway, OpenRouter, or OpenAI, or keep it local with Ollama.",
+		title: "One AI account",
+		body: "Sign in with OpenRouter once and use models from OpenAI, Anthropic, Google, and more.",
 	},
 	{
 		icon: SlidersHorizontal,
 		title: "Only what you connect",
 		body: "Toby reaches only the apps you connect, and you can disconnect any of them at any time.",
-	},
-];
-
-const developer: readonly (Point & { href: string })[] = [
-	{
-		icon: Code,
-		title: "TypeScript plugins",
-		body: "Add an integration with a manifest and a TypeScript entry point.",
-		href: "/docs/plugins/creating-a-plugin",
-	},
-	{
-		icon: Plug,
-		title: "MCP servers",
-		body: "Connect any Model Context Protocol server as a first-class integration.",
-		href: "/docs/integrations/mcp",
-	},
-	{
-		icon: Server,
-		title: "Local APIs",
-		body: "Drive chats and native features from scripts over localhost.",
-		href: "/docs/api/overview",
-	},
-	{
-		icon: Terminal,
-		title: "A CLI for upkeep",
-		body: "Back up, restore, sync, and manage plugins from Terminal.",
-		href: "/docs/configuration/overview",
 	},
 ];
 
@@ -116,27 +85,12 @@ export function Privacy() {
 				<SectionHeading
 					eyebrow="Privacy"
 					title="Your data stays on your Mac"
-					lead="Toby is a native app, not a web service. You decide which AI it uses and which apps it can reach."
+					lead="Toby is a native app, not a web service. You decide which apps it can reach."
 				/>
 				<PointGrid points={privacy} />
 				<div className="mt-8">
 					<TextLink href="/docs/security">How Toby protects your data</TextLink>
 				</div>
-			</Container>
-		</section>
-	);
-}
-
-export function Developers() {
-	return (
-		<section className="border-t border-line-subtle py-24 sm:py-32">
-			<Container>
-				<SectionHeading
-					eyebrow="Developers"
-					title="Built to extend"
-					lead="Everything Toby connects to is a plugin, and the app exposes local APIs you can script."
-				/>
-				<PointGrid points={developer} />
 			</Container>
 		</section>
 	);

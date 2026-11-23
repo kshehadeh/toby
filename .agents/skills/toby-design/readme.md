@@ -7,10 +7,10 @@ Toby is an AI-assisted **native macOS app and CLI for personal productivity**.
 > SwiftUI source remains authoritative when it differs from a Figma or React
 > specimen.
 
-It connects Email, Todoist, Slack, Jira, Notion, Apple Calendar / Reminders /
-Contacts, web search and local macOS controls, so you can search, summarize,
+It connects Email, Slack, Apple Calendar / Reminders / Contacts, web search
+and local macOS controls, so you can search, summarize,
 organize and act on work from chat. Around chat it adds personas, skills,
-memories, schedules, daemon-run flows, and a local "listen" mode that records
+memories, todos, flows, and a local "listen" mode that records
 and transcribes audio on-device.
 
 The product's design goal, in the maintainer's words, is to be **as Mac-like as
@@ -21,9 +21,8 @@ and layouts that stay *spacious, never busy*.
 
 | Surface | What it is | Design source |
 | --- | --- | --- |
-| **Toby for macOS** | The main product. SwiftUI app: sidebar + detail split view, chat workspace, home dashboard, integrations, settings window, command palette. | `apps/toby-app/Sources/TobyApp` |
-| **Toby help site** | Public documentation (Docusaurus), dark-only, its own hotter orange. | `apps/help-site` |
-| **Toby CLI + plugins** | Terminal surface and `@toby/plugin-*` packages. No visual design of its own beyond the plugin icons. | `apps/cli`, `apps/plugin-*` |
+| **Toby for macOS** | The main product. SwiftUI app: sidebar + detail split view, chat workspace, home dashboard, sources, settings window, command palette. | `apps/toby-app/Sources/TobyApp` |
+| **Toby help site** | Public documentation (Next.js), dark-only, its own hotter orange. | `apps/help-site` |
 
 ## Sources used to build this system
 
@@ -68,7 +67,7 @@ length.
   "Browse installed skills, inspect their instructions, edit them, or add new
   reusable workflows."
 - **Empty states name the next action**, not the absence: "Content unavailable.
-  {error}", "No due date", "Waiting for daemon", "Connecting".
+  {error}", "No due date", "Connecting".
 - **Suggestions are written as user speech**, verb-first and specific:
   "Summarize unread mail that needs a reply", "Turn on Focus and minimize
   distracting windows".
@@ -84,7 +83,7 @@ length.
   ("today's calendar"), and em dashes in explanatory asides.
 - **No emoji in the app.** The one exception is the help site's download CTA
   glyph (`⬇ Download Toby for macOS`) and emoji fallbacks for a third-party
-  icon a plugin didn't ship. Do not add emoji to app UI.
+  icon an asset didn't ship. Do not add emoji to app UI.
 
 ## Visual foundations
 
@@ -116,7 +115,7 @@ length.
 - **SF Symbols cannot be shipped to the web.** For HTML cards and UI kits, use **Lucide** (CDN, `lucide@0.417.0`), matched name-for-name to the SF Symbol it stands in for; the bundled components draw a few small inline equivalents themselves. Flag this substitution in any deliverable that will sit next to the real app.
 - **Use the real raster icons that were copied in** rather than redrawing them: integration marks (email, todoist, slack, jira, notion, macos, apple-calendar, apple-reminders) and AI-provider marks (openai, ollama, openrouter, vercel, chutes) in `assets/icons/integrations/` and `assets/icons/ai/`.
 - **There is no vector logo.** The mark ships only as raster PNGs (`assets/logo/`): a line-drawn portrait of a bespectacled man in a suit. Where a mark can't be placed, set the wordmark **TOBY** in bold system type, all caps; never redraw or vectorize the portrait.
-- **Do not use emoji as app iconography.** A plugin manifest *may* provide an emoji string, which the integrations sidebar renders when no icon file exists; the help site uses `⬇` in its download CTA. That is the whole extent of it.
+- **Do not use emoji as app iconography.** The help site uses `⬇` in its download CTA. That is the whole extent of it.
 - **Unicode glyphs** stand in for a few affordances: `×3` counts, `✕` closers, `↗` external-link marks.
 - The only illustration in the system is `assets/illustrations/toby-architecture.svg`.
 

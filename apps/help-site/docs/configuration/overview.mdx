@@ -8,47 +8,38 @@ title: Settings overview
 Open **Settings** with the gear button in the toolbar or **⌘,**, then pick a
 section on the left. Changes save as you make them.
 
-![The Settings window, with sections listed on the left](/img/toby-app-settings.png)
-
 | Section | What it's for | Guide |
 | ------- | ------------- | ----- |
-| **General** | Data folder, start at login, menu bar icon, global shortcuts, theme, accent color | [App tour](../toby-app#general) |
-| **Home** | Which cards appear on Home and which persona writes their summaries | [App tour](../toby-app#customize-home) |
-| **AI** | Connect AI providers and see your usage | [Set up your AI](../getting-started/setup-ai) · [AI providers](../ai-providers/overview) |
-| **Library** | The model used to describe files you add to the Library | [Library](../library) |
-| **Personas** | Create and edit personas, and pick each one's AI model | [Personas](../personas) |
-| **Chat** | Let Slack @mentions start chats with Toby | [Inbound chat](./inbound-chat) |
-| **Sync** | Keep settings in sync across your Macs | [Settings sync](./icloud-sync) |
-| **Integrations** | Connect email, calendar, tasks, and other apps | [Connect your apps](../getting-started/configure-and-status) · [Integrations](../integrations/overview) |
-| **Providers** | Which app Toby uses by default when you have more than one of a kind (for example two task apps) | [Default providers](./default-providers) |
-| **Transcription** | How recordings are transcribed and summarized | [Transcription](./transcription) |
-| **Web Search** | Let Toby search the web | [Web Search](./web-search) |
-| **Weather** | Let Toby check the forecast | [Weather](./weather) |
-
-Toby's location for "near me" questions is a macOS permission rather than a
-setting. See [Location](./location).
+| **General** | Data folder, start at login, menu bar icon, shortcuts, Home layout, theme, accent color | [App tour](../toby-app#general) |
+| **Account** | Sign in with OpenRouter, credits, and the chat model | [Set up your AI](../getting-started/setup-ai) |
+| **Sources** | Connect Mail and Slack | [Connect your apps](../getting-started/configure-and-status) |
+| **Personas** | Create and edit personas, and pick each one's model | [Personas](../personas) |
+| **Follow-ups** | What Toby watches for and how often | [Follow-ups](../followups) |
+| **Recordings** | Summary persona and whether audio is kept | [Recordings](./transcription) |
+| **Chat Replies** | Let Toby answer Slack messages | [Inbound chat](./inbound-chat) |
+| **Sync & Backup** | Todo sync across Macs, daily data backups, and backup files | [Sync & Backup](./icloud-sync) |
+| **Permissions** | Calendar, Reminders, Contacts, microphone, location, and more | [Location](./location) |
 
 ## Where your data is stored
 
-By default Toby’s data root is **`~/.toby`**. In **Settings → General → Home
-directory** you can choose another folder; then every path below is under that
-root instead. The CLI still uses `~/.toby` unless `TOBY_DIR` is set in the
-environment.
+By default Toby's data folder is **`~/.toby`**. In **Settings → General → Home
+directory** you can choose another folder.
 
 | Path | Contents |
 | ---- | -------- |
-| `~/.toby/config.json` | Non-secret preferences: connection flags, personas, defaults, web search, inbound chat, schedules metadata, and similar |
-| `~/.toby/credentials.json` | Secrets (API keys, tokens). On Mac this file is **encrypted**; Toby keeps the encryption key in your Keychain. Never commit or share this file |
-| `~/.toby/chat.sqlite` | Chats, projects, schedules, flows, run history, and library catalog |
-| `~/.toby/memory.sqlite` | Saved memories, sources, and memory audit data |
-| `~/.toby/plugins/` | Installed integration plugins |
-| `~/.toby/skills/` | User skills |
-| `~/.toby/listen/recordings/` | Saved audio recordings and transcripts |
-| `~/.toby/library/` | Indexed library files (copied documents, PDFs, and images) |
-| `~/.toby/native-port` | Ephemeral port for Toby.app’s [Native API](../api/native-api) |
-| Local service port | Daemon [Server API](../api/server-api) default `http://127.0.0.1:7847` (`web.port` in config when set) |
+| `~/.toby/app/toby.sqlite` | Chats, projects, flows and runs, memories, todos, follow-ups, library catalog, and the mail cache |
+| `~/.toby/config.json` | Non-secret preferences such as personas, recordings, and chat replies |
+| `~/.toby/skills/` | Your skills |
+| `~/.toby/projects/` | Project folders |
+| `~/.toby/listen/recordings/` | Saved recordings and transcripts |
+| `~/.toby/library/` | Files added to the Library |
+| `~/.toby/logs/toby.log` | Activity log (also under **Help → Logs**) |
 
-You don't need to touch these files. The paths matter for backups, support, and advanced automation.
+Passwords, tokens, and your OpenRouter key live in the macOS **Keychain**, not
+in these files.
 
-For how credentials are encrypted on Mac, what a backup includes, and restore
-safety, see **[Security](../security)**.
+When you first open this version of Toby, it imports data from older versions
+(`chat.sqlite`, `memory.sqlite`, and credentials) into `app/toby.sqlite` and the
+Keychain, then removes the old plugin folders.
+
+For what a backup includes and restore safety, see **[Security](../security)**.

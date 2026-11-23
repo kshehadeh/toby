@@ -1,154 +1,55 @@
 ---
 sidebar_position: 8
-title: Settings sync
+title: Sync & Backup
 ---
 
-# Settings sync
+# Sync & Backup
 
-Share Toby **settings and secrets** across your Macs through **iCloud Drive** or
-a **folder you already sync** (Dropbox, Google Drive, OneDrive, NAS, Syncthing).
-The remote file is encrypted with a password you choose. The storage provider
-does not see your API keys.
+**Settings → Sync & Backup** keeps your todos in sync across your Macs and
+saves encrypted backups of everything else.
 
-This is separate from [password-protected backup files](../security#backup-and-restore)
-(`.tbybak`). Keep backups for offline copies; use sync for day-to-day multi-Mac
-use.
+| Synced continuously | Backed up (not synced) |
+| ------------------- | ---------------------- |
+| [Todos](../todos) | Chats, memories, projects and their files, flows and run history, recordings, library |
 
-iCloud Drive is the default when it is turned on. Use a folder when iCloud
-Drive is off, blocked, or you prefer another service.
+Settings and connected accounts are **not** synced. Set up each Mac's
+OpenRouter sign-in and sources on that Mac (or restore a backup file).
 
-## What is shared
+## Set up sync
 
-| Shared | Stays on each Mac |
-| ------ | ----------------- |
-| Settings (personas, connected integrations, AI and tool preferences) | Chat history |
-| Secrets (AI keys, Email / Slack / Notion tokens, and other plugin credentials) | Live chat/memory sync, recordings, library files |
-| Toby Todos, including history, lists, tags, and reminders | Todo notification enablement and delivery state |
-| | Skills, installed plugins, theme / menu bar / home directory |
+1. Choose where the encrypted vault lives: **iCloud Drive** (default) or a
+   folder you pick, such as a shared drive folder.
+2. Enter a vault password. Toby stores it in this Mac's Keychain. It cannot be
+   recovered: if you lose it, you must start a new vault.
+3. On your other Macs, choose the same location and enter the same password to
+   join. Toby checks the password before joining.
 
-## Set up with iCloud Drive
+Everything in the vault is encrypted on your Mac before it is written.
 
-1. Sign in to iCloud and turn on **iCloud Drive** in System Settings.
-2. Open **Toby.app → Settings → Sync**. In **Sync setup**, the **Sync destination** is
-   used by both settings sync and data backups.
-3. Leave **iCloud Drive** selected, enter a sync password twice, and choose
-   **Enable sync**.
-4. Toby writes an encrypted copy to **iCloud Drive → Toby → sync**.
+## Daily data backups
 
-Choose a password you will remember. It is required on every Mac that joins, and
-Toby cannot recover it from the vault.
+Under **Data backups**, turn on daily backups. Once a day while Toby is running,
+it writes an encrypted snapshot of this Mac's data (chats, memories, todos,
+projects and their files, recordings, and library items) to the vault and
+keeps the latest **3** per Mac. Use **Back Up Now** for an immediate snapshot.
 
-## If iCloud Drive is not available
+Snapshots include audio and transcripts, so they can be large.
 
-Use a folder that already appears on each Mac (Dropbox, Google Drive, a NAS
-share, Syncthing, and so on).
+To restore, pick a snapshot and choose **Restore**. This **replaces** the data
+on this Mac (it does not merge) and relaunches Toby. Settings and accounts are
+left alone. Projects are restored inside Toby's data folder.
 
-1. Open **Settings → Sync**.
-2. In **Sync setup → Sync destination**, choose **Folder**, then **Choose…** and pick a
-   **private** folder you already sync.
-3. Enter the same kind of sync password and choose **Enable sync**.
-4. On the other Mac, pick the matching folder (the path can differ), enter the
-   **same** password, and **Join vault**.
+After a restore, todo sync pauses until you choose **Review and merge…**, so the
+restored todos are merged with the vault deliberately.
 
-Toby writes `Toby/sync/settings.json` inside the folder you picked, not at
-the root of Dropbox or Drive. If the folder is unmounted later, sync stays on
-and retries; it does not delete your local settings.
+## Backup files
 
-CLI equivalent: `toby config sync enable --dir /path/to/folder`.
+**File → Backup Toby Data…** saves a password-protected `.tbybak` file with your
+data **and** your settings and connected accounts (stored securely in the
+file). **File → Restore Toby Data…** restores one on this or another Mac and
+relaunches Toby. Backups made by older versions of Toby can be restored too.
 
-## Set up a second Mac (iCloud)
+## Turning sync off
 
-1. Install Toby and sign in to the **same** Apple ID with iCloud Drive on.
-2. Open **Settings → Sync**. Toby should see the existing vault.
-3. Enter the **same** sync password and choose **Join vault**.
-4. This Mac downloads the snapshot and re-encrypts secrets for its own Keychain.
-
-## After it is enabled
-
-Toby uploads a new snapshot a few seconds after you change settings, and pulls
-updates when the app/daemon is running. Last write wins. Previous settings
-copies are kept in **History** on the **Settings backups** pane (last 3) so you
-can restore a bad overwrite.
-
-That pane is the live settings vault only — not chats, projects, recordings, or library files.
-Use **Back up settings now** to send this Mac’s settings immediately. Restore a
-previous copy from History if you need to roll settings back. CLI equivalent
-for an immediate upload: `toby config sync push`.
-
-## Todo sync
-
-[Toby Todos](../todos) use the same destination and password, but merge changes
-rather than replacing a snapshot. Independent field edits are kept; conflicting
-values remain recoverable in History. **Settings → Sync and Backup → Todos**
-shows pending changes, last sync, errors, and **Sync todos now**. Turn on
-**Todo reminders on this Mac** separately on each Mac that should notify you.
-
-Changing destinations also merges todos with the new destination. Turning sync
-off keeps local todos.
-
-## Change the sync destination
-
-1. Open **Settings → Sync → Sync setup**.
-2. Choose **Change…** beside **Sync destination**.
-3. Select **iCloud Drive** or **Folder**. For a folder, use **Choose…**.
-4. Enter and confirm the destination’s password (choose one for a new destination).
-5. Choose **Save destination**, then confirm the change.
-
-Sync stays enabled. If the destination already contains settings, Toby downloads
-those settings and credentials to this Mac; otherwise it uploads this Mac’s
-settings. A failed connection keeps the previous destination configured.
-**Cancel** discards your edits.
-
-Previous backups stay in the old destination. New settings copies and data
-backups use the new destination and password. Configure other Macs separately
-to use the same location. To restore a backup from the old location, switch back
-to it using its password.
-
-## Data Backups
-
-Chats, projects, schedules, flows, run history, memories, project files,
-recordings, and library files are not continuously synchronized because two Macs changing them at
-once could lose data. Instead, open **Settings → Sync → Data backups**
-to save an encrypted snapshot of this Mac once a day. Settings sync must
-be on first. Enable or disable daily backups here without changing the sync destination. Disabling overall sync in Sync setup also pauses automatic data backups. Each snapshot includes
-chats, memories, project files, recordings, and library items — audio, transcripts, and
-summaries — so they can be large. Toby keeps the latest **3** snapshots per
-Mac in the **Sync destination** in Sync setup (the same iCloud
-Drive or selected folder as settings sync) and deletes older ones.
-
-Use **Back Up Now** at the bottom of the pane to create one immediately.
-History lists the latest copies. Dates are shown in your local format. Click a
-snapshot to show it in Finder. To restore, choose **Restore**.
-This replaces all local chat and memory data, todos, project files, recordings, and library items on
-this Mac and restarts Toby; it does not merge data or restore it automatically.
-Projects are restored inside Toby's data folder; original custom project
-folders are left untouched.
-
-Full and data backups include todos. After a restore, todo sync and reminders
-pause until you choose **Review and merge…** in Sync and Backup. Toby preserves
-the restored snapshot until you confirm, then merges it with the destination.
-It does not replay old individual reminders.
-
-## If two Macs change settings at once
-
-The later snapshot replaces the earlier one. Restore an older snapshot from
-**History** on the Settings backups pane if you lost a change. Field-by-field
-merge is not supported for settings. Todos merge separately and retain history.
-
-## Inbound Slack
-
-Sharing Slack tokens is the point of sync. Run the **inbound listener on only
-one Mac**. Two daemons should not both listen with the same Socket Mode app.
-
-## Forgot the password
-
-The vault cannot be decrypted without it. On a Mac that still has your
-settings, disable and enable again with a new password (that replaces the
-remote vault), or restore a `.tbybak` backup. Other Macs then join with the new
-password.
-
-## Related
-
-- [Security](../security) — encryption and backups
-- [Configuration overview](./overview)
-- [Toby Mac App](../toby-app)
+Disabling sync stops todo sync and daily backups on this Mac and removes the
+vault password from the Keychain. You can also delete the vault's copy.

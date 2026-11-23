@@ -1,121 +1,37 @@
 ---
 sidebar_position: 5
-title: Transcription
+title: Recordings
 ---
 
-# Transcription
+# Recordings
 
-When you save a [Listen](../listen) recording, Toby can transcribe audio with a configured **transcription** provider. These settings are separate from your chat AI provider (though OpenAI, Vercel AI Gateway, and OpenRouter can reuse the same API keys you set under **AI**).
+[Recordings](../listen) are transcribed **on your Mac** with Apple speech
+recognition. Nothing is uploaded for transcription. After a recording is
+transcribed, Toby writes a summary and, when the recording has no name yet, a
+short title (these use your [OpenRouter](../ai-providers/openrouter) account).
 
-Open **Toby.app → Settings → Transcription**.
-
-## Settings
+Open **Settings → Recordings**.
 
 | Setting | Purpose |
 | ------- | ------- |
-| **Provider** | Transcription backend (Apple — On Device, OpenAI, Groq, Vercel AI Gateway, or OpenRouter) |
-| **Model** | Model id offered by that provider |
-| **API Key** | Optional dedicated key for transcription |
-| **Persona for recording summaries** | Persona used for the summary Toby writes after a recording is transcribed, and when you summarize again (falls back to the default persona) |
-| **Record microphone** | Capture the mic during **Record Audio** (default on) |
-| **Record system audio** | Capture other apps during **Record Audio** (default on) |
-| **Delete audio after transcription** | Delete a recording's audio files once transcription succeeds (default on); the transcript, summary, and recording entry are kept |
-
-At least one of microphone or system audio must stay on. When both are recorded,
-`combined.m4a` is dual-mono stereo (mic left, system right) rather than a summed
-mix—so headphone bleed does not turn into an echo. See [Recordings](../listen).
-
-**Delete audio after transcription** frees disk space by removing
-`combined.m4a` and the source WAVs after a successful transcription. Audio is
-kept when transcription fails, so you can retry. Once the audio is deleted, the
-recording cannot be re-transcribed; you can also delete a recording's audio
-manually with **Delete Audio** in the Recordings toolbar. Turn this setting off to keep audio
-files alongside transcripts.
-
-### Apple — On Device
-
-Choose **Apple — On Device** as the provider and **speech-transcriber** as the
-model to see a live transcript while recording. Open **Recordings** and select
-the active recording. Recent words appear in a lighter style and update as you
-speak; finalized words are saved when you stop.
-
-No API key is required. Recognition happens on your Mac using its current
-language. The first recording may wait for a language-model download before
-capture starts. Once installed, transcription can work offline. Supported
-Mac hardware and language support are required; Toby shows a message if Apple
-recognition is unavailable and keeps recording audio for a later retry.
-
-Microphone and system audio are labeled separately, rather than by speaker.
-Use headphones to reduce the same speech being picked up by both sources.
-Existing cloud provider selections remain unchanged, and Toby does not
-silently send audio to a cloud provider when Apple recognition fails.
-
-**Re-transcribe** also uses Apple when selected and requires retained audio.
-Recording summaries still use your chosen AI persona.
-
-### OpenAI
-
-If the provider reuses OpenAI, you can leave the transcription API key empty and Toby will use **Settings → AI → OpenAI → API Token** when no transcription-specific key is set. The Settings UI shows a hint when that applies.
-
-### Vercel AI Gateway
-
-The **Vercel AI Gateway** provider routes transcription requests through the same gateway key you use for chat. It reuses **Settings → AI → Vercel AI Gateway → API Key** (or `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN`) when no transcription-specific key is set.
-
-Available models are fetched from the live gateway catalog (filtered to `type: transcription`). The curated fallback list includes:
-
-| Slug | Upstream |
-| ---- | -------- |
-| `openai/whisper-1` | OpenAI Whisper |
-| `openai/gpt-4o-mini-transcribe` | OpenAI GPT-4o mini transcribe |
-| `openai/gpt-4o-transcribe` | OpenAI GPT-4o transcribe |
-| `xai/grok-stt` | xAI Grok STT |
-
-> **Note:** Gateway transcription is non-streaming and subject to the same audio payload limits as other providers (25 MB before chunking).
-
-### OpenRouter
-
-The **OpenRouter** provider uses OpenRouter’s speech-to-text API
-([`/api/v1/audio/transcriptions`](https://openrouter.ai/docs/guides/overview/multimodal/stt)),
-which is OpenAI-compatible. It reuses **Settings → AI → OpenRouter → API Key**
-(or `OPENROUTER_API_KEY`) when no transcription-specific key is set.
-
-Available models are loaded from the live OpenRouter catalog:
-
-```text
-GET https://openrouter.ai/api/v1/models?output_modalities=transcription
-```
-
-If the catalog is unreachable, Toby falls back to a curated list (Whisper,
-GPT-4o transcribe variants, Voxtral Mini Transcribe, Deepgram Nova-3, and similar).
-
-> **Note:** Multipart uploads are limited to 25 MB (same as other providers);
-> Toby chunks larger recordings automatically when possible.
+| **Record microphone** / **Record system audio** | Which sources a recording captures (both on by default; at least one stays on) |
+| **Delete audio after transcription** | Remove a recording's audio once its transcript is saved (default on). The transcript, summary, and recording entry are kept. Keep audio if you want to transcribe again later. |
+| **Summary persona** | The [persona](../personas) that writes recording summaries (defaults to your default persona) |
 
 ## When transcription runs
 
-- During recording when **Apple — On Device** is selected; the transcript is finalized when you stop.
-- After you **stop and save** a recording in Toby.app (or a capture path that finalizes into Listen storage)
-- When you **retry / re-transcribe** a recording from the Recordings window or related tools
-- Via the local service [Server API](../api/server-api) listen transcribe endpoint used by the app
-
-Capture itself uses Toby.app’s [Native API](../api/native-api) (microphone / system audio). Listing and transcription use the daemon **Server API**.
-
-## Recording summaries
-
-After you stop a recording and transcription succeeds, Toby writes a summary
-with the persona selected here and a short title when the recording is still
-unnamed. **Summarize** / **Re-Summarize** in the Recordings toolbar generates
-the summary again without changing a name you set. See [Recordings](../listen).
+- While recording, Toby transcribes live and keeps the transcript when you stop.
+- If a live transcript isn't complete, Toby transcribes the saved audio after you stop.
+- **Transcribe** in the Recordings window runs it again for a recording whose audio was kept.
 
 ## If transcription fails
 
-1. Confirm **Provider**, **Model**, and key (or OpenAI AI token).
-2. Open **Recordings**, select the recording, and retry transcription.
-3. Check that the recording has playable audio (`combined.m4a` or source WAVs).
+1. Check **Settings → Permissions** for **Speech Recognition** and **Microphone**.
+2. Open **Recordings**, select the recording, and transcribe again (needs the audio).
+3. A recording with no speech is kept with its audio so you can retry.
 
 ## Related
 
 - [Recordings](../listen)
 - [Personas](../personas)
-- [Configuration overview](./overview)
-- [OpenAI (direct)](../ai-providers/openai) — shared API token case
+- [Settings overview](./overview)

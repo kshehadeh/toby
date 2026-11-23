@@ -49,10 +49,9 @@ recording while you are already in Recordings selects that take.
 
 By default Toby records **both** your microphone and system audio (other apps
 such as meetings). You can turn either source off under
-**Settings → Transcription** (**Record microphone** / **Record system audio**).
+**Settings → Recordings** (**Record microphone** / **Record system audio**).
 
-For a **live transcript**, select **Apple — On Device** under
-**Settings → Transcription → Provider**, then start a recording. The active
+Toby transcribes **live** on your Mac while you record. The active
 recording shows microphone and system-audio text as it arrives. Recent words
 may change before becoming final. Recognition runs on your Mac without an API
 key; the first use may download language assets before capture begins. See
@@ -106,8 +105,8 @@ To write the summary again, open the recording and use **Summarize**
 (or **Re-Summarize** if a summary already exists) in the toolbar, or the
 **Summarize** link on the Summary tab when no summary exists yet. That does
 not change a name you set. Toby generates a concise markdown summary with the
-persona you choose under **Settings → Transcription → Persona for recording
-summaries** (or your default persona). The summary is stored with the
+persona you choose under **Settings → Recordings → Summary persona** (or your
+default persona). The summary is stored with the
 recording and shown on the Summary tab. While Toby is generating the summary,
 the Summary card shows a rainbow outline; if a summary already exists, that
 text stays visible until the new one arrives.
@@ -130,11 +129,10 @@ transcript. A name you already set stays as it is.
 Depending on selected sources, macOS may request Microphone, Screen/System Audio
 Recording, and related permissions for **Toby.app**.
 
-## Transcription settings
+## Recording settings
 
-Provider, model, and API key for speech-to-text are under **Settings → Transcription**,
-along with the persona used for recording summaries.
-See [Transcription](./configuration/transcription).
+The summary persona and whether audio is kept after transcription are under
+**Settings → Recordings**. See [Recordings](./configuration/transcription).
 
 ## Related
 

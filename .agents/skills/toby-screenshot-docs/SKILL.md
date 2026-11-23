@@ -70,10 +70,10 @@ After launch (Step 3), discover navigable UI from:
 | `list_windows` for the pid | Open windows (Settings, Logs, Permissions, …) and titles |
 | Code (when planning offline) | `DetailRoute` in `apps/toby-app/Sources/TobyApp/Utilities/NavigationHistory.swift` (sidebar routes); `Window(...)` / `openWindow(id:)` in `apps/toby-app/Sources/TobyApp/App/TobyApp.swift` (secondary windows); `Features/` under `apps/toby-app/Sources/TobyApp/Features/` (feature modules) |
 
-As of this writing, main routes include **Dashboard, Chats, Projects,
-Integrations, Schedules, Recordings, Skills, Memories**. Secondary windows
+As of this writing, main routes include **Home, Chats, Projects, Todos,
+Flows, Recordings, Skills, Library, Memories**. Secondary windows
 include **Settings, Logs, Permissions, Persona Editor**, plus sheets/modals
-(onboarding, server info, backup/restore, etc.). Re-check code if unsure—new
+(onboarding, backup/restore, etc.). Re-check code if unsure—new
 routes appear without this skill being edited.
 
 ### 1b. What already exists in the help site
@@ -119,8 +119,8 @@ was first created** (baseline `3b4c356a`, 2026-06-24). Treat this as a
 | **Dashboard** | New native dashboard, onboarding cards, metrics, recents | Main-window route; not in the original sidebar-only inventory |
 | **Projects** | New Projects feature + canvas / inspector | Full surface + project inspector when docs mention workspace |
 | **Memories** | New Memories management UI | Full surface + list/detail attributes when relevant |
-| **Settings** | Preferences-style **Settings window**, hierarchy sidebar, Appearance (theme/accent), AI provider cards/tips, Default Providers cards | Open Settings window; crop per section (AI, Persona, Appearance, …) |
-| **Integrations** | Two-column detail, inspector, tools list, layout cleanups | List overview vs per-integration detail crops |
+| **Settings** | Settings window sections: General, Account (OpenRouter), Sources, Personas, Follow-ups, Recordings, Chat Replies, Sync & Backup, Permissions | Open Settings window; crop per section |
+| **Sources** | Mail / Slack connect sheets, Sources pane | Sources pane plus each connect sheet |
 | **Skills / Schedules / Recordings** | Inspector/editor layouts; recordings summary, in-progress, transcribe controls | Prefer inspector + selected list row when docs describe editing |
 | **Chat** | Empty state logo, attachments, context fill, integration icons, streaming polish | Empty session vs example turn; crop transcript + composer when step-focused |
 | **Logs** | Unified log UI, source views, search | Secondary **Logs** window |

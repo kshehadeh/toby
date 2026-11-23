@@ -7,7 +7,7 @@ artifact. It is not the authority for production implementation.
 | --- | --- |
 | `01 Foundations` | `DESIGN.md` foundations and `UI/Theme/{AppTheme,SettingsDesign,NSColor+TobyTheme}.swift` |
 | `02 Components` | `component-recipes.md`; `UI/Primitives`, `UI/SettingsControls`, and feature component families |
-| `03 App layouts` | `screen-patterns.md`; Dashboard, Chat, Integrations, and Configure source families |
+| `03 App layouts` | `screen-patterns.md`; Dashboard, Chat, Sources, and Settings source families |
 
 ## Figma Variables
 

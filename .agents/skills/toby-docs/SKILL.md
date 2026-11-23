@@ -2,34 +2,29 @@
 name: toby-docs
 description: >
   Keep Toby documentation in sync when product or developer-facing behavior
-  changes. Updates both repo docs (`docs/`) and the user help site
-  (`apps/help-site/`). Use when implementing or changing features, enhancing
-  existing functionality, fixing user-visible behavior, adding plugins or CLI
-  commands, or whenever it is unclear whether docs need updating — ask the
-  user if unsure. Also use when the user runs /toby-docs or asks to update docs.
+  changes: the user help site (`apps/help-site/`) and the contributor guides
+  (`CLAUDE.md`, `AGENTS.md`). Use when implementing or changing features,
+  enhancing existing functionality, fixing user-visible behavior, or whenever
+  it is unclear whether docs need updating — ask the user if unsure. Also use
+  when the user runs /toby-docs or asks to update docs.
 ---
 
 # Keep docs and help-site in sync
 
 ## Goal
 
-Whenever functionality changes or is added, update **both** documentation
-surfaces that already cover that area (or create coverage for new
-user/developer-facing work). Do not treat code as done if the docs that
-describe it are now wrong or missing.
+Whenever functionality changes or is added, update the documentation that
+already covers that area (or create coverage for new user-facing work). Do not
+treat code as done if the docs that describe it are now wrong or missing.
 
-## Two documentation surfaces
+## Documentation surfaces
 
 | Surface | Path | Audience | Style |
 | --- | --- | --- | --- |
-| **Repo docs** | `docs/` | Contributors, agents, deep technical reference | Architecture, APIs, CLI, plugins, internals |
-| **Help site** | `apps/help-site/docs/` | End users of Toby.app / Toby | How-to, setup, product surfaces, integrations |
+| **Help site** | `apps/help-site/docs/` | End users of Toby.app | How-to, setup, product surfaces, sources, settings |
+| **Contributor guides** | `CLAUDE.md`, `AGENTS.md` | Contributors and agents | Layout, architecture, build/test/release commands |
 
-Also maintain indexes when you add pages:
-
-- `docs/README.md` — repo docs index
-- `Agents.md` — short contributor index (link new high-value `docs/` pages)
-- `apps/help-site/` — new `.mdx` under `docs/`; add it to the sidebar in `src/lib/sidebar.ts`
+When you add help-site pages, add them to the sidebar in `src/lib/sidebar.ts`.
 
 Screenshots for the native app live under `apps/help-site/public/img/` and are
 referenced from help-site pages. For UI screenshot refreshes, use the
@@ -41,19 +36,20 @@ cua-driver, crop to the subject region).
 **Always apply after (or as part of) work that:**
 
 1. **Changes existing documented behavior** — anything already described in
-   `docs/` or `apps/help-site/docs/` (commands, flags, UI, integrations,
-   schedules, projects, memory, listen, plugins, config paths, etc.).
-2. **Adds new functionality** — a new feature, surface, command, integration,
-   or setting.
+   `apps/help-site/docs/` (UI, settings, sources, flows, projects, memory,
+   recordings, sync/backup, data paths, etc.).
+2. **Adds new functionality** — a new feature, surface, source, or setting.
 3. **Enhances an existing feature** — new options, workflows, defaults, or
-   capabilities users or contributors need to know about.
-4. **Fixes user- or operator-visible behavior** when the docs currently state
-   the old (wrong) behavior.
+   capabilities users need to know about.
+4. **Fixes user-visible behavior** when the docs currently state the old
+   (wrong) behavior.
+5. **Changes how contributors build, test, or release** — update `CLAUDE.md` /
+   `AGENTS.md`.
 
 **Usually skip for:**
 
 - Pure refactors with no behavior or interface change
-- Internal-only cleanups (tests, types, formatting) with no public contract change
+- Internal-only cleanups (tests, types, formatting)
 - One-off debug scripts or throwaway local tooling
 
 ## If it is unclear: ask
@@ -69,68 +65,36 @@ Do not silently skip docs when the answer is ambiguous.
 
 ## Workflow
 
-### 1) Identify what changed (user-visible + developer-visible)
+### 1) Identify what changed
 
-From the task and the diff, list:
-
-- New or changed **CLI commands / flags**
-- New or changed **daemon / HTTP / SSE API**
-- New or changed **plugins, tools, or integrations**
-- New or changed **Toby.app UI surfaces or settings**
-- New or changed **config paths, env vars, or `~/.toby` layout**
-- Behavior users will notice in chat, schedules, projects, memory, listen, etc.
+From the task and the diff, list new or changed Toby.app UI surfaces or
+settings, sources and chat tools, config paths or `~/.toby` layout, and
+behavior users will notice in chat, Home, flows, projects, memory, recordings,
+or sync. Note build/test/release changes for the contributor guides.
 
 ### 2) Find existing coverage
 
-Search both trees before writing:
-
 ```bash
-# Repo docs
-rg -n -i "<topic keywords>" docs/
-
-# Help site source (not build/)
-rg -n -i "<topic keywords>" apps/help-site/docs/
+rg -n -i "<topic keywords>" apps/help-site/docs/ CLAUDE.md AGENTS.md
 ```
 
-Also check:
-
-- `docs/README.md` and `Agents.md` for linked pages
-- `apps/help-site/docs/` for the closest user-facing page (e.g. `integrations/`,
-  `getting-started/`, `toby-app.md`, `schedules.md`, `projects.md`)
+Check the closest user-facing page (`getting-started/`, `integrations/`,
+`configuration/`, `toby-app.mdx`, feature pages).
 
 ### 3) Update the right places
 
-| Situation | Action |
-| --- | --- |
-| Topic already in **both** surfaces | Update **both** so they stay consistent |
-| Topic only in **repo `docs/`** | Update `docs/`; add or extend help-site if the change is **user-facing** |
-| Topic only in **help-site** | Update help-site; add or extend `docs/` if the change is **contributor- or API-facing** |
-| **New** user-facing feature | Add/extend help-site page **and** add/extend technical `docs/` when there is design, CLI, API, or plugin detail |
-| **New** internal/dev-only contract (plugin protocol, pipeline, server API) | Prefer `docs/`; help-site only if users configure or operate it |
-| Unclear | **Ask the user** |
-
-Keep each surface appropriate:
-
-- **`docs/`**: accurate, specific, link to code paths when useful; update related
-  pages (e.g. `commands.md`, `integrations.md`, `server-api.md`).
-- **Help site**: clear steps, product language, fewer implementation details;
-  update related getting-started / feature pages.
+- **Help site**: clear steps, product language (Settings section names exactly
+  as in the app: General, Account, Sources, Personas, Follow-ups, Recordings,
+  Chat Replies, Sync & Backup, Permissions), few implementation details.
+- **Contributor guides**: accurate commands and paths.
+- Unclear scope: **ask the user**.
 
 ### 4) New pages
 
 When creating a **new** doc:
 
-**Repo docs (`docs/`):**
-
-1. Add `docs/<topic>.md` (or a focused sibling next to related topics).
-2. Link it from `docs/README.md`.
-3. If contributors should discover it quickly, add a row to the index table in
-   `Agents.md`.
-
-**Help site (`apps/help-site/docs/`):**
-
 1. Add a `.mdx` file under the right folder (`getting-started/`,
-   `integrations/`, `plugins/`, top-level feature page, etc.). The file path is
+   `integrations/`, `configuration/`, top-level feature page, etc.). The file path is
    the URL: `docs/integrations/foo.mdx` → `/docs/integrations/foo`.
 2. Use frontmatter consistent with neighboring pages (`title`, optional
    `description` and `sidebar_label`).
@@ -157,8 +121,7 @@ Before considering the work complete:
 - [ ] Statements of behavior match the code you shipped
 - [ ] Command names, flags, tool names, and config keys match exactly
 - [ ] Cross-links still resolve (no stale paths)
-- [ ] Both surfaces updated when the topic lives in both
-- [ ] Indexes updated for new pages (`docs/README.md`, `Agents.md` as needed)
+- [ ] New pages added to `src/lib/sidebar.ts`
 - [ ] If help-site content changed substantially, optionally verify:
   ```bash
   cd apps/help-site && bun run build
@@ -166,30 +129,20 @@ Before considering the work complete:
 
 ### 6) Report what you did
 
-In the handoff to the user, briefly list:
-
-- Which `docs/` files were added or updated
-- Which `apps/help-site/docs/` files were added or updated
-- Anything you **did not** document and why (or questions still open)
+In the handoff, list the help-site pages and contributor-guide sections you
+changed, and anything you did **not** document and why.
 
 ## Decision shortcuts
 
-- **CLI / config / daemon API change** → `docs/commands.md`, `docs/server-api.md`,
-  `docs/daemon.md` as relevant; help-site only if end users run those flows
-  (setup, status, install).
-- **Integration or plugin** → `docs/integrations.md` (+ topic doc if one exists);
-  help-site `docs/integrations/` (and `plugins/` for authoring).
-- **Toby.app UI** → help-site `docs/toby-app.md` (and feature pages); repo docs
-  only for architecture / native bridge details.
-- **Chat pipeline / AI / memory internals** → primarily `docs/`; help-site for
-  user-facing memory/skills/personas behavior.
-- **Listen / schedules / projects** → both surfaces have pages; update both when
-  behavior or UX changes.
+- **Toby.app UI or settings** → help-site `docs/toby-app.mdx`, `configuration/`
+  and the feature page.
+- **Sources (Mail, Slack, Apple apps)** → help-site `docs/integrations/`.
+- **AI / models** → help-site `docs/ai-providers/openrouter.mdx` and
+  `getting-started/setup-ai.mdx`.
+- **Build, test, release, layout** → `CLAUDE.md` and `AGENTS.md`.
 
 ## What not to do
 
-- Do not update only one surface when the other already documents the same
-  feature and is now wrong.
 - Do not invent product promises that the code does not implement.
 - Do not dump raw implementation notes into the help site.
 - Do not edit `apps/help-site/out/` or `.next/` — that is generated output.

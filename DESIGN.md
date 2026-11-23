@@ -111,8 +111,8 @@ language or cheerleading.
 
 - Refer to Toby in the third person: “Toby can read and send mail for this
   account,” not “I can…”.
-- Empty states name the next meaningful action: “Waiting for daemon”,
-  “Connect an email account to see unread mail,” or “No due date”.
+- Empty states name the next meaningful action: “Connect an email account to
+  see unread mail,” “Sign in with OpenRouter,” or “No due date”.
 - Suggestions are specific, verb-first user speech.
 - Reuse fixed status terms: **Connected, Connecting…, Disabled, Idle, Error,
   Unknown, Completed, Overdue, Due today, Due tomorrow**.

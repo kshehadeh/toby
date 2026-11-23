@@ -4,19 +4,8 @@ const apps = [
 	{ name: "Email", icon: "/img/integrations/email.png" },
 	{ name: "Apple Calendar", icon: "/img/integrations/apple-calendar.png" },
 	{ name: "Apple Reminders", icon: "/img/integrations/apple-reminders.png" },
-	{ name: "Todoist", icon: "/img/integrations/todoist.png" },
 	{ name: "Slack", icon: "/img/integrations/slack.png" },
-	{ name: "Notion", icon: "/img/integrations/notion.png" },
-	{ name: "Jira", icon: "/img/integrations/jira.png" },
 	{ name: "macOS", icon: "/img/integrations/macos.png" },
-] as const;
-
-const providers = [
-	{ name: "Vercel AI Gateway", icon: "/img/ai-providers/vercel.png" },
-	{ name: "OpenRouter", icon: "/img/ai-providers/openrouter.png" },
-	{ name: "OpenAI", icon: "/img/ai-providers/openai.png" },
-	{ name: "Chutes", icon: "/img/ai-providers/chutes.png" },
-	{ name: "Ollama", icon: "/img/ai-providers/ollama.png" },
 ] as const;
 
 function LogoRow({
@@ -55,16 +44,15 @@ export function Integrations() {
 			<Container>
 				<div data-reveal className="text-center">
 					<p className="mb-8 text-sm text-muted">
-						Works with the apps you already use, plus any MCP server
+						Built in: the apps you already use
 					</p>
 					<LogoRow items={apps} />
-					<p className="mt-12 mb-8 text-sm text-muted">
-						Bring your own AI, or run a model on your Mac
+					<p className="mt-12 text-sm text-muted">
+						AI through your OpenRouter account
 					</p>
-					<LogoRow items={providers} />
 					<div className="mt-10">
 						<TextLink href="/docs/integrations/overview">
-							See all integrations
+							See all sources
 						</TextLink>
 					</div>
 				</div>

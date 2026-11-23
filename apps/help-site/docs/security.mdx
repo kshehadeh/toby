@@ -1,135 +1,64 @@
 ---
-sidebar_position: 12
+sidebar_position: 20
 title: Security
 ---
 
 # Security
 
-How Toby keeps your API keys and integration secrets on your Mac, and how
-backup and restore work.
+Toby runs on your Mac and keeps your data there. This page explains what is
+stored where, how secrets are protected, and what backups contain.
 
 ## What Toby protects
 
-Toby stores secrets **on your computer**. There is no Toby-hosted cloud for
-credentials. Optional [settings sync](./configuration/icloud-sync) stores only an
-**encrypted** snapshot in **your** iCloud Drive or a folder you already sync.
-
-| Goal | How Toby handles it |
-| ---- | ------------------- |
-| Keep secrets out of plain text files | On macOS, `credentials.json` is **encrypted at rest** |
-| Let you move settings between Macs | **Password-protected** backup files (`.tbybak`) and optional **settings sync** |
-| Avoid leaking keys in the UI | Settings shows masked values (`••••••`) for secrets |
-
-Toby does **not** replace full-disk encryption, a strong Mac login password, or
-caution about malware running as your user. Treat your Mac login and Keychain as
-part of your security boundary.
+| Goal | How |
+| ---- | --- |
+| Keep secrets out of files | Your OpenRouter key, mail passwords, and Slack tokens are stored in the macOS **Keychain** |
+| Keep data on your Mac | Chats, memories, todos, projects, recordings, and library files live in `~/.toby` |
+| Protect synced data | The sync vault and backups are encrypted on your Mac with your password (AES-256-GCM, scrypt key derivation) |
+| Ask before acting | macOS permissions gate Calendar, Reminders, Contacts, microphone, location, and system controls |
 
 ## Where data lives
 
-| Location | What it holds |
-| -------- | ------------- |
-| `~/.toby/config.json` | Preferences that are **not** secrets (personas, which integrations are connected, defaults, web search, …) |
-| `~/.toby/credentials.json` | **Secrets**: AI keys, Email/Notion/Slack tokens, MCP tokens/env, and other connection credentials |
-| Other `~/.toby/…` paths | Chat history, memories, recordings, library files, skills — see [Configuration overview](./configuration/overview) |
+| Location | Contents |
+| -------- | -------- |
+| Keychain | OpenRouter key, mail passwords, Slack tokens, sync vault password |
+| `~/.toby/app/toby.sqlite` | Chats, projects, flows and runs, memories, todos, follow-ups, library catalog, mail cache |
+| `~/.toby/config.json` | Non-secret preferences (personas, recordings, chat replies) |
+| `~/.toby/projects/`, `listen/`, `library/`, `skills/` | Project folders, recordings, library files, skills |
 
-Integration **passwords and API keys** live in credentials. “Connected”
-status alone lives in config — so a backup only helps for secrets that were
-actually saved when you created it.
+## Who Toby talks to
 
-## Credentials encryption (macOS)
+- **OpenRouter**, for AI requests (chat, Home, follow-ups, summaries, web search).
+- **Your mail server** and **Slack**, when connected.
+- **Open-Meteo**, for weather.
+- **GitHub**, to show release notes; **Sparkle**, to check for updates.
 
-On Mac, Toby encrypts the credentials file with **AES-256-GCM**. The
-encryption key is stored in the **macOS Keychain**, not next to the file.
-
-| Keychain field | Value |
-| -------------- | ----- |
-| Service | `dev.toby.credentials` |
-| Account | `data-encryption-key` |
-
-You may see a one-time prompt the first time Toby needs to use this Keychain
-item. After that, Settings and plugins keep working as usual — encryption is
-transparent while you use Toby.
-
-### What this means in practice
-
-- Opening `credentials.json` in a text editor shows ciphertext, not raw API
-  keys.
-- **Copying only** `credentials.json` to another computer does **not** unlock
-  your secrets (the Keychain item does not travel with the file).
-- If the Keychain item is deleted and you have no backup, Toby cannot decrypt
-  the file — re-enter secrets in Settings, restore a `.tbybak` backup, or join
-  [settings sync](./configuration/icloud-sync) from another Mac.
-
-## Settings sync
-
-**Settings → Sync** can keep an encrypted copy of settings and secrets in
-iCloud Drive or a folder you already replicate so your other Macs stay in
-sync. The wrapping password is stored in this Mac’s Keychain (`dev.toby.sync`),
-not in the remote file. See [Settings sync](./configuration/icloud-sync) for
-setup, what is included, and password recovery.
+Toby has no server of its own and does not collect your data.
 
 ## Backup and restore
 
-Use a **password-protected backup** when you want a portable copy of settings,
-secrets, and your Toby data (new Mac, reinstall, safety before a big change).
-
-### From Toby.app
-
-| Menu | Action |
-| ---- | ------ |
-| **File → Backup Toby Data…** | Choose a password, then a save location for a `.tbybak` file |
-| **File → Restore Toby Data…** | Pick a `.tbybak` file, enter the password if asked, confirm replace |
-
-### From Terminal
-
-```sh
-toby config backup
-toby config backup ~/Desktop
-toby config restore ~/Desktop/toby-config-backup-….tbybak
-```
-
-The app menus use the **same** `.tbybak` format as these CLI commands.
-
-### What a backup includes
+**File → Backup Toby Data…** writes a `.tbybak` file encrypted with the password
+you choose. It contains:
 
 | Included | Not included |
 | -------- | ------------ |
-| Settings in `config.json` (personas, connection flags, defaults, …) | Installed plugin packages and local plugin data |
-| Secrets in credentials (AI keys, **Email, Notion, Slack, and other plugin credentials**, transcription keys) | Skills and persona image files |
-| Chat database (chats, projects, schedules, flows, and run history) | App appearance and other Mac-only preferences |
-| Memories database | Symbolic links inside project folders |
-| Project folders, including projects stored outside Toby's data folder | |
-| Recordings — audio, transcripts, and summaries | |
-| Library files — copied documents, PDFs, images, and extracted text | Live two-way merge of library files across Macs |
+| Chats, memories, todos, projects and their files, flows and runs, recordings, library | Theme, menu bar, and home-folder preferences on this Mac |
+| `config.json` preferences and your Keychain secrets (OpenRouter, mail, Slack) | |
 
-Backups can be large because they include audio. The archive is encrypted with
-**your backup password** (separate from the
-Keychain). Anyone with the file **and** that password can restore your
-secrets — choose a strong password and store the file carefully.
-
-### Restore notes
-
-- Restore **replaces** current settings, credentials, chat data, memories,
-  project files, recordings, and library items on this Mac.
-- Projects are restored inside Toby's data folder. A project that used a custom
-  folder keeps a copy of its files there; the original folder is left untouched.
-- After restore, Toby re-encrypts credentials for **this** Mac’s Keychain.
-- Toby restarts its daemon before applying database, project, recording, and library
-  data. You cannot restore while a recording is in progress.
-- Prefer restore over manually copying `credentials.json`.
+**File → Restore Toby Data…** checks the password and the file's integrity,
+then relaunches Toby and replaces the data on this Mac. Daily data backups in
+[Sync & Backup](./configuration/icloud-sync) contain the same data without
+settings or secrets.
 
 ## Tips
 
-1. **Back up before major upgrades** or when changing machines.
-2. **Never commit** `credentials.json` or `.tbybak` files to git.
-3. If an integration looks “connected” but tools fail, open Settings and
-   re-enter that integration’s secrets — connection flags and secrets are
-   stored separately.
-4. Full-disk encryption (FileVault) plus a locked Mac login still matter.
+1. Use a strong, unique backup password and store it in your password manager;
+   Toby cannot recover it.
+2. Never commit `.tbybak` files or your Toby folder to git.
+3. Use app passwords for mail when your provider offers them.
+4. Revoke Toby's OpenRouter key from your OpenRouter account if you lose a Mac.
 
 ## Related
 
-- [Configuration overview](./configuration/overview) — paths and Settings map
-- [Settings sync](./configuration/icloud-sync) — multi-Mac encrypted snapshots
-- [Toby.app](./toby-app) — File menu backup/restore and Settings
-- [Configure and connect](./getting-started/configure-and-status) — setting up integrations
+- [Sync & Backup](./configuration/icloud-sync)
+- [Settings overview](./configuration/overview)

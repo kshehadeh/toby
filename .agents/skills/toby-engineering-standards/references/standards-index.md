@@ -12,7 +12,7 @@
 | S8 | Logging | `print` for errors; secrets in logs |
 | S9 | Security | Token in source; credentials in UserDefaults |
 | S10 | Docs | Behavior change, no docs/help-site update |
-| S11 | Monorepo / plugins | Swift plugin scaffold; core built-in integration module |
+| S11 | Single-app policy | Plugins, MCP, daemon, local HTTP server, or TS runtime code |
 
 ## Severity defaults
 

@@ -1,7 +1,7 @@
 import { Features } from "@/components/landing/Features";
 import { Hero } from "@/components/landing/Hero";
 import { Integrations } from "@/components/landing/Integrations";
-import { ClosingCta, Developers, Privacy } from "@/components/landing/Privacy";
+import { ClosingCta, Privacy } from "@/components/landing/Privacy";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { Walkthroughs } from "@/components/landing/Walkthroughs";
 import type { Metadata } from "next";
@@ -22,7 +22,6 @@ export default function Home() {
 			<Features />
 			<Walkthroughs />
 			<Privacy />
-			<Developers />
 			<ClosingCta />
 		</main>
 	);

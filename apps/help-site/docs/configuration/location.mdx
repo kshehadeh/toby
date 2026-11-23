@@ -17,7 +17,7 @@ asks you to grant Location access to **Toby.app**.
 
 When the model calls `getMyLocation`, Toby:
 
-1. Talks to Toby.app’s local Native API.
+1. Asks macOS for your location.
 2. Requests Location Services access if you have not already allowed it.
 3. Returns your approximate coordinates and, when possible, a place name (city,
    region, country).
@@ -41,7 +41,7 @@ Ask natural questions such as:
 
 - “Where am I right now?”
 - “What’s my current location?”
-- “What’s the weather near me?” (with [Weather](./weather) enabled, Toby may
+- “What’s the weather near me?” (weather is built in; Toby may
   call `getMyLocation` first)
 
 Toby should use **`getMyLocation`** instead of guessing your city.
@@ -57,6 +57,4 @@ Services.
 
 ## Related
 
-- [Weather](./weather) — forecasts; pairs with location for “near me”
-- [Native API](../api/native-api) — `/api/native/location/*` endpoints
 - [Toby Mac App](../toby-app) — Permissions window and native bridge

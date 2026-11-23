@@ -65,16 +65,16 @@ const sections: readonly Section[] = [
 	},
 	{
 		icon: Sparkles,
-		title: "AI providers",
+		title: "AI (OpenRouter)",
 		description:
-			"Choose Vercel AI Gateway, OpenRouter, OpenAI, Chutes, or a local model with Ollama.",
-		href: "/docs/ai-providers/overview",
+			"Sign in once and use models from OpenAI, Anthropic, Google, and more.",
+		href: "/docs/ai-providers/openrouter",
 	},
 	{
 		icon: Settings2,
 		title: "Settings",
 		description:
-			"Default models, web search, weather, transcription, and settings sync.",
+			"Account, sources, recordings, chat replies, sync, and backups.",
 		href: "/docs/configuration/overview",
 	},
 	{
@@ -86,10 +86,9 @@ const sections: readonly Section[] = [
 	},
 	{
 		icon: Code,
-		title: "For developers",
-		description:
-			"Write a plugin, call the local APIs, and see how Toby fits together.",
-		href: "/docs/plugins/creating-a-plugin",
+		title: "How Toby works",
+		description: "One native Mac app: what runs where and what Toby talks to.",
+		href: "/docs/architecture/overview",
 	},
 ];
 
