@@ -23,18 +23,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.10"
-
       - name: Show Xcode version
         run: |
           xcodebuild -version
           xcrun --sdk macosx --show-sdk-version
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
 
       - name: Cache SwiftPM binary artifacts
         uses: actions/cache@v4
@@ -44,7 +36,6 @@ jobs:
 
       - name: Build release artifacts
         env:
-          BUN_TARGET: bun-darwin-arm64
           SWIFT_ARCH: arm64
           TOBY_APP_BUILD_NUMBER: ${{ github.run_number }}
           TOBY_SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
@@ -117,28 +108,6 @@ jobs:
             exit 1
           fi
 
-          # Sign standalone binaries in dist/
-          codesign --force --options runtime --timestamp --sign "$identity" dist/toby
-          codesign --force --options runtime --timestamp --entitlements scripts/bun-runtime.entitlements --sign "$identity" dist/bun
-
-          # Sign executables bundled inside Toby.app/Contents/Resources/
-          # codesign --deep does NOT traverse Contents/Resources/ (non-standard
-          # code location), so each binary must be signed individually.
-          APP_RESOURCES="dist/Toby.app/Contents/Resources"
-          for bin in \
-            "$APP_RESOURCES/toby" \
-            "$APP_RESOURCES/toby-listener"; do
-            [[ -f "$bin" ]] || continue
-            codesign --force --options runtime --timestamp --sign "$identity" "$bin"
-          done
-          codesign --force --options runtime --timestamp --entitlements scripts/bun-runtime.entitlements --sign "$identity" "$APP_RESOURCES/bun"
-
-          # Image processing ships native Sharp/libvips modules in Resources.
-          # Sign these explicitly before signing the enclosing app.
-          while IFS= read -r -d '' module; do
-            codesign --force --options runtime --timestamp --sign "$identity" "$module"
-          done < <(find "$APP_RESOURCES/toby-plugin-images" -type f \( -name '*.node' -o -name '*.dylib' \) -print0)
-
           # Sparkle is copied manually by scripts/build-app.sh. Sign nested
           # executables before signing the framework and app bundle.
           SPARKLE_FRAMEWORK="dist/Toby.app/Contents/Frameworks/Sparkle.framework"
@@ -166,8 +135,6 @@ jobs:
 
           # Verify all signatures
           codesign --verify --strict --verbose=2 dist/Toby.app
-          codesign --verify --strict --verbose=2 dist/toby
-          codesign --verify --strict --verbose=2 dist/bun
 
       - name: Notarize Toby.app
         if: steps.signing.outputs.enabled == 'true'

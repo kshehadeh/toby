@@ -2,75 +2,38 @@
   "name": "toby",
   "version": "0.197.0",
   "private": true,
-  "description": "Toby monorepo — personal productivity CLI",
+  "description": "Toby — a native macOS assistant. This package only holds the help site and release tooling; the app is Swift (apps/toby-app).",
   "type": "module",
   "packageManager": "bun@1.3.10",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/help-site"
   ],
-  "overrides": {
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
-  },
   "scripts": {
-    "postinstall": "bunx patch-package && bun ./scripts/install-git-hooks.mjs",
-    "build": "turbo run build",
-    "build:plugin:sample-ts": "bun run --cwd apps/plugin-sample-ts build",
-    "build:plugin:slack": "bun run --cwd apps/plugin-slack build",
-    "build:plugin:jira": "bun run --cwd apps/plugin-jira build",
-    "build:plugin:notion": "bun run --cwd apps/plugin-notion build",
-    "build:plugin:email": "bun run --cwd apps/plugin-email build",
-    "build:plugin:applecontacts": "bun run --cwd apps/plugin-applecontacts build",
-    "build:plugin:applecalendar": "bun run --cwd apps/plugin-applecalendar build",
-    "build:plugin:applereminders": "bun run --cwd apps/plugin-applereminders build",
-    "build:plugin:macos": "bun run --cwd apps/plugin-macos build",
-    "build:plugin:news": "bun run --cwd apps/plugin-news build",
-    "build:plugin:images": "bun run --cwd apps/plugin-images build",
-    "build:plugins": "bun run build:plugin:sample-ts && bun run build:plugin:slack && bun run build:plugin:jira && bun run build:plugin:notion && bun run build:plugin:email && bun run build:plugin:applecontacts && bun run build:plugin:applecalendar && bun run build:plugin:applereminders && bun run build:plugin:macos && bun run build:plugin:news && bun run build:plugin:images",
-    "build:executable": "bun run build:plugins && mkdir -p ./dist && (cd apps/cli && bun build ./src/cli.ts --compile --outfile ../../dist/toby)",
+    "postinstall": "bun ./scripts/install-git-hooks.mjs",
     "build:app": "bash ./scripts/build-app.sh",
     "app": "bun run build:app && open \"./dist/Toby (Dev).app\"",
+    "dev": "bun run app",
+    "dev:upgrade-available": "bash ./scripts/run-app-upgrade-available.sh",
+    "dev:sandbox": "bash ./scripts/run-sandbox.sh",
     "app:screenshots": "bash ./scripts/run-app-screenshots.sh",
     "seed:home": "bun ./scripts/seed-toby-generic-home.ts",
     "build:release": "./scripts/build-release-artifacts.sh",
     "build:dmg": "bun run build:release && ./scripts/build-dmg.sh",
-    "dev": "bun run build:app && open \"./dist/Toby (Dev).app\"",
-    "dev:upgrade-available": "bash ./scripts/run-app-upgrade-available.sh",
-    "dev:sandbox": "bash ./scripts/run-sandbox.sh",
-    "restart:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon restart",
-    "stop:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon stop",
-    "start:server": "TOBY_PLUGINS_DIR=$PWD/dist bun run --cwd apps/cli dev daemon start",
-    "dev:turbo": "turbo run dev --filter @toby/cli --log-prefix=none --ui=stream",
-    "typecheck": "turbo run typecheck",
+    "test": "bun run test:swift",
+    "test:swift": "bash scripts/prefetch-sparkle-spm-artifact.sh && swift test --package-path apps/toby-app",
     "lint": "bunx biome check .",
     "lint:fix": "bunx biome check . --write",
     "format": "bunx biome format . --write",
-    "test": "turbo run test",
-    "test:watch": "bun run --cwd apps/cli test:watch",
-    "test:swift": "bash scripts/prefetch-sparkle-spm-artifact.sh && swift test --package-path apps/toby-app",
-    "timing": "node scripts/analyze-turn-timing.mjs",
+    "typecheck": "bun run --cwd apps/help-site typecheck",
     "release": "release-it",
     "release:dry": "release-it --dry-run",
     "release:ci": "bun ./scripts/release-ci.mjs",
-    "docs:install": "bun install",
     "docs:start": "bun run --cwd apps/help-site dev",
-    "docs:build": "turbo run build --filter @toby/help-site"
+    "docs:build": "bun run --cwd apps/help-site build"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "lint-staged": "^16.4.0",
-    "patch-package": "^8.0.1",
     "release-it": "^20.2.1",
-    "turbo": "^2.10.3",
     "typescript": "^5.9.3"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc}": [
-      "bunx biome check --write"
-    ],
-    "*.{js,jsx,ts,tsx}": [
-      "bunx biome check --write"
-    ]
   }
 }

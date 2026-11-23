@@ -1,8 +1,0 @@
-# Same as the repo root: run package.json scripts with Bun's shell (see the
-# root bunfig.toml for why). Bun reads only the nearest bunfig.toml.
-[run]
-shell = "bun"
-
-[test]
-# Keep tests off the real ~/.toby even when run with a bare `bun test`.
-preload = ["./tests/preload-isolate-home.ts"]

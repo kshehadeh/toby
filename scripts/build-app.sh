@@ -10,7 +10,7 @@ ICON_MASTER="$ROOT/images/512x512.png"
 ICON_SRC="$ROOT/images/app-icon.png"
 ICON_COMPOSER="$PKG/AppIcon.icon"
 ENTITLEMENTS="$PKG/TobyApp.entitlements"
-APP_VERSION="${TOBY_APP_VERSION:-$(bun -e "console.log(JSON.parse(await Bun.file('./package.json').text()).version)")}"
+APP_VERSION="${TOBY_APP_VERSION:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
 APP_BUILD_NUMBER="${TOBY_APP_BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-1}}"
 
 case "${APP_VARIANT}" in
@@ -356,87 +356,10 @@ copy_sparkle_framework() {
 
 copy_sparkle_framework
 
-# For production builds, bundle all release artifacts (CLI, Bun runtime, web UI,
-# icons, plugins) into Contents/Resources/ so Toby.app is self-contained.
-bundle_production_resources() {
-	local res_dir="${APP}/Contents/Resources"
-
-	if [[ -f "${DIST}/toby" ]]; then
-		cp "${DIST}/toby" "${res_dir}/toby"
-		chmod +x "${res_dir}/toby"
-	else
-		echo "Warning: dist/toby not found; Toby.app will not be self-contained." >&2
-		return 1
-	fi
-
-	if [[ -f "${DIST}/bun" ]]; then
-		cp "${DIST}/bun" "${res_dir}/bun"
-		chmod +x "${res_dir}/bun"
-	fi
-
-	if [[ -d "${DIST}/web" ]]; then
-		rm -rf "${res_dir}/web"
-		cp -R "${DIST}/web" "${res_dir}/web"
-	fi
-
-	if [[ -d "${DIST}/icons" ]]; then
-		rm -rf "${res_dir}/icons"
-		cp -R "${DIST}/icons" "${res_dir}/icons"
-	fi
-
-	if [[ -d "${DIST}/personas" ]]; then
-		rm -rf "${res_dir}/personas"
-		cp -R "${DIST}/personas" "${res_dir}/personas"
-	fi
-
-	# Copy all plugin artifacts (binaries and bun-package directories)
-	# For bun-package plugins, strip node_modules and re-install fresh
-	# inside the app bundle. The dist copy's node_modules may contain
-	# symlinks (from Bun's workspace install) that break when copied
-	# into the app bundle, causing codesign to fail with "No such file
-	# or directory" when it scans the bundle to create CodeResources.
-	local entry
-	for entry in "${DIST}"/toby-plugin-*; do
-		[[ -e "${entry}" ]] || continue
-		local name
-		name="$(basename "${entry}")"
-		rm -rf "${res_dir}/${name}"
-		if [[ -f "${entry}" ]]; then
-			# Legacy binary plugin
-			cp "${entry}" "${res_dir}/${name}"
-			chmod +x "${res_dir}/${name}"
-		elif [[ -f "${entry}/manifest.json" ]]; then
-			# Bun-package plugin: copy without node_modules, then install fresh
-			cp -R "${entry}" "${res_dir}/${name}"
-			rm -rf "${res_dir}/${name}/node_modules"
-			if [[ -f "${res_dir}/${name}/package.json" ]]; then
-				echo "  Installing dependencies for ${name} in app bundle..."
-				bun install --production --cwd "${res_dir}/${name}" || \
-					echo "  Warning: bun install failed for ${name}; plugin may not work" >&2
-			fi
-		else
-			# Unknown format, copy as-is
-			cp -R "${entry}" "${res_dir}/${name}"
-		fi
-	done
-
-	# Legacy placeholder for backward-compatible self-upgraders
-	if [[ -f "${DIST}/toby-listener" ]]; then
-		cp "${DIST}/toby-listener" "${res_dir}/toby-listener"
-		chmod +x "${res_dir}/toby-listener"
-	fi
-
-	echo "Bundled production resources into ${res_dir}"
-}
-
-if [[ "${APP_VARIANT}" == "production" ]]; then
-	bundle_production_resources
-fi
-
 build_app_icon
 
 # For production builds, skip code signing here. The release workflow signs
-# all executables individually (including those in Contents/Resources/) and
+# the executable and frameworks and
 # then signs the app bundle. Signing here with ad-hoc identity would leave
 # stale signatures that --deep cannot overwrite in non-standard code locations.
 if [[ "${APP_VARIANT}" != "production" ]]; then
