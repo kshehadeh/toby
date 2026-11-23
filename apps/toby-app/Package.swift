@@ -16,7 +16,6 @@ let package = Package(
 	dependencies: [
 		.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.3"),
 		.package(url: "https://github.com/nalexn/ViewInspector", from: "0.10.0"),
-		.package(url: "https://github.com/mchakravarty/CodeEditorView", exact: "0.16.0"),
 		.package(url: "https://github.com/groue/GRDB.swift", from: "7.10.0"),
 	],
 	targets: [
@@ -66,8 +65,6 @@ let package = Package(
 				"TobyMail",
 				.product(name: "GRDB", package: "GRDB.swift"),
 				.product(name: "Sparkle", package: "Sparkle"),
-				.product(name: "CodeEditorView", package: "CodeEditorView"),
-				.product(name: "LanguageSupport", package: "CodeEditorView"),
 			],
 			path: "Sources/TobyApp",
 			exclude: ["Info.plist"],
@@ -119,7 +116,6 @@ let package = Package(
 				"TobyCore",
 				"TobyStore",
 				.product(name: "ViewInspector", package: "ViewInspector"),
-				.product(name: "LanguageSupport", package: "CodeEditorView"),
 			],
 			path: "Tests/TobyAppTests",
 		),

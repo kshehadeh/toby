@@ -189,10 +189,7 @@ extension FlowNodeSnapshot {
 
 	var integrationIconURL: URL? {
 		guard let path = display?.integrationIconUrl, !path.isEmpty else { return nil }
-		if path.hasPrefix("http://") || path.hasPrefix("https://") {
-			return URL(string: path)
-		}
-		return URL(string: ConfigReader.baseURL().absoluteString + path)
+		return ConfigReader.assetURL(path)
 	}
 }
 

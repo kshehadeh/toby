@@ -271,19 +271,6 @@ struct FlowEditorNode: Identifiable, Equatable {
 		)
 	}
 
-	static func userTool(_ tool: UserScriptTool) -> FlowEditorNode {
-		FlowEditorNode(
-			id: "node-\(UUID().uuidString.prefix(8))",
-			type: "tool_executor",
-			moduleName: "",
-			toolName: "",
-			userToolId: tool.id,
-			constInputs: Dictionary(uniqueKeysWithValues: tool.inputNames.map { ($0, "") }),
-			systemPrompt: "",
-			userPrompt: ""
-		)
-	}
-
 	init(stored: FlowStoredNode) {
 		id = stored.id
 		type = stored.type

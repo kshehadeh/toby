@@ -21,10 +21,22 @@ public struct TobyPaths: Sendable, Hashable {
 		if let override = environment["TOBY_DIR"]?.trimmingCharacters(in: .whitespacesAndNewlines), !override.isEmpty {
 			return TobyPaths(root: URL(fileURLWithPath: (override as NSString).expandingTildeInPath))
 		}
+		// Test runs never touch the user's real home.
+		if isRunningTests(environment) {
+			return TobyPaths(root: FileManager.default.temporaryDirectory.appending(path: "toby-tests-\(ProcessInfo.processInfo.processIdentifier)"))
+		}
 		if let preferred = defaults.string(forKey: tobyDirDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines), !preferred.isEmpty {
 			return TobyPaths(root: URL(fileURLWithPath: (preferred as NSString).expandingTildeInPath))
 		}
 		return TobyPaths(root: FileManager.default.homeDirectoryForCurrentUser.appending(path: ".toby"))
+	}
+
+	/// True inside `swift test` / XCTest processes.
+	public static func isRunningTests(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+		if environment["XCTestConfigurationFilePath"] != nil || environment["XCTestSessionIdentifier"] != nil { return true }
+		let name = ProcessInfo.processInfo.processName.lowercased()
+		if name.contains("xctest") || name.contains("swiftpm-testing-helper") || name.hasSuffix("packagetests") { return true }
+		return NSClassFromString("XCTestCase") != nil || ProcessInfo.processInfo.arguments.contains { $0.hasSuffix(".xctest") || $0.contains("--testing-library") }
 	}
 
 	// MARK: Swift-owned

@@ -215,13 +215,11 @@ final class FlowsStore {
 
 	func loadCatalog() async {
 		do {
-			let loaded = try await client.fetchPlugins()
-			let modules = loaded.plugins.compactMap(FlowCatalogModule.init(plugin:))
-			catalog = FlowToolCatalog(modules: modules)
+			catalog = try await client.fetchFlowCatalog()
 			editorError = nil
 		} catch {
 			catalog = nil
-			editorError = "Couldn’t load integrations: \(error.localizedDescription)"
+			editorError = "Couldn’t load tools: \(error.localizedDescription)"
 		}
 	}
 

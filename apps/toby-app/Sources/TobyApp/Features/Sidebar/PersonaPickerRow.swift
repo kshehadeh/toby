@@ -20,7 +20,7 @@ struct PersonaPickerRow: View {
 					{
 						PersonaImageView(url: imageUrl, size: 22)
 					} else {
-						PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 22)
+						PersonaImageView(url: ConfigReader.defaultPersonaImageURL, size: 22)
 					}
 					Text(persona.label)
 						.lineLimit(1)

@@ -506,93 +506,19 @@ struct AIProvidersResponse: Decodable {
 	let providers: [AIProviderInfo]
 }
 
-struct AIProviderUsage: Decodable, Identifiable {
-	let providerId: String
-	let supported: Bool
-	let currency: String?
-	let totalSpent: Double?
-	let remaining: Double?
-	let totalSpentLabel: String?
-	let remainingLabel: String?
-	let spentDaily: Double?
-	let spentWeekly: Double?
-	let spentMonthly: Double?
-	let spentDailyLabel: String?
-	let spentWeeklyLabel: String?
-	let spentMonthlyLabel: String?
-	let unavailableReason: String?
-	let fetchedAt: String
 
-	var id: String { providerId }
 
-	var displaySummary: String {
-		if !supported || unavailableReason != nil {
-			return "N/A"
-		}
-		return "\(Self.amountOrDash(totalSpentLabel)) used · \(Self.amountOrDash(remainingLabel)) left"
-	}
 
-	/// Today, this UTC week, and this UTC month. Missing figures are an em dash.
-	var periodSummary: String? {
-		if !supported || unavailableReason != nil {
-			return nil
-		}
-		return [
-			"\(Self.amountOrDash(spentDailyLabel)) today",
-			"\(Self.amountOrDash(spentWeeklyLabel)) this week",
-			"\(Self.amountOrDash(spentMonthlyLabel)) this month",
-		].joined(separator: " · ")
-	}
 
-	/// A reported amount, or an em dash when the provider did not send one.
-	private static func amountOrDash(_ label: String?) -> String {
-		guard let label, !label.isEmpty, label != "N/A" else { return "—" }
-		return label
-	}
-}
 
-struct AIProviderUsageResponse: Decodable {
-	let usage: AIProviderUsage
-}
 
-struct AIProvidersUsageResponse: Decodable {
-	let usage: [AIProviderUsage]
-}
 
-/// Generic guided setup guide for any AI provider that supports it.
-struct AIProviderSetupGuide: Decodable {
-	let providerId: String
-	let displayName: String
-	let description: String?
-	let defaultModel: String?
-	let steps: [AIProviderSetupGuideStep]
-	let fields: [AIProviderSetupField]
-	let meta: AIProviderSetupMeta?
-}
 
-struct AIProviderSetupGuideStep: Decodable, Identifiable {
-	let id: String
-	let title: String
-	let description: String?
-	let url: String?
-	let urlLabel: String?
-}
 
-struct AIProviderSetupField: Decodable, Identifiable {
-	var id: String { key }
-	let key: String
-	let label: String
-	let secret: Bool?
-	let placeholder: String?
-	let required: Bool?
-}
 
-/// Open-ended provider extras (deep links, flags). Unknown keys are ignored.
-struct AIProviderSetupMeta: Decodable {
-	let signupUrl: String?
-	let apiKeysUrl: String?
-	let recommended: Bool?
-}
+
+
+
 
 struct AIProviderSetupResponse: Decodable {
 	let ok: Bool
@@ -611,35 +537,9 @@ struct AIProviderSetupDetails: Decodable {
 	let totalSpent: Double?
 }
 
-struct PluginsListResponse: Decodable {
-	let directory: String?
-	let plugins: [PluginSummary]
-}
 
-struct PluginSummary: Decodable, Identifiable {
-	let name: String
-	let displayName: String
-	let description: String?
-	let version: String?
-	let protocolVersion: String?
-	let icon: String?
-	let iconUrl: String?
-	let state: String
-	let connected: Bool
-	let error: String?
-	let errorCode: String?
-	let tools: [IntegrationToolDefinition]?
 
-	var id: String { name }
 
-	var statusLabel: String {
-		switch state {
-		case "disabled": return "Disabled"
-		case "invalid": return "Invalid"
-		default: return connected ? "Connected" : "Disconnected"
-		}
-	}
-}
 
 struct PersonaDetailResponse: Decodable {
 	let persona: PersonaDetail
@@ -668,7 +568,7 @@ struct SessionSummary: Decodable, Identifiable {
 
 	var integrationIconUrl: URL? {
 		guard let sourceIntegrationIconUrl else { return nil }
-		return URL(string: ConfigReader.baseURL().absoluteString + sourceIntegrationIconUrl)
+		return ConfigReader.assetURL(sourceIntegrationIconUrl)
 	}
 }
 
@@ -694,7 +594,7 @@ struct SessionDetail: Decodable {
 
 	var resolvedIntegrationIconUrl: URL? {
 		guard let integrationIconUrl else { return nil }
-		return URL(string: ConfigReader.baseURL().absoluteString + integrationIconUrl)
+		return ConfigReader.assetURL(integrationIconUrl)
 	}
 }
 
@@ -835,25 +735,7 @@ struct ActiveRecordingInfo: Identifiable, Equatable {
 	}
 }
 
-struct ListenStopResponse: Decodable {
-	let status: String
-	let session: ListenSessionInfo?
-	let outputDir: String?
-	let message: String?
-	let error: String?
-	let transcript: String?
-	let transcriptionError: String?
 
-	var asStatus: ListenStatusResponse {
-		ListenStatusResponse(
-			status: status,
-			session: session,
-			outputDir: outputDir,
-			message: message,
-			error: error,
-		)
-	}
-}
 
 struct NativeAudioStopResponse: Decodable {
 	let status: String

@@ -387,29 +387,9 @@ struct RootToolbarsTests {
 @MainActor
 @Suite("RootSettingsNavigation")
 struct RootSettingsNavigationTests {
-	@Test("client-only tab keys include appearance and personas")
-	func clientOnlyTabKeys() {
-		#expect(
-			RootSettingsNavigation.clientOnlySettingsTabKeys.contains(
-				SettingsItem.appearanceSectionKey
-			)
-		)
-		#expect(
-			RootSettingsNavigation.clientOnlySettingsTabKeys.contains(
-				SettingsItem.personasSectionKey
-			)
-		)
-		#expect(
-			RootSettingsNavigation.clientOnlySettingsTabKeys.contains(
-				SettingsItem.integrationsSectionKey
-			)
-		)
-	}
-
-	@Test("prepare sets pending persona and seeds nav key outside settings mode")
+	@Test("prepare sets pending persona and the section to open")
 	func prepareSeedsNavKey() {
 		let store = ConfigureStore()
-		// Settings mode is false until sections load as settings tree.
 		RootSettingsNavigation.prepare(
 			configureStore: store,
 			navKey: "ai",

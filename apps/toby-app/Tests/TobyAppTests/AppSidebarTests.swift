@@ -10,20 +10,17 @@ struct AppSidebarTests {
         currentRoute: DetailRoute = .chat,
         status: AppStatus? = nil,
         daemonStatus: DaemonStatus? = nil,
-        isServerRestarting: Bool = false,
         onSelectRoute: @escaping (DetailRoute) -> Void = { _ in }
     ) -> AppSidebar {
         AppSidebar(
             currentRoute: currentRoute,
             status: status,
             daemonStatus: daemonStatus,
-            isServerRestarting: isServerRestarting,
             onSelectRoute: onSelectRoute,
             isPersonaPickerPresented: .constant(false),
             onCreatePersona: {},
             onEditPersona: { _ in },
-            onPersonaSelected: {},
-            onRestartServer: {}
+            onPersonaSelected: {}
         )
     }
 
@@ -101,58 +98,6 @@ struct AppSidebarTests {
         #expect(throws: Never.self) { try sidebar.inspect().find(text: "Toby") }
     }
 
-    @Test("connection status is hidden when the server is connected")
-    func connectionStatusHiddenWhenConnected() throws {
-        let sidebar = makeSidebar(status: sampleStatus())
-        #expect(throws: (any Error).self) {
-            try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-connection-status")
-        }
-    }
-
-    @Test("connection status is shown when the server is offline")
-    func connectionStatusShownWhenOffline() throws {
-        let sidebar = makeSidebar(status: nil)
-        #expect(throws: Never.self) {
-            try sidebar.inspect().find(viewWithAccessibilityIdentifier: "sidebar-connection-status")
-        }
-        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
-        let labeled = buttons.filter { btn in
-            (try? btn.accessibilityLabel().string()) == "Server offline"
-        }
-        #expect(!labeled.isEmpty, "Server offline control not found")
-    }
-
-    @Test("footer always shows the server status indicator")
-    func footerAlwaysShowsServerStatusIndicator() throws {
-        let connected = makeSidebar(status: sampleStatus())
-        #expect(throws: Never.self) {
-            try connected.inspect().find(viewWithAccessibilityIdentifier: "sidebar-server-status")
-        }
-        let connectedButtons = try connected.inspect().findAll(ViewType.Button.self)
-        let connectedStatus = connectedButtons.filter { btn in
-            (try? btn.accessibilityLabel().string()) == "Server connected"
-        }
-        #expect(!connectedStatus.isEmpty, "Server connected footer control not found")
-
-        let offline = makeSidebar(status: nil)
-        #expect(throws: Never.self) {
-            try offline.inspect().find(viewWithAccessibilityIdentifier: "sidebar-server-status")
-        }
-        #expect(throws: Never.self) {
-            try offline.inspect().find(viewWithAccessibilityIdentifier: "sidebar-persona-footer")
-        }
-    }
-
-    @Test("connection status shows starting while restart is in progress")
-    func connectionStatusStartingWhenRestarting() throws {
-        let sidebar = makeSidebar(status: nil, isServerRestarting: true)
-        let buttons = try sidebar.inspect().findAll(ViewType.Button.self)
-        let labeled = buttons.filter { btn in
-            (try? btn.accessibilityLabel().string()) == "Server starting"
-        }
-        #expect(!labeled.isEmpty, "Server starting control not found")
-    }
-
     @Test("sidebar does not host the update tip")
     func sidebarDoesNotHostUpdateTip() throws {
         let sidebar = makeSidebar()
@@ -192,14 +137,12 @@ struct AppSidebarTests {
         let highlighted = SidebarFooter(
             status: nil,
             daemonStatus: nil,
-            isServerRestarting: false,
             isPersonaPickerPresented: .constant(true),
             isAttentionHighlighted: true,
             emphasizeCreatePersona: true,
             onCreatePersona: {},
             onEditPersona: { _ in },
-            onPersonaSelected: {},
-            onRestartServer: {}
+            onPersonaSelected: {}
         )
         #expect(throws: Never.self) {
             try highlighted.inspect().find(viewWithAccessibilityIdentifier: "sidebar-persona-footer")
@@ -231,44 +174,6 @@ struct AppSidebarTests {
         try #require(editButton != nil, "Edit button not found")
         try editButton!.tap()
         #expect(didEdit)
-    }
-
-    @Test("server status details restart button calls callback")
-    func serverStatusDetailsRestartButtonCallsCallback() throws {
-        var restartCount = 0
-        let view = ServerStatusDetails(
-            status: nil,
-            daemonStatus: nil,
-            health: .offline,
-            isRestarting: false,
-            onShowServerInfo: {},
-            onRestart: { restartCount += 1 }
-        )
-        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
-            (try? btn.find(text: "Restart server")) != nil
-        }
-        try #require(button != nil, "Restart button not found")
-        try button!.tap()
-        #expect(restartCount == 1)
-    }
-
-    @Test("server status details server info button calls callback")
-    func serverStatusDetailsServerInfoButtonCallsCallback() throws {
-        var infoCount = 0
-        let view = ServerStatusDetails(
-            status: nil,
-            daemonStatus: nil,
-            health: .offline,
-            isRestarting: false,
-            onShowServerInfo: { infoCount += 1 },
-            onRestart: {}
-        )
-        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
-            (try? btn.find(text: "Server Info")) != nil
-        }
-        try #require(button != nil, "Server Info button not found")
-        try button!.tap()
-        #expect(infoCount == 1)
     }
 
     @Test("active chat row shows conversation name when Slack turn is active")
@@ -501,39 +406,6 @@ struct AppSidebarTests {
         let view = InboundChatDetailsView(inbound: inbound)
         #expect(throws: Never.self) { try view.inspect().find(text: "Missing bot token for Socket Mode.") }
         #expect(throws: (any Error).self) { try view.inspect().find(text: "should not appear") }
-    }
-
-    @Test("server status details inbound why button calls callback")
-    func serverStatusDetailsInboundWhyButtonCallsCallback() throws {
-        var inboundCount = 0
-        let inbound = ChatInboundStatus(
-            enabled: false,
-            integration: nil,
-            integrationLabel: nil,
-            status: "disabled",
-            detail: nil,
-            disabledReason: "not enabled",
-            updatedAt: nil,
-            activeConversationName: nil,
-            activeSince: nil,
-            activeKind: nil,
-            awaitingUserSessions: nil
-        )
-        let view = ServerStatusDetails(
-            status: nil,
-            daemonStatus: DaemonStatus(process: nil, chatInbound: inbound),
-            health: .connected,
-            isRestarting: false,
-            onShowServerInfo: {},
-            onShowInboundDetails: { inboundCount += 1 },
-            onRestart: {}
-        )
-        let button = try view.inspect().findAll(ViewType.Button.self).first { btn in
-            (try? btn.find(text: "Why?")) != nil
-        }
-        try #require(button != nil, "Why? button not found in server status details")
-        try button!.tap()
-        #expect(inboundCount == 1)
     }
 
     @Test("session row with integration icon URL renders SidebarIconView")

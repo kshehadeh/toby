@@ -5,23 +5,7 @@ import TobyAI
 import TobyCore
 import TobyStore
 
-/// Migration switch between the TypeScript daemon and the native Swift core.
-///
-/// Off by default while the native services are being built. Turn it on
-/// against a *copied* Toby home (`TOBY_DIR=/tmp/toby-copy TOBY_NATIVE=1`) to
-/// exercise the native path; the M7 cutover enables it for everyone.
-enum NativeMode {
-	static let defaultsKey = "toby.native.enabled"
-
-	static var isEnabled: Bool {
-		if let env = ProcessInfo.processInfo.environment["TOBY_NATIVE"] {
-			return env == "1" || env.lowercased() == "true"
-		}
-		return UserDefaults.standard.bool(forKey: defaultsKey)
-	}
-}
-
-/// Owns the Swift-side store and AI client for native mode.
+/// Owns the Swift-side store, AI client, and background services.
 @MainActor
 final class NativeRuntime {
 	static let shared = NativeRuntime()
@@ -266,6 +250,19 @@ final class NativeRuntime {
 			skills: SkillService(root: paths.skills),
 			projects: ProjectService(writer: database.writer, tobyDirectory: paths.root),
 		)
+	}
+
+	/// App launch: open (importing the legacy home on first run), retire the
+	/// old daemon once, and start the background services.
+	func launch() {
+		do {
+			let database = try store()
+			let imported = (try? LegacyImporter(paths: paths, database: database).hasImported()) ?? false
+			LegacyDaemonCleanup.runOnce(paths, imported: imported)
+		} catch {
+			TobyLog.shared.error("app", "store_open_failed", ["error": .string(error.localizedDescription)])
+		}
+		startBackgroundServices()
 	}
 
 	/// Start the loops the daemon used to run: todo sync, mail sync, the Feed

@@ -5,7 +5,6 @@ import SwiftUI
 struct FlowToolPickerRow: Identifiable, Equatable {
 	enum Choice: Equatable {
 		case catalog(FlowCatalogTool)
-		case script(UserScriptTool)
 	}
 
 	let id: String
@@ -17,7 +16,6 @@ struct FlowToolPickerRow: Identifiable, Equatable {
 
 struct FlowToolPickerSection: Identifiable, Equatable {
 	enum Kind: Equatable {
-		case scriptTools
 		case integration(iconURL: URL?, connected: Bool)
 	}
 
@@ -27,37 +25,17 @@ struct FlowToolPickerSection: Identifiable, Equatable {
 	let rows: [FlowToolPickerRow]
 }
 
-/// Builds the "Choose a tool" list: Script Tools first, then integrations
+/// Builds the "Choose a tool" list: tool groups
 /// (connected before not connected, then by name), each tool with an icon
 /// for what it does. A query matches tool names, descriptions and the
 /// integration's name.
 enum FlowToolPickerModel {
 	static func sections(
-		scriptTools: [UserScriptTool],
 		modules: [FlowCatalogModule],
 		query: String
 	) -> [FlowToolPickerSection] {
 		let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 		var sections: [FlowToolPickerSection] = []
-
-		let scriptRows = scriptTools
-			.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-			.filter { tool in
-				matches(needle, section: "Script Tools", fields: [tool.name, tool.description])
-			}
-			.map { tool in
-				let description = tool.description.trimmingCharacters(in: .whitespacesAndNewlines)
-				return FlowToolPickerRow(
-					id: "script-\(tool.id)",
-					title: tool.name,
-					description: description.isEmpty ? nil : description,
-					systemImage: "curlybraces",
-					choice: .script(tool)
-				)
-			}
-		if !scriptRows.isEmpty {
-			sections.append(FlowToolPickerSection(id: "script-tools", title: "Script Tools", kind: .scriptTools, rows: scriptRows))
-		}
 
 		let orderedModules = modules
 			.filter { !$0.tools.isEmpty }
@@ -135,23 +113,20 @@ enum FlowToolPickerModel {
 struct FlowToolPickerView: View {
 	@Bindable var store: FlowsStore
 	let onPick: (FlowCatalogTool) -> Void
-	let onPickUserTool: (UserScriptTool) -> Void
 	@Environment(\.dismiss) private var dismiss
 	@State private var query = ""
-	@State private var scriptTools: [UserScriptTool] = []
 	@State private var isLoading = true
 	@FocusState private var isSearchFocused: Bool
 
 	private var sections: [FlowToolPickerSection] {
 		FlowToolPickerModel.sections(
-			scriptTools: scriptTools,
 			modules: store.catalog?.modules ?? [],
 			query: query
 		)
 	}
 
 	private var hasAnyTools: Bool {
-		!scriptTools.isEmpty || (store.catalog?.modules.contains { !$0.tools.isEmpty } ?? false)
+		store.catalog?.modules.contains { !$0.tools.isEmpty } ?? false
 	}
 
 	var body: some View {
@@ -172,7 +147,6 @@ struct FlowToolPickerView: View {
 		.onAppear { isSearchFocused = true }
 		.task {
 			await store.loadCatalog()
-			scriptTools = (try? await TobyClient().listUserScriptTools()) ?? []
 			isLoading = false
 		}
 	}
@@ -309,7 +283,6 @@ struct FlowToolPickerView: View {
 	private func pick(_ row: FlowToolPickerRow) {
 		switch row.choice {
 		case .catalog(let tool): onPick(tool)
-		case .script(let tool): onPickUserTool(tool)
 		}
 		dismiss()
 	}
@@ -361,13 +334,6 @@ private struct FlowToolPickerSectionView: View {
 	@ViewBuilder
 	private var badge: some View {
 		switch section.kind {
-		case .scriptTools:
-			Image(systemName: "curlybraces")
-				.font(.system(size: 9, weight: .bold))
-				.foregroundStyle(AppTheme.secondaryText)
-				.frame(width: 18, height: 18)
-				.background(AppTheme.primaryText.opacity(0.06), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-				.accessibilityHidden(true)
 		case .integration(let iconURL, _):
 			Group {
 				if let iconURL {

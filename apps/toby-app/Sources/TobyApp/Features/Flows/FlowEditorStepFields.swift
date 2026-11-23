@@ -131,16 +131,13 @@ struct FlowStepInputSpec: Identifiable, Equatable {
 
 enum FlowStepInputLayout {
 	/// Required inputs first, then the rest by name.
-	static func specs(catalogTool: FlowCatalogTool?, scriptTool: UserScriptTool?) -> [FlowStepInputSpec] {
+	static func specs(catalogTool: FlowCatalogTool?) -> [FlowStepInputSpec] {
 		if let catalogTool {
 			let properties = catalogTool.inputSchema.properties ?? [:]
 			let required = Set(catalogTool.requiredFields)
 			var seen = Set<String>()
 			let keys = (catalogTool.requiredFields + properties.keys.sorted()).filter { seen.insert($0).inserted }
 			return keys.map { FlowStepInputSpec(key: $0, property: properties[$0], isRequired: required.contains($0)) }
-		}
-		if let scriptTool {
-			return scriptTool.inputNames.map { FlowStepInputSpec(key: $0, property: nil, isRequired: true) }
 		}
 		return []
 	}

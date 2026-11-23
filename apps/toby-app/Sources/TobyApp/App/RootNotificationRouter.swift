@@ -31,7 +31,6 @@ struct RootNotificationRouter: ViewModifier {
 	var onNavigateToRoute: (DetailRoute) -> Void
 	var onOpenSettings: (String?) -> Void
 	var onOpenMemoriesWindow: () -> Void
-	var onOpenConnectionStatus: () -> Void
 	/// Mirrors recording capture state to the menu bar / dock indicator.
 	var isRecordingActive: Bool
 	var recordingChromeState: RecordingChromeState = .idle
@@ -150,9 +149,6 @@ struct RootNotificationRouter: ViewModifier {
 			}
 			.onReceive(NotificationCenter.default.publisher(for: .openMemoriesWindow)) { _ in
 				onOpenMemoriesWindow()
-			}
-			.onReceive(NotificationCenter.default.publisher(for: .openConnectionStatus)) { _ in
-				onOpenConnectionStatus()
 			}
 	}
 

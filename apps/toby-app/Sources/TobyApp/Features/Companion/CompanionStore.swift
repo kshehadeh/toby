@@ -74,9 +74,7 @@ final class CompanionStore {
 		errorMessage = nil
 		isThinking = true
 		let token = generation
-		// Pin the daemon address for the conversation, including cancellation if
-		// the user switches Toby home directories during an active turn.
-		let client = suppliedClient ?? TobyClient(baseURL: ConfigReader.baseURL())
+		let client = suppliedClient ?? TobyClient()
 		if chat.sessionId == nil && chat.transcript.isEmpty { chat = ChatStore(client: client) }
 		let workspace = chat
 		replyTask = Task { [weak self] in

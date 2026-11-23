@@ -79,8 +79,7 @@ final class PersonaEditorStore {
 		{
 			return url
 		}
-		return ConfigReader.baseURL()
-			.appendingPathComponent("api/personas/image/default.png")
+		return ConfigReader.defaultPersonaImageURL
 	}
 
 	var availableModels: [AIModelOption] {

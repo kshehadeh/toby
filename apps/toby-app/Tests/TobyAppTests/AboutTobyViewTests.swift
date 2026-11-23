@@ -22,74 +22,27 @@ struct AboutTobyViewTests {
 		return store
 	}
 
-	private func makePluginsStore() -> PluginsStore {
-		let store = PluginsStore(client: MockPluginsClient())
-		store.pluginsDirectory = "/Users/example/.toby/plugins"
-		store.plugins = [
-			PluginSummary(
-				name: "slack",
-				displayName: "Slack",
-				description: nil,
-				version: "1.2.0",
-				protocolVersion: "1",
-				icon: nil,
-				iconUrl: nil,
-				state: "valid",
-				connected: true,
-				error: nil,
-				errorCode: nil,
-				tools: nil
-			),
-		]
-		return store
-	}
-
 	@Test("shows app name and version")
 	func showsAppIdentity() throws {
 		let view = AboutTobyView(
 			changelogStore: makeChangelogStore(),
 			updateStore: nil,
-			pluginsStore: makePluginsStore(),
 			appVersion: "0.66.0"
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Toby") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "Version 0.66.0") }
 	}
 
-	@Test("shows plugins section with plugin display name")
-	func showsPlugins() throws {
+	@Test("shows the home directory")
+	func showsHomeDirectory() throws {
 		let view = AboutTobyView(
 			changelogStore: makeChangelogStore(),
 			updateStore: nil,
-			pluginsStore: makePluginsStore(),
-			appVersion: "0.66.0"
-		)
-		#expect(throws: Never.self) { try view.inspect().find(text: "Plugins") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Slack") }
-	}
-
-	@Test("shows plugin directory as reveal-in-finder button")
-	func showsPluginDirectory() throws {
-		let view = AboutTobyView(
-			changelogStore: makeChangelogStore(),
-			updateStore: nil,
-			pluginsStore: makePluginsStore(),
 			appVersion: "0.66.0",
 			tobyDirectory: "/Users/example/.toby"
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Toby home directory") }
 		#expect(throws: Never.self) { try view.inspect().find(text: "/Users/example/.toby") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Plugin directory") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "/Users/example/.toby/plugins") }
-		// The path itself is the clickable button with a "Reveal in Finder" accessibility label.
-		let buttons = try view.inspect().findAll(ViewType.Button.self)
-		let revealButtons = buttons.filter { btn in
-			(try? btn.accessibilityLabel().string()) == "Reveal in Finder"
-		}
-		#expect(revealButtons.count == 2)
-		let values = revealButtons.compactMap { try? $0.accessibilityValue().string() }
-		#expect(values.contains("/Users/example/.toby"))
-		#expect(values.contains("/Users/example/.toby/plugins"))
 	}
 
 	@Test("shows open source libraries section")
@@ -97,18 +50,11 @@ struct AboutTobyViewTests {
 		let view = AboutTobyView(
 			changelogStore: makeChangelogStore(),
 			updateStore: nil,
-			pluginsStore: makePluginsStore(),
 			appVersion: "0.66.0"
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "Open Source Libraries") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Bun") }
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "AI SDK, @ai-sdk/gateway, @ai-sdk/openai, @ai-sdk/groq, @ai-sdk/openai-compatible")
-		}
-		#expect(throws: Never.self) { try view.inspect().find(text: "React, Ink, ink-link, react-ink-textarea") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "@slack/bolt") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "ImapFlow, mailparser, Nodemailer") }
-		#expect(throws: Never.self) { try view.inspect().find(text: "Docusaurus, MDX, Prism React Renderer, lucide-react") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "GRDB.swift") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Sparkle") }
 	}
 
 	@Test("shows changelog column header and release version")
@@ -116,7 +62,6 @@ struct AboutTobyViewTests {
 		let view = AboutTobyView(
 			changelogStore: makeChangelogStore(),
 			updateStore: nil,
-			pluginsStore: makePluginsStore(),
 			appVersion: "0.66.0"
 		)
 		#expect(throws: Never.self) { try view.inspect().find(text: "What's New") }
@@ -128,7 +73,6 @@ struct AboutTobyViewTests {
 		let view = AboutTobyView(
 			changelogStore: makeChangelogStore(),
 			updateStore: nil,
-			pluginsStore: makePluginsStore(),
 			appVersion: "0.66.0"
 		)
 		#expect(throws: Never.self) { try view.inspect().find(button: "Done") }

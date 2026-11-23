@@ -2,29 +2,8 @@ import Foundation
 
 extension TobyClient {
 	func todoRequest<T: Decodable>(_ path: String = "", query: [String: String] = [:], action: [String: Any]? = nil) async throws -> T {
-		if NativeMode.isEnabled {
-			let body = try action.map { try JSONSerialization.data(withJSONObject: $0) }
-			let data = try await NativeRuntime.shared.todos().handle(path: path, query: query, body: body)
-			return try JSONDecoder().decode(T.self, from: data)
-		}
-		guard var components = URLComponents(url: baseURL.appendingPathComponent("api/todos\(path)"), resolvingAgainstBaseURL: false) else {
-			throw TobyClientError.invalidResponse
-		}
-		components.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
-		guard let url = components.url else { throw TobyClientError.invalidResponse }
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		if let action {
-			request.httpMethod = "POST"
-			request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-			request.httpBody = try JSONSerialization.data(withJSONObject: action)
-		}
-		let (data, response) = try await URLSession.shared.data(for: request)
-		guard let http = response as? HTTPURLResponse else { throw TobyClientError.invalidResponse }
-		if !(200..<300).contains(http.statusCode) {
-			let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-			throw TobyClientError.serverError(object?["error"] as? String ?? "Todo request failed (\(http.statusCode)).")
-		}
+		let body = try action.map { try JSONSerialization.data(withJSONObject: $0) }
+		let data = try await NativeRuntime.shared.todos().handle(path: path, query: query, body: body)
 		return try JSONDecoder().decode(T.self, from: data)
 	}
 

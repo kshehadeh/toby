@@ -16,11 +16,9 @@ struct TobyApp: App {
 	@State private var flowsStore = FlowsStore()
 	@State private var todosStore = TodosStore()
 	@State private var changelogStore = ChangelogStore()
-	@State private var pluginsStore = PluginsStore()
 	@State private var updateStore = UpdateStore()
 	@State private var personaEditorCoordinator = PersonaEditorCoordinator()
 	@State private var logsStore = LogsStore()
-	@State private var nativeServer = NativeServer.shared
 	@State private var menuBarController: MenuBarController?
 	@State private var appearancePreferences = AppearancePreferences.shared
 	@State private var companion = CompanionPanelController.shared
@@ -30,7 +28,7 @@ struct TobyApp: App {
 		// "Show Tab Bar" / "Show All Tabs" and "Enter Full Screen".
 		NSWindow.allowsAutomaticWindowTabbing = false
 		UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
-		// Apply saved home-directory preference before daemon/native paths resolve.
+		// Apply saved home-directory preference before native paths resolve.
 		AppearancePreferences.applyStoredTobyDirEnvironment()
 		// Apply saved appearance before first window draws.
 		AppearancePreferences.shared.applyToApp()
@@ -52,7 +50,6 @@ struct TobyApp: App {
 				personaEditorCoordinator: personaEditorCoordinator,
 				updateStore: updateStore,
 				changelogStore: changelogStore,
-				pluginsStore: pluginsStore,
 				todosStore: todosStore
 			)
 				.frame(minWidth: 860, minHeight: 560)
@@ -61,7 +58,7 @@ struct TobyApp: App {
 				.onAppear {
 					NativeNotificationCoordinator.install()
 					companion.restoreVisibility()
-					nativeServer.start()
+					NativeRuntime.shared.launch()
 					requestNativePermissions()
 					if menuBarController == nil {
 						menuBarController = MenuBarController(
@@ -106,7 +103,6 @@ struct TobyApp: App {
 					Task { await TodoNotificationScheduler.shared.reconcile() }
 				}
 				.onDisappear {
-					nativeServer.stop()
 					GlobalHotkeyController.shared.stop()
 				}
 		}
@@ -164,7 +160,7 @@ struct TobyApp: App {
 		.commandsRemoved()
 
 		Window("Settings", id: "settings") {
-			SettingsWindowView(
+			NativeSettingsView(
 				store: configureStore,
 				onSwitchTobyHome: { path in
 					try await store.switchTobyHome(to: path)
@@ -270,21 +266,16 @@ struct TobyApp: App {
 					.keyboardShortcut(viewShortcut(for: route))
 				}
 
-				Button("Integrations") {
+				Button("Sources") {
 					NotificationCenter.default.post(
 						name: .openSettingsWindow,
-						object: SettingsItem.integrationsSectionKey
+						object: "sources"
 					)
 				}
 				.keyboardShortcut("3", modifiers: .command)
 
 				OpenMemoriesMenuItem()
 
-				Divider()
-
-				Button("Connection Status…") {
-					NotificationCenter.default.post(name: .openConnectionStatus, object: nil)
-				}
 			}
 
 			CommandGroup(replacing: .help) {

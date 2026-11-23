@@ -53,12 +53,12 @@ enum NativeSettingsSection: String, CaseIterable, Identifiable {
 			self = .recordings
 		} else if key.hasPrefix("chatinbound") {
 			self = .chatReplies
-		} else if key == "email" || key == "mail" || key == "slack" || key.hasPrefix(SettingsItem.integrationsSectionKey)
+		} else if key == "email" || key == "mail" || key == "slack" || key.hasPrefix("integrations")
 			|| key.hasPrefix("apple") || key == "macos" || key == "dashboard" {
 			self = .sources
 		} else if key == "permissions" {
 			self = .permissions
-		} else if key == SettingsItem.aiSectionKey || key.hasPrefix("ai.") || key == "defaults" || key.contains("openrouter") {
+		} else if key == "ai" || key.hasPrefix("ai.") || key == "defaults" || key.contains("openrouter") {
 			self = .account
 		} else {
 			self = .general

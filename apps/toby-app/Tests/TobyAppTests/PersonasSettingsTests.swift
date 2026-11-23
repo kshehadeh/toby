@@ -6,18 +6,6 @@ import ViewInspector
 @MainActor
 @Suite("PersonasSettings")
 struct PersonasSettingsTests {
-	// MARK: - SettingsItem.personasSection
-
-	@Test("personas section has correct key and label")
-	func personasSectionProperties() throws {
-		let section = SettingsItem.personasSection
-		#expect(section.key == SettingsItem.personasSectionKey)
-		#expect(section.label == "Personas")
-		#expect(section.kind == .section)
-		#expect(section.navKey == SettingsItem.personasSectionKey)
-		#expect(section.description == SettingsItem.personasCatalogSubtitle)
-	}
-
 	@Test("personas section key is distinct from appearance key")
 	func personasKeyIsDistinct() throws {
 		#expect(SettingsItem.personasSectionKey != SettingsItem.appearanceSectionKey)
@@ -246,7 +234,7 @@ struct PersonasSettingsTests {
 	@Test("settings window shows Personas as a single sidebar row")
 	func settingsWindowShowsPersonasSidebarRow() throws {
 		let store = ConfigureStore()
-		let view = SettingsWindowView(store: store)
+		let view = NativeSettingsView(store: store)
 		#expect(throws: Never.self) {
 			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-sidebar-personas")
 		}

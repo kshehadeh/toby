@@ -15,7 +15,7 @@ struct TodoFlowToolsTests {
 		"""#.utf8)
 		let catalog = try FlowToolCatalog.parse(data)
 		let tool = try #require(catalog.modules.first?.tools.first)
-		let sections = FlowToolPickerModel.sections(scriptTools: [], modules: catalog.modules, query: "todo")
+		let sections = FlowToolPickerModel.sections(modules: catalog.modules, query: "todo")
 		#expect(sections.count == 1)
 		#expect(sections[0].title == "Toby Todos")
 		#expect(sections[0].rows[0].systemImage == "plus.circle")

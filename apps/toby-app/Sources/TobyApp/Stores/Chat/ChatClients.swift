@@ -1,13 +1,10 @@
 import Foundation
 
-/// Daemon HTTP surface used by `ChatStore` (sessions, turns, status, issues, listen).
+/// The client surface `ChatStore` uses (sessions, turns, status, issues, listen).
 @MainActor
 protocol ChatClientable {
-	var baseURL: URL { get }
-
 	func fetchStatus() async throws -> AppStatus
 	func fetchDaemonStatus() async throws -> DaemonStatus
-	func restartDaemon(onProgress: DaemonBootstrapProgress?) async throws
 	func listSessions(limit: Int) async throws -> [SessionSummary]
 	func listPersonas() async throws -> [PersonaOption]
 	func fetchSession(id: String) async throws -> SessionDetail
@@ -41,7 +38,7 @@ protocol ChatClientable {
 
 extension TobyClient: ChatClientable {}
 
-/// Native audio localhost API used for listen start/stop/status.
+/// Native audio (listen start/stop/status).
 @MainActor
 protocol NativeAudioClientable {
 	func status() async throws -> ListenStatusResponse

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CommandPaletteView: View {
 	let sessions: [SessionSummary]
-	let integrations: [SettingsItem]
 	let flows: [FlowListItem]
 	let recordings: [ListenRecordingSummary]
 	let onSelectSession: (String) -> Void
@@ -14,7 +13,6 @@ struct CommandPaletteView: View {
 	let onOpenFlow: (String) -> Void
 	let onOpenRecording: (String) -> Void
 	let onStartChat: (String) -> Void
-	let onRestartServer: () -> Void
 	let onDismiss: () -> Void
 
 	@State private var query = ""
@@ -53,26 +51,13 @@ struct CommandPaletteView: View {
 				),
 			)
 		}
-		if trimmed.isEmpty || "restart server".localizedCaseInsensitiveContains(trimmed)
-			|| "server".localizedCaseInsensitiveContains(trimmed)
-		{
-			items.append(
-				CommandPaletteResult(
-					id: "action-restart-server",
-					title: "Restart server",
-					subtitle: "Stop and start the background server",
-					systemImage: "arrow.clockwise",
-					kind: .action,
-				),
-			)
-		}
-
-		if trimmed.isEmpty || "integrations".localizedCaseInsensitiveContains(trimmed) {
+		if trimmed.isEmpty || "sources".localizedCaseInsensitiveContains(trimmed) || "mail".localizedCaseInsensitiveContains(trimmed)
+			|| "slack".localizedCaseInsensitiveContains(trimmed) || "integrations".localizedCaseInsensitiveContains(trimmed) {
 			items.append(CommandPaletteResult(
 				id: "action-integrations",
-				title: "Open Integrations",
-				subtitle: "Manage connected apps",
-				systemImage: "puzzlepiece.extension",
+				title: "Open Sources",
+				subtitle: "Connect Mail and Slack",
+				systemImage: "tray.2",
 				kind: .action,
 			))
 		}
@@ -157,23 +142,6 @@ struct CommandPaletteView: View {
 					subtitle: sessionSubtitle(session),
 					systemImage: "message",
 					kind: .session(session.id),
-				),
-			)
-		}
-
-		let filteredIntegrations = integrations.filter { integration in
-			guard !trimmed.isEmpty else { return true }
-			return integration.label.localizedCaseInsensitiveContains(trimmed)
-		}
-
-		for integration in filteredIntegrations {
-			items.append(
-				CommandPaletteResult(
-					id: "integration-\(integration.navKey ?? integration.key)",
-					title: integration.label,
-					subtitle: "Integration",
-					systemImage: "puzzlepiece.extension",
-					kind: .integration(integration.navKey ?? integration.key),
 				),
 			)
 		}
@@ -349,13 +317,10 @@ struct CommandPaletteView: View {
 			onOpenSettings()
 		case .action where result.id == "action-integrations":
 			onDismiss()
-			onOpenIntegration(SettingsItem.integrationsSectionKey)
+			onOpenIntegration("sources")
 		case .action where result.id == "action-memories":
 			onDismiss()
 			onOpenMemories()
-		case .action where result.id == "action-restart-server":
-			onDismiss()
-			onRestartServer()
 		case .route(let route):
 			onDismiss()
 			onNavigateToRoute(route)

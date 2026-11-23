@@ -8,7 +8,6 @@ import ViewInspector
 struct CommandPaletteViewTests {
     private func makeView(
         sessions: [SessionSummary] = [],
-        integrations: [SettingsItem] = [],
         flows: [FlowListItem] = [],
         recordings: [ListenRecordingSummary] = [],
         onSelectSession: @escaping (String) -> Void = { _ in },
@@ -20,12 +19,10 @@ struct CommandPaletteViewTests {
         onOpenFlow: @escaping (String) -> Void = { _ in },
         onOpenRecording: @escaping (String) -> Void = { _ in },
         onStartChat: @escaping (String) -> Void = { _ in },
-        onRestartServer: @escaping () -> Void = {},
         onDismiss: @escaping () -> Void = {}
     ) -> CommandPaletteView {
         CommandPaletteView(
             sessions: sessions,
-            integrations: integrations,
             flows: flows,
             recordings: recordings,
             onSelectSession: onSelectSession,
@@ -37,25 +34,7 @@ struct CommandPaletteViewTests {
             onOpenFlow: onOpenFlow,
             onOpenRecording: onOpenRecording,
             onStartChat: onStartChat,
-            onRestartServer: onRestartServer,
             onDismiss: onDismiss
-        )
-    }
-
-    private func makeIntegration(label: String, key: String, navKey: String? = nil) -> SettingsItem {
-        SettingsItem(
-            label: label,
-            kind: .section,
-            key: key,
-            navKey: navKey ?? key,
-            children: [],
-            masked: nil,
-            multiline: nil,
-            options: nil,
-            selectChoices: nil,
-            currentValue: nil,
-            selectedValues: nil,
-            readOnly: nil
         )
     }
 
@@ -80,11 +59,10 @@ struct CommandPaletteViewTests {
         )
     }
 
-    @Test("empty query shows actions, sessions, integrations, flows, and recordings")
+    @Test("empty query shows actions, sessions, flows, and recordings")
     func emptyQueryShowsAllResultTypes() throws {
         let view = makeView(
             sessions: [SessionSummary(id: "s1", name: "Session One", createdAt: nil, updatedAt: nil)],
-            integrations: [makeIntegration(label: "Gmail", key: "gmail")],
             flows: [makeFlow(id: "sch1", name: "Daily Review")],
             recordings: [makeRecording(id: "rec1", name: "Team Meeting")]
         )
@@ -94,25 +72,9 @@ struct CommandPaletteViewTests {
         #expect(titles.contains("Open settings"))
         #expect(titles.contains("Open Memories"))
         #expect(titles.contains("Open Library"))
-        #expect(titles.contains("Restart server"))
         #expect(titles.contains("Session One"))
-        #expect(titles.contains("Gmail"))
         #expect(titles.contains("Daily Review"))
         #expect(titles.contains("Team Meeting"))
-    }
-
-    @Test("search filters integrations by label")
-    func searchFiltersIntegrations() throws {
-        let view = makeView(
-            integrations: [
-                makeIntegration(label: "Gmail", key: "gmail"),
-                makeIntegration(label: "Todoist", key: "todoist"),
-            ]
-        )
-        let results = view.results(for: "todo")
-        let titles = results.map { $0.title }
-        #expect(titles.contains("Todoist"))
-        #expect(!titles.contains("Gmail"))
     }
 
     @Test("search filters flows by name and prompt")
@@ -161,7 +123,6 @@ struct CommandPaletteViewTests {
     func resultKindsReflectEntityTypes() throws {
         let view = makeView(
             sessions: [SessionSummary(id: "s1", name: "Session", createdAt: nil, updatedAt: nil)],
-            integrations: [makeIntegration(label: "Gmail", key: "gmail")],
             flows: [makeFlow(id: "sch1", name: "Schedule")],
             recordings: [makeRecording(id: "rec1", name: "Recording")]
         )
@@ -170,35 +131,14 @@ struct CommandPaletteViewTests {
         #expect(action?.kind == .action)
         let memories = results.first { $0.id == "action-memories" }
         #expect(memories?.kind == .action)
-        let restart = results.first { $0.id == "action-restart-server" }
-        #expect(restart?.kind == .action)
         let openIntegrations = results.first { $0.id == "action-integrations" }
         #expect(openIntegrations?.kind == .action)
         let session = results.first { $0.id == "session-s1" }
         #expect(session?.kind == .session("s1"))
-        let integration = results.first { $0.id == "integration-gmail" }
-        #expect(integration?.kind == .integration("gmail"))
         let schedule = results.first { $0.id == "flow-sch1" }
         #expect(schedule?.kind == .flow("sch1"))
         let recording = results.first { $0.id == "recording-rec1" }
         #expect(recording?.kind == .recording("rec1"))
-    }
-
-    @Test("selecting an integration opens it via callback")
-    func selectIntegrationCallback() throws {
-        var selectedNavKey: String?
-        let view = makeView(
-            integrations: [makeIntegration(label: "Gmail", key: "gmail", navKey: "integrations.gmail")],
-            onOpenIntegration: { selectedNavKey = $0 },
-            onDismiss: {}
-        )
-        let buttons = try view.inspect().findAll(ViewType.Button.self)
-        let integrationButton = buttons.first { btn in
-            (try? btn.find(text: "Gmail")) != nil
-        }
-        try #require(integrationButton != nil, "Integration button not found")
-        try integrationButton!.tap()
-        #expect(selectedNavKey == "integrations.gmail")
     }
 
     @Test("selecting a flow opens it via callback")
@@ -252,13 +192,6 @@ struct CommandPaletteViewTests {
         #expect(selectedId == "s1")
     }
 
-    @Test("search finds restart server action")
-    func searchFindsRestartServerAction() throws {
-        let view = makeView()
-        let results = view.results(for: "server")
-        #expect(results.contains { $0.id == "action-restart-server" })
-    }
-
     @Test("unmatched sentence-like input offers a chat prompt")
     func unmatchedSentenceOffersChatPrompt() {
         let view = makeView()
@@ -288,13 +221,11 @@ struct CommandPaletteViewTests {
 
     @Test("existing matches take precedence over a chat prompt")
     func existingMatchTakesPrecedence() {
-        let view = makeView(
-            integrations: [makeIntegration(label: "Daily Review", key: "daily-review")]
-        )
+        let view = makeView(flows: [makeFlow(id: "daily-review", name: "Daily Review")])
 
         let results = view.results(for: "daily review")
 
-        #expect(results.contains { $0.kind == .integration("daily-review") })
+        #expect(results.contains { $0.kind == .flow("daily-review") })
         #expect(!results.contains { if case .chatPrompt = $0.kind { true } else { false } })
     }
 
@@ -310,24 +241,6 @@ struct CommandPaletteViewTests {
         view.activate(prompt)
 
         #expect(selectedPrompt == "summarize my day")
-        #expect(didDismiss)
-    }
-
-    @Test("selecting restart server action calls callback")
-    func selectRestartServerCallback() throws {
-        var didRestart = false
-        var didDismiss = false
-        let view = makeView(
-            onRestartServer: { didRestart = true },
-            onDismiss: { didDismiss = true }
-        )
-        let buttons = try view.inspect().findAll(ViewType.Button.self)
-        let restartButton = buttons.first { btn in
-            (try? btn.find(text: "Restart server")) != nil
-        }
-        try #require(restartButton != nil, "Restart server button not found")
-        try restartButton!.tap()
-        #expect(didRestart)
         #expect(didDismiss)
     }
 

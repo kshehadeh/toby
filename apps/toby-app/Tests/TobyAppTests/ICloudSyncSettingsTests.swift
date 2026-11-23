@@ -6,24 +6,11 @@ import ViewInspector
 @MainActor
 @Suite("ICloudSyncSettings")
 struct ICloudSyncSettingsTests {
-	@Test("iCloud section has correct key and label")
-	func iCloudSectionProperties() {
-		let section = SettingsItem.iCloudSection
-		#expect(section.key == SettingsItem.iCloudSectionKey)
-		#expect(section.label == "Sync")
-		#expect(section.kind == .section)
-		#expect(section.navKey == SettingsItem.iCloudSectionKey)
+	@Test("Sync deep links open Sync & Backup")
+	func iCloudDeepLink() {
 		#expect(SettingsItem.iCloudSectionKey == "icloud")
-		#expect(SettingsSidebarIcon.systemName(for: section) == "arrow.triangle.2.circlepath")
-	}
-
-	@Test("iCloud tab is a client-only settings tab")
-	func iCloudIsClientOnlyTab() {
-		#expect(
-			RootSettingsNavigation.clientOnlySettingsTabKeys.contains(
-				SettingsItem.iCloudSectionKey
-			)
-		)
+		#expect(NativeSettingsSection(navKey: SettingsItem.iCloudSectionKey) == .sync)
+		#expect(NativeSettingsSection.sync.title == "Sync & Backup")
 	}
 
 	@Test("settings view offers a folder when Drive is unavailable")

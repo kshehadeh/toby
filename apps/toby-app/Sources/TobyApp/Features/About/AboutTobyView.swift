@@ -4,7 +4,6 @@ import SwiftUI
 struct AboutTobyView: View {
 	@Bindable var changelogStore: ChangelogStore
 	var updateStore: UpdateStore?
-	@Bindable var pluginsStore: PluginsStore
 	var appVersion: String?
 	var tobyDirectory: String?
 	var onDismiss: (() -> Void)? = nil
@@ -48,9 +47,7 @@ struct AboutTobyView: View {
 		)
 		.background(AppTheme.contentBackground)
 		.task {
-			async let changelog: () = changelogStore.load()
-			async let plugins: () = pluginsStore.load()
-			_ = await (changelog, plugins)
+			await changelogStore.load()
 		}
 	}
 
@@ -59,7 +56,6 @@ struct AboutTobyView: View {
 			VStack(alignment: .leading, spacing: 20) {
 				appIdentity
 				homeDirectorySection
-				pluginsSection
 				openSourceSection
 			}
 			.padding(24)
@@ -98,34 +94,6 @@ struct AboutTobyView: View {
 				Text("Waiting for server…")
 					.font(.callout)
 					.foregroundStyle(AppTheme.tertiaryText)
-			}
-		}
-	}
-
-	private var pluginsSection: some View {
-		VStack(alignment: .leading, spacing: 8) {
-			Text("Plugins")
-				.font(.headline)
-				.foregroundStyle(AppTheme.primaryText)
-			if let dir = pluginsStore.pluginsDirectory, !dir.isEmpty {
-				RevealPathButton(path: dir, label: "Plugin directory")
-			}
-			if pluginsStore.isLoading && pluginsStore.plugins.isEmpty {
-				Text("Loading plugins…")
-					.font(.callout)
-					.foregroundStyle(AppTheme.tertiaryText)
-			} else if let error = pluginsStore.errorMessage {
-				InlineStatusMessage(message: error, tone: .error, font: .caption)
-			} else if pluginsStore.plugins.isEmpty {
-				Text("No plugins installed.")
-					.font(.callout)
-					.foregroundStyle(AppTheme.tertiaryText)
-			} else {
-				VStack(alignment: .leading, spacing: 6) {
-					ForEach(pluginsStore.plugins) { plugin in
-						PluginRow(plugin: plugin)
-					}
-				}
 			}
 		}
 	}
@@ -184,13 +152,12 @@ struct AboutTobyView: View {
 			Button {
 				Task {
 					await changelogStore.load(force: true)
-					await pluginsStore.load()
 				}
 			} label: {
 				Text("Refresh")
 			}
 			.buttonStyle(.link)
-			.disabled(changelogStore.isLoading || pluginsStore.isLoading)
+			.disabled(changelogStore.isLoading)
 			.accessibilityLabel("Refresh")
 
 			Spacer()
@@ -221,8 +188,8 @@ struct AboutTobyView: View {
 	private static let openSourceLibraries: [OpenSourceLibrary] = [
 		OpenSourceLibrary(name: "SwiftUI, AppKit", detail: "Apple Inc. — UI framework"),
 		OpenSourceLibrary(
-			name: "EventKit, Network, AVFoundation",
-			detail: "Apple Inc. — calendar, networking, and audio/video system frameworks"
+			name: "EventKit, Contacts, Speech, Network, AVFoundation",
+			detail: "Apple Inc. — calendar, contacts, transcription, networking, and audio frameworks"
 		),
 		OpenSourceLibrary(
 			name: "CoreMedia, ScreenCaptureKit, ApplicationServices",
@@ -232,30 +199,8 @@ struct AboutTobyView: View {
 			name: "CoreWLAN, IOBluetooth, CoreAudio, CoreGraphics",
 			detail: "Apple Inc. — macOS system control and rendering frameworks"
 		),
-		OpenSourceLibrary(name: "Bun", detail: "oven-sh — JavaScript runtime, bundled server, plugins, and SQLite storage"),
+		OpenSourceLibrary(name: "GRDB.swift", detail: "Gwendal Roué — SQLite storage"),
 		OpenSourceLibrary(name: "Sparkle", detail: "sparkle-project.org — app updates"),
-		OpenSourceLibrary(
-			name: "AI SDK, @ai-sdk/gateway, @ai-sdk/openai, @ai-sdk/groq, @ai-sdk/openai-compatible",
-			detail: "Vercel — chat, tool calling, streaming, transcription, and model providers"
-		),
-		OpenSourceLibrary(
-			name: "React, Ink, ink-link, react-ink-textarea",
-			detail: "terminal UI framework and CLI text input components"
-		),
-		OpenSourceLibrary(name: "Commander, Chalk", detail: "CLI command routing and terminal output styling"),
-		OpenSourceLibrary(name: "Croner", detail: "cron parsing and recurring schedule execution"),
-		OpenSourceLibrary(name: "Zod", detail: "configuration, plugin protocol, and tool argument validation"),
-		OpenSourceLibrary(
-			name: "Mozilla Readability, linkedom",
-			detail: "web page extraction and HTML parsing for fetched content"
-		),
-		OpenSourceLibrary(name: "open", detail: "cross-platform browser and file opener"),
-		OpenSourceLibrary(name: "@slack/bolt", detail: "Slack app, OAuth, Socket Mode, and inbound chat support"),
-		OpenSourceLibrary(name: "ImapFlow, mailparser, Nodemailer", detail: "IMAP, email parsing, and SMTP support"),
-		OpenSourceLibrary(
-			name: "Docusaurus, MDX, Prism React Renderer, lucide-react",
-			detail: "documentation site framework, content rendering, code highlighting, and icons"
-		),
 		OpenSourceLibrary(name: "ViewInspector", detail: "Aleksei Nadezhin — UI testing (test-only)"),
 	]
 }

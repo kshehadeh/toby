@@ -4,7 +4,6 @@ import Foundation
 /// In-memory daemon stub for `ChatStore` tests (Phase 7 DI).
 @MainActor
 final class MockChatClient: ChatClientable {
-	var baseURL: URL = URL(string: "http://127.0.0.1:9")!
 
 	var status: AppStatus?
 	var daemonStatus: DaemonStatus?
@@ -36,7 +35,6 @@ final class MockChatClient: ChatClientable {
 	var saveAttachmentsToProjectValues: [Bool] = []
 	var createSessionCalls = 0
 	var lastCreateSessionPersona: String?
-	var restartDaemonCalls = 0
 	var fetchStatusCalls = 0
 
 	var error: Error?
@@ -56,12 +54,6 @@ final class MockChatClient: ChatClientable {
 		if let error { throw error }
 		guard let daemonStatus else { throw TobyClientError.invalidResponse }
 		return daemonStatus
-	}
-
-	func restartDaemon(onProgress: DaemonBootstrapProgress?) async throws {
-		restartDaemonCalls += 1
-		onProgress?("Restarting…")
-		if let error { throw error }
 	}
 
 	func listSessions(limit: Int) async throws -> [SessionSummary] {

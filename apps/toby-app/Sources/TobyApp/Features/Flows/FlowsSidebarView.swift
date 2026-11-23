@@ -22,29 +22,18 @@ enum FlowSidebarFilter: String, CaseIterable {
 
 struct FlowsSidebarView: View {
 	@Bindable var store: FlowsStore
-	@Binding var showScriptTools: Bool
 	@State private var filter = FlowSidebarFilter.all
 	private var filteredFlows: [FlowListItem] { store.flows.filter { filter.matches($0) } }
 
-	init(store: FlowsStore, showScriptTools: Binding<Bool> = .constant(false)) {
+	init(store: FlowsStore) {
 		self.store = store
-		self._showScriptTools = showScriptTools
 	}
 
 	var body: some View {
 		VStack(spacing: 0) {
-		Button {
-			showScriptTools = true
-		} label: {
-			Label("Script Tools", systemImage: "curlybraces")
-		}
-		.buttonStyle(.plain)
-		.padding(12)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.accessibilityIdentifier("open-script-tools")
 		Picker("Filter flows", selection: $filter) {
             ForEach(FlowSidebarFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-        }.padding(.horizontal, 12).padding(.bottom, 10)
+        }.padding(12)
 		Divider()
 		FeatureBrowserList(
 			isLoading: store.isListLoading,

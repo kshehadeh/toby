@@ -94,24 +94,6 @@ enum ConfigReader {
 		try? fm.removeItem(atPath: probe)
 	}
 
-	static func resolveDaemonPort() -> Int {
-		let configURL = URL(fileURLWithPath: resolveTobyDir())
-			.appendingPathComponent("config.json")
-		guard
-			let data = try? Data(contentsOf: configURL),
-			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-			let web = json["web"] as? [String: Any],
-			let port = web["port"] as? Int
-		else {
-			return 7847
-		}
-		return port
-	}
-
-	static func baseURL() -> URL {
-		URL(string: "http://127.0.0.1:\(resolveDaemonPort())")!
-	}
-
 	/// Preferred capture sources for Record Audio (`config.listen`).
 	/// Defaults to both microphone and system audio when unset.
 	static func listenRecordSources() -> (mic: Bool, system: Bool) {

@@ -14,7 +14,6 @@ struct RootView: View {
     let personaEditorCoordinator: PersonaEditorCoordinator
     @Bindable var updateStore: UpdateStore
     @Bindable var changelogStore: ChangelogStore
-    @Bindable var pluginsStore: PluginsStore
     @Bindable var todosStore: TodosStore = TodosStore()
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
@@ -38,14 +37,12 @@ struct RootView: View {
     @State private var isPersonaAttentionHighlighted = false
     @State private var emphasizeCreatePersona = false
     @State private var personaAttentionTask: Task<Void, Never>?
-    @State private var isAIProviderSetupPresented = false
     /// Session-only Home layout editor. Leaving Home always ends editing.
     @State private var isEditingDashboard = false
     /// Home toolbar → "Guide The Feed" instructions sheet.
     @State private var isShowingFeedInstructions = false
     /// When true on a narrow Chats workspace, show the session list instead of the transcript.
     @State private var preferChatSessionList = false
-    @State private var isConnectionStatusPresented = false
 
     var body: some View {
         contentWithBackup
@@ -112,7 +109,6 @@ struct RootView: View {
             onLibraryDidChange: { libraryStore.handleExternalLibraryChange() },
             onPersonasDidChange: {
                 Task {
-                    await configureStore.handlePersonasChanged()
                     await projectsStore.refreshPersonas()
                     await store.refreshPersonas()
                 }
@@ -147,10 +143,6 @@ struct RootView: View {
             onNavigateToRoute: navigateToRoute,
             onOpenSettings: { openSettings(navKey: $0) },
             onOpenMemoriesWindow: { openWindow(id: "memories") },
-            onOpenConnectionStatus: {
-                bringMainWindowToFront()
-                isConnectionStatusPresented = true
-            },
             isRecordingActive: store.isRecordingActive,
             recordingChromeState: store.recordingChromeState,
             recordingProcessingStage: store.recordingProcessing?.stage,
@@ -197,7 +189,6 @@ struct RootView: View {
                         )
                         Task {
                             await store.refreshStatus()
-                            await configureStore.loadSettingsSections()
                         }
                     },
                     onError: { message in
@@ -244,7 +235,6 @@ struct RootView: View {
             }
             .onAppear {
                 TutorialStore.shared.setContext(TutorialSection.forRoute(history.current))
-                configureStore.onChangesSaved = { Task { await store.refreshStatus() } }
             }
     }
 
@@ -260,28 +250,11 @@ struct RootView: View {
                 AboutTobyView(
                     changelogStore: changelogStore,
                     updateStore: updateStore,
-                    pluginsStore: pluginsStore,
                     appVersion: store.status?.version,
                     tobyDirectory: store.status?.tobyDir
                 ) {
                     isAboutPresented = false
                 }
-            }
-            .sheet(isPresented: $isConnectionStatusPresented) {
-                ServerInfoView(
-                    status: store.status,
-                    daemonStatus: store.daemonStatus,
-                    health: ServerHealth.resolve(
-                        status: store.status,
-                        daemonStatus: store.daemonStatus,
-                        isRestarting: store.isServerRestarting,
-                        isConnecting: store.isServerConnecting
-                    ),
-                    isRestarting: store.isServerRestarting || store.isServerConnecting,
-                    lifecycleMessage: store.serverLifecycleMessage,
-                    onRestart: { Task { await store.restartServer() } },
-                    onDismiss: { isConnectionStatusPresented = false }
-                )
             }
             .sheet(
                 isPresented: Binding(
@@ -298,18 +271,6 @@ struct RootView: View {
                     .presentationBackground(.clear)
                     .interactiveDismissDisabled(true)
                 }
-            }
-            .sheet(isPresented: $isAIProviderSetupPresented) {
-                VercelAIGatewaySetupWizardView(
-                    onCompleted: {
-                        Task {
-                            await store.refreshStatus()
-                            await configureStore.loadSettingsSections()
-                        }
-                    },
-                    onStartChat: { startNewChat() },
-                    onDismiss: { isAIProviderSetupPresented = false }
-                )
             }
     }
 
@@ -346,17 +307,6 @@ struct RootView: View {
             .onChange(of: store.status?.version) { _, version in
                 guard version != nil else { return }
                 Task { await loadSharedAppDataIfConnected() }
-            }
-            .onChange(of: store.isServerRestarting) { wasRestarting, isRestarting in
-                if isRestarting {
-                    hasCompletedInitialLoad = false
-                }
-                guard wasRestarting, !isRestarting, store.status != nil else { return }
-                Task {
-                    await refreshSharedAppDataIfConnected()
-                    permissionsStore.refresh()
-                    hasCompletedInitialLoad = store.isServerReady
-                }
             }
             .task {
                 // Keep permissions fresh on appear; initial load also refreshes
@@ -430,9 +380,6 @@ struct RootView: View {
                 currentRoute: history.current,
                 status: store.status,
                 daemonStatus: store.daemonStatus,
-                isServerRestarting: store.isServerRestarting,
-                isServerConnecting: store.isServerConnecting,
-                serverLifecycleMessage: store.serverLifecycleMessage,
                 onSelectRoute: { route in
                     if route == history.current {
                         showRouteOverviewIfNeeded(route)
@@ -454,9 +401,6 @@ struct RootView: View {
                 onPersonaSelected: {
                     clearPersonaAttention()
                     refreshStatus()
-                },
-                onRestartServer: {
-                    Task { await store.restartServer() }
                 }
             )
             .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
@@ -491,7 +435,7 @@ struct RootView: View {
                 onCreateSchedule: startNewFlow,
                 onCreateSkill: startNewSkill,
                 onOpenSettings: { openSettings(navKey: $0) },
-                onOpenAIProviderSetup: { isAIProviderSetupPresented = true },
+                onOpenAIProviderSetup: { openSettings(navKey: "account") },
                 onOpenPersonaPicker: focusPersonaPickerFromOnboarding,
                 onOpenPermissions: { openWindow(id: "permissions") },
                 actionContext: DashboardBlockActionContext(
@@ -898,7 +842,6 @@ struct RootView: View {
         CommandPalettePanelController.shared.show {
             CommandPaletteView(
                 sessions: store.sessions,
-                integrations: configureStore.integrationSections,
                 flows: flowsStore.flows,
                 recordings: recordingsStore.recordings,
                 onSelectSession: { id in
@@ -935,9 +878,6 @@ struct RootView: View {
                     bringMainWindowToFront()
                     navigateToRoute(.chat)
                     Task { await store.startNewChat(withPrompt: prompt) }
-                },
-                onRestartServer: {
-                    Task { await store.restartServer() }
                 },
                 onDismiss: { CommandPalettePanelController.shared.dismiss() },
             )
@@ -1241,8 +1181,7 @@ struct RootView: View {
         async let library: () = libraryStore.ensureListLoaded()
         async let skills: () = skillsStore.ensureListLoaded()
         async let projects: () = projectsStore.ensureListLoaded()
-        async let integrations: () = loadIntegrationsCatalogIfNeeded()
-        _ = await (sessions, flows, recordings, memories, library, skills, projects, integrations)
+        _ = await (sessions, flows, recordings, memories, library, skills, projects)
     }
 
     /// Soft-reset feature stores after Settings → General switches the Toby home.
@@ -1260,13 +1199,10 @@ struct RootView: View {
         libraryStore.resetForHomeSwitch()
         flowsStore.resetForHomeSwitch()
         todosStore.resetForHomeSwitch()
-        pluginsStore.resetForHomeSwitch()
         changelogStore.resetForHomeSwitch()
 
         await refreshSharedAppDataIfConnected()
         await dashboardStore.refreshAll()
-        await configureStore.loadSettingsSections()
-        await pluginsStore.load()
         permissionsStore.refresh()
         hasCompletedInitialLoad = store.isServerReady
     }
@@ -1280,8 +1216,7 @@ struct RootView: View {
         async let library: () = libraryStore.loadList()
         async let skills: () = skillsStore.loadList()
         async let projects: () = projectsStore.loadList()
-        async let integrations: () = loadIntegrationsCatalogIfNeeded()
-        _ = await (sessions, flows, recordings, memories, library, skills, projects, integrations)
+        _ = await (sessions, flows, recordings, memories, library, skills, projects)
     }
 
     private func refreshDashboardData() async {
@@ -1290,11 +1225,6 @@ struct RootView: View {
         async let dashboard: () = dashboardStore.refreshAll()
         async let shared: () = refreshSharedAppDataIfConnected()
         _ = await (dashboard, shared)
-    }
-
-    private func loadIntegrationsCatalogIfNeeded() async {
-        guard configureStore.integrationSections.isEmpty else { return }
-        await configureStore.loadSettingsSections(selectDefaultIfNeeded: false)
     }
 
     private func presentAbout() {

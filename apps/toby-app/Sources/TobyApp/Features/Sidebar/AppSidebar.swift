@@ -4,9 +4,6 @@ struct AppSidebar: View {
 	let currentRoute: DetailRoute
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
-	let isServerRestarting: Bool
-	var isServerConnecting: Bool = false
-	var serverLifecycleMessage: String? = nil
 	let onSelectRoute: (DetailRoute) -> Void
 	@Binding var isPersonaPickerPresented: Bool
 	var isPersonaAttentionHighlighted: Bool = false
@@ -14,7 +11,6 @@ struct AppSidebar: View {
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
-	let onRestartServer: () -> Void
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -28,28 +24,15 @@ struct AppSidebar: View {
 			.scrollContentBackground(.hidden)
 			.accessibilityIdentifier("sidebar-destination-list")
 
-			SidebarConnectionStatus(
-				status: status,
-				daemonStatus: daemonStatus,
-				isRestarting: isServerRestarting,
-				isConnecting: isServerConnecting,
-				lifecycleMessage: serverLifecycleMessage,
-				onRestart: onRestartServer
-			)
-
 			SidebarFooter(
 				status: status,
 				daemonStatus: daemonStatus,
-				isServerRestarting: isServerRestarting,
-				isServerConnecting: isServerConnecting,
-				serverLifecycleMessage: serverLifecycleMessage,
 				isPersonaPickerPresented: $isPersonaPickerPresented,
 				isAttentionHighlighted: isPersonaAttentionHighlighted,
 				emphasizeCreatePersona: emphasizeCreatePersona,
 				onCreatePersona: onCreatePersona,
 				onEditPersona: onEditPersona,
-				onPersonaSelected: onPersonaSelected,
-				onRestartServer: onRestartServer
+				onPersonaSelected: onPersonaSelected
 			)
 			.padding(.horizontal, 8)
 			.padding(.vertical, 8)

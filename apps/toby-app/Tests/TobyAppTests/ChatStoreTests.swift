@@ -491,7 +491,7 @@ struct ChatStoreTests {
         )
         #expect(store.isServerReady == true)
 
-        store.isServerRestarting = true
+        store.isServerConnecting = true
         #expect(store.isServerReady == false)
     }
 

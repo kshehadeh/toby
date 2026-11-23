@@ -3,11 +3,19 @@ import TobyCore
 import TobyStore
 
 extension ConfigReader {
-	/// Resolve a daemon-relative asset path (e.g. `/api/personas/image/toby.png`).
-	/// In native mode persona portraits and skill icons come from disk.
+	/// Resolve an asset path (e.g. `/api/personas/image/toby.png`) to a file on
+	/// disk: persona portraits and skill icons. Absolute URLs pass through.
 	static func assetURL(_ path: String) -> URL? {
-		if NativeMode.isEnabled, let local = nativeAssetURL(path) { return local }
-		return URL(string: baseURL().absoluteString + path)
+		if let local = nativeAssetURL(path) { return local }
+		if let url = URL(string: path), url.scheme != nil { return url }
+		return nil
+	}
+
+	/// The default persona portrait (bundled).
+	static var defaultPersonaImageURL: URL {
+		assetURL("/api/personas/image/default.png")
+			?? Bundle.tobyResources.url(forResource: "default-persona", withExtension: "png")
+			?? URL(fileURLWithPath: "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/UserIcon.icns")
 	}
 
 	static func nativeAssetURL(_ path: String) -> URL? {

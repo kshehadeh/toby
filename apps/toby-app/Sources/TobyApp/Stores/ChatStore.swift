@@ -22,17 +22,14 @@ final class ChatStore {
 	var promptFocusRequestId = UUID()
 	var isLoading = false
 	var isSelectingSession = false
-	var isServerRestarting = false
 	/// True while bootstrap is ensuring / replacing the local daemon.
 	var isServerConnecting = false
-	/// User-visible detail for server lifecycle (bootstrap / restart steps).
-	var serverLifecycleMessage: String?
 
 	/// True once the daemon handshake succeeded and status has been fetched,
 	/// and the server is not mid-connect or mid-restart. Use this to gate UI
 	/// that depends on configuration / plugins (e.g. onboarding).
 	var isServerReady: Bool {
-		status != nil && !isServerConnecting && !isServerRestarting
+		status != nil && !isServerConnecting
 	}
 	var listenStatus: ListenStatusResponse?
 	var isListenRequestInFlight = false
@@ -165,18 +162,8 @@ final class ChatStore {
 
 	func bootstrap() async {
 		isServerConnecting = true
-		serverLifecycleMessage = "Checking server…"
-		activityLine = "Checking server…"
+		activityLine = "Starting…"
 		do {
-			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL) { [weak self] message in
-				Task { @MainActor in
-					guard let self else { return }
-					self.serverLifecycleMessage = message
-					self.activityLine = message
-				}
-			}
-			activityLine = "Connecting…"
-			serverLifecycleMessage = "Connecting…"
 			status = try await client.fetchStatus()
 			if let native = try? await nativeAudioClient.status() {
 				applyRefreshedListenStatus(native)
@@ -186,15 +173,13 @@ final class ChatStore {
 			await refreshPersonas()
 			await startNewSession()
 			isServerConnecting = false
-			serverLifecycleMessage = nil
 			if !isLoading {
 				activityLine = "Ready"
 			}
 		} catch {
 			isServerConnecting = false
-			serverLifecycleMessage = nil
 			showErrorToast(error.localizedDescription)
-			activityLine = "Daemon unavailable"
+			activityLine = "Toby couldn’t start"
 		}
 	}
 
@@ -229,7 +214,6 @@ final class ChatStore {
 	}
 
 	func refreshDaemonStatus() async {
-		guard !isServerRestarting else { return }
 		do {
 			daemonStatus = try await client.fetchDaemonStatus()
 		} catch {
@@ -239,57 +223,6 @@ final class ChatStore {
 		if inboundUpdatedAt != lastInboundUpdatedAt {
 			lastInboundUpdatedAt = inboundUpdatedAt
 			await refreshSessions()
-		}
-	}
-
-	func restartServer() async {
-		guard !isServerRestarting else { return }
-		isServerRestarting = true
-		status = nil
-		daemonStatus = nil
-		serverLifecycleMessage = "Restarting server…"
-		activityLine = "Restarting server…"
-		toast = AppToastState(
-			style: .progress,
-			title: "Restarting server",
-			message: "Stopping the current server and starting the one for this app.",
-		)
-		do {
-			try await client.restartDaemon { [weak self] message in
-				Task { @MainActor in
-					guard let self else { return }
-					self.serverLifecycleMessage = message
-					self.activityLine = message
-					self.toast = AppToastState(
-						style: .progress,
-						title: "Restarting server",
-						message: message,
-					)
-				}
-			}
-			status = try await client.fetchStatus()
-			if let native = try? await nativeAudioClient.status() {
-				applyRefreshedListenStatus(native)
-			}
-			isServerRestarting = false
-			serverLifecycleMessage = nil
-			await refreshDaemonStatus()
-			activityLine = "Ready"
-			toast = AppToastState(
-				style: .success,
-				title: "Server restarted",
-				message: "Toby is connected again.",
-			)
-		} catch {
-			isServerRestarting = false
-			serverLifecycleMessage = nil
-			activityLine = "Daemon unavailable"
-			toast = AppToastState(
-				style: .error,
-				title: "Server restart failed",
-				message: error.localizedDescription,
-			)
-			await refreshDaemonStatus()
 		}
 	}
 
@@ -328,16 +261,14 @@ final class ChatStore {
 			try ConfigReader.ensureWritableDirectory(at: targetResolved)
 		}
 
-		let oldBaseURL = client.baseURL
 		isServerConnecting = true
 		status = nil
 		daemonStatus = nil
-		serverLifecycleMessage = "Stopping server…"
-		activityLine = "Stopping server…"
+		activityLine = "Switching home…"
 		toast = AppToastState(
 			style: .progress,
 			title: "Switching home directory",
-			message: "Stopping the current server…",
+			message: "Opening the new home…",
 		)
 
 		// Best-effort stop of work against the old home.
@@ -346,48 +277,13 @@ final class ChatStore {
 		}
 		clearSessionStateForHomeSwitch()
 
-		do {
-			try await DaemonBootstrap.stopDaemon(baseURL: oldBaseURL)
-		} catch {
-			// Continue — force path inside stop may have cleaned up; proceed carefully.
-			ServerEventLog.append(
-				"homeSwitch.stopDaemonError error=\(error.localizedDescription)"
-			)
-		}
-
-		NativeServer.shared.stop()
-
-		serverLifecycleMessage = "Switching home…"
-		activityLine = "Switching home…"
 		AppearancePreferences.shared.tobyDirOverride = targetOverride
 		// Ensure process env matches even if preference was already equivalent.
 		ConfigReader.syncTobyDirEnvironment()
 		try ConfigReader.ensureWritableDirectory(at: ConfigReader.resolveTobyDir())
 
-		NativeServer.shared.start()
-
-		serverLifecycleMessage = "Starting server…"
-		activityLine = "Starting server…"
-		toast = AppToastState(
-			style: .progress,
-			title: "Switching home directory",
-			message: "Starting the server for the new home…",
-		)
-
 		do {
-			try await DaemonBootstrap.ensureServerAvailable(baseURL: client.baseURL) {
-				[weak self] message in
-				Task { @MainActor in
-					guard let self else { return }
-					self.serverLifecycleMessage = message
-					self.activityLine = message
-					self.toast = AppToastState(
-						style: .progress,
-						title: "Switching home directory",
-						message: message,
-					)
-				}
-			}
+			NativeRuntime.shared.launch()
 			status = try await client.fetchStatus()
 			if let native = try? await nativeAudioClient.status() {
 				applyRefreshedListenStatus(native)
@@ -397,7 +293,6 @@ final class ChatStore {
 			await refreshPersonas()
 			await startNewSession()
 			isServerConnecting = false
-			serverLifecycleMessage = nil
 			activityLine = "Ready"
 			toast = AppToastState(
 				style: .success,
@@ -407,8 +302,7 @@ final class ChatStore {
 			NotificationCenter.default.post(name: .tobyHomeDidChange, object: nil)
 		} catch {
 			isServerConnecting = false
-			serverLifecycleMessage = nil
-			activityLine = "Daemon unavailable"
+			activityLine = "Home switch failed"
 			toast = AppToastState(
 				style: .error,
 				title: "Home switch failed",
@@ -426,8 +320,8 @@ final class ChatStore {
 		if isRecordingActive || isListenRequestInFlight || recordingProcessing != nil {
 			throw TobyHomeError.busy("Stop recording before switching home.")
 		}
-		if isServerConnecting || isServerRestarting {
-			throw TobyHomeError.busy("Wait for the server to finish connecting before switching home.")
+		if isServerConnecting {
+			throw TobyHomeError.busy("Wait for Toby to finish starting before switching home.")
 		}
 	}
 

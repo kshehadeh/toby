@@ -3,9 +3,6 @@ import SwiftUI
 struct SidebarFooter: View {
 	let status: AppStatus?
 	let daemonStatus: DaemonStatus?
-	let isServerRestarting: Bool
-	var isServerConnecting: Bool = false
-	var serverLifecycleMessage: String? = nil
 	@Binding var isPersonaPickerPresented: Bool
 	/// Quiet accent emphasis around the persona control (e.g. onboarding CTA).
 	var isAttentionHighlighted: Bool = false
@@ -14,25 +11,12 @@ struct SidebarFooter: View {
 	let onCreatePersona: () -> Void
 	let onEditPersona: (String) -> Void
 	let onPersonaSelected: () -> Void
-	let onRestartServer: () -> Void
 
 	@Environment(\.accessibilityReduceMotion) private var reduceMotion
 
 	var body: some View {
 		HStack(alignment: .center, spacing: 4) {
 			personaButton
-			ServerStatusButton(
-				status: status,
-				daemonStatus: daemonStatus,
-				isRestarting: isServerRestarting,
-				isConnecting: isServerConnecting,
-				lifecycleMessage: serverLifecycleMessage,
-				style: .dot,
-				popoverArrowEdge: .bottom,
-				onRestart: onRestartServer
-			)
-			.fixedSize()
-			.accessibilityIdentifier("sidebar-server-status")
 		}
 		.accessibilityIdentifier("sidebar-footer")
 	}
@@ -47,7 +31,7 @@ struct SidebarFooter: View {
 				{
 					PersonaImageView(url: imageUrl, size: 24)
 				} else {
-					PersonaImageView(url: ConfigReader.baseURL().appendingPathComponent("api/personas/image/default.png"), size: 24)
+					PersonaImageView(url: ConfigReader.defaultPersonaImageURL, size: 24)
 				}
 				Text(status?.persona ?? "Connecting")
 					.font(.body)

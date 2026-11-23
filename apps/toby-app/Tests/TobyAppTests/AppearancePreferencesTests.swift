@@ -150,92 +150,19 @@ struct AppearancePreferencesTests {
 		#expect(ThemeResolution.isDark == true)
 	}
 
-	@Test("settings window shows General tab by default")
+	@Test("settings window shows General by default")
 	func settingsWindowShowsGeneralTab() throws {
-		let store = ConfigureStore()
-		store.settingsSections = [
-			SettingsItem(
-				label: "Chat", kind: .section, key: "chatInbound",
-				navKey: nil, children: [],
-				masked: nil, multiline: nil, options: nil, selectChoices: nil,
-				currentValue: nil, selectedValues: nil, readOnly: nil
-			),
-		]
-		let view = SettingsWindowView(store: store)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "General")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(AppearanceSettingsView.self)
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "settings-sidebar")
-		}
-		#expect(SettingsItem.appearanceSection.label == "General")
-		#expect(SettingsSidebarIcon.systemName(for: .appearanceSection) == "gearshape")
+		#expect(NativeSettingsSection.general.title == "General")
+		#expect(NativeSettingsSection.allCases.first == .general)
 	}
 
-	@Test("general settings view does not host hide onboarding toggle")
-	func generalSettingsDoesNotHostHideOnboardingToggle() throws {
+	@Test("General settings host the Home onboarding and layout controls")
+	func generalSettingsHostHomeControls() throws {
 		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
 		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
 		let view = AppearanceSettingsView(preferences: prefs)
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
-		}
-		#expect(throws: (any Error).self) {
-			try view.inspect().find(text: "Hide onboarding checklist")
-		}
-	}
-
-	@Test("Home settings section shows hide onboarding and reset, without card or Feed toggles")
-	func dashboardSettingsShowsHideOnboardingToggle() throws {
-		let suite = UserDefaults(suiteName: "toby.tests.appearance.\(UUID().uuidString)")!
-		let prefs = AppearancePreferences(defaults: suite, applyLaunchAtLoginOnChange: false)
-		let store = ConfigureStore()
-		let section = SettingsItem(
-			label: "Home",
-			kind: .section,
-			key: "dashboard",
-			navKey: "dashboard",
-			children: [],
-			masked: nil,
-			multiline: nil,
-			options: nil,
-			selectChoices: nil,
-			currentValue: nil,
-			selectedValues: nil,
-			readOnly: nil
-		)
-		let view = ConfigureSectionDetailView(
-			store: store,
-			section: section,
-			appearancePreferences: prefs
-		)
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Home")
-		}
-		#expect(SettingsSidebarIcon.systemName(for: section) == "house")
-		for removed in [
-			"dashboard-show-email-toggle", "dashboard-show-tasks-toggle",
-			"dashboard-show-calendar-toggle", "dashboard-show-feed-toggle",
-		] {
-			#expect(throws: (any Error).self) {
-				try view.inspect().find(viewWithAccessibilityIdentifier: removed)
-			}
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Hide onboarding checklist")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-hide-onboarding-toggle")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(text: "Reset Home layout")
-		}
-		#expect(throws: Never.self) {
-			try view.inspect().find(viewWithAccessibilityIdentifier: "dashboard-reset-layout-button")
-		}
+		#expect(throws: Never.self) { try view.inspect().find(text: "Hide onboarding checklist") }
+		#expect(throws: Never.self) { try view.inspect().find(text: "Reset Home layout") }
 	}
 
 	@Test("reset Home layout shows hidden actions and restores the Actions rail")

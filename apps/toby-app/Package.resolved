@@ -1,15 +1,6 @@
 {
-  "originHash" : "a3ee5a4ef7eadd993736f36c175bd1fea714a1280306eb0083642c573fb4e2ae",
+  "originHash" : "7160349102b1cb8a848b2fa34304428b91558efefa98f2b7572b06b6e536bf60",
   "pins" : [
-    {
-      "identity" : "codeeditorview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mchakravarty/CodeEditorView",
-      "state" : {
-        "revision" : "5386056ab53d43363083cb96069715a9608aa048",
-        "version" : "0.16.0"
-      }
-    },
     {
       "identity" : "grdb.swift",
       "kind" : "remoteSourceControl",
@@ -17,15 +8,6 @@
       "state" : {
         "revision" : "92a554cd0d5e8d67cb18993c6054e73fe42c066c",
         "version" : "7.12.0"
-      }
-    },
-    {
-      "identity" : "rearrange",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ChimeHQ/Rearrange.git",
-      "state" : {
-        "revision" : "5ff7f3363f7a08f77e0d761e38e6add31c2136e1",
-        "version" : "1.8.1"
       }
     },
     {

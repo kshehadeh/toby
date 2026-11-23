@@ -17,6 +17,7 @@ struct AppearanceSettingsView: View {
 		Form {
 			homeDirectorySection
 			startupSection
+			homeSection
 			tutorialSection
 			themeSection
 			accentSection
@@ -341,5 +342,30 @@ private struct AccentSwatchButton: View {
 		.accessibilityLabel(preset.displayName)
 		.accessibilityAddTraits(isSelected ? .isSelected : [])
 		.accessibilityIdentifier("appearance-accent-\(preset.rawValue)")
+	}
+}
+
+extension AppearanceSettingsView {
+	/// Home screen preferences (stored only on this Mac).
+	var homeSection: some View {
+		Section("Home") {
+			Toggle(isOn: preferences.hideOnboardingBinding) {
+				VStack(alignment: .leading, spacing: 2) {
+					Text("Hide onboarding checklist")
+					Text("Hide the setup checklist on Home even if steps are incomplete. Stored only on this Mac.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+			}
+			.toggleStyle(.switch)
+			.accessibilityIdentifier("dashboard-hide-onboarding-toggle")
+			LabeledContent("Reset Home layout") {
+				Button("Reset") { preferences.resetDashboardLayout() }
+					.accessibilityIdentifier("dashboard-reset-layout-button")
+			}
+			Text("Show hidden actions, clear action colors, and restore the Actions sidebar. Stored only on this Mac.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+		}
 	}
 }

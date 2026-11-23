@@ -28,9 +28,9 @@ final class FlowTriggerActivityStore {
         defer { if requestID == request { loading = false } }
         do {
             struct Response: Decodable { let decisions: [FlowTriggerDecision] }
-            let client = TobyClient()
-            let response: Response = try await client.flowTriggerRequest("/activity?flowId=\(flowId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? flowId)")
-            let status: FlowTriggerSourceState = try await client.flowTriggerRequest("/status")
+            let service = try NativeRuntime.shared.flows().flows
+            let response = try JSONDecoder().decode(Response.self, from: Data(try await service.decisions(flowID: flowId).jsonString().utf8))
+            let status = try JSONDecoder().decode(FlowTriggerSourceState.self, from: Data(await service.sourceStatus.jsonString().utf8))
             guard !Task.isCancelled, requestID == request else { return }
             decisions = response.decisions
             source = status

@@ -8,7 +8,6 @@ struct FlowEditorView: View {
 	@Bindable var store: FlowsStore
 	@Binding var draft: FlowEditorDraft
 	@State private var isPickingTool = false
-	@State private var scriptTools: [UserScriptTool] = []
 
 	private var aiNodes: [FlowEditorNode] { draft.nodes.filter(\.isLLM) }
 
@@ -56,13 +55,7 @@ struct FlowEditorView: View {
 			FlowToolPickerView(store: store, onPick: { tool in
 				addTool(tool)
 				isPickingTool = false
-			}, onPickUserTool: { tool in
-				addUserTool(tool)
-				isPickingTool = false
 			})
-		}
-		.task {
-			scriptTools = (try? await TobyClient().listUserScriptTools()) ?? []
 		}
 	}
 
@@ -204,7 +197,6 @@ struct FlowEditorView: View {
 				node: $draft.node(node),
 				info: stepInfo(for: node),
 				catalogTool: store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool),
-				scriptTool: scriptTools.first(where: { $0.id == node.userToolId }),
 				previousOutputs: draft.promptOutputs(before: node.id),
 				outputOptions: outputOptions(before: node),
 				triggerValues: triggerValues,
@@ -244,16 +236,13 @@ struct FlowEditorView: View {
 	// MARK: - Step info
 
 	private func stepInfo(for node: FlowEditorNode) -> FlowEditorStepInfo {
-		let scriptTool = scriptTools.first(where: { $0.id == node.userToolId })
 		let catalogTool = store.catalogTool(moduleName: node.moduleName, toolName: node.toolName, standardTool: node.standardTool)
 		let module = catalogTool.flatMap { store.catalogModule(named: $0.moduleName) }
 			?? (node.moduleName.isEmpty ? nil : store.catalogModule(named: node.moduleName))
 		let category = node.standardTool.flatMap(FlowStory.category(forStandardTool:))
 
 		let title: String
-		if let scriptTool {
-			title = scriptTool.name
-		} else if let catalogTool {
+		if let catalogTool {
 			title = catalogTool.label
 		} else if let standardTool = node.standardTool {
 			title = FlowStory.title(forStandardTool: standardTool)
@@ -298,7 +287,7 @@ struct FlowEditorView: View {
 			title: title,
 			source: source,
 			sourceName: sourceName,
-			description: FlowEditorText.firstSentence(scriptTool?.description ?? catalogTool?.description),
+			description: FlowEditorText.firstSentence(catalogTool?.description),
 			iconURL: module?.resolvedIconURL,
 			systemImage: systemImage
 		)
@@ -358,10 +347,6 @@ struct FlowEditorView: View {
 
 	private func addTool(_ tool: FlowCatalogTool) {
 		draft.appendStep(.tool(tool))
-	}
-
-	private func addUserTool(_ tool: UserScriptTool) {
-		draft.appendStep(.userTool(tool))
 	}
 
 	private func addLLM() {
@@ -534,7 +519,6 @@ private struct FlowEditorToolCard: View {
 	@Binding var node: FlowEditorNode
 	let info: FlowEditorStepInfo
 	let catalogTool: FlowCatalogTool?
-	let scriptTool: UserScriptTool?
 	let previousOutputs: [FlowPromptOutput]
 	let outputOptions: [FlowStepOutputOption]
 	let triggerValues: [FlowTriggerValue]
@@ -546,7 +530,7 @@ private struct FlowEditorToolCard: View {
 	@State private var isExpanded = true
 
 	private var specs: [FlowStepInputSpec] {
-		FlowStepInputLayout.specs(catalogTool: catalogTool, scriptTool: scriptTool)
+		FlowStepInputLayout.specs(catalogTool: catalogTool)
 	}
 
 	/// The source while open; what the step is set to once collapsed.

@@ -440,7 +440,7 @@ struct FlowCatalogModule: Equatable, Identifiable {
 	let displayName: String
 	let connected: Bool
 	let tools: [FlowCatalogTool]
-	/// Relative icon URL served by the daemon (e.g. `/api/plugins/todoist/icon`).
+	/// Optional icon URL for the tool group.
 	var iconUrl: String? = nil
 
 	init(name: String, displayName: String, connected: Bool, tools: [FlowCatalogTool], iconUrl: String? = nil) {
@@ -453,21 +453,7 @@ struct FlowCatalogModule: Equatable, Identifiable {
 
 	var resolvedIconURL: URL? {
 		guard let iconUrl, !iconUrl.isEmpty else { return nil }
-		if iconUrl.hasPrefix("http://") || iconUrl.hasPrefix("https://") { return URL(string: iconUrl) }
-		return URL(string: ConfigReader.baseURL().absoluteString + iconUrl)
-	}
-
-	init?(plugin: PluginSummary) {
-		guard plugin.state == "valid" else { return nil }
-		let tools = (plugin.tools ?? []).map { FlowCatalogTool(moduleName: plugin.name, tool: $0) }
-		guard !tools.isEmpty else { return nil }
-		self.init(
-			name: plugin.name,
-			displayName: plugin.displayName,
-			connected: plugin.connected,
-			tools: tools,
-			iconUrl: plugin.iconUrl
-		)
+		return ConfigReader.assetURL(iconUrl)
 	}
 
 	static func parse(_ raw: [String: Any]) -> FlowCatalogModule? {
@@ -527,16 +513,6 @@ struct FlowCatalogTool: Equatable, Identifiable {
 		self.readOnly = readOnly
 		self.standardTool = standardTool
 		self.inputSchema = inputSchema
-	}
-
-	init(moduleName: String, tool: IntegrationToolDefinition) {
-		self.moduleName = moduleName
-		self.toolName = tool.name
-		self.displayName = tool.displayName
-		self.description = tool.description
-		self.readOnly = tool.readOnly
-		self.standardTool = tool.standardTool
-		self.inputSchema = tool.inputSchema ?? FlowInputSchema(type: "object", properties: [:], required: nil)
 	}
 
 	static func parse(_ raw: [String: Any]) -> FlowCatalogTool? {

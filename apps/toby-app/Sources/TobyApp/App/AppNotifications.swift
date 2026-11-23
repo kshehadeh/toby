@@ -29,7 +29,6 @@ extension Notification.Name {
 	/// `object` is a `GatewayFundsNotice`.
 	static let gatewayFundsExhausted = Notification.Name("gatewayFundsExhausted")
 	static let openMemoriesWindow = Notification.Name("openMemoriesWindow")
-	static let openConnectionStatus = Notification.Name("openConnectionStatus")
 	static let backupConfig = Notification.Name("backupConfig")
 	static let restoreConfig = Notification.Name("restoreConfig")
 	/// Posted when chat (or another writer) mutates durable memory so the memories UI can refresh.

@@ -13,7 +13,7 @@ enum TobyClientError: LocalizedError {
 	var errorDescription: String? {
 		switch self {
 		case .invalidResponse:
-			return "Invalid response from Toby daemon."
+			return "Invalid response from Toby."
 		case .serverError(let message), .streamError(let message), .gatewayFunds(let message):
 			return message
 		}
@@ -22,128 +22,33 @@ enum TobyClientError: LocalizedError {
 
 @MainActor
 struct TobyClient {
-	/// Optional fixed base URL (tests / explicit override). When `nil`, each
-	/// request re-reads `ConfigReader.baseURL()` so a home-directory switch
-	/// that changes `web.port` is picked up without reconstructing clients.
-	private let baseURLOverride: URL?
-
-	var baseURL: URL {
-		baseURLOverride ?? ConfigReader.baseURL()
-	}
-
-	init(baseURL: URL? = nil) {
-		self.baseURLOverride = baseURL
-	}
+	/// In-process API over the native services (`NativeRuntime`).
+	init() {}
 
 	func fetchStatus() async throws -> AppStatus {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(AppStatus.self, from: Data(await NativeStatusRouter.appStatus().jsonString().utf8))
-		}
-		let url = baseURL.appendingPathComponent("api/status")
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(AppStatus.self, from: data)
+		return try JSONDecoder().decode(AppStatus.self, from: Data(await NativeStatusRouter.appStatus().jsonString().utf8))
 	}
 
 	func fetchDaemonStatus() async throws -> DaemonStatus {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(DaemonStatus.self, from: Data(await NativeStatusRouter.daemonStatus().jsonString().utf8))
-		}
-		let url = baseURL.appendingPathComponent("api/daemon/status")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(DaemonStatus.self, from: data)
-	}
-
-	func restartDaemon(onProgress: DaemonBootstrapProgress? = nil) async throws {
-		try await DaemonBootstrap.restartServer(baseURL: baseURL, onProgress: onProgress)
+		return try JSONDecoder().decode(DaemonStatus.self, from: Data(await NativeStatusRouter.daemonStatus().jsonString().utf8))
 	}
 
 	func listSessions(limit: Int = 20) async throws -> [SessionSummary] {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let sessions: [SessionSummary] }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.chat().list(limit: limit)).sessions
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/sessions"),
-			resolvingAgainstBaseURL: false,
-		)!
-		components.queryItems = [URLQueryItem(name: "limit", value: String(limit))]
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let sessions: [SessionSummary] }
-		return try JSONDecoder().decode(Payload.self, from: data).sessions
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.chat().list(limit: limit)).sessions
 	}
 
 	func listPersonas() async throws -> [PersonaOption] {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let personas: [PersonaOption] }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().personaList()).personas
-		}
-		let url = baseURL.appendingPathComponent("api/personas")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let personas: [PersonaOption] }
-		return try JSONDecoder().decode(Payload.self, from: data).personas
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().personaList()).personas
 	}
 
 	func fetchPersonaDetail(name: String) async throws -> PersonaDetail {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(PersonaDetailResponse.self, from: try await NativeRuntime.shared.files().personaDetail(name)).persona
-		}
-		let encoded = name.addingPercentEncoding(
-			withAllowedCharacters: .urlPathAllowed,
-		) ?? name
-		let url = baseURL.appendingPathComponent("api/personas/\(encoded)")
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(PersonaDetailResponse.self, from: data).persona
+		return try JSONDecoder().decode(PersonaDetailResponse.self, from: try await NativeRuntime.shared.files().personaDetail(name)).persona
 	}
 
 	func fetchAIProviders() async throws -> [AIProviderInfo] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(AIProvidersResponse.self, from: Data(await NativeStatusRouter.providers().jsonString().utf8)).providers
-		}
-		let url = baseURL.appendingPathComponent("api/ai/providers")
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(AIProvidersResponse.self, from: data).providers
-	}
-
-	func fetchAllAIProviderUsage() async throws -> [AIProviderUsage] {
-		let url = baseURL.appendingPathComponent("api/ai/providers/usage")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(AIProvidersUsageResponse.self, from: data).usage
-	}
-
-	func fetchAIProviderUsage(providerId: String) async throws -> AIProviderUsage {
-		let encoded = providerId.addingPercentEncoding(
-			withAllowedCharacters: .urlPathAllowed,
-		) ?? providerId
-		let url = baseURL.appendingPathComponent("api/ai/providers/\(encoded)/usage")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(AIProviderUsageResponse.self, from: data).usage
-	}
-
-	/// Guided setup guide for any provider with a setup adapter (`GET …/setup`).
-	func fetchAIProviderSetupGuide(providerId: String) async throws -> AIProviderSetupGuide {
-		let encoded = providerId.addingPercentEncoding(
-			withAllowedCharacters: .urlPathAllowed,
-		) ?? providerId
-		let url = baseURL.appendingPathComponent("api/ai/providers/\(encoded)/setup")
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(AIProviderSetupGuide.self, from: data)
+		return try JSONDecoder().decode(AIProvidersResponse.self, from: Data(await NativeStatusRouter.providers().jsonString().utf8)).providers
 	}
 
 	/// Complete guided setup (`POST …/setup`) with open-ended `fields`.
@@ -152,32 +57,14 @@ struct TobyClient {
 		fields: [String: String],
 		model: String? = nil,
 	) async throws -> AIProviderSetupResponse {
-		if NativeMode.isEnabled {
-			// OpenRouter only: store the key and confirm it answers with a balance.
-			guard providerId == "openrouter" else { throw TobyClientError.serverError("Toby uses OpenRouter for AI.") }
-			if let key = fields["apiKey"]?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty { try KeychainKeyStore().save(key) }
-			let credits = try await NativeRuntime.shared.ai.credits()
-			if let model { UserDefaults.standard.set(model, forKey: AccountSettingsModel.chatModelKey) }
-			let payload: JSONValue = ["ok": true, "providerId": "openrouter", "model": model.map(JSONValue.string) ?? .null, "configured": true,
-			                          "remaining": .number(credits.totalCredits - credits.totalUsage), "totalSpent": .number(credits.totalUsage)]
-			return try JSONDecoder().decode(AIProviderSetupResponse.self, from: Data(payload.jsonString().utf8))
-		}
-		let encoded = providerId.addingPercentEncoding(
-			withAllowedCharacters: .urlPathAllowed,
-		) ?? providerId
-		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/ai/providers/\(encoded)/setup")
-		)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = ["fields": fields, "testConnection": true]
-		if let model, !model.isEmpty {
-			body["model"] = model
-		}
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(AIProviderSetupResponse.self, from: data)
+		// OpenRouter only: store the key and confirm it answers with a balance.
+		guard providerId == "openrouter" else { throw TobyClientError.serverError("Toby uses OpenRouter for AI.") }
+		if let key = fields["apiKey"]?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty { try KeychainKeyStore().save(key) }
+		let credits = try await NativeRuntime.shared.ai.credits()
+		if let model { UserDefaults.standard.set(model, forKey: AccountSettingsModel.chatModelKey) }
+		let payload: JSONValue = ["ok": true, "providerId": "openrouter", "model": model.map(JSONValue.string) ?? .null, "configured": true,
+		                          "remaining": .number(credits.totalCredits - credits.totalUsage), "totalSpent": .number(credits.totalUsage)]
+		return try JSONDecoder().decode(AIProviderSetupResponse.self, from: Data(payload.jsonString().utf8))
 	}
 
 	func createPersona(
@@ -217,63 +104,23 @@ struct TobyClient {
 	}
 
 	func fetchSession(id: String) async throws -> SessionDetail {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(SessionDetail.self, from: try await NativeRuntime.shared.chat().detail(id))
-		}
-		let url = baseURL.appendingPathComponent("api/sessions/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(SessionDetail.self, from: data)
+		return try JSONDecoder().decode(SessionDetail.self, from: try await NativeRuntime.shared.chat().detail(id))
 	}
 
 	func createSession(persona: String? = nil) async throws -> CreateSessionResponse {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(CreateSessionResponse.self, from: try await NativeRuntime.shared.chat().create(persona: persona))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = [:]
-		if let persona, !persona.isEmpty {
-			body["persona"] = persona
-		}
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(CreateSessionResponse.self, from: data)
+		return try JSONDecoder().decode(CreateSessionResponse.self, from: try await NativeRuntime.shared.chat().create(persona: persona))
 	}
 
 	func listProjects() async throws -> [ProjectSummary] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ProjectsListResponse.self, from: try await NativeRuntime.shared.files().projectList()).projects
-		}
-		let url = baseURL.appendingPathComponent("api/projects")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ProjectsListResponse.self, from: data).projects
+		return try JSONDecoder().decode(ProjectsListResponse.self, from: try await NativeRuntime.shared.files().projectList()).projects
 	}
 
 	func fetchProject(id: String) async throws -> ProjectDetailResponse {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ProjectDetailResponse.self, from: try await NativeRuntime.shared.files().project(id))
-		}
-		let url = baseURL.appendingPathComponent("api/projects/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ProjectDetailResponse.self, from: data)
+		return try JSONDecoder().decode(ProjectDetailResponse.self, from: try await NativeRuntime.shared.files().project(id))
 	}
 
 	func createProject(name: String = "New project") async throws -> ProjectSummary {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ProjectMutationResponse.self, from: try await NativeRuntime.shared.files().createProject(name: name)).project
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["name": name])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
+		return try JSONDecoder().decode(ProjectMutationResponse.self, from: try await NativeRuntime.shared.files().createProject(name: name)).project
 	}
 
 	func updateProject(
@@ -283,196 +130,55 @@ struct TobyClient {
 		personaName: String? = nil,
 		folderPath: String? = nil,
 	) async throws -> ProjectSummary {
-		if NativeMode.isEnabled {
-			let data = try await NativeRuntime.shared.files().updateProject(id, name: name, summary: summary, personaName: personaName, folderPath: folderPath)
-			return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(id)"))
-		request.httpMethod = "PATCH"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = [:]
-		if let name { body["name"] = name }
-		if let summary { body["summary"] = summary }
-		if let personaName {
-			body["personaName"] = personaName.isEmpty ? NSNull() : personaName
-		}
-		if let folderPath { body["folderPath"] = folderPath }
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		let data = try await NativeRuntime.shared.files().updateProject(id, name: name, summary: summary, personaName: personaName, folderPath: folderPath)
 		return try JSONDecoder().decode(ProjectMutationResponse.self, from: data).project
 	}
 
 	func deleteProject(id: String) async throws {
-		if NativeMode.isEnabled {
-			try await NativeRuntime.shared.files().deleteProject(id)
-			return
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(id)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		try await NativeRuntime.shared.files().deleteProject(id)
+		return
 	}
 
 	func fetchProjectTree(id: String) async throws -> [ProjectTreeEntry] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ProjectTreeResponse.self, from: try await NativeRuntime.shared.files().projectTree(id)).tree
-		}
-		let url = baseURL.appendingPathComponent("api/projects/\(id)/tree")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ProjectTreeResponse.self, from: data).tree
+		return try JSONDecoder().decode(ProjectTreeResponse.self, from: try await NativeRuntime.shared.files().projectTree(id)).tree
 	}
 
 	func createProjectSession(projectId: String) async throws -> SessionSummary {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ProjectSessionResponse.self, from: try await NativeRuntime.shared.files().createProjectSession(projectId)).session
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/projects/\(projectId)/sessions"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ProjectSessionResponse.self, from: data).session
+		return try JSONDecoder().decode(ProjectSessionResponse.self, from: try await NativeRuntime.shared.files().createProjectSession(projectId)).session
 	}
 
 	func deleteSession(id: String) async throws {
-		if NativeMode.isEnabled {
-			try await NativeRuntime.shared.chat().delete(id)
-			return
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/sessions/\(id)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		try await NativeRuntime.shared.chat().delete(id)
+		return
 	}
 
-	func fetchListenStatus() async throws -> ListenStatusResponse {
-		let url = baseURL.appendingPathComponent("api/listen/status")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenStatusResponse.self, from: data)
+	func listRecordings() async throws -> [ListenRecordingSummary] { return try JSONDecoder().decode(ListenRecordingsListResponse.self, from: try await NativeRuntime.shared.listen().list()).recordings
 	}
 
-	func startListening() async throws -> ListenStatusResponse {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/start"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenStatusResponse.self, from: data)
+	func fetchRecording(id: String) async throws -> ListenRecordingDetail { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().detail(id))
 	}
 
-	func stopListening() async throws -> ListenStopResponse {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/stop"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenStopResponse.self, from: data)
-	}
-
-	func listRecordings() async throws -> [ListenRecordingSummary] {
-		if NativeMode.isEnabled { return try JSONDecoder().decode(ListenRecordingsListResponse.self, from: try await NativeRuntime.shared.listen().list()).recordings }
-		let url = baseURL.appendingPathComponent("api/listen/recordings")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ListenRecordingsListResponse.self, from: data).recordings
-	}
-
-	func fetchRecording(id: String) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().detail(id)) }
-		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try await Self.decodeRecordingDetail(data)
-	}
-
-	func updateRecording(id: String, name: String?) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().update(id, name: name ?? "", chatSessionID: nil)) }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
-		request.httpMethod = "PATCH"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = [:]
-		if let name { body["name"] = name }
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try await Self.decodeRecordingDetail(data)
+	func updateRecording(id: String, name: String?) async throws -> ListenRecordingDetail { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().update(id, name: name ?? "", chatSessionID: nil))
 	}
 
 	func updateRecordingChatSession(id: String, chatSessionId: String?) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled {
-			return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().update(id, name: nil, chatSessionID: chatSessionId.map(JSONValue.string) ?? .null))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
-		request.httpMethod = "PATCH"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = [:]
-		if let chatSessionId {
-			body["chatSessionId"] = chatSessionId
-		} else {
-			body["chatSessionId"] = NSNull()
-		}
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try await Self.decodeRecordingDetail(data)
+		return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().update(id, name: nil, chatSessionID: chatSessionId.map(JSONValue.string) ?? .null))
 	}
 
-	func deleteRecording(id: String) async throws {
-		if NativeMode.isEnabled { try await NativeRuntime.shared.listen().delete(id); return }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+	func deleteRecording(id: String) async throws { try await NativeRuntime.shared.listen().delete(id); return
 	}
 
 	/// Delete a recording's audio files (keeps the transcript, summary, and metadata).
-	func deleteRecordingAudio(id: String) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().deleteAudio(id)) }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/audio"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try await Self.decodeRecordingDetail(data)
+	func deleteRecordingAudio(id: String) async throws -> ListenRecordingDetail { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().deleteAudio(id))
 	}
 
-	func parseCronExpression(input: String) async throws -> String {
-		if NativeMode.isEnabled { return try await NativeRuntime.shared.flows().parseCron(input) }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/triggers/parse-cron"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONEncoder().encode(["input": input])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		struct Payload: Decodable { let cronExpression: String }
-		return try JSONDecoder().decode(Payload.self, from: data).cronExpression
+	func parseCronExpression(input: String) async throws -> String { return try await NativeRuntime.shared.flows().parseCron(input)
 	}
 
-	func transcribeRecording(id: String) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().transcribe(id, reuseLiveTranscript: false) { _ in }) }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try await Self.decodeRecordingDetail(data)
+	func transcribeRecording(id: String) async throws -> ListenRecordingDetail { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().transcribe(id, reuseLiveTranscript: false) { _ in })
 	}
 
-	func summarizeRecording(id: String) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().summarize(id)) }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/listen/recordings/\(id)/summarize"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try await Self.decodeRecordingDetail(data)
+	func summarizeRecording(id: String) async throws -> ListenRecordingDetail { return try await Self.decodeRecordingDetail(try await NativeRuntime.shared.listen().summarize(id))
 	}
 
 	func streamTranscribeRecording(
@@ -480,89 +186,8 @@ struct TobyClient {
 		reuseLiveTranscript: Bool = false,
 		onStatus: @escaping (String) -> Void,
 	) async throws -> ListenRecordingDetail {
-		if NativeMode.isEnabled {
-			let relay = StatusRelay(onStatus)
-			let data = try await NativeRuntime.shared.listen().transcribe(id, reuseLiveTranscript: reuseLiveTranscript) { message in relay.send(message) }
-			return try await Self.decodeRecordingDetail(data)
-		}
-		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)/transcribe")
-		var request = URLRequest(url: url)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["reuseLiveTranscript": reuseLiveTranscript])
-
-		let (bytes, response) = try await URLSession.shared.bytes(for: request)
-		guard let http = response as? HTTPURLResponse else {
-
-			throw TobyClientError.invalidResponse
-		}
-		if http.statusCode >= 400 {
-			var data = Data()
-			for try await byte in bytes {
-				data.append(byte)
-			}
-			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
-		}
-
-		var pendingEvent: String?
-		for try await line in bytes.lines {
-			if line.hasPrefix("event: ") {
-				pendingEvent = String(line.dropFirst(7))
-					.trimmingCharacters(in: .whitespacesAndNewlines)
-				continue
-			}
-			guard line.hasPrefix("data: ") else { continue }
-			let payload = String(line.dropFirst(6))
-			if payload.isEmpty { continue }
-
-			if pendingEvent == "status" {
-				pendingEvent = nil
-				if let data = payload.data(using: .utf8),
-					let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-					let message = json["message"] as? String
-				{
-					onStatus(message)
-				}
-				continue
-			}
-
-			if pendingEvent == "done" {
-				pendingEvent = nil
-				if let data = payload.data(using: .utf8) {
-					if let detail = try? JSONDecoder().decode(ListenRecordingDetail.self, from: data) {
-						return detail
-					}
-				}
-				throw TobyClientError.streamError("Transcription completed but response was invalid.")
-			}
-
-			if pendingEvent == "error" {
-				pendingEvent = nil
-				let json = (payload.data(using: .utf8)).flatMap {
-					try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
-				}
-				throw errorFromJSON(json, fallback: "Transcription failed.", asStream: true)
-			}
-
-			pendingEvent = nil
-		}
-
-		// Stream ended without an explicit done event. The transcription may
-		// have completed on the backend despite the stream closing early.
-		// Fall back to fetching the recording detail directly.
-		return try await fetchRecordingDetailFallback(id: id)
-	}
-
-	/// Fallback: fetch the recording detail after the SSE stream completes
-	/// without an explicit done event. The transcription may have succeeded
-	/// on the backend even if the stream closed before the final event was
-	/// read by `URLSession.bytes.lines`.
-	private func fetchRecordingDetailFallback(id: String) async throws -> ListenRecordingDetail {
-		let url = baseURL.appendingPathComponent("api/listen/recordings/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
+		let relay = StatusRelay(onStatus)
+		let data = try await NativeRuntime.shared.listen().transcribe(id, reuseLiveTranscript: reuseLiveTranscript) { message in relay.send(message) }
 		return try await Self.decodeRecordingDetail(data)
 	}
 
@@ -576,171 +201,16 @@ struct TobyClient {
 		onAskUser: ((AskUserPromptPayload) async -> (selectedIndex: Int, selectedLabel: String, rawInput: String, error: String?))?,
 		onPosted: (@MainActor () -> Void)? = nil,
 	) async throws -> TurnDonePayload {
-		if NativeMode.isEnabled {
-			return try await streamNativeTurn(
-				sessionId: sessionId, text: text, attachments: attachments, clientTurnId: clientTurnId,
-				onEvent: onEvent, onAskUser: onAskUser, onPosted: onPosted,
-			)
-		}
-		let turnURL = baseURL.appendingPathComponent("api/sessions/\(sessionId)/turn")
-		ServerEventLog.beginTurn(sessionId: sessionId, text: text, url: turnURL)
-		defer { ServerEventLog.endTurn() }
-
-		var request = URLRequest(
-			url: turnURL,
+		return try await streamNativeTurn(
+			sessionId: sessionId, text: text, attachments: attachments, clientTurnId: clientTurnId,
+			onEvent: onEvent, onAskUser: onAskUser, onPosted: onPosted,
 		)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var bodyDict: [String: Any] = ["text": text]
-		if let clientTurnId {
-			bodyDict["clientTurnId"] = clientTurnId
-		}
-		if !attachments.isEmpty {
-			bodyDict["attachments"] = attachments.map { attachment in
-				[
-					"filename": attachment.filename,
-					"mediaType": attachment.mediaType,
-					"dataBase64": attachment.dataBase64,
-					"byteSize": attachment.byteSize,
-				] as [String: Any]
-			}
-		}
-		if saveAttachmentsToProject {
-			bodyDict["saveAttachmentsToProject"] = true
-		}
-		request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
-
-		let (bytes, response) = try await URLSession.shared.bytes(for: request)
-		guard let http = response as? HTTPURLResponse else {
-			ServerEventLog.append("response.invalid")
-			throw TobyClientError.invalidResponse
-		}
-		ServerEventLog.append("response.status=\(http.statusCode)")
-		if http.statusCode >= 400 {
-			var data = Data()
-			for try await byte in bytes {
-				data.append(byte)
-			}
-			ServerEventLog.append("response.errorBody=\(String(data: data, encoding: .utf8) ?? "<non-utf8>")")
-			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
-		}
-		// Headers are in. The prompt is posted; later SSE failures are not a failed send.
-		onPosted?()
-
-		var pendingEvent: String?
-		for try await line in bytes.lines {
-			ServerEventLog.append("sse.raw=\(line)")
-			if line.hasPrefix("event: ") {
-				pendingEvent = String(line.dropFirst(7))
-					.trimmingCharacters(in: .whitespacesAndNewlines)
-				ServerEventLog.append("sse.event=\(pendingEvent ?? "")")
-				continue
-			}
-			guard line.hasPrefix("data: ") else { continue }
-			let payload = String(line.dropFirst(6))
-			if payload.isEmpty { continue }
-			ServerEventLog.append("sse.data.event=\(pendingEvent ?? "message") payload=\(payload)")
-
-			if pendingEvent == "done" {
-				pendingEvent = nil
-				if let data = payload.data(using: .utf8) {
-					if let done = try? JSONDecoder().decode(TurnDonePayload.self, from: data) {
-						ServerEventLog.append(
-							"sse.done.decoded text.count=\(done.text.count) text=\(done.text)",
-						)
-						return done
-					}
-				}
-				ServerEventLog.append("sse.done.decodeFailed payload=\(payload)")
-				return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil, usage: nil, contextWindow: nil)
-			}
-
-			if pendingEvent == "ask_user_prompt" {
-				pendingEvent = nil
-				if let data = payload.data(using: .utf8),
-					let prompt = try? JSONDecoder().decode(AskUserPromptPayload.self, from: data),
-					let onAskUser
-				{
-					let answer = await onAskUser(prompt)
-					try await answerAskUser(
-						sessionId: sessionId,
-						turnId: prompt.turnId,
-						requestId: prompt.requestId,
-						selectedIndex: answer.selectedIndex,
-						selectedLabel: answer.selectedLabel,
-						rawInput: answer.rawInput,
-						error: answer.error,
-					)
-				}
-				continue
-			}
-
-			if pendingEvent == "error" {
-				pendingEvent = nil
-				let json = (payload.data(using: .utf8)).flatMap {
-					try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
-				}
-				throw errorFromJSON(json, fallback: "Turn failed.", asStream: true)
-			}
-
-			pendingEvent = nil
-			if let data = payload.data(using: .utf8),
-				let event = try? JSONDecoder().decode(ChatEventPayload.self, from: data)
-			{
-				ServerEventLog.append("sse.message.decoded type=\(event.type)")
-				onEvent(event)
-			} else {
-				ServerEventLog.append("sse.message.decodeFailed payload=\(payload)")
-			}
-		}
-
-		ServerEventLog.append("sse.streamEndedWithoutDone")
-		return TurnDonePayload(turnId: nil, text: "", appliedActions: [], sessionName: nil, usage: nil, contextWindow: nil)
 	}
 
 	func cancelTurn(sessionId: String, turnId: String) async {
-		if NativeMode.isEnabled {
-			guard let router = try? await NativeRuntime.shared.chat() else { return }
-			await router.cancel(turnID: turnId)
-			return
-		}
-		let url = baseURL.appendingPathComponent(
-			"api/sessions/\(sessionId)/turn/\(turnId)/cancel"
-		)
-		var request = URLRequest(url: url)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		_ = try? await URLSession.shared.data(for: request)
-	}
-
-	func answerAskUser(
-		sessionId: String,
-		turnId: String,
-		requestId: String,
-		selectedIndex: Int,
-		selectedLabel: String,
-		rawInput: String,
-		error: String? = nil,
-	) async throws {
-		let url = baseURL.appendingPathComponent(
-			"api/sessions/\(sessionId)/turn/\(turnId)/ask-user/\(requestId)",
-		)
-		var request = URLRequest(url: url)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = [
-			"selectedIndex": selectedIndex,
-			"selectedLabel": selectedLabel,
-			"rawInput": rawInput,
-		]
-		if let error {
-			body["error"] = error
-		}
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		guard let router = try? await NativeRuntime.shared.chat() else { return }
+		await router.cancel(turnID: turnId)
+		return
 	}
 
 	/// Decode off the main actor so large transcripts / timed segments do not freeze the UI.
@@ -769,147 +239,13 @@ struct TobyClient {
 		return asStream ? .streamError(fallback) : .serverError(fallback)
 	}
 
-	func flowTriggerRequest<T: Decodable>(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> T {
-		let components = URLComponents(string: baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/flows/triggers" + path)
-		guard let url = components?.url else { throw TobyClientError.invalidResponse }
-		var request = URLRequest(url: url)
-		request.httpMethod = method
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		request.timeoutInterval = 10
-		if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(T.self, from: data)
-	}
-
-	private func validate(response: URLResponse, data: Data) throws {
-		guard let http = response as? HTTPURLResponse else {
-			throw TobyClientError.invalidResponse
-		}
-		guard (200 ... 299).contains(http.statusCode) else {
-			let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-			throw errorFromJSON(json, fallback: "HTTP \(http.statusCode)", asStream: false)
-		}
-	}
-
 	func createIssue(type: String, details: String) async throws -> CreateIssueResponse {
-		if NativeMode.isEnabled {
-			let version = await NativeStatusRouter.version
-			return try JSONDecoder().decode(CreateIssueResponse.self, from: Data(IssueReport.fallback(type: type, details: details, version: version).jsonString().utf8))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/issues"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		let body: [String: Any] = [
-			"type": type,
-			"details": details,
-			"source": "native-app",
-		]
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(CreateIssueResponse.self, from: data)
-	}
-
-	func fetchConfigureTree() async throws -> ConfigureTreeResponse {
-		let url = baseURL.appendingPathComponent("api/configure/tree")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigureTreeResponse.self, from: data)
-	}
-
-	func fetchConfigureSections() async throws -> ConfigureSectionsResponse {
-		let url = baseURL.appendingPathComponent("api/configure/sections")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigureSectionsResponse.self, from: data)
-	}
-
-	func fetchConfigureSectionDetail(sectionKey: String) async throws -> ConfigureSectionDetailResponse {
-		let encoded = sectionKey.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sectionKey
-		let url = baseURL.appendingPathComponent("api/configure/sections/\(encoded)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigureSectionDetailResponse.self, from: data)
-	}
-
-	func patchConfigure(changes: [String: String]) async throws -> ConfigureTreeResponse {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/configure/values"))
-		request.httpMethod = "PATCH"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONEncoder().encode(["changes": changes])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigureTreeResponse.self, from: data)
-	}
-
-	func runConfigureAction(
-		_ action: String,
-		body: [String: String],
-	) async throws -> ConfigureActionResponse {
-		let url = baseURL.appendingPathComponent("api/configure/actions/\(action)")
-		var request = URLRequest(url: url)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONEncoder().encode(body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigureActionResponse.self, from: data)
-	}
-
-	func fetchIntegrationStatus(name: String) async throws -> IntegrationStatus {
-		let url = baseURL.appendingPathComponent("api/integrations/\(name)/status")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(IntegrationStatus.self, from: data)
-	}
-
-	func runIntegrationAction(
-		name: String,
-		action: IntegrationAction,
-	) async throws -> IntegrationActionResponse {
-		let url = baseURL.appendingPathComponent("api/integrations/\(name)/\(action.rawValue)")
-		var request = URLRequest(url: url)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = Data("{}".utf8)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(IntegrationActionResponse.self, from: data)
-	}
-
-	func listConnections() async throws -> [McpConnectionPayload] {
-		let url = baseURL.appendingPathComponent("api/connections")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(McpConnectionsListResponse.self, from: data).connections
-	}
-
-	func createMcpConnection(_ body: CreateMcpConnectionRequest) async throws -> McpConnectionPayload {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/connections"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONEncoder().encode(body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		let decoded = try JSONDecoder().decode(IntegrationActionResponse.self, from: data)
-		guard let connection = decoded.connection else {
-			throw TobyClientError.serverError("MCP connection was created without a payload.")
-		}
-		return connection
-	}
-
-	func deleteConnection(id: String) async throws {
-		let url = baseURL.appendingPathComponent("api/connections/\(id)")
-		var request = URLRequest(url: url)
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		let version = await NativeStatusRouter.version
+		return try JSONDecoder().decode(CreateIssueResponse.self, from: Data(IssueReport.fallback(type: type, details: details, version: version).jsonString().utf8))
 	}
 
 	func discoverIntegrationSettings(name: String, email: String) async throws -> EmailDiscoverResponse {
-		if NativeMode.isEnabled, name == "email" {
+		do {
 			guard let result = await MailDiscovery.discover(email) else {
 				throw TobyClientError.serverError("Enter a valid email address, such as name@example.com.")
 			}
@@ -922,250 +258,64 @@ struct TobyClient {
 			if let docs = result.documentationURL { body["documentationUrl"] = docs }
 			return try JSONDecoder().decode(EmailDiscoverResponse.self, from: JSONSerialization.data(withJSONObject: body))
 		}
-		let url = baseURL.appendingPathComponent("api/integrations/\(name)/discover")
-		var request = URLRequest(url: url)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONEncoder().encode(["email": email])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(EmailDiscoverResponse.self, from: data)
-	}
-
-	func fetchIntegrationSetupGuide(name: String) async throws -> IntegrationSetupGuide {
-		let url = baseURL.appendingPathComponent("api/integrations/\(name)/setup-guide")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(IntegrationSetupGuide.self, from: data)
 	}
 
 	func listSkills() async throws -> [SkillListItem] {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let skills: [SkillListItem] }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillList()).skills
-		}
-		let url = baseURL.appendingPathComponent("api/skills")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let skills: [SkillListItem] }
-		return try JSONDecoder().decode(Payload.self, from: data).skills
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillList()).skills
 	}
 
 	// MARK: - Flows
 
-	func listUserScriptTools() async throws -> [UserScriptTool] {
-		let url = baseURL.appendingPathComponent("api/user-tools")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		struct Payload: Decodable { let tools: [UserScriptTool] }
-		return try JSONDecoder().decode(Payload.self, from: data).tools
-	}
-
-	func saveUserScriptTool(id: String?, body: [String: Any]) async throws -> UserScriptTool {
-		let url = id.map { baseURL.appendingPathComponent("api/user-tools/\($0)") }
-			?? baseURL.appendingPathComponent("api/user-tools")
-		var request = URLRequest(url: url)
-		request.httpMethod = id == nil ? "POST" : "PUT"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		struct Payload: Decodable { let tool: UserScriptTool }
-		return try JSONDecoder().decode(Payload.self, from: data).tool
-	}
-
-	func testUserScriptTool(draft: UserScriptToolDraft, input: [String: Any]) async throws -> UserScriptToolTest {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/test"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body = draft.body
-		body["input"] = input
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(UserScriptToolTest.self, from: data)
-	}
-
-	func generateUserScriptToolCode(draft: UserScriptToolDraft, instruction: String, previousRequests: [String]) async throws -> UserScriptToolGeneration {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/generate"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.timeoutInterval = 95
-		var body = draft.body
-		body["instruction"] = instruction
-		body["previousRequests"] = previousRequests
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(UserScriptToolGeneration.self, from: data)
-	}
-
-	func deleteUserScriptTool(id: String) async throws {
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/user-tools/\(id)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-	}
-
 	func listFlows() async throws -> [FlowListItem] {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let flows: [FlowListItem] }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().list()).flows
-		}
-		let url = baseURL.appendingPathComponent("api/flows")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let flows: [FlowListItem] }
-		return try JSONDecoder().decode(Payload.self, from: data).flows
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().list()).flows
 	}
 
 	func listFlowRuns(flowName: String? = nil, limit: Int = 50, offset: Int = 0) async throws -> [FlowRunSummary] {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let runs: [FlowRunSummary] }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().runs(flowName: flowName, limit: limit, offset: offset)).runs
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/flows/runs"),
-			resolvingAgainstBaseURL: false
-		)!
-		var items = [
-			URLQueryItem(name: "limit", value: String(limit)),
-			URLQueryItem(name: "offset", value: String(offset)),
-		]
-		if let flowName, !flowName.isEmpty {
-			items.append(URLQueryItem(name: "flowName", value: flowName))
-		}
-		components.queryItems = items
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let runs: [FlowRunSummary] }
-		return try JSONDecoder().decode(Payload.self, from: data).runs
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().runs(flowName: flowName, limit: limit, offset: offset)).runs
 	}
 
 	func fetchFlowRun(id: String) async throws -> FlowRunDetail {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let run: FlowRunDetail }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().runDetail(id)).run
-		}
-		let url = baseURL.appendingPathComponent("api/flows/runs/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		// Detail payload nests nodes on the run object from the store; the handler
-		// also echoes `nodes` at the top level — prefer the nested run payload.
-		struct Payload: Decodable {
-			let run: FlowRunDetail
-		}
-		return try JSONDecoder().decode(Payload.self, from: data).run
+		struct Payload: Decodable { let run: FlowRunDetail }
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().runDetail(id)).run
 	}
 
-	func fetchFlowCatalog() async throws -> FlowToolCatalog {
-		if NativeMode.isEnabled { return try FlowToolCatalog.parse(try await NativeRuntime.shared.flows().catalog()) }
-		let url = baseURL.appendingPathComponent("api/flows/catalog")
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try FlowToolCatalog.parse(data)
+	func fetchFlowCatalog() async throws -> FlowToolCatalog { return try FlowToolCatalog.parse(try await NativeRuntime.shared.flows().catalog())
 	}
 
 	func fetchFlowDocument(id: String) async throws -> FlowDocumentPayload {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let document: FlowDocumentPayload }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().detail(id)).document
-		}
-		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-		let url = baseURL.appendingPathComponent("api/flows/\(encoded)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		struct Payload: Decodable {
-			let document: FlowDocumentPayload
-		}
-		return try JSONDecoder().decode(Payload.self, from: data).document
+		struct Payload: Decodable { let document: FlowDocumentPayload }
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.flows().detail(id)).document
 	}
 
 	func createFlow(body: [String: Any]) async throws -> FlowMutationResponse {
-		if NativeMode.isEnabled {
-			let data = try JSONSerialization.data(withJSONObject: body)
-			return try JSONDecoder().decode(FlowMutationResponse.self, from: try await NativeRuntime.shared.flows().save(data, id: nil))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(FlowMutationResponse.self, from: data)
+		let data = try JSONSerialization.data(withJSONObject: body)
+		return try JSONDecoder().decode(FlowMutationResponse.self, from: try await NativeRuntime.shared.flows().save(data, id: nil))
 	}
 
 	func updateFlow(id: String, body: [String: Any]) async throws -> FlowMutationResponse {
-		if NativeMode.isEnabled {
-			let data = try JSONSerialization.data(withJSONObject: body)
-			return try JSONDecoder().decode(FlowMutationResponse.self, from: try await NativeRuntime.shared.flows().save(data, id: id))
-		}
-		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)"))
-		request.httpMethod = "PUT"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(FlowMutationResponse.self, from: data)
+		let data = try JSONSerialization.data(withJSONObject: body)
+		return try JSONDecoder().decode(FlowMutationResponse.self, from: try await NativeRuntime.shared.flows().save(data, id: id))
 	}
 
-	func deleteFlow(id: String) async throws {
-		if NativeMode.isEnabled { try await NativeRuntime.shared.flows().delete(id); return }
-		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+	func deleteFlow(id: String) async throws { try await NativeRuntime.shared.flows().delete(id); return
 	}
 
 	func runFlow(id: String, source: String = "manual", triggerId: String? = nil) async throws -> FlowRunNowResponse {
-		if NativeMode.isEnabled {
-			let data = try await NativeRuntime.shared.flows().runNow(id, source: source, triggerID: triggerId)
-			if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] { GatewayFundsNotice.post(from: json) }
-			return try JSONDecoder().decode(FlowRunNowResponse.self, from: data)
-		}
-		let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/flows/\(encoded)/run"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body = ["source": source]
-		if let triggerId { body["triggerId"] = triggerId }
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-			GatewayFundsNotice.post(from: json)
-		}
+		let data = try await NativeRuntime.shared.flows().runNow(id, source: source, triggerID: triggerId)
+		if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] { GatewayFundsNotice.post(from: json) }
 		return try JSONDecoder().decode(FlowRunNowResponse.self, from: data)
 	}
 
 	func fetchSkill(dirName: String) async throws -> SkillDetail {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let skill: SkillDetail }
-			return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillDetail(dirName)).skill
-		}
-		let url = baseURL.appendingPathComponent("api/skills/\(dirName)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let skill: SkillDetail }
-		return try JSONDecoder().decode(Payload.self, from: data).skill
+		return try JSONDecoder().decode(Payload.self, from: try await NativeRuntime.shared.files().skillDetail(dirName)).skill
 	}
 
 	func fetchChangelog(limit: Int = 10) async throws -> ChangelogResponse {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ChangelogResponse.self, from: Data(try await Changelog.fetch(limit: limit).jsonString().utf8))
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/releases/changelog"),
-			resolvingAgainstBaseURL: false,
-		)!
-		components.queryItems = [URLQueryItem(name: "limit", value: String(max(1, min(limit, 10))))]
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ChangelogResponse.self, from: data)
+		return try JSONDecoder().decode(ChangelogResponse.self, from: Data(try await Changelog.fetch(limit: limit).jsonString().utf8))
 	}
 
 	/// Query unified log entries via the daemon (`GET /api/logs`).
@@ -1177,225 +327,73 @@ struct TobyClient {
 		query: String? = nil,
 		limit: Int = 100
 	) async throws -> LogsListResponse {
-		if NativeMode.isEnabled {
-			let result = TobyLog.shared.query(.init(source: source, level: level, category: category, type: type, query: query, limit: limit))
-			return try LogsListParser.parse(Data(result.jsonString().utf8))
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/logs"),
-			resolvingAgainstBaseURL: false,
-		)!
-		var items: [URLQueryItem] = [
-			URLQueryItem(name: "limit", value: String(max(1, min(limit, 2000)))),
-		]
-		if let source, !source.isEmpty {
-			items.append(URLQueryItem(name: "source", value: source))
-		}
-		if let level, !level.isEmpty {
-			items.append(URLQueryItem(name: "level", value: level))
-		}
-		if let category, !category.isEmpty {
-			items.append(URLQueryItem(name: "category", value: category))
-		}
-		if let type, !type.isEmpty {
-			items.append(URLQueryItem(name: "type", value: type))
-		}
-		if let query {
-			let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-			if !trimmed.isEmpty {
-				items.append(URLQueryItem(name: "q", value: trimmed))
-			}
-		}
-		components.queryItems = items
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
-		return try LogsListParser.parse(data)
-	}
-
-	func fetchPlugins() async throws -> PluginsListResponse {
-		let url = baseURL.appendingPathComponent("api/plugins")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(PluginsListResponse.self, from: data)
+		let result = TobyLog.shared.query(.init(source: source, level: level, category: category, type: type, query: query, limit: limit))
+		return try LogsListParser.parse(Data(result.jsonString().utf8))
 	}
 
 	// MARK: - Home (Actions + The Feed)
 
 	func fetchFlowDashboardBlocks() async throws -> [FlowDashboardBlockInfo] {
-		if NativeMode.isEnabled {
-			struct Payload: Decodable { let blocks: [FlowDashboardBlockInfo] }
-			let writer = try await NativeRuntime.shared.store().writer
-			let blocks = try await writer.read { db in try FlowDocuments.dashboardBlocks(db) }
-			return try JSONDecoder().decode(Payload.self, from: Data(blocks.jsonString().utf8)).blocks
-		}
-		let url = baseURL.appendingPathComponent("api/dashboard/flow-blocks")
-		var request = URLRequest(url: url)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
 		struct Payload: Decodable { let blocks: [FlowDashboardBlockInfo] }
-		return try JSONDecoder().decode(Payload.self, from: data).blocks
+		let writer = try await NativeRuntime.shared.store().writer
+		let blocks = try await writer.read { db in try FlowDocuments.dashboardBlocks(db) }
+		return try JSONDecoder().decode(Payload.self, from: Data(blocks.jsonString().utf8)).blocks
 	}
 
 	/// The Feed: ranked cross-connection items with reasons and actions.
 	/// - Parameter fresh: When true, re-collects and re-ranks on the daemon.
 	func fetchDashboardFeed(fresh: Bool = false) async throws -> FeedContent {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(FeedContent.self, from: try await NativeRuntime.shared.feed().content(fresh: fresh))
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/dashboard/feed"),
-			resolvingAgainstBaseURL: false
-		)!
-		if fresh {
-			components.queryItems = [URLQueryItem(name: "fresh", value: "1")]
-		}
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(FeedContent.self, from: data)
+		return try JSONDecoder().decode(FeedContent.self, from: try await NativeRuntime.shared.feed().content(fresh: fresh))
 	}
 
 	/// Runs a Feed tool / local action (`POST /api/dashboard/feed/actions`).
 	func performFeedAction(itemID: String, actionID: String) async throws -> FeedActionResponse {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(FeedActionResponse.self, from: try await NativeRuntime.shared.feed().perform(itemID: itemID, actionID: actionID))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/dashboard/feed/actions"))
-		// Provider actions (IMAP flags, archive) can be slow; the daemon hides
-		// the item up front, so waiting longer only avoids a false failure.
-		request.timeoutInterval = 180
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["itemId": itemID, "actionId": actionID])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(FeedActionResponse.self, from: data)
+		return try JSONDecoder().decode(FeedActionResponse.self, from: try await NativeRuntime.shared.feed().perform(itemID: itemID, actionID: actionID))
 	}
 
 	// MARK: - Feed instructions
 
-	private var feedInstructionsURL: URL {
-		baseURL.appendingPathComponent("api/dashboard/feed/instructions")
-	}
-
 	/// The user's Feed instructions, oldest first.
 	func listFeedInstructions() async throws -> [FeedInstruction] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().instructions()).instructions
-		}
-		var request = URLRequest(url: feedInstructionsURL)
-		request.cachePolicy = .reloadIgnoringLocalCacheData
-		return try await sendFeedInstructions(request)
+		return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().instructions()).instructions
 	}
 
 	func addFeedInstruction(text: String) async throws -> [FeedInstruction] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().addInstruction(text)).instructions
-		}
-		var request = URLRequest(url: feedInstructionsURL)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["text": text])
-		return try await sendFeedInstructions(request)
+		return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().addInstruction(text)).instructions
 	}
 
 	func setFeedInstructionEnabled(id: String, enabled: Bool) async throws -> [FeedInstruction] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().setInstruction(id, enabled: enabled)).instructions
-		}
-		var request = URLRequest(url: feedInstructionsURL.appendingPathComponent(id))
-		request.httpMethod = "PATCH"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["enabled": enabled])
-		return try await sendFeedInstructions(request)
+		return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().setInstruction(id, enabled: enabled)).instructions
 	}
 
 	func deleteFeedInstruction(id: String) async throws -> [FeedInstruction] {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().removeInstruction(id)).instructions
-		}
-		var request = URLRequest(url: feedInstructionsURL.appendingPathComponent(id))
-		request.httpMethod = "DELETE"
-		return try await sendFeedInstructions(request)
-	}
-
-	private func sendFeedInstructions(_ request: URLRequest) async throws -> [FeedInstruction] {
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(FeedInstructionsResponse.self, from: data).instructions
+		return try JSONDecoder().decode(FeedInstructionsResponse.self, from: try await NativeRuntime.shared.feed().removeInstruction(id)).instructions
 	}
 
 	// MARK: - Memories
 
 	func listMemories(limit: Int = 50, offset: Int = 0, query: String? = nil) async throws -> MemoriesListResponse {
-		if NativeMode.isEnabled {
-			let data = try await NativeRuntime.shared.memories().list(limit: limit, offset: offset, query: query)
-			return try JSONDecoder().decode(MemoriesListResponse.self, from: data)
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/memories"),
-			resolvingAgainstBaseURL: false,
-		)!
-		var items = [
-			URLQueryItem(name: "limit", value: String(limit)),
-			URLQueryItem(name: "offset", value: String(offset)),
-		]
-		if let query, !query.isEmpty {
-			items.append(URLQueryItem(name: "q", value: query))
-		}
-		components.queryItems = items
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
+		let data = try await NativeRuntime.shared.memories().list(limit: limit, offset: offset, query: query)
 		return try JSONDecoder().decode(MemoriesListResponse.self, from: data)
 	}
 
 	func fetchMemory(id: String) async throws -> MemoryItem {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(MemoryDetailResponse.self, from: try await NativeRuntime.shared.memories().get(id)).memory
-		}
-		let url = baseURL.appendingPathComponent("api/memories/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
+		return try JSONDecoder().decode(MemoryDetailResponse.self, from: try await NativeRuntime.shared.memories().get(id)).memory
 	}
 
 	func createMemory(_ request: MemoryCreateRequest) async throws -> MemoryItem {
-		if NativeMode.isEnabled {
-			let data = try await NativeRuntime.shared.memories().create(try JSONEncoder().encode(request))
-			return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
-		}
-		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/memories"))
-		urlRequest.httpMethod = "POST"
-		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		urlRequest.httpBody = try JSONEncoder().encode(request)
-		let (data, response) = try await URLSession.shared.data(for: urlRequest)
-		try validate(response: response, data: data)
+		let data = try await NativeRuntime.shared.memories().create(try JSONEncoder().encode(request))
 		return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
 	}
 
 	func patchMemory(id: String, patch: MemoryPatchRequest) async throws -> MemoryItem {
-		if NativeMode.isEnabled {
-			let data = try await NativeRuntime.shared.memories().patch(id, try JSONEncoder().encode(patch))
-			return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
-		}
-		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/memories/\(id)"))
-		urlRequest.httpMethod = "PATCH"
-		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		urlRequest.httpBody = try JSONEncoder().encode(patch)
-		let (data, response) = try await URLSession.shared.data(for: urlRequest)
-		try validate(response: response, data: data)
+		let data = try await NativeRuntime.shared.memories().patch(id, try JSONEncoder().encode(patch))
 		return try JSONDecoder().decode(MemoryDetailResponse.self, from: data).memory
 	}
 
 	func deleteMemory(id: String) async throws {
-		if NativeMode.isEnabled {
-			try await NativeRuntime.shared.memories().delete(id)
-			return
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/memories/\(id)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		try await NativeRuntime.shared.memories().delete(id)
+		return
 	}
 
 	// MARK: - Library
@@ -1407,138 +405,48 @@ struct TobyClient {
 		origin: String? = nil,
 		refreshCatalog: Bool = false
 	) async throws -> LibraryListResponse {
-		if NativeMode.isEnabled {
-			let data = try await NativeRuntime.shared.library().list(limit: limit, offset: offset, query: query, origin: origin, refresh: refreshCatalog)
-			return try JSONDecoder().decode(LibraryListResponse.self, from: data)
-		}
-		var components = URLComponents(
-			url: baseURL.appendingPathComponent("api/library"),
-			resolvingAgainstBaseURL: false,
-		)!
-		var items = [
-			URLQueryItem(name: "limit", value: String(limit)),
-			URLQueryItem(name: "offset", value: String(offset)),
-		]
-		if let query, !query.isEmpty {
-			items.append(URLQueryItem(name: "q", value: query))
-		}
-		if let origin, !origin.isEmpty {
-			items.append(URLQueryItem(name: "origin", value: origin))
-		}
-		if refreshCatalog {
-			items.append(URLQueryItem(name: "refresh", value: "1"))
-		}
-		components.queryItems = items
-		let (data, response) = try await URLSession.shared.data(from: components.url!)
-		try validate(response: response, data: data)
+		let data = try await NativeRuntime.shared.library().list(limit: limit, offset: offset, query: query, origin: origin, refresh: refreshCatalog)
 		return try JSONDecoder().decode(LibraryListResponse.self, from: data)
 	}
 
 	func fetchLibraryItem(id: String) async throws -> LibraryAsset {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().get(id)).item
-		}
-		let url = baseURL.appendingPathComponent("api/library/\(id)")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(LibraryDetailResponse.self, from: data).item
+		return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().get(id)).item
 	}
 
 	func createLibraryItem(_ request: LibraryCreateRequest) async throws -> LibraryCreateResponse {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(LibraryCreateResponse.self, from: try await NativeRuntime.shared.library().create(try JSONEncoder().encode(request)))
-		}
-		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/library"))
-		urlRequest.httpMethod = "POST"
-		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		urlRequest.httpBody = try JSONEncoder().encode(request)
-		let (data, response) = try await URLSession.shared.data(for: urlRequest)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(LibraryCreateResponse.self, from: data)
+		return try JSONDecoder().decode(LibraryCreateResponse.self, from: try await NativeRuntime.shared.library().create(try JSONEncoder().encode(request)))
 	}
 
 	func patchLibraryItem(id: String, patch: LibraryPatchRequest) async throws -> LibraryAsset {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().patch(id, try JSONEncoder().encode(patch))).item
-		}
-		var urlRequest = URLRequest(url: baseURL.appendingPathComponent("api/library/\(id)"))
-		urlRequest.httpMethod = "PATCH"
-		urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		urlRequest.httpBody = try JSONEncoder().encode(patch)
-		let (data, response) = try await URLSession.shared.data(for: urlRequest)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(LibraryDetailResponse.self, from: data).item
+		return try JSONDecoder().decode(LibraryDetailResponse.self, from: try await NativeRuntime.shared.library().patch(id, try JSONEncoder().encode(patch))).item
 	}
 
 	func deleteLibraryItem(id: String) async throws {
-		if NativeMode.isEnabled {
-			try await NativeRuntime.shared.library().delete(id)
-			return
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/library/\(id)"))
-		request.httpMethod = "DELETE"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		try await NativeRuntime.shared.library().delete(id)
+		return
 	}
 
 	/// Create a password-encrypted complete backup (binary archive stream).
 	func createConfigBackup(password: String) async throws -> ConfigBackupCreateResponse {
-		if NativeMode.isEnabled {
-			let service = try await NativeRuntime.shared.backups()
-			let url = FileManager.default.temporaryDirectory.appending(path: BackupService.fileName())
-			try await Task.detached(priority: .userInitiated) { try service.create(password: password, to: url) }.value
-			return ConfigBackupCreateResponse(backupData: Data(), suggestedFileName: url.lastPathComponent, fileURL: url)
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/backup"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.timeoutInterval = 600
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["password": password])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-
-		let http = response as? HTTPURLResponse
-		let suggestedFileName =
-			http?.value(forHTTPHeaderField: "X-Toby-Backup-Filename") ?? ""
-		guard !suggestedFileName.isEmpty, !data.isEmpty else {
-			throw TobyClientError.invalidResponse
-		}
-		return ConfigBackupCreateResponse(
-			backupData: data,
-			suggestedFileName: suggestedFileName,
-		)
+		let service = try await NativeRuntime.shared.backups()
+		let url = FileManager.default.temporaryDirectory.appending(path: BackupService.fileName())
+		try await Task.detached(priority: .userInitiated) { try service.create(password: password, to: url) }.value
+		return ConfigBackupCreateResponse(backupData: Data(), suggestedFileName: url.lastPathComponent, fileURL: url)
 	}
 
 	/// Restore Toby data from a backup file (v3 archive or legacy JSON envelope).
 	func restoreConfigBackup(backupData: Data, password: String?, confirm: Bool = true) async throws {
-		if NativeMode.isEnabled {
-			let service = try await NativeRuntime.shared.backups()
-			let url = FileManager.default.temporaryDirectory.appending(path: "toby-restore-\(UUID().uuidString).tbybak")
-			try backupData.write(to: url)
-			defer { try? FileManager.default.removeItem(at: url) }
-			try await Task.detached(priority: .userInitiated) { _ = try service.restore(file: url, password: password ?? "") }.value
-			await NativeRuntime.shared.relaunchToApplyRestore()
-			return
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/restore"))
-		request.httpMethod = "POST"
-		request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-		request.timeoutInterval = 600
-		request.setValue(password ?? "", forHTTPHeaderField: "X-Backup-Password")
-		request.setValue(confirm ? "true" : "false", forHTTPHeaderField: "X-Backup-Confirm")
-		request.httpBody = backupData
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		let service = try await NativeRuntime.shared.backups()
+		let url = FileManager.default.temporaryDirectory.appending(path: "toby-restore-\(UUID().uuidString).tbybak")
+		try backupData.write(to: url)
+		defer { try? FileManager.default.removeItem(at: url) }
+		try await Task.detached(priority: .userInitiated) { _ = try service.restore(file: url, password: password ?? "") }.value
+		await NativeRuntime.shared.relaunchToApplyRestore()
+		return
 	}
 
 	func fetchConfigSyncStatus() async throws -> ConfigSyncStatus {
-		if NativeMode.isEnabled {
-			return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(await NativeRuntime.shared.vault().status().jsonString().utf8))
-		}
-		let url = baseURL.appendingPathComponent("api/config/sync")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(await NativeRuntime.shared.vault().status().jsonString().utf8))
 	}
 
 	func enableConfigSync(
@@ -1547,142 +455,50 @@ struct TobyClient {
 		backend: String? = nil,
 		folderPath: String? = nil
 	) async throws -> ConfigSyncStatus {
-		if NativeMode.isEnabled {
-			let vault = await NativeRuntime.shared.vault()
-			let status = try await Task.detached { try vault.enable(password: password, mode: mode, backend: backend, folderPath: folderPath) }.value
-			return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/enable"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		var body: [String: Any] = ["password": password]
-		if let mode { body["mode"] = mode }
-		if let backend { body["backend"] = backend }
-		if let folderPath { body["folderPath"] = folderPath }
-		request.httpBody = try JSONSerialization.data(withJSONObject: body)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
+		let vault = await NativeRuntime.shared.vault()
+		let status = try await Task.detached { try vault.enable(password: password, mode: mode, backend: backend, folderPath: folderPath) }.value
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
 	}
 
 	func disableConfigSync(deleteCloud: Bool = false) async throws -> ConfigSyncStatus {
-		if NativeMode.isEnabled {
-			let vault = await NativeRuntime.shared.vault()
-			let status = try await Task.detached { try vault.disable(deleteCloud: deleteCloud) }.value
-			return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
-		}
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/disable"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["deleteCloud": deleteCloud])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		return try JSONDecoder().decode(ConfigSyncStatus.self, from: data)
+		let vault = await NativeRuntime.shared.vault()
+		let status = try await Task.detached { try vault.disable(deleteCloud: deleteCloud) }.value
+		return try JSONDecoder().decode(ConfigSyncStatus.self, from: Data(status.jsonString().utf8))
 	}
 
-	func pushConfigSync() async throws {
-		if NativeMode.isEnabled { return } // settings sync was removed
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/push"))
-		request.httpMethod = "POST"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+	func pushConfigSync() async throws { return
 	}
 
-	func pullConfigSync() async throws {
-		if NativeMode.isEnabled { return } // settings sync was removed
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/pull"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: ["confirm": true])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+	func pullConfigSync() async throws { return
 	}
 
-	func listConfigSyncHistory() async throws -> [ConfigSyncHistoryItem] {
-		if NativeMode.isEnabled { return [] }
-		let url = baseURL.appendingPathComponent("api/config/sync/history")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		struct Payload: Decodable { let history: [ConfigSyncHistoryItem] }
-		return try JSONDecoder().decode(Payload.self, from: data).history
+	func listConfigSyncHistory() async throws -> [ConfigSyncHistoryItem] { return []
 	}
 
-	func restoreConfigSyncHistory(filename: String) async throws {
-		if NativeMode.isEnabled { throw TobyClientError.invalidResponse }
-		var request = URLRequest(url: baseURL.appendingPathComponent("api/config/sync/restore-history"))
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(withJSONObject: [
-			"filename": filename,
-			"confirm": true,
-		])
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+	func restoreConfigSyncHistory(filename: String) async throws { throw TobyClientError.invalidResponse
 	}
 
 	func setDatabaseBackupsEnabled(_ enabled: Bool) async throws -> ConfigSyncStatus {
-		if NativeMode.isEnabled {
-			try await NativeRuntime.shared.backups().setSnapshotsEnabled(enabled)
-			return try await fetchConfigSyncStatus()
-		}
-		let action = enabled ? "enable" : "disable"
-		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/config/sync/data-backups/\(action)")
-		)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		if enabled {
-			request.httpBody = try JSONSerialization.data(withJSONObject: ["enabled": true])
-		}
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
-		struct Response: Decodable { let status: ConfigSyncStatus }
-		return try JSONDecoder().decode(Response.self, from: data).status
+		try await NativeRuntime.shared.backups().setSnapshotsEnabled(enabled)
+		return try await fetchConfigSyncStatus()
 	}
 
 	func createDatabaseBackupNow() async throws {
-		if NativeMode.isEnabled {
-			let service = try await NativeRuntime.shared.backups()
-			try await Task.detached(priority: .userInitiated) { _ = try service.createSnapshot() }.value
-			return
-		}
-		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/config/sync/data-backups/create")
-		)
-		request.httpMethod = "POST"
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		let service = try await NativeRuntime.shared.backups()
+		try await Task.detached(priority: .userInitiated) { _ = try service.createSnapshot() }.value
+		return
 	}
 
 	func listDatabaseBackups() async throws -> [DatabaseSyncBackup] {
-		if NativeMode.isEnabled {
-			let service = try await NativeRuntime.shared.backups()
-			return try JSONDecoder().decode([DatabaseSyncBackup].self, from: Data(service.snapshotsJSON().jsonString().utf8))
-		}
-		let url = baseURL.appendingPathComponent("api/config/sync/data-backups")
-		let (data, response) = try await URLSession.shared.data(from: url)
-		try validate(response: response, data: data)
-		struct Response: Decodable { let backups: [DatabaseSyncBackup] }
-		return try JSONDecoder().decode(Response.self, from: data).backups
+		let service = try await NativeRuntime.shared.backups()
+		return try JSONDecoder().decode([DatabaseSyncBackup].self, from: Data(service.snapshotsJSON().jsonString().utf8))
 	}
 
 	func restoreDatabaseBackup(deviceId: String, filename: String) async throws {
-		if NativeMode.isEnabled {
-			let service = try await NativeRuntime.shared.backups()
-			try await Task.detached(priority: .userInitiated) { _ = try service.restoreSnapshot(deviceID: deviceId, filename: filename) }.value
-			await NativeRuntime.shared.relaunchToApplyRestore()
-			return
-		}
-		var request = URLRequest(
-			url: baseURL.appendingPathComponent("api/config/sync/data-backups/restore")
-		)
-		request.httpMethod = "POST"
-		request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-		request.httpBody = try JSONSerialization.data(
-			withJSONObject: ["deviceId": deviceId, "filename": filename, "confirm": true]
-		)
-		let (data, response) = try await URLSession.shared.data(for: request)
-		try validate(response: response, data: data)
+		let service = try await NativeRuntime.shared.backups()
+		try await Task.detached(priority: .userInitiated) { _ = try service.restoreSnapshot(deviceID: deviceId, filename: filename) }.value
+		await NativeRuntime.shared.relaunchToApplyRestore()
+		return
 	}
 }
 
@@ -1765,4 +581,11 @@ final class StatusRelay: @unchecked Sendable {
 	let handler: (String) -> Void
 	init(_ handler: @escaping (String) -> Void) { self.handler = handler }
 	func send(_ message: String) { let handler = handler; Task { @MainActor in handler(message) } }
+}
+
+extension TobyClient {
+	/// Persona and skill edits from Settings.
+	func runConfigureAction(_ action: String, body: [String: String]) async throws -> ConfigureActionResponse {
+		try JSONDecoder().decode(ConfigureActionResponse.self, from: Data(try NativeConfigureActions.run(action, body: body).jsonString().utf8))
+	}
 }

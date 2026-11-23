@@ -52,7 +52,7 @@ struct FlowStepFieldsTests {
 
 	@Test("inputs pick a control from their schema")
 	func inputKinds() throws {
-		let specs = FlowStepInputLayout.specs(catalogTool: Self.convertTool(), scriptTool: nil)
+		let specs = FlowStepInputLayout.specs(catalogTool: Self.convertTool())
 		#expect(specs.first?.key == "source")
 		#expect(specs.first?.isRequired == true)
 		let byKey = Dictionary(uniqueKeysWithValues: specs.map { ($0.key, $0) })
@@ -75,7 +75,7 @@ struct FlowStepFieldsTests {
 
 	@Test("only required and filled-in inputs show before More options")
 	func primaryInputs() {
-		let specs = FlowStepInputLayout.specs(catalogTool: Self.convertTool(), scriptTool: nil)
+		let specs = FlowStepInputLayout.specs(catalogTool: Self.convertTool())
 		var node = FlowEditorNode.tool(moduleName: "images", toolName: "imagesConvert", required: ["source"])
 		node.triggerInputs["source"] = FlowTriggerValues.filePath
 		node.constInputs["format"] = "jpeg"
@@ -88,7 +88,7 @@ struct FlowStepFieldsTests {
 
 	@Test("a collapsed step summarizes its values in plain words")
 	func summary() {
-		let specs = FlowStepInputLayout.specs(catalogTool: Self.convertTool(), scriptTool: nil)
+		let specs = FlowStepInputLayout.specs(catalogTool: Self.convertTool())
 		var trigger = FlowTriggerSpec.manual()
 		trigger.changeSource("macos.fileChanges")
 		trigger.source.runPerFile = true
@@ -131,7 +131,7 @@ struct FlowStepFieldsTests {
 		trigger.changeSource("macos.fileChanges")
 		let view = FlowEditorStepInputs(
 			node: .constant(node),
-			specs: FlowStepInputLayout.specs(catalogTool: Self.convertTool(), scriptTool: nil),
+			specs: FlowStepInputLayout.specs(catalogTool: Self.convertTool()),
 			triggerValues: FlowTriggerValues.values(for: [trigger]),
 			outputs: []
 		)
